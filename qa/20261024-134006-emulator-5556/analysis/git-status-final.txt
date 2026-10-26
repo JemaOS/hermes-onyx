@@ -1,0 +1,6 @@
+ M PORT-CHECKLIST.md
+?? qa/
+?? releases/app-v1.0.0_127-20261024-0101.apk.sha256
+?? releases/app-v1.0.0_128-20261024-0216.apk.sha256
+?? releases/app-v1.0.0_130-integrated.apk.sha256
+?? releases/app-v1.0.0_134-20261024-1332.apk.sha256

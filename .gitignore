@@ -1,0 +1,28 @@
+# Build artefacts
+build/
+*/build/
+.gradle/
+.kotlin/
+local.properties
+.idea/
+captures/
+
+# Build outputs
+*.apk
+*.aab
+
+# Signing material — never in the tree
+*.keystore
+*.jks
+keystore.properties
+release.properties
+
+# QA recordings (large, and they can show the host screen)
+qa/**/*.png
+qa/**/*.jpg
+qa/**/*.xml
+qa/**/*.jsonl
+
+# Python
+__pycache__/
+*.pyc

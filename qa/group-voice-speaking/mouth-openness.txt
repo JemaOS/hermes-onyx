@@ -1,0 +1,6 @@
+La bouche du grand visage, dans sa boite (505,660)-(590,730) :
+  03-bouche-1.png : 1975 pixels sombres, 51 x 49 px
+  03-bouche-2.png : 1141 pixels sombres, 44 x 31 px
+  03-bouche-3.png : 1977 pixels sombres, 51 x 49 px
+  amplitude : 18 px de hauteur
+  (une bouche qui parle s'ouvre et se referme ; celle du visage fige est large et plate)

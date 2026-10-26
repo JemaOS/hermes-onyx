@@ -1,0 +1,20 @@
+Stability scan — Onyx QA emulator-5556
+Scope: canonical session logs; intentional am force-stop commands are not crashes.
+
+FILE logcat/pre-cold-full.txt (36682 lines)
+  'FATAL EXCEPTION': 0
+  'ANR in': 0
+  'Process: com.onyx.app': 0
+  'Fatal signal': 0
+  'am_crash': 0
+  'am_anr': 0
+
+FILE logcat/final-full.txt (10296 lines)
+  'FATAL EXCEPTION': 0
+  'ANR in': 0
+  'Process: com.onyx.app': 0
+  'Fatal signal': 0
+  'am_crash': 0
+  'am_anr': 0
+
+TOTAL_FATAL_OR_ANR_MATCHES=0

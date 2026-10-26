@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hermes Onyx</string>
+    <string name="widget_description">The last answer, or the one on its way.</string>
+    <string name="shortcut_ask_short">Ask Onyx</string>
+    <string name="shortcut_ask_long">Ask Onyx a question</string>
+    <string name="shortcut_talk_short">Talk to Onyx</string>
+    <string name="shortcut_talk_long">Talk to Onyx, hands-free</string>
+    <string name="shortcut_note_short">Take a note</string>
+    <string name="shortcut_note_long">Take a note for Onyx to file</string>
+</resources>

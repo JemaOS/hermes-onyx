@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Le captureur d'écran n'existe qu'en debug: il sert à comparer l'UI à celle de l'app sans
+  passer par la capture système de l'émulateur.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <provider
+            android:name=".debug.CaptureProvider"
+            android:authorities="com.onyx.app.capture"
+            android:exported="true"
+            android:enabled="true" />
+        <!-- La planche des états d'un bot: une maquette de recette, debug seulement. -->
+        <activity
+            android:name=".debug.BotExpressionsActivity"
+            android:exported="true"
+            android:label="Bot expressions"
+            android:theme="@style/Theme.Onyx" />
+    </application>
+</manifest>

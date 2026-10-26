@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- `dot.radiowaves.left.and.right`: le point central, et deux arcs de chaque côté. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:pathData="M12,9.6 a2.4,2.4 0 1 0 0.01,0 z"
+        android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M16.1,9.13 A5,5 0 0 1 16.1,14.87"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent" />
+    <path android:pathData="M7.9,9.13 A5,5 0 0 0 7.9,14.87"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent" />
+    <path android:pathData="M18.96,7.12 A8.5,8.5 0 0 1 18.96,16.88"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent" />
+    <path android:pathData="M5.04,7.12 A8.5,8.5 0 0 0 5.04,16.88"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent" />
+</vector>

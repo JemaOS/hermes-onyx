@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="onyx_background">#FF0E0E11</color>
+    <color name="ic_launcher_background">#FF1B1B22</color>
+    <!-- L'accent de l'app (`STANDARD_PALETTE.accent`): les vues natives s'en servent pour la
+         sélection d'un texte — poignées, surlignage, barre — au lieu de l'accent vert par défaut
+         du thème système, qui jurait avec le reste. -->
+    <color name="onyx_accent">#FF2E8BF5</color>
+</resources>

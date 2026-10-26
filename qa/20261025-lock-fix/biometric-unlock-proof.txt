@@ -1,0 +1,35 @@
+### 0) ecran verrouille, bouton de biometrie a (540,1265)
+text="Onyx est verrouillé"
+text="Déverrouiller avec l’empreinte"
+text="9999"
+text="Déverrouiller"
+text="Ce code est incorrect."
+
+### 1) appui: la feuille du systeme s'ouvre
+text="Onyx"
+text="Onyx est verrouillé"
+text="Déverrouillez pour voir vos conversations"
+text="Utiliser le code"
+
+### 2) doigt inconnu (adb emu finger touch 2): la feuille reste, l'app reste verrouillee
+OK
+text="Onyx"
+text="Onyx est verrouillé"
+text="Déverrouillez pour voir vos conversations"
+text="Touch the fingerprint sensor"
+text="Utiliser le code"
+
+### 3) bouton « Utiliser le code »: la feuille se ferme, l'ecran guide vers le champ
+text="Onyx est verrouillé"
+text="Déverrouiller avec l’empreinte"
+text="9999"
+text="Déverrouiller"
+text="Saisissez votre code."
+
+### 4) nouvel appui puis la bonne empreinte (finger touch 1)
+OK
+ecran apres l'empreinte :
+text="Nouvelle conversation"
+text="Onyx"
+text="Bon après-midi."
+text="Sur quoi Onyx devrait-il se pencher ?"

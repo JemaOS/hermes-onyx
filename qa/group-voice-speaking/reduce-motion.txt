@@ -1,0 +1,5 @@
+Sous « Supprimer les animations » (les trois echelles a 0), deux images a 1,2 s d'ecart de la
+meme scene de parole :
+  visage : bbox=None max=0 pixels=0
+  bouche : (897, 64, 26) puis (897, 64, 26) (large et plate : celle du visage)
+  Aucun mouvement : le visage est fige, comme le demande Reduce Motion.

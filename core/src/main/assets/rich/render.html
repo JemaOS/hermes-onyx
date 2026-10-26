@@ -1,0 +1,148 @@
+<!doctype html>
+<!--
+  Le rendu hors ligne de Mermaid et de KaTeX, embarqué dans l'app.
+
+  Aucune ressource ne vient du réseau: la feuille, le script et les polices sont dans
+  assets/rich/. C'est le même parti qu', qui embarque aussi ces deux bibliothèques pour rendre
+  les réponses sans connexion.
+-->
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="__VIEWPORT__">
+    <link rel="stylesheet" href="katex.min.css">
+    <style>
+        :root { color-scheme: light dark; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            /* Un diagramme plus large que le bloc se fait glisser (comme , qui garde le
+               dessin à sa taille); la hauteur, elle, est bornée par le bloc natif. */
+            overflow-x: auto;
+            overflow-y: __BODY_OVERFLOW__;
+            -webkit-text-size-adjust: 100%;
+        }
+        body {
+            color: __TEXT_COLOUR__;
+            font-family: -apple-system, "Inter", system-ui, sans-serif;
+            font-size: 14px;
+            line-height: 1.35;
+        }
+        #out { display: block; padding: 0; __OUT_LAYOUT__ }
+        /* Mermaid pose le `<svg>` directement dans #out, avec sa largeur en style en ligne:
+           `!important` est donc nécessaire pour la borner. Le dessin tient dans la largeur du
+           bloc, comme dans le lecteur plein écran — où le pincement agrandit ensuite jusqu'à 6×. */
+        #out > svg { max-width: 100% !important; height: auto; }
+        .katex-display { margin: 0.2em 0; }
+        .katex { color: __TEXT_COLOUR__; }
+        .failed {
+            font-family: ui-monospace, monospace;
+            font-size: 12px;
+            color: __ERROR_COLOUR__;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+    <script src="katex.min.js"></script>
+    <script src="mermaid.min.js"></script>
+</head>
+<body>
+<div id="out"></div>
+<script>
+    const kind = __KIND__;
+    const source = __SOURCE__;
+    // Dans le lecteur plein écran (zoomable), la page est pincée à la main: rien n'est réduit ici.
+    const zoomable = __ZOOMABLE__;
+    const out = document.getElementById('out');
+
+    function report() {
+        // La hauteur réelle du contenu, lue par l'app pour dimensionner la vue.
+        requestAnimationFrame(() => {
+            const height = Math.ceil(document.body.getBoundingClientRect().height);
+            if (window.Rich && window.Rich.report) window.Rich.report(height);
+        });
+    }
+
+    /**
+     * Une formule plus large que le bloc est mise à l'échelle pour tenir en entier, comme le fait
+     * (la formule de coût y tient sur une ligne). La réduction a une borne basse: en dessous,
+     * elle resterait illisible.
+     *
+     * La largeur mesurée est celle du `base` de KaTeX — un `inline-block` à la taille réelle de la
+     * formule —, pas celle de `#out`, dont la boîte fait déjà la largeur du bloc.
+     */
+    function fitMath() {
+        const available = document.documentElement.clientWidth;
+        if (!available) return;
+        const base = out.querySelector('.katex .base') || out.querySelector('.katex-html');
+        let size = 1;
+        for (let pass = 0; pass < 6; pass++) {
+            const width = base ? base.getBoundingClientRect().width : out.scrollWidth;
+            if (!width || width <= available) break;
+            size = Math.max(0.4, size * (available / width) * 0.98);
+            out.style.fontSize = size.toFixed(3) + 'em';
+        }
+    }
+
+    /**
+     * Un dessin plus large que le bloc est ramené à sa largeur, comme le fait: mermaid pose
+     * une largeur en dur et un `viewBox`, donc on retire la première et on laisse le second tenir
+     * le dessin à l'échelle. Un dessin qui tient déjà garde sa taille.
+     */
+    function fitDiagram() {
+        const svg = out.querySelector('svg');
+        if (!svg || !svg.getAttribute('viewBox')) return;
+        const available = document.documentElement.clientWidth;
+        const width = svg.getBoundingClientRect().width;
+        if (!available || !width || width <= available + 1) return;
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+        svg.style.maxWidth = '100%';
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+    }
+
+    function fail(error) {
+        out.className = 'failed';
+        out.textContent = String(error);
+        report();
+    }
+
+    (async function () {
+        try {
+            if (kind === 'math') {
+                out.innerHTML = katex.renderToString(source, {
+                    displayMode: true,
+                    throwOnError: false,
+                    output: 'html',
+                });
+                if (!zoomable) fitMath();
+            } else if (kind === 'html') {
+                out.innerHTML = source;
+            } else if (kind === 'mermaid') {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    securityLevel: 'strict',
+                    theme: __MERMAID_THEME__,
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                });
+                const { svg } = await mermaid.render('diagram-' + Date.now(), source);
+                out.innerHTML = svg;
+                fitDiagram();
+            }
+            report();
+        } catch (error) {
+            fail(error && error.message ? error.message : error);
+        }
+    })();
+
+    window.addEventListener('resize', report);
+    // Un tap dans le dessin demande au bloc natif d'ouvrir son lecteur; un drag ne déclenche
+    // pas l'événement click et conserve donc le défilement du chat ou du lecteur.
+    document.addEventListener('click', function () {
+        if (window.Rich && window.Rich.tap) window.Rich.tap();
+    });
+</script>
+</body>
+</html>

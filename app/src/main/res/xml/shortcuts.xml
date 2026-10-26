@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App Actions: ce que Gemini (et l'assistant du téléphone) peut demander à Onyx.
+
+  C'est l'équivalent Android des App Intents de l'assistant: « demande à Onyx … »
+  arrive sur MainActivity avec la question dans `query`, comme `AskHermesTextIntent`.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="com.onyx.app.action.ASK"
+            android:targetPackage="com.onyx.app"
+            android:targetClass="com.onyx.app.MainActivity">
+            <parameter
+                android:name="feature"
+                android:key="query"
+                android:required="true" />
+        </intent>
+        <intent
+            android:action="com.onyx.app.action.VOICE"
+            android:targetPackage="com.onyx.app"
+            android:targetClass="com.onyx.app.MainActivity">
+            <parameter
+                android:name="feature"
+                android:key="query"
+                android:required="false" />
+        </intent>
+    </capability>
+
+    <capability android:name="custom.actions.intent.ASK">
+        <intent
+            android:action="com.onyx.app.action.ASK"
+            android:targetPackage="com.onyx.app"
+            android:targetClass="com.onyx.app.MainActivity">
+            <parameter
+                android:name="query"
+                android:key="query"
+                android:required="true" />
+        </intent>
+    </capability>
+
+    <shortcut
+        android:shortcutId="ask"
+        android:enabled="true"
+        android:icon="@drawable/ic_sym_sparkles"
+        android:shortcutShortLabel="@string/shortcut_ask_short"
+        android:shortcutLongLabel="@string/shortcut_ask_long">
+        <intent
+            android:action="com.onyx.app.action.ASK"
+            android:targetPackage="com.onyx.app"
+            android:targetClass="com.onyx.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="talk"
+        android:enabled="true"
+        android:icon="@drawable/ic_sym_mic_fill"
+        android:shortcutShortLabel="@string/shortcut_talk_short"
+        android:shortcutLongLabel="@string/shortcut_talk_long">
+        <intent
+            android:action="com.onyx.app.action.VOICE"
+            android:targetPackage="com.onyx.app"
+            android:targetClass="com.onyx.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- « Capture rapide »: une note prise en passant, à classer. Deux gestes depuis n'importe
+         où: l'appui long sur l'illustration d'Onyx, puis cette ligne. -->
+    <shortcut
+        android:shortcutId="note"
+        android:enabled="true"
+        android:icon="@drawable/ic_sym_film"
+        android:shortcutShortLabel="@string/shortcut_note_short"
+        android:shortcutLongLabel="@string/shortcut_note_long">
+        <intent
+            android:action="com.onyx.app.action.CAPTURE"
+            android:targetPackage="com.onyx.app"
+            android:targetClass="com.onyx.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

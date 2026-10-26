@@ -1,0 +1,17 @@
+root: ['Conversations']
+cap root -> 88850
+open rail: ('Conversations', 82, 208)
+rail: ['Settings']
+tap settings: ('Settings', 110, 221)
+settings: ['Done', 'Voice']
+cap settings -> 206222
+tap voice row: ('Voice', 474, 1303)
+voice page: ['On-device', 'Kokoro', 'Hermes', 'Voice speed', 'Reads replies with your Kokoro-compatible TTS server and the voice or blend chosen here. Falls back to the on-device voice if the server is unreachable.']
+select Hermes: ('Hermes', 838, 633)
+rows now: ['On-device', 'Kokoro', 'Hermes', 'Say a test sentence', "Your Hermes reads replies out with the voice set under tts in its config.yaml, through the Dashboard connection. The phone needs no voice key. “Say a test sentence” shows which provider speaks. Speed and language are Hermes's settings too. Falls back to the on-device voice when the Dashboard can't speak."]
+cap voice page -> 165079
+tap test row: ('Say a test sentence', 540, 776)
+working: ['Stop', 'Working…', "Your Hermes reads replies out with the voice set under tts in its config.yaml, through the Dashboard connection. The phone needs no voice key. “Say a test sentence” shows which provider speaks. Speed and language are Hermes's settings too. Falls back to the on-device voice when the Dashboard can't speak.", 'Stop phrases']
+cap working -> 166375
+final: ['Say a test sentence', '✓', "Your Hermes reads replies out with the voice set under tts in its config.yaml, through the Dashboard connection. The phone needs no voice key. “Say a test sentence” shows which provider speaks. Speed and language are Hermes's settings too. Falls back to the on-device voice when the Dashboard can't speak.", 'The Dashboard couldn\'t speak, so the on-device voice read it. The server returned HTTP error 400. {"detail":"TTS chunk 1 failed (edge): No TTS provider available. Enable Edge TTS with: hermes pm install --extra edge-tts or run \'hermes setup tts\' and choose NeuTTS for local synthesis."}']
+cap final -> 209586

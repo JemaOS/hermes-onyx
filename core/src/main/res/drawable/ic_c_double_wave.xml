@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FF1D66D9" />
+    <path android:pathData="M120 460 C 220 300, 320 300, 420 460 S 620 620, 720 460 S 900 300, 904 460" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+    <path android:pathData="M120 640 C 220 480, 320 480, 420 640 S 620 800, 720 640 S 900 480, 904 640" android:fillColor="@android:color/transparent" android:strokeColor="#66FFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+</vector>
+<!-- Converti depuis C-double-wave.svg -->

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auto_app_name">Onyx</string>
+    <string name="auto_ready">Say “ask Onyx a question”, or open the phone to set the server.</string>
+    <string name="auto_thinking">Asking…</string>
+</resources>

@@ -1,0 +1,1 @@
+UI hierchary dumped to: /sdcard/onyx-qa-00.xml

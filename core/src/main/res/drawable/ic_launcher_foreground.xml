@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Avant-plan de l'icône: le « O » d'Onyx, tracé comme la rune Othalan (ᛟ) — un losange
+  fermé et ses deux jambes croisées, mis à l'échelle dans la zone sûre de 66/108. C'est un
+  chemin géométrique (`Path`), pas une police: il sert l'icône monochrome d'Android 13+ et
+  la petite icône de notification, où Android ne garde que le canal alpha.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M39.75,75.81L68.25,47.89L54.00,32.20L39.75,47.89L68.25,75.81Z"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="8.39"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

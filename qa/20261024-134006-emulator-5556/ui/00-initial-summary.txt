@@ -1,0 +1,13 @@
+rotation=0
+class='android.view.View' | bounds='[42,150][466,276]' | clickable='true' | enabled='true'
+content-desc='Hands-free, on' | class='android.view.View' | bounds='[42,162][466,263]' | enabled='true'
+text='Hands-free' | class='android.widget.TextView' | bounds='[145,189][359,236]' | enabled='true'
+text='On' | class='android.widget.TextView' | bounds='[380,193][423,232]' | enabled='true'
+text='Onyx' | class='android.widget.TextView' | bounds='[498,189][922,236]' | enabled='true'
+content-desc='Voice settings' | class='android.view.View' | bounds='[928,150][1054,276]' | clickable='true' | enabled='true'
+text='LISTENING' | class='android.widget.TextView' | bounds='[63,1022][1017,1075]' | enabled='true'
+text='Go ahead.' | class='android.widget.TextView' | bounds='[402,1122][678,1192]' | enabled='true'
+text="Say “stop listening” or “that's all” to end hands-free." | class='android.widget.TextView' | bounds='[63,2118][1017,2157]' | enabled='true'
+content-desc='Switch to typing' | class='android.view.View' | bounds='[229,2168][387,2326]' | clickable='true' | enabled='true'
+content-desc='Replay the last answer' | class='android.view.View' | bounds='[461,2168][619,2326]' | clickable='true' | enabled='true'
+content-desc='Stop' | class='android.view.View' | bounds='[693,2168][851,2326]' | clickable='true' | enabled='true'

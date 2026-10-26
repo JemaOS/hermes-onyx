@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=Onyx, OU=Mobile, O=Goosehouse LLC, L=Paris, C=FR
+Signer #1 certificate SHA-256 digest: fa3364fdb2ca25dd91ce3f7f4731c7b472d46f9af5b11152388a595bf01112cb
+Signer #1 certificate SHA-1 digest: 437f4586e3dcbf5dcd892e2c38bac90b2e192f59
+Signer #1 certificate MD5 digest: c13be570b7fb12bd987019ec5b904228
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 4096
+Signer #1 public key SHA-256 digest: 71a402428bd6509f80ab346796d41a00a74b699669045c887937d255413818c8
+Signer #1 public key SHA-1 digest: c23abebafb745fa6d297b45c0fd60d5662ac28ca
+Signer #1 public key MD5 digest: 431df2778286f06f5dba6f15e7b3036e

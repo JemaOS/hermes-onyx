@@ -1,0 +1,13 @@
+rotation=0
+text="What's New in Onyx" | class='android.widget.TextView' | bounds='[74,199][999,307]' | enabled='true'
+text='Version 1.0.0+134' | class='android.widget.TextView' | bounds='[74,323][401,370]' | enabled='true'
+text='Bots, with faces' | class='android.widget.TextView' | bounds='[174,444][515,498]' | enabled='true'
+text='Every Hermes profile shows up as a bot, with an orb or a face you pick. Group chats let several answer in turn.' | class='android.widget.TextView' | bounds='[174,506][1006,649]' | enabled='true'
+text='Code, diagrams and math' | class='android.widget.TextView' | bounds='[174,723][718,777]' | enabled='true'
+text='Code is coloured and numbered, with a copy button; Mermaid and formulas are drawn on the phone, offline.' | class='android.widget.TextView' | bounds='[174,785][1006,928]' | enabled='true'
+text='Voice that stops when you say so' | class='android.widget.TextView' | bounds='[174,1002][884,1056]' | enabled='true'
+text='Hands-free listening ends on your own stop phrases, and reading a reply aloud stops the moment you speak.' | class='android.widget.TextView' | bounds='[174,1064][1006,1207]' | enabled='true'
+text='Several servers' | class='android.widget.TextView' | bounds='[174,1281][504,1335]' | enabled='true'
+text='Switch between gateways, each with its own addresses, keys, profile and model.' | class='android.widget.TextView' | bounds='[174,1343][1006,1438]' | enabled='true'
+class='android.view.View' | bounds='[74,2230][1006,2358]' | clickable='true' | enabled='true'
+text='Continue' | class='android.widget.TextView' | bounds='[443,2267][637,2321]' | enabled='true'

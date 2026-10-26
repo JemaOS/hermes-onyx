@@ -1,0 +1,15 @@
+root: ['Conversations']
+cap root -> 88578
+open rail: ('Conversations', 82, 208)
+rail: ['Settings']
+tap settings: ('Settings', 110, 221)
+settings: ['Done', 'Voice']
+cap settings -> 205908
+tap voice row: ('Voice', 474, 1303)
+voice page: ['On-device', 'Kokoro', 'Hermes', 'Say a test sentence', "Your Hermes reads replies out with the voice set under tts in its config.yaml, through the Dashboard connection. The phone needs no voice key. “Say a test sentence” shows which provider speaks. Speed and language are Hermes's settings too. Falls back to the on-device voice when the Dashboard can't speak."]
+cap voice page -> 164850
+tap test row: ('Say a test sentence', 540, 776)
+working: ['Say a test sentence', "Your Hermes reads replies out with the voice set under tts in its config.yaml, through the Dashboard connection. The phone needs no voice key. “Say a test sentence” shows which provider speaks. Speed and language are Hermes's settings too. Falls back to the on-device voice when the Dashboard can't speak.", 'Stop phrases']
+cap working -> 181947
+final: ['Say a test sentence', "Your Hermes reads replies out with the voice set under tts in its config.yaml, through the Dashboard connection. The phone needs no voice key. “Say a test sentence” shows which provider speaks. Speed and language are Hermes's settings too. Falls back to the on-device voice when the Dashboard can't speak."]
+cap final -> 181947

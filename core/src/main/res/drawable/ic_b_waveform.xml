@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FF2E8BF5" />
+    <path android:pathData="M256.0,440.0 L256.0,584.0" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+    <path android:pathData="M384.0,336.0 L384.0,688.0" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+    <path android:pathData="M512.0,232.0 L512.0,792.0" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+    <path android:pathData="M640.0,336.0 L640.0,688.0" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+    <path android:pathData="M768.0,440.0 L768.0,584.0" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="72.0" android:strokeLineCap="round" />
+</vector>
+<!-- Converti depuis B-waveform.svg -->

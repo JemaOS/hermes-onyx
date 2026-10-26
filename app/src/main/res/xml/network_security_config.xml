@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Politique réseau de Onyx.
+
+  L'app autorise le HTTP en clair (`NSAppTransportSecurity` →
+  `NSAllowsArbitraryLoads = true`, voir.plist et project.yml), parce qu'un
+  gateway Hermes auto-hébergé est le plus souvent en `http://` sur le réseau local
+  (ex. http://192.168.1.83:8080). Android 9+ bloque le cleartext par défaut: sans
+  cette configuration, toute connexion à un serveur non-TLS échoue avec
+  `CLEARTEXT communication to <host> not permitted by network security policy`.
+
+  On reflète donc exactement la politique plutôt que de la durcir, sinon le
+  client ne peut pas joindre le serveur qu'il est fait pour joindre.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
