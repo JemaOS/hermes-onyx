@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-1844%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-2104%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -34,6 +34,30 @@ phone without handing your prompts to a third party, this is that app.
 
 ## Features
 
+**Where a conversation starts**
+
+- **A sidebar with two lives** — one pane carries your **conversations**, and the same pane carries your
+  **bots**: a two-position switch (**Chats** / **Bots**) moves between them, so the bots are never mixed
+  into the conversation list, and the *Bots* label carries how many of them are waiting for you. The
+  pane shows the gateway's name, its address and a reachability light, a search field, the tiles to the
+  app's screens (**Scheduled, Skills, Tools, Files, Models, Kanban, Code, Settings**), your **projects**
+  with their counts, the filters — **All**, **Running**, **Waiting for you** — with their counts, and the
+  conversation rows with their age. On a wide screen it stands **beside** the thread; on a phone it
+  unfolds over it and folds back with one tap.
+- **A composer that says what it will do** — the **model chip** sits in the composer itself and carries
+  the **reflection level** the server allows (`model | level`): both read from the server, never a value
+  the app invented.
+- **A model selector made for a long list** — search across models and providers, a **Favourites**
+  section of its own above the recents, and the choice remembered **per bot**: a conversation opens on
+  the model its bot was given. A model whose source states no price shows none.
+- **The attachment sheet** — the "+" opens a sheet anchored at the bottom, with a handle, a title and its
+  limits written out — **up to 10 attachments · 25 MB in all · 25 MB per file · 128 KB for a text
+  file** — then library, camera, files, paste. A file over those limits is **refused as it is added**,
+  with its own size beside the limit, instead of being read, encoded and sent.
+- **Conversation actions, in a sheet** — the "…" opens a bottom sheet instead of a floating card:
+  *find in conversation*, *rename*, *export as Markdown*, *take a note*, *start fresh*, and the three
+  panels — **Usage & cost**, **Background processes**, **Restore points** — plus *copy session id*.
+
 **A conversation, five tabs deep**
 
 - **Five tabs in every conversation** — **Chat**, **Feed**, **Files**, **Ideas** and **Goals** sit in a
@@ -42,6 +66,9 @@ phone without handing your prompts to a third party, this is that app.
   Goals stay on the phone, grouped by category.
 - **Streaming answers** over SSE: reasoning folded away, tool calls, approval cards, follow-up questions
   you send with one tap, "jump to latest", and an error banner that tells you what the server said.
+- **A reply block of its own** — the reasoning is **framed** above the answer, and **four aligned
+  actions** sit under it: **restore, regenerate, read, copy**. *Restore to this message* asks first and
+  states the consequence; done, it says where it restored and how much was removed.
 - **Rich Markdown** — tables, code with copy, maths with KaTeX, diagrams with mermaid, link previews, image
   and video viewers, text selection across messages.
 - **The Files tab, exhaustively** — every file the bot delivered and every one you attached, in a single
@@ -95,6 +122,13 @@ phone without handing your prompts to a third party, this is that app.
 
 - **Kanban, Cron, Files, Terminal, Skills, Models, Tools, Servers, Logs** — the board, the schedules, the
   server's files, an SSH terminal, all from the phone.
+- **Capabilities** — a profile's **skills**, **toolsets** and **MCP servers** on one screen, each on its
+  own switch. A switch writes the profile's configuration and applies to the **next** conversation, says
+  so, and comes back if the server refuses the change.
+- **Insights** — what a profile consumed over 7, 30 or 90 days: the cost (estimated, or the provider's
+  real figure when it gives one), the sessions, the tokens in and out, the share served from the cache,
+  and the tokens **day by day**. Every figure comes from the server's usage report; when the route is
+  missing or the answer unreadable, the screen says so and shows no card at all.
 - **One key** — the all-in-one link puts the Dashboard and the chat at the **same address** behind a
   **single key**: no user name, no password to retype, and the bots, the rooms and the live stream arrive
   the way chat does.
@@ -104,9 +138,20 @@ phone without handing your prompts to a third party, this is that app.
   palettes, and an interface in **English or French** — or **System**, which follows the phone and is
   what you get until you choose otherwise. The **menus translate too**, end to end: the long-press
   menus, the row menus and the sheet titles read French as well, not only the screens.
+- **Liquid glass** — the composer and the bars are a **real blur** over what is behind them, not a flat
+  veil; **a face that lives** — a bot's face blinks, looks around and follows what it is doing while it
+  thinks or speaks.
 - **Room to breathe** — the bottom bars and the headers keep their distance from the system gesture
   area, so the tab strip no longer sits against the swipe zone; and the menu icons follow one house
   stroke, so a menu reads the same everywhere in the app.
+
+**What your server decides**
+
+Three of these read routes a server may not answer, and the app says so rather than dress up an empty
+screen. **Restore points** come from `rollback.list`, which returns `enabled: false` and no checkpoint on
+a server that keeps them switched off; **Background processes** come from `process.list`, empty there
+too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
+the sentence the server gave it, never a made-up figure.
 
 ## Screenshots
 
@@ -114,12 +159,17 @@ phone without handing your prompts to a third party, this is that app.
 |:---:|:---:|:---:|:---:|:---:|
 | <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
 
+| The sidebar, the thread beside it | Conversation actions, as a sheet |
+|:---:|:---:|
+| <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> |
+
 The bot roster in the first picture is read from the server: the app lists the profiles it exposes, so a
 profile called `QA-tester` appears under that name.
 
 Every screenshot in this README was taken on an emulator, in the **dark theme**, against a test
-server holding demo data — no real machine, no real conversation, no token. The **Files** tab is the
-**1.0.0+437** build; the others are **1.0.0+423**.
+server holding demo data — no real machine, no real conversation, no token. The **sidebar** and the
+**conversation actions** sheet are the **1.0.0+438** build, the **Files** tab is **1.0.0+437**; the
+others are **1.0.0+423**.
 
 ## Install
 
@@ -128,9 +178,9 @@ Three applications, one signing key, built from one code base:
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+437-telephone.apk` | Phone, Android 8.0+ | The app: chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
-| `Hermes-Onyx-1.0.0+437-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+437-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+460-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
+| `Hermes-Onyx-1.0.0+460-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+460-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
 The three names above are the exact asset names on the release. Each release also carries a
 `SHA256SUMS` file with the SHA-256 of the three APKs — check your download against it:
@@ -196,7 +246,7 @@ ever goes up and an APK installs over the previous one.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**1844 tests, 0 failures** — 888 in `:core`, 956 in `:app`, across 279 test classes. Plain JUnit 4, no
+**2104 tests, 0 failures** — 1042 in `:core`, 1062 in `:app`, across 310 test classes. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
@@ -205,7 +255,6 @@ build, signature, manifest, components.
 
 ## Roadmap
 
-- [ ] A tablet and foldable layout with two panes side by side.
 - [ ] Publish the Wear and Auto companions to Play, not only as APKs.
 - [ ] A per-room voice mixer, so three bots do not all speak at the same level.
 - [ ] Translations beyond English and French.
