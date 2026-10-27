@@ -7,17 +7,17 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-1198%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-1683%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p>
-  <img src="docs/screenshots/conversations.png" width="19%" alt="Conversations, bots and group rooms" />
-  <img src="docs/screenshots/group-room-answering.png" width="19%" alt="Three bots answering in a group room" />
+  <img src="docs/screenshots/conversations.png" width="19%" alt="Conversations, bots and rooms" />
+  <img src="docs/screenshots/conversation-feed.png" width="19%" alt="The Feed tab of a conversation" />
   <img src="docs/screenshots/voice-hands-free.png" width="19%" alt="Hands-free voice, listening" />
-  <img src="docs/screenshots/cron-jobs.png" width="19%" alt="Scheduled jobs" />
-  <img src="docs/screenshots/bot-roster.png" width="19%" alt="The bot roster" />
+  <img src="docs/screenshots/code-sessions.png" width="19%" alt="Code sessions, with branch and status" />
+  <img src="docs/screenshots/conversation-goals.png" width="19%" alt="Goals, kept on the phone" />
 </p>
 
 </div>
@@ -34,58 +34,91 @@ phone without handing your prompts to a third party, this is that app.
 
 ## Features
 
-**Conversations and rooms**
+**A conversation, five tabs deep**
 
-- **Bots, side by side** — every profile on your server with its own face, prompt, toolset, schedules and
-  voice. Create one, edit it, hide it, reorder them.
-- **Group rooms** — pick the members, then let them talk to each other while you watch, answer, approve or
-  interrupt.
+- **Five tabs in every conversation** — **Chat**, **Feed**, **Files**, **Ideas** and **Goals** sit in a
+  bar at the bottom of the thread. The Feed collects the bot's answers as dated cards you can rate,
+  discuss or turn into a goal; Files holds what the bot delivered and what you attached; Ideas and
+  Goals stay on the phone, grouped by category.
 - **Streaming answers** over SSE: reasoning folded away, tool calls, approval cards, follow-up questions
   you send with one tap, "jump to latest", and an error banner that tells you what the server said.
 - **Rich Markdown** — tables, code with copy, maths with KaTeX, diagrams with mermaid, link previews, image
   and video viewers, text selection across messages.
 
+**Bots and rooms**
+
+- **Bots, side by side** — every profile on your server with its own face, prompt, toolset, schedules and
+  voice. Create one, edit it, hide it, reorder them.
+- **Rooms** — pick the members, then let them talk to each other while you watch, answer, approve or
+  interrupt.
+
+**Code**
+
+- **A Code tab** — the code sessions you have started, filtered **All / In progress / Yours / Ready**,
+  each row carrying its branch and status. The repository, the worktree and the branch are read back
+  from the server, never guessed; a session's status is the state of the real turn that started it, and
+  a failure shows the transport error as it came.
+
 **Voice**
 
 - **Hands-free with real turn-taking** — barge-in, back-channel words, spoken stop phrases, and a large
   speaking face that follows the level of the voice.
+- **Rooms that take their turn** — in a voice room, one question goes out and the bots answer **one
+  after another**, each read in its own voice; when nobody answers, the app says so instead of leaving
+  you in front of a silent face.
 - **A voice per bot** — each one speaks with its own installed voice, in a room as well as solo.
 - **Two languages at once** — speech and reply language are chosen separately, so you can talk French and
   be answered in English.
+
+**Your computer**
+
+- **Computer** — see your machine's screen and drive it by touch, with an approval gate before any command
+  runs. When the picture stops updating, the app reconnects by itself and picks the session back up.
+- **Live numbers** — round-trip, jitter, frames per second, dropped and missed frames, bandwidth — so you
+  can tell a slow link from a stopped one.
+- **Adaptive quality** — the stream steps down through a quality ladder, with a floor below which the
+  image would stop being readable.
 
 **The rest of your server**
 
 - **Kanban, Cron, Files, Terminal, Skills, Models, Tools, Servers, Logs** — the board, the schedules, the
   server's files, an SSH terminal, all from the phone.
-- **Computer** — see your machine's screen and drive it by touch, with an approval gate before any command
-  runs.
+- **One key** — the all-in-one link puts the Dashboard and the chat at the **same address** behind a
+  **single key**: no user name, no password to retype, and the bots, the rooms and the live stream arrive
+  the way chat does.
 - **Sub-agents** — when an agent fans its work out, the children appear as a task list with their own
   transcript and a stop button.
 - **Small courtesies** — a widget, notifications, a lock screen, light and dark themes with several
-  palettes, and an interface in English or French.
+  palettes, and an interface in **English or French** — or **System**, which follows the phone and is
+  what you get until you choose otherwise.
 
 ## Screenshots
 
-| Group room, listening | Sub-agent task list | Sub-agent transcript | Bot roster |
+| Chat | Feed | Ideas | Code sessions |
 |:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/group-room-listening.png" width="100%"> | <img src="docs/screenshots/subagent-tasks.png" width="100%"> | <img src="docs/screenshots/subagent-transcript.png" width="100%"> | <img src="docs/screenshots/bot-roster.png" width="100%"> |
+| <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
 
-Every screenshot in this README was taken on an emulator against a test server holding demo data — no
-real machine, no real conversation, no token.
+The bot roster in the first picture is a real one: the app lists the profiles your server exposes, so a
+profile called `QA-tester` appears under that name.
+
+Every screenshot in this README was taken on an emulator, with the **1.0.0+423** build, against a test
+server holding demo data — no real machine, no real conversation, no token.
 
 ## Install
 
-The signed APKs are on the [v1.0.0 release](https://github.com/JemaOS/hermes-onyx/releases/latest) page.
-Three applications, one signing key:
+The signed APKs are on the [latest release](https://github.com/JemaOS/hermes-onyx/releases/latest) page.
+Three applications, one signing key, built from one code base:
 
 | File | Runs on | What it is |
 |---|---|---|
-| `hermes-onyx-1.0.0+341.apk` | Phone, Android 8.0+ | The app: chat, conversations, voice, servers, kanban, cron, files, terminal, widget. |
-| `hermes-onyx-wear-1.0.0+341.apk` | Wear OS 3+ | The watch: ask, read, listen. Plus a tile. |
-| `hermes-onyx-auto-1.0.0+341.apk` | Android Auto | The car: ask, read aloud. |
+| `Hermes-Onyx-1.0.0+423-telephone.apk` | Phone, Android 8.0+ | The app: chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
+| `Hermes-Onyx-1.0.0+423-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+423-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+
+The three names above are the exact asset names on the release. Each release also carries a
+`SHA256SUMS` file with the SHA-256 of the three APKs — check your download against it:
 
 ```bash
-# Check the download against the hashes published with the release.
 curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS
 ```
@@ -115,6 +148,7 @@ hermes-onyx/
 ├── auto/    an Android Auto companion — ask screen
 ├── design/  source SVGs for the icons and the speaking orbs
 ├── scripts/ release archiving, orb rendering, gateway proxy
+├── tools/   the computer bridge, icon tooling
 └── docs/    the screenshots used by this README
 ```
 
@@ -145,7 +179,7 @@ ever goes up and an APK installs over the previous one.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**1198 tests, 0 failures** — 547 in `:core`, 651 in `:app`, across 198 test classes. Plain JUnit 4, no
+**1683 tests, 0 failures** — 791 in `:core`, 892 in `:app`, across 260 test classes. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
