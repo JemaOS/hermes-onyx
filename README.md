@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-1683%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-1844%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -44,6 +44,15 @@ phone without handing your prompts to a third party, this is that app.
   you send with one tap, "jump to latest", and an error banner that tells you what the server said.
 - **Rich Markdown** — tables, code with copy, maths with KaTeX, diagrams with mermaid, link previews, image
   and video viewers, text selection across messages.
+- **The Files tab, exhaustively** — every file the bot delivered and every one you attached, in a single
+  list: **type filters that carry their counts** (Images 3, Videos 1, Audio 1, Documents 3, Archives 1),
+  **five sorts** (recent, oldest, name, size, type), and a state per row — **to download**,
+  **downloading**, **available**. Each family opens where it belongs: **audio** in the app's own player,
+  **documents** as text or a paged PDF, **archives** as the list of their entries, photos and videos in
+  the built-in viewers; a file the app cannot show is handed to the system, and the row says why rather
+  than leave the tap dead.
+- **Share to Onyx** — send a picture from another app straight into the conversation: the image is filed
+  on the server and **reaches the model** with your next message, not merely shown on screen.
 
 **Bots and rooms**
 
@@ -58,6 +67,9 @@ phone without handing your prompts to a third party, this is that app.
   each row carrying its branch and status. The repository, the worktree and the branch are read back
   from the server, never guessed; a session's status is the state of the real turn that started it, and
   a failure shows the transport error as it came.
+- **Act on a session** — long-press a card for its four actions: **rename** it, **edit** its repository,
+  worktree, branch and prompt, **run again** as a fresh session, or **delete** the card — that one
+  destructive, set apart from the rest, behind a confirmation that states the consequence.
 
 **Voice**
 
@@ -90,19 +102,24 @@ phone without handing your prompts to a third party, this is that app.
   transcript and a stop button.
 - **Small courtesies** — a widget, notifications, a lock screen, light and dark themes with several
   palettes, and an interface in **English or French** — or **System**, which follows the phone and is
-  what you get until you choose otherwise.
+  what you get until you choose otherwise. The **menus translate too**, end to end: the long-press
+  menus, the row menus and the sheet titles read French as well, not only the screens.
+- **Room to breathe** — the bottom bars and the headers keep their distance from the system gesture
+  area, so the tab strip no longer sits against the swipe zone; and the menu icons follow one house
+  stroke, so a menu reads the same everywhere in the app.
 
 ## Screenshots
 
-| Chat | Feed | Ideas | Code sessions |
-|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
+| Chat | Feed | Files | Ideas | Code sessions |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
 
 The bot roster in the first picture is read from the server: the app lists the profiles it exposes, so a
 profile called `QA-tester` appears under that name.
 
-Every screenshot in this README was taken on an emulator, with the **1.0.0+423** build, in the **dark
-theme**, against a test server holding demo data — no real machine, no real conversation, no token.
+Every screenshot in this README was taken on an emulator, in the **dark theme**, against a test
+server holding demo data — no real machine, no real conversation, no token. The **Files** tab is the
+**1.0.0+437** build; the others are **1.0.0+423**.
 
 ## Install
 
@@ -111,9 +128,9 @@ Three applications, one signing key, built from one code base:
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+423-telephone.apk` | Phone, Android 8.0+ | The app: chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
-| `Hermes-Onyx-1.0.0+423-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+423-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+437-telephone.apk` | Phone, Android 8.0+ | The app: chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
+| `Hermes-Onyx-1.0.0+437-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+437-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
 The three names above are the exact asset names on the release. Each release also carries a
 `SHA256SUMS` file with the SHA-256 of the three APKs — check your download against it:
@@ -179,7 +196,7 @@ ever goes up and an APK installs over the previous one.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**1683 tests, 0 failures** — 791 in `:core`, 892 in `:app`, across 260 test classes. Plain JUnit 4, no
+**1844 tests, 0 failures** — 888 in `:core`, 956 in `:app`, across 279 test classes. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
