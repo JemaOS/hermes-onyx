@@ -98,11 +98,11 @@ phone without handing your prompts to a third party, this is that app.
 |:---:|:---:|:---:|:---:|
 | <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
 
-The bot roster in the first picture is a real one: the app lists the profiles your server exposes, so a
+The bot roster in the first picture is read from the server: the app lists the profiles it exposes, so a
 profile called `QA-tester` appears under that name.
 
-Every screenshot in this README was taken on an emulator, with the **1.0.0+423** build, against a test
-server holding demo data — no real machine, no real conversation, no token.
+Every screenshot in this README was taken on an emulator, with the **1.0.0+423** build, in the **dark
+theme**, against a test server holding demo data — no real machine, no real conversation, no token.
 
 ## Install
 
