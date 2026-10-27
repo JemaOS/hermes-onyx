@@ -139,8 +139,8 @@ phone without handing your prompts to a third party, this is that app.
   what you get until you choose otherwise. The **menus translate too**, end to end: the long-press
   menus, the row menus and the sheet titles read French as well, not only the screens.
 - **Liquid glass** — the composer and the bars are a **real blur** over what is behind them, not a flat
-  veil; **a face that lives** — a bot's face blinks, looks around and follows what it is doing while it
-  thinks or speaks.
+  veil; **a face that lives** — a bot's face blinks, looks around and breathes, and its mood follows
+  what it is doing while it thinks or speaks.
 - **Room to breathe** — the bottom bars and the headers keep their distance from the system gesture
   area, so the tab strip no longer sits against the swipe zone; and the menu icons follow one house
   stroke, so a menu reads the same everywhere in the app.
