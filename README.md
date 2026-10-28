@@ -7,15 +7,15 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-2459%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-2460%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p>
-  <img src="docs/screenshots/conversations.png" width="19%" alt="The panel: search, the tile grid, the projects and the conversations" />
+  <img src="docs/screenshots/conversation-chat.png" width="19%" alt="The Chat tab of a conversation" />
   <img src="docs/screenshots/conversation-feed.png" width="19%" alt="The Feed tab of a conversation" />
-  <img src="docs/screenshots/voice-hands-free.png" width="19%" alt="Hands-free voice, listening" />
+  <img src="docs/screenshots/voice-listening.png" width="19%" alt="Hands-free voice, listening" />
   <img src="docs/screenshots/code-sessions.png" width="19%" alt="Code sessions, with branch and status" />
   <img src="docs/screenshots/conversation-goals.png" width="19%" alt="Goals, kept on the phone" />
 </p>
@@ -154,7 +154,39 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## What 1.0.0+546 brings
+## What 1.0.0+547 brings
+
+A design-QA pass over `1.0.0+546`: **eleven major defects**, every one of them visible on
+screen, measured and corrected.
+
+- **The top bar measured its title in English and drew it in French.** A French title was
+  truncated against an English measurement, so the bar read « Nouvelle convers… » at 1,3×.
+  The title is now translated *before* it is measured (`resolvedTitle`).
+- **The Feed printed the thumbs sentence twice.** The note asking you to rate a card
+  appeared twice in the same feed; the duplicate footer item is gone.
+- **The Feed card ink was under the reading floor** — card preview text at **3,29:1**, now
+  **4,82:1**. The same ink covers the card's `Source:` line, a finished goal's title and
+  progress line, and the composer note in Ideas / Goals.
+- **The voice screen's instruction was nearly invisible** — « Allez-y. » at **1,74:1**, now
+  **21,0:1**. It takes the body ink the transcript already uses, so the hand-off from
+  instruction to speech no longer changes colour.
+- **The Computer screen had no header and no way back**, its content glued to the status
+  bar; it carries both now.
+- **The Files filter chips sat in a stair-step** (40 dp beside 48 dp in one row); one
+  **44 dp** chip height now. The sort row, which showed an icon and no label, shows its
+  word as well.
+- **The Settings section headers were left in English** (`PHONE` / `ACCOUNT`) — they now
+  read **Téléphone** / **Compte**.
+- **The Terminal said « … sur the server »** — it now says **le serveur**.
+
+The same pass fixed two more: the home card's title no longer cuts a word in half, and the
+« Ajouter à… » row in Ideas / Goals is a full 44 dp tall and tappable. Green across
+**2460 unit tests, 0 failures**.
+
+**The phone only.** Android Auto and the Wear OS companion are unchanged and stay on the
+**1.0.0+546** release.
+
+## What 1.0.0+546 brought
 
 - **The panel grid now matches the reference.** Six reference destinations in a locked order
   (`referenceTiles`, `referenceOrder`) — Scheduled, Overviews, Capabilities, Plugins, Configuration and
@@ -189,46 +221,66 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 ## Screenshots
 
-| Chat | Feed | Files | Ideas | Code sessions |
+The gallery is the **1.0.0+547** build — the **dark theme** for the whole set, then the **light theme**
+on the same screens. Every capture was taken on an emulator, against a test server holding demo data:
+no real machine, no real conversation, no token. The **status bar is cropped out** of every shot and the
+demo server's **address is blurred**.
+
+| Chat | Feed | Files | Files — filters | File viewer |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
+| <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-files-filters.png" width="100%"> | <img src="docs/screenshots/file-viewer.png" width="100%"> |
 
-| The panel, docked beside the thread | The Archive screen | Capabilities — Skills and MCP |
+| Ideas | Goals | Code sessions | Kanban | Models |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/conversation-goals.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> | <img src="docs/screenshots/kanban.png" width="100%"> | <img src="docs/screenshots/models.png" width="100%"> |
+
+| Voice — listening | Voice — ready | Computer | Terminal | Conversation actions |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/voice-listening.png" width="100%"> | <img src="docs/screenshots/voice-ready.png" width="100%"> | <img src="docs/screenshots/computer.png" width="100%"> | <img src="docs/screenshots/terminal.png" width="100%"> | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> |
+
+| Settings — gateway | Settings — voice & notifications | Settings — about |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/archive.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> |
+| <img src="docs/screenshots/settings-connection.png" width="100%"> | <img src="docs/screenshots/settings-voice-notifications.png" width="100%"> | <img src="docs/screenshots/settings-about.png" width="100%"> |
 
-| The panel, over the thread on a phone | Conversation actions, as a sheet |
+| Light — Chat | Light — Feed | Light — Settings |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/conversation-chat-light.png" width="100%"> | <img src="docs/screenshots/conversation-feed-light.png" width="100%"> | <img src="docs/screenshots/settings-connection-light.png" width="100%"> |
+
+| The panel, over the thread on a phone | The panel, docked beside the thread |
 |:---:|:---:|
-| <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> |
+| <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar.png" width="100%"> |
 
-The bot roster in the first picture is read from the server: the app lists the profiles it exposes, so a
-profile called `QA-tester` appears under that name.
+| The Archive screen | Capabilities — Skills and MCP |
+|:---:|:---:|
+| <img src="docs/screenshots/archive.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> |
 
-Every screenshot in this README was taken on an emulator, in the **dark theme**, against a test
-server holding demo data — no real machine, no real conversation, no token. The **panel** (docked and
-over the thread), the **Archive** screen and the **Capabilities** screen are the **1.0.0+546** build;
-the **conversation actions** sheet is **1.0.0+438**, the **Files** tab is **1.0.0+437**, and the rest
-are **1.0.0+423**. The name on the panel (`homelab`) and the letter chip derived from it are the test
-double's, not a real machine.
+The **panel** (over the thread and docked), the **Archive** screen and the **Capabilities** screen are
+the **1.0.0+546** build: this pass did not re-shoot them, and nothing they show changed. Every other
+capture here is **1.0.0+547**. The bot roster and the name on the cards are read from the server — the
+app lists the profiles it exposes, it never invents one — and the name on the panel (`Onyx`, and
+`homelab` in the docked shot) with the letter chip derived from it are the test double's, not a real
+machine.
 
 ## Install
 
 The signed APKs are on the [latest release](https://github.com/JemaOS/hermes-onyx/releases/latest) page.
-Three applications, one signing key, built from one code base:
+One code base, one signing key. **This release ships the phone**: the Android Auto and Wear OS
+companions were not rebuilt for `1.0.0+547` and stay on **`1.0.0+546`**, where all three packages live.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+546-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
-| `Hermes-Onyx-1.0.0+546-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+546-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+547-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `Hermes-Onyx-1.0.0+546-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. **Unchanged — take it from the 1.0.0+546 release.** |
+| `Hermes-Onyx-1.0.0+546-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. **Unchanged — take it from the 1.0.0+546 release.** |
 
-**Coming from an older build?** `1.0.0+546` is signed with the same key as every release before it, so
-it installs straight over `1.0.0+467`, `1.0.0+460` or `1.0.0` with no uninstall. In the other
-direction, `1.0.0+467` is the release that fixed the broken top bar `1.0.0+460` shipped (swallowed
+**Coming from an older build?** `1.0.0+547` is signed with the same key as every release before it, so
+it installs straight over `1.0.0+546`, `1.0.0+467`, `1.0.0+460` or `1.0.0` with no uninstall. In the
+other direction, `1.0.0+467` is the release that fixed the broken top bar `1.0.0+460` shipped (swallowed
 taps, no glass, square corners, the gateway alias where the model name belonged).
 
-The three names above are the exact asset names on the release. Each release also carries a
-`SHA256SUMS` file with the SHA-256 of the three APKs — check your download against it:
+The three names above are the exact asset names on the releases. `1.0.0+547` carries a `SHA256SUMS`
+file with the SHA-256 of the phone APK; `1.0.0+546` carries one with all three. Check your download
+against it:
 
 ```bash
 curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS
@@ -291,7 +343,7 @@ ever goes up and an APK installs over the previous one.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**2459 tests, 0 failures** — 1173 in `:core`, 1286 in `:app`, across 343 test classes. Plain JUnit 4, no
+**2460 tests, 0 failures** — 1174 in `:core`, 1286 in `:app`. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
