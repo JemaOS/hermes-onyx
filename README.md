@@ -7,13 +7,13 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-2146%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-2459%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p>
-  <img src="docs/screenshots/conversations.png" width="19%" alt="Conversations, bots and rooms" />
+  <img src="docs/screenshots/conversations.png" width="19%" alt="The panel: search, the tile grid, the projects and the conversations" />
   <img src="docs/screenshots/conversation-feed.png" width="19%" alt="The Feed tab of a conversation" />
   <img src="docs/screenshots/voice-hands-free.png" width="19%" alt="Hands-free voice, listening" />
   <img src="docs/screenshots/code-sessions.png" width="19%" alt="Code sessions, with branch and status" />
@@ -40,7 +40,8 @@ phone without handing your prompts to a third party, this is that app.
   **bots**: a two-position switch (**Chats** / **Bots**) moves between them, so the bots are never mixed
   into the conversation list, and the *Bots* label carries how many of them are waiting for you. The
   pane shows the gateway's name, its address and a reachability light, a search field, the tiles to the
-  app's screens (**Scheduled, Skills, Tools, Files, Models, Kanban, Code, Settings**), your **projects**
+  app's screens (**Scheduled, Overviews, Capabilities, Plugins, Configuration, Archives**, then
+  **Skills, Files, Models, Kanban, Code**), your **projects**
   with their counts, the filters — **All**, **Running**, **Waiting for you** — with their counts, and the
   conversation rows with their age. On a wide screen it stands **beside** the thread; on a phone it
   unfolds over it and folds back with one tap.
@@ -153,23 +154,62 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
+## What 1.0.0+546 brings
+
+- **The panel grid now matches the reference.** Six reference destinations in a locked order
+  (`referenceTiles`, `referenceOrder`) — Scheduled, Overviews, Capabilities, Plugins, Configuration and
+  **Archives** — then the **Onyx** group (Skills, Files, Models, Kanban, Code): eleven distinct
+  destinations, no duplicates, every tile opens a real screen. The **Archive screen** is new here:
+  archived conversations leave the list but stay resumable, and each row restores from the Archive.
+- **Search is a full-panel screen**, not a filter over the list: opening it hides the tiles, the
+  projects, the *Chats / Bots* switch and the filters, so the field and its results are the only
+  content; Back leaves search before it closes the panel (`searching`, `search = true|false`).
+- **The account sheet shows the gateway's real state** — the measured latency when it answers, or
+  offline with a **real retry countdown** (30 s policy) and the probe's own reason
+  (`secondsLeft = … AccountRetry.secondsUntil(…)`, `"Connected · %1$d ms"`, `"Offline · new attempt in %1$d s"`).
+- **Usage and cost read the server, in real figures** — `session.resume` first for the run id, then
+  `session.usage` and `session.context_breakdown`: tokens in / out / reasoning, cache read, cache
+  written and cache share, total, API calls, context used / max / percent, what fills the window and
+  the context file manifest.
+- **Capabilities, Skills and MCP, exhaustively** — add, test, enable, remove, with expandable tool
+  lists (`ui/capabilities/`: `CapabilitiesScreen.kt`, `SkillPages.kt`, `McpPages.kt`).
+- **A flat light theme and a glass dark theme.** In light the surfaces are flat, with a measured
+  detachment floor (`FlatDetachmentMin = 1.20f`); in dark the bars and the composer are **real glass**
+  over what is behind them (`veilIsNeverLighterThanPage`).
+- **The panel is full width on a phone.** The overlay takes the **whole window**
+  (`sidebarOverlayWidthFor`), so no strip of the thread is left beside it to be misread as a second
+  panel; from 800 dp it is docked instead.
+
+**What this build does not do here.** Restore points stay **off server-side**: `rollback.list` answers
+`enabled: false`, so the panel says the folder keeps no restore points and offers nothing. **No model
+price is exposed** by the usage route, so *Estimated* and *Actual* both show `—` and the panel says the
+counters above are all it has. There is **no notification while the app is closed** — alerts only
+arrive while the app is running. And the **background blur of the glass** cannot be judged on an
+emulator (it renders in software), so it still has to be checked on a real device.
+
 ## Screenshots
 
 | Chat | Feed | Files | Ideas | Code sessions |
 |:---:|:---:|:---:|:---:|:---:|
 | <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> |
 
-| The sidebar, the thread beside it | Conversation actions, as a sheet |
+| The panel, docked beside the thread | The Archive screen | Capabilities — Skills and MCP |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/archive.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> |
+
+| The panel, over the thread on a phone | Conversation actions, as a sheet |
 |:---:|:---:|
-| <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> |
+| <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> |
 
 The bot roster in the first picture is read from the server: the app lists the profiles it exposes, so a
 profile called `QA-tester` appears under that name.
 
 Every screenshot in this README was taken on an emulator, in the **dark theme**, against a test
-server holding demo data — no real machine, no real conversation, no token. The **sidebar** and the
-**conversation actions** sheet are the **1.0.0+438** build, the **Files** tab is **1.0.0+437**; the
-others are **1.0.0+423**.
+server holding demo data — no real machine, no real conversation, no token. The **panel** (docked and
+over the thread), the **Archive** screen and the **Capabilities** screen are the **1.0.0+546** build;
+the **conversation actions** sheet is **1.0.0+438**, the **Files** tab is **1.0.0+437**, and the rest
+are **1.0.0+423**. The name on the panel (`homelab`) and the letter chip derived from it are the test
+double's, not a real machine.
 
 ## Install
 
@@ -178,13 +218,14 @@ Three applications, one signing key, built from one code base:
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+467-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
-| `Hermes-Onyx-1.0.0+467-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+467-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+546-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. |
+| `Hermes-Onyx-1.0.0+546-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+546-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**Upgrading from 1.0.0+460?** That release shipped a broken top bar — its taps were swallowed, the
-bot's face and the glass were gone, its corners went square, and the model chip showed the gateway
-alias instead of the model's own name. **1.0.0+467 fixes all of it**, and installs over 460.
+**Coming from an older build?** `1.0.0+546` is signed with the same key as every release before it, so
+it installs straight over `1.0.0+467`, `1.0.0+460` or `1.0.0` with no uninstall. In the other
+direction, `1.0.0+467` is the release that fixed the broken top bar `1.0.0+460` shipped (swallowed
+taps, no glass, square corners, the gateway alias where the model name belonged).
 
 The three names above are the exact asset names on the release. Each release also carries a
 `SHA256SUMS` file with the SHA-256 of the three APKs — check your download against it:
@@ -250,7 +291,7 @@ ever goes up and an APK installs over the previous one.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**2146 tests, 0 failures** — 1064 in `:core`, 1082 in `:app`, across 318 test classes. Plain JUnit 4, no
+**2459 tests, 0 failures** — 1173 in `:core`, 1286 in `:app`, across 343 test classes. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
