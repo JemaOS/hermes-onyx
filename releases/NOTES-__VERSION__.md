@@ -4,7 +4,8 @@ Ce que cette version apporte, et **où c'est prouvable**. Chaque point renvoie �
 l'arbre de fusion, à un fichier de la source, ou à une mesure chiffrée. Rien n'est annoncé ici
 qui ne puisse être montré.
 
-**Version :** `__VERSION__` (`versionCode` = `__CODE__`, dérivé du nombre de commits).
+**Version :** `__VERSION__` (`versionCode` = `__CODE__`, écrit dans `gradle.properties` — l'arbre public
+est la copie aplatie de l'arbre de fusion, son historique ne porte donc pas le numéro).
 **Paquets :** téléphone `Hermes-Onyx-__VERSION__-telephone.apk` ; les compagnons auto /
 wear portent `__SIDECAR__` s'ils n'ont pas été reconstruits pour cette version.
 **Recette :** `__TESTS__ tests, 0 échec` — `:core:testDebugUnitTest` + `:app:testDebugUnitTest`.

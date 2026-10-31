@@ -4,7 +4,8 @@ Ce que cette version apporte, et **où c'est prouvable**. Chaque point renvoie �
 l'arbre de fusion, à un fichier de la source, ou à une mesure chiffrée. Rien n'est annoncé ici
 qui ne puisse être montré.
 
-**Version :** `1.0.0+972` (`versionCode` = `972`, dérivé du nombre de commits).
+**Version :** `1.0.0+972` (`versionCode` = `972`, écrit dans `gradle.properties` — l'arbre public
+est la copie aplatie de l'arbre de fusion, son historique ne porte donc pas le numéro).
 **Paquets :** téléphone `Hermes-Onyx-1.0.0+972-telephone.apk` ; les trois paquets — téléphone, auto et wear — portent `1.0.0+972`.
 **Recette :** `3596 tests, 0 échec` — `:core:testDebugUnitTest` + `:app:testDebugUnitTest`.
 
@@ -96,8 +97,9 @@ qui ne puisse être montré.
 
 - Le **flou d'arrière-plan du verre** ne se juge pas sur un émulateur (il rend en logiciel) : il se
   vérifie sur un appareil réel.
-- Les trois paquets — téléphone, **auto** et **wear** — sont reconstruits pour cette version et
-  portent tous trois `1.0.0+972`.
+- Les compagnons **auto** et **wear** ne sont reconstruits que s'ils sont fournis avec la release ;
+  sinon ils restent sur leur version précédente (`1.0.0+972`), et le README d'installation le
+  dit.
 
 ---
 
