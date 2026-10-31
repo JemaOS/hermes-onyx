@@ -1,5 +1,9 @@
 package com.onyx.app.ui.voice
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedContent
@@ -97,34 +101,53 @@ import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.design.semanticsLabel
-import com.onyx.app.ui.theme.ResolvedTheme
 import com.onyx.app.ui.theme.LocalOnyxTheme
+import com.onyx.app.ui.theme.ReferencePalette
+import com.onyx.app.ui.theme.ResolvedTheme
 import com.onyx.app.voice.TalkOver
 import com.onyx.app.voice.VoicePhase
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Le bouton rouge arrête toujours l'activité; au repos, « End voice mode » ferme aussi la scène. */
+/**
+ * L'action offerte sous un bandeau d'écoute : un libellé et ce qu'il fait.
+ *
+ * Jamais un bouton sans effet — l'appelant ne le pose que quand il sait quoi faire du geste
+ * (« Réessayer » quand une nouvelle écoute a un sens, « Ouvrir les réglages » quand c'est la
+ * permission du micro qui manque et que rien ne se réparera depuis l'app).
+ */
+data class VoiceAlertAction(val label: String, val onClick: () -> Unit)
+
+/**
+ * Les phrases d'arrêt qui sont **toujours** entendues, quand la personne n'en a réglé aucune.
+ *
+ * **Françaises**, comme l'app : l'ancienne paire anglaise (« stop listening », « that's all »)
+ * s'affichait telle quelle sous une phrase d'aide française — c'était le défaut rapporté. Ce sont
+ * donc ces deux-là que l'aide cite, et elles sont dans [BUILT_IN_STOP_PHRASES].
+ */
+private val DEFAULT_HANDS_FREE_STOPS = listOf("arrête d'écouter", "c'est tout")
+
+/** Le bouton rouge arrête toujours l'activité ; au repos, « End voice mode » ferme aussi la scène. */
 internal fun soloVoiceStop(phase: VoicePhase, allowEnd: Boolean = true, stop: () -> Unit, end: () -> Unit) {
     stop()
     if (phase == VoicePhase.IDLE && allowEnd) end()
 }
 
 /**
- * Le mode vocal: l'orbe au centre, ce qui est dit dessous, et trois boutons en bas.
+ * Le mode vocal : l'orbe au centre, ce qui est dit dessous, et trois boutons en bas.
  *
- * Comme: les mêmes anneaux concentriques, le même orbe de verre dont les
+ * Port de `VoiceView` : les mêmes anneaux concentriques, le même orbe de verre dont les
  * barres suivent la voix, et le même mot d'état en petites capitales espacées. S'y ajoutent
  * l'en-tête (titre + état mains-libres), le niveau par barre sous l'orbe, l'accès aux réglages
  * vocaux, et l'aide quand le micro est refusé ou que le moteur ne répond pas.
  *
- * Ce second passage complète le implémentation avec, dans l'ordre où les montre sous l'orbe:
+ * Ce second passage complète le portage avec, dans l'ordre où la référence les montre sous l'orbe :
  * le choix de l'orbe (une rangée de pastilles), le panneau de réglages vocaux en ligne, la liste
  * des derniers échanges en « live captions », le chronomètre d'écoute et le compteur de tours, et
  * les états d'échec du moteur (pas de reconnaissance, permission refusée, réseau requis).
  *
- * Tous les ajouts sont des paramètres **optionnels avec valeur par défaut**: l'appelant existant
+ * Tous les ajouts sont des paramètres **optionnels avec valeur par défaut** : l'appelant existant
  * ne casse pas, et chaque réglage porte son propre rappel (`on…`), `null` laissant le panneau
  * fonctionner en local sur son propre état.
  */
@@ -136,52 +159,64 @@ fun VoiceScreen(
     spoken: String,
     level: Float,
     /**
-     * Le niveau de la voix lue, de 0 à 1: c'est ce qui fait battre la bouche du visage qui parle.
+     * Le niveau de la voix lue, de 0 à 1 : c'est ce qui fait battre la bouche du visage qui parle.
      * Rien quand aucune voix ne sort.
      */
     speakingLevel: Float = 0f,
     handsFree: Boolean,
     conversationTitle: String,
     problem: String?,
-    /** La pastille « Hands-free »; `null`: aucun contrôle (une salle est toujours main-libre). */
+    /**
+     * L'action offerte sous un bandeau d'écoute : « Réessayer », ou « Ouvrir les réglages » quand
+     * c'est la permission du micro qui manque. `null` : aucun bouton (une panne sans remède n'en
+     * promet pas).
+     */
+    alertAction: VoiceAlertAction? = null,
+    /**
+     * Les phrases qui terminent le mains libres **pour cette personne** (Réglages → Voix → Stop
+     * phrases) : la phrase d'aide les nomme, au lieu de citer des mots anglais au-dessus de
+     * réglages français. Vide : les phrases toujours entendues.
+     */
+    stopPhrases: List<String> = emptyList(),
+    /** La pastille « Hands-free » ; `null` : aucun contrôle (une salle est toujours main-libre). */
     onToggleHandsFree: (() -> Unit)? = null,
     onRestart: () -> Unit,
     onStop: () -> Unit,
     onBackToKeyboard: () -> Unit,
-    /** `VoiceView.group`: la salle, ses visages et son round, plutôt que la scène solo. */
+    /** `VoiceView.group` : la salle, ses visages et son round, plutôt que la scène solo. */
     group: GroupVoiceScene? = null,
     /** Pause/Play pendant la lecture du bot courant. */
     isPaused: Boolean = false,
     onPauseResume: () -> Unit = {},
     /** L'orbe de groupe interrompt la lecture et rouvre le micro. */
     onOrbClick: () -> Unit = {},
-    /** Réglages → Voix: `null` cache l'accès (aucun bouton n'est dessiné). */
+    /** Réglages → Voix : `null` cache l'accès (aucun bouton n'est dessiné). */
     onOpenSettings: (() -> Unit)? = null,
     // — Choix de l'orbe (design/icons/orbs) —
-    /** L'orbe affiché: Onyx (dessiné par `LiquidOrb`) ou l'une des faces-image. */
+    /** L'orbe affiché : Onyx (dessiné par `LiquidOrb`) ou l'une des faces-image. */
     orb: VoiceOrbChoice = VoiceOrbChoice.ONYX,
-    /** Appelé quand une pastille est touchée; `null` laisse le choix se faire en local. */
+    /** Appelé quand une pastille est touchée ; `null` laisse le choix se faire en local. */
     onOrbChange: ((VoiceOrbChoice) -> Unit)? = null,
-    /** `Settings.shared.orbLight`: ce qui bouge dans la face de l'orbe Onyx. */
+    /** `Settings.shared.orbLight` : ce qui bouge dans la face de l'orbe Onyx. */
     orbLight: OrbLight = OrbLight.NEBULA,
-    /** Appelé quand une lumière est choisie; `null` laisse le choix se faire en local. */
+    /** Appelé quand une lumière est choisie ; `null` laisse le choix se faire en local. */
     onOrbLightChange: ((OrbLight) -> Unit)? = null,
     // — Panneau de réglages vocaux en ligne (la section sous l'orbe) —
-    /** Réglages détaillés: uniquement dans l'écran Voice settings, pas sur la scène vocale. */
+    /** Réglages détaillés : uniquement dans l'écran Voice settings, pas sur la scène vocale. */
     showVoiceSettings: Boolean = false,
-    /** Langue d'écoute: vide affiche la langue de l'appareil Android. */
+    /** Langue d'écoute : vide affiche la langue de l'appareil Android. */
     listeningLanguage: String = "",
-    /** Langue de réponse: vide affiche « Automatic », comme. */
+    /** Langue de réponse : vide affiche « Automatic », comme la référence. */
     replyLanguage: String = "",
-    /** Vitesse de la voix, de 0,5 à 2,0 (le pas du `Slider` ). */
+    /** Vitesse de la voix, de 0,5 à 2,0 (le pas du `Slider` la référence). */
     voiceSpeed: Float = 1f,
-    /** « Start voice mode in hands-free »: arrivé directement en mains-libres. */
+    /** « Start voice mode in hands-free » : arrivé directement en mains-libres. */
     handsFreeByDefault: Boolean = false,
-    /** « Talk over replies »: quand Onyx se tait pour vous écouter. */
+    /** « Talk over replies » : quand Onyx se tait pour vous écouter. */
     talkOverReplies: TalkOverChoice = TalkOverChoice.HEADPHONES,
-    /** Langue d'écoute: présente le choix de langue; `null` rend la rangée inerte. */
+    /** Langue d'écoute : présente le choix de langue ; `null` rend la rangée inerte. */
     onPickListeningLanguage: (() -> Unit)? = null,
-    /** Langue de réponse: présente le choix de langue; `null` rend la rangée inerte. */
+    /** Langue de réponse : présente le choix de langue ; `null` rend la rangée inerte. */
     onPickReplyLanguage: (() -> Unit)? = null,
     onVoiceSpeedChange: ((Float) -> Unit)? = null,
     onHandsFreeByDefaultChange: ((Boolean) -> Unit)? = null,
@@ -189,35 +224,53 @@ fun VoiceScreen(
     // — Liste des derniers échanges (« live captions ») —
     /** Le nom de l'agent, à la place de « You » pour ses répliques. */
     agentName: String = "Onyx",
-    /** Vrai tant que la dernière réplique s'écrit: allume l'indicateur sur cet échange. */
+    /** Vrai tant que la dernière réplique s'écrit : allume l'indicateur sur cet échange. */
     streaming: Boolean = false,
     // — Chronomètre et tours de la session —
-    /** Durée d'écoute en cours, en secondes: affiche « Listening for 12 s ». */
+    /** Durée d'écoute en cours, en secondes : affiche « Listening for 12 s ». */
     listeningSeconds: Int? = null,
-    /** Le nombre de tours envoyés dans la session: affiche « 3 turns ». */
+    /** Le nombre de tours envoyés dans la session : affiche « 3 turns ». */
     sessionTurns: Int? = null,
     // — États d'échec du moteur —
-    /** Interdit d'écouter: pas de reconnaissance, permission refusée, réseau requis. */
+    /** Interdit d'écouter : pas de reconnaissance, permission refusée, réseau requis. */
     engineFailure: VoiceEngineFailure? = null,
-    /** « Try again » sous l'échec du moteur; `null` n'affiche pas de bouton. */
+    /** « Try again » sous l'échec du moteur ; `null` n'affiche pas de bouton. */
     onRetryEngine: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
     val text = if (phase == VoicePhase.SPEAKING) spoken else heard
     val statusTitle = group?.let {
-        groupVoicePhaseTitle(phase, it.speaker?.label(), it.writer?.label(), it.isTalking)
+        groupVoicePhaseTitle(
+            phase,
+            it.speaker?.label(),
+            it.writer?.label(),
+            it.isTalking,
+            it.stalled,
+            it.pending,
+            it.sending,
+        )
     } ?: phaseTitle(phase, agentName)
-    val statusColor = if (group != null && phase == VoicePhase.IDLE && group.isTalking) {
+    val statusColor = if (group != null &&
+        ((phase == VoicePhase.IDLE && group.isTalking) || group.stalled ||
+            group.pending > 0 || group.sending)
+    ) {
         theme.warning
     } else {
         phaseColor(theme, phase)
     }
-    // « Quelque chose tourne »: on écoute, on réfléchit ou on lit la réponse. C'est ce qui fait
+    // La légende d'une salle nomme **le bot qui parle** (« QUILL PARLE ») et prend **sa** couleur —
+    // celle qui se lit sur la page (claire sur une page sombre, profonde sur une page claire).
+    // Hors de la parole, elle garde la couleur de la phase : À L'ÉCOUTE, PRÊT, « X écrit »…
+    // Et quand la salle ne répond pas — ou qu'un message est encore en route — elle le dit en
+    // orange, comme l'attente qui s'éternise.
+    val groupSpeaker = group?.takeIf { phase == VoicePhase.SPEAKING }?.speaker
+    val titleColor = groupSpeaker?.let { botFaceAuraColour(it.name, it.faceCode, theme) } ?: statusColor
+    // « Quelque chose tourne » : on écoute, on réfléchit ou on lit la réponse. C'est ce qui fait
     // du bouton rouge un carré « Stop » plutôt qu'une croix « quitter », comme `solIsWorking`.
     val working = if (group != null) {
         phase == VoicePhase.LISTENING || phase == VoicePhase.SPEAKING ||
-            (group.isTalking && !group.isHeld)
+            (group.isTalking && !group.isHeld) || group.pending > 0 || group.sending
     } else {
         phase == VoicePhase.LISTENING || phase == VoicePhase.THINKING || phase == VoicePhase.SPEAKING || streaming
     }
@@ -225,10 +278,10 @@ fun VoiceScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor)
+            .onyxPage(theme)
             .statusBarsPadding(),
     ) {
-        // `VoiceView.header`: une salle a son FaceStack et son nom; pas de toggles solo.
+        // `VoiceView.header` : une salle a son FaceStack et son nom ; pas de toggles solo.
         if (group != null) {
             GroupVoiceHeader(group)
         } else {
@@ -240,10 +293,10 @@ fun VoiceScreen(
             )
         }
 
-        // L'aide hands-free est dans le footer, comme `VoiceView.footer`.
+        // L'aide hands-free est dans le footer, comme `VoiceView.footer` de la référence.
 
-        // `Settings.shared.orbLight`: choix de la lumière dessinée dans l'orbe Onyx.
-        // Il vient des réglages quand l'appelant le fournit; sinon le panneau le règle en local.
+        // `Settings.shared.orbLight` de la référence : choix de la lumière dessinée dans l'orbe Onyx.
+        // Il vient des réglages quand l'appelant le fournit ; sinon le panneau le règle en local.
         var localOrbLight by rememberSaveable { mutableStateOf(orbLight) }
         val shownOrbLight = if (onOrbLightChange != null) orbLight else localOrbLight
 
@@ -255,9 +308,9 @@ fun VoiceScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top,
         ) {
-            // `VoiceView` place l'orbe à 28 pt sous l'en-tête; la conversation occupe le reste.
+            // `VoiceView` place l'orbe à 28 pt sous l'en-tête ; la conversation occupe le reste.
             Spacer(Modifier.size(28.dp))
-            // `OrbFace`: les visages de toute la salle, puis handoff sur celui qui est lu.
+            // `OrbFace` : les visages de toute la salle, puis handoff sur celui qui est lu.
             if (group != null) {
                 GroupVoiceOrbDisplay(
                     group = group,
@@ -274,12 +327,12 @@ fun VoiceScreen(
                     level = level,
                     phase = phase,
                     listening = phase == VoicePhase.LISTENING,
-                    //: l'orbe est un bouton, son action celle de la phase.
+                    // `VoiceView:123` : l'orbe est un bouton, son action celle de la phase.
                     onClick = onOrbClick,
                 )
             }
 
-            // Skins et réglages détaillés restent dans Voice settings, comme.
+            // Skins et réglages détaillés restent dans Voice settings, comme sur la référence.
             if (showVoiceSettings) {
                 Spacer(Modifier.size(10.dp))
                 OrbChooserRow(
@@ -293,9 +346,9 @@ fun VoiceScreen(
                 LevelBars(level = level, phase = phase)
             }
 
-            // Le mot d'état suit directement l'orbe: 18 pt, comme `VoiceView`.
+            // Le mot d'état suit directement l'orbe : 18 pt, comme `VoiceView`.
             Spacer(Modifier.size(18.dp))
-            // `phaseTitle`: le nouveau mot pousse l'ancien vers le haut, avec `.snappy(0,35)`.
+            // `phaseTitle` : le nouveau mot pousse l'ancien vers le haut, avec `.snappy(0,35)`.
             AnimatedContent(
                 targetState = OnyxLocalization[statusTitle],
                 transitionSpec = {
@@ -317,13 +370,13 @@ fun VoiceScreen(
                 BasicText(
                     text = title.uppercase(),
                     localize = false,
-                    //: `.footnote.weight(.semibold)` et `.tracking(1.2)`.
-                    // **Centré sous l'orbe**, comme le modèle: le noeud occupe toute la largeur
+                    // `VoiceView:46` : `.footnote.weight(.semibold)` et `.tracking(1.2)`.
+                    // **Centré sous l'orbe**, comme la référence : le noeud occupe toute la largeur
                     // (c'est ce qui laisse le mot suivant pousser le précédent d'un bloc), donc
                     // sans cet alignement le texte se collait à la marge de gauche, à hauteur du
-                    // fil, alors que le modèle le pose au milieu sous le visage.
+                    // fil, alors que la référence le pose au milieu sous le visage.
                     style = theme.footnote.copy(
-                        color = statusColor,
+                        color = titleColor,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 1.2.sp,
                         textAlign = TextAlign.Center,
@@ -332,7 +385,7 @@ fun VoiceScreen(
             }
 
             // Le chronomètre d'écoute et le compteur de tours de la session (item 4), alignés sous
-            // le mot d'état: « Listening for 12 s » pendant qu'on écoute, puis « 3 turns ».
+            // le mot d'état : « Listening for 12 s » pendant qu'on écoute, puis « 3 turns ».
             if (listeningSeconds != null || sessionTurns != null) {
                 Spacer(Modifier.size(4.dp))
                 Row(
@@ -354,8 +407,8 @@ fun VoiceScreen(
                 }
             }
 
-            // `captionArea`: pendant l'écoute, la transcription en grand, **mot à mot**
-            // (`RisingCaption`); sinon le dernier échange. Le placeholder ne cohabite jamais
+            // `captionArea` : pendant l'écoute, la transcription en grand, **mot à mot**
+            // (`RisingCaption`) ; sinon le dernier échange. Le placeholder ne cohabite jamais
             // avec un historique.
             if (phase == VoicePhase.LISTENING || (group == null && history.isEmpty())) {
                 Spacer(Modifier.size(18.dp))
@@ -370,7 +423,15 @@ fun VoiceScreen(
                         text = text.ifEmpty { placeholder(phase) },
                         localize = text.isEmpty(),
                         style = if (text.isEmpty()) {
-                            theme.title2.copy(color = theme.tertiaryText, textAlign = TextAlign.Center)
+                            // « Allez-y. » est **l'instruction** de l'écran, pas une décoration, donc
+                            // du texte : il lui faut **≥ 4,5:1**. En `tertiaryText` elle tombait à
+                            // 1,9:1 sur la page (relevé au pixel, 411 dp, 1.0.0+546), puis à ~3,4:1 en
+                            // `secondaryText` — encore sous le plancher. L'encre juste est **celle du
+                            // corps sur le même fond** : la transcription qui remplace ce texte
+                            // (`RisingCaption`, plus bas) est dessinée en `textColor` sur `pageColor`.
+                            // L'instruction prend donc la même encre — 21:1 sur la page blanche —
+                            // et le passage de l'instruction à la parole ne change plus la couleur.
+                            theme.title2.copy(color = theme.textColor, textAlign = TextAlign.Center)
                         } else {
                             theme.title2.copy(color = theme.textColor, textAlign = TextAlign.Center)
                         },
@@ -378,7 +439,7 @@ fun VoiceScreen(
                 }
             }
 
-            // `groupExchange`: question, réponse de chaque membre et brouillon, dans le round.
+            // `groupExchange` : question, réponse de chaque membre et brouillon, dans le round.
             if (group != null && phase != VoicePhase.LISTENING) {
                 Spacer(Modifier.size(14.dp))
                 GroupVoiceExchange(group = group, modifier = Modifier.weight(1f))
@@ -392,7 +453,7 @@ fun VoiceScreen(
             }
         }
 
-        //: une salle dont un bot attend la personne le dit ici, en orange,
+        // `VoiceView:63-68` : une salle dont un bot attend la personne le dit ici, en orange,
         // et le micro reste fermé tant que la commande n'est pas répondue dans le chat.
         if (group != null && group.waitsOnPerson) {
             Row(
@@ -408,9 +469,9 @@ fun VoiceScreen(
             }
         }
 
-        // Le panneau de réglages vocaux en ligne (item 1): langue d'écoute, langue de réponse,
+        // Le panneau de réglages vocaux en ligne (item 1) : langue d'écoute, langue de réponse,
         // vitesse de la voix, « Start voice mode in hands-free », « Talk over replies » — les
-        // mêmes libellés et les mêmes valeurs que Réglages → Voix.
+        // mêmes libellés et les mêmes valeurs que Réglages → Voix de la référence.
         if (showVoiceSettings) {
             VoiceSettingsPanel(
                 listeningLanguage = listeningLanguage,
@@ -431,19 +492,32 @@ fun VoiceScreen(
             )
         }
 
-        // Les états d'échec du moteur (item 5): pas de reconnaissance installée, permission
-        // refusée, réseau requis — avec les textes et un « Try again ».
+        // Les états d'échec du moteur (item 5) : pas de reconnaissance installée, permission
+        // refusée, réseau requis — avec les textes de la référence et un « Try again ».
         if (engineFailure != null) {
             EngineFailureHelp(failure = engineFailure, onRetry = onRetryEngine)
         }
 
-        // L'aide du bas: le micro refusé ou le moteur qui ne répond pas. C'est le même `problem`
+        // L'aide du bas : le micro refusé ou le moteur qui ne répond pas. C'est le même `problem`
         // que porte l'appelant, posé en rouge au-dessus des commandes, comme `lookProblem`.
-        ProblemHelp(problem = problem)
+        ProblemHelp(problem = problem, action = alertAction)
 
         if (handsFree) {
+            // La phrase d'aide nomme **les phrases réellement écoutées** : celles que la personne a
+            // réglées (Réglages → Voix → Stop phrases), sinon celles qui sont toujours entendues.
+            // Elle ne cite donc plus des mots anglais au-dessus de réglages français — et le gabarit
+            // est traduit, seule la liste des phrases reste verbatim.
+            val spokenStops = remember(stopPhrases) {
+                stopPhrases.map { it.trim() }.filter { it.isNotEmpty() }
+                    .ifEmpty { DEFAULT_HANDS_FREE_STOPS }
+            }
             BasicText(
-                text = "Say “stop listening” or “that's all” to end hands-free.",
+                text = OnyxLocalization.format(
+                    "Say %1\$s to end hands-free.",
+                    spokenStops.joinToString(OnyxLocalization[" or "]) { "« $it »" },
+                ),
+                // Le gabarit est déjà traduit : le texte composé reste verbatim.
+                localize = false,
                 style = theme.caption.copy(color = theme.secondaryText, textAlign = TextAlign.Center),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -466,23 +540,23 @@ fun VoiceScreen(
                 onClick = onBackToKeyboard,
             )
             Spacer(Modifier.width(28.dp))
-            // `VoiceView.controls`: dans une salle, le bouton du milieu est **Pause / Reprendre**,
-            // le ⏸ du modèle — c'est lui qui tient la réponse lue là où elle en est
+            // `VoiceView.controls` : dans une salle, le bouton du milieu est **Pause / Reprendre**,
+            // le ⏸ de la référence — c'est lui qui tient la réponse lue là où elle en est
             // (`SpeechOutput.pause`, `VoiceSession.pauseSpeaking`), et le carré rouge qui l'arrête.
-            // Le gris de la relance n'y figure plus: le modèle met un ⏸ à cette place, et le
+            // Le gris de la relance n'y figure plus : la référence met un ⏸ à cette place, et le
             // seul moment où il peut tenir quelque chose est la lecture même.
             if (group != null || phase == VoicePhase.SPEAKING) {
                 VoiceRoundButton(
                     symbol = if (isPaused) Symbols.Play else Symbols.Pause,
                     label = if (isPaused) "Resume" else "Pause",
                     tint = theme.textColor,
-                    // Rien à tenir tant qu'aucune voix ne sort: le bouton reste celui de la
+                    // Rien à tenir tant qu'aucune voix ne sort : le bouton reste celui de la
                     // référence, sans promettre une action qui n'aurait pas lieu.
                     enabled = phase == VoicePhase.SPEAKING,
                     onClick = onPauseResume,
                 )
             } else {
-                // Le solo garde la relance: elle n'a de sens que là où rien n'est lu par la salle.
+                // Le solo garde la relance : elle n'a de sens que là où rien n'est lu par la salle.
                 VoiceRoundButton(
                     symbol = Symbols.ArrowCounterclockwise,
                     label = "Replay the last answer",
@@ -498,8 +572,8 @@ fun VoiceScreen(
                 tint = theme.error,
                 size = 60.dp,
                 contentTint = Color.White,
-                // `stop.fill` du modèle: le carré y occupe **0,27 du bouton** (mesuré sur ses
-                // captures: 21 à 22 px dans un disque de 80). Le glyphe dessiné ne remplit que
+                // `stop.fill` de la référence : le carré y occupe **0,27 du bouton** (mesuré sur ses
+                // captures : 21 à 22 px dans un disque de 80). Le glyphe dessiné ne remplit que
                 // 10/24 de sa boîte — à 20 points, le carré n'en faisait que 8, la moitié de la
                 // référence. La croix du repos garde la boîte des autres glyphes.
                 iconSize = if (working) VoiceStopGlyph.dp else 20.dp,
@@ -509,7 +583,7 @@ fun VoiceScreen(
     }
 }
 
-/** `VoiceView.roundButton`: surface pleine, filet discret et glyphe title3 de 20 points. */
+/** `VoiceView.roundButton` : surface pleine, filet discret et glyphe title3 de 20 points. */
 @Composable
 private fun VoiceRoundButton(
     @DrawableRes symbol: Int,
@@ -533,7 +607,7 @@ private fun VoiceRoundButton(
     }
 }
 
-/** `VoiceView.header` en salle: trois visages superposés et le nom de la salle. */
+/** `VoiceView.header` en salle : trois visages superposés et le nom de la salle. */
 @Composable
 private fun GroupVoiceHeader(group: GroupVoiceScene) {
     val theme = LocalOnyxTheme.current
@@ -555,7 +629,7 @@ private fun GroupVoiceHeader(group: GroupVoiceScene) {
             text = group.roomName,
             localize = false,
             style = theme.footnote.copy(color = theme.textColor, fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -563,8 +637,8 @@ private fun GroupVoiceHeader(group: GroupVoiceScene) {
 }
 
 /**
- * L'orbe de `VoiceView.group`: tous les bots au repos, puis **le seul qui parle**, en grand, avec
- * sa couleur d'aura et sa bouche qui bat — l'orbe du modèle.
+ * L'orbe de `VoiceView.group` : tous les bots au repos, puis **le seul qui parle**, en grand, avec
+ * sa couleur d'aura et sa bouche qui bat — l'orbe de la référence.
  */
 @Composable
 private fun GroupVoiceOrbDisplay(
@@ -582,9 +656,14 @@ private fun GroupVoiceOrbDisplay(
         label = "groupVoiceAmplitude",
     )
     val speaker = group.speaker.takeIf { phase == VoicePhase.SPEAKING }
-    // L'aura est **de la couleur du visage qui parle**, comme sur le modèle; la légende et les
+    // **Un seul visage dans l'orbe** : celui du bot qui parle, ou — au repos — le dernier qui a
+    // parlé. Les participants ne se retrouvent jamais ensemble ici : c'est l'en-tête qui les
+    // porte, en petites pastilles. Une salle fait chacun son tour ; deux grands visages côte à
+    // côte, c'était l'ancienne mise en page, et c'est le défaut que le propriétaire a montré.
+    val orbFace = speaker ?: group.orbFace
+    // L'aura est **de la couleur du visage qui parle**, comme sur la référence ; la légende et les
     // anneaux gardent, eux, la couleur de la phase. La **teinte** de cette couleur suit la page
-    // (`botFaceAuraColour`): le clair sur une page sombre, le profond sur une page claire — une
+    // (`botFaceAuraColour`) : le clair sur une page sombre, le profond sur une page claire — une
     // couleur profonde sur du noir ne fait qu'un halo éteint, et la claire sur du blanc un orbe
     // délavé. C'est le défaut que le propriétaire voit, et il est dans les deux thèmes.
     val aura = speaker?.let { botFaceAuraColour(it.name, it.faceCode, theme) } ?: tint
@@ -595,9 +674,9 @@ private fun GroupVoiceOrbDisplay(
             .semanticsLabel("Talk to the group"),
         contentAlignment = Alignment.Center,
     ) {
-        // `OrbFace`: l'aura — large et vive pendant l'écoute, enflant avec la voix, un halo ténu
+        // `OrbFace` : l'aura — large et vive pendant l'écoute, enflant avec la voix, un halo ténu
         // autrement. Un dégradé radial de la couleur du visage, large de 216 pt (297 + la voix
-        // pendant l'écoute), et rien au-delà: c'est ce qui fait la lueur de la capture.
+        // pendant l'écoute), et rien au-delà : c'est ce qui fait la lueur de la capture.
         val auraDiameter = if (phase == VoicePhase.LISTENING) 297f + amplitude * 55f else 216f
         val auraRadius = if (phase == VoicePhase.LISTENING) 143f + amplitude * 44f else 110f
         Box(
@@ -615,15 +694,15 @@ private fun GroupVoiceOrbDisplay(
                     CircleShape,
                 ),
         )
-        // `Halos`: deux anneaux pendant la lecture, un seul
+        // `Halos` de la référence (`VoiceView:511`) : deux anneaux pendant la lecture, un seul
         // discret au repos — les mêmes que les autres faces de l'orbe.
         VoiceHalos(
             color = tint,
             subtle = phase == VoicePhase.IDLE,
             diameter = OrbHaloDiameter.dp,
         )
-        // `OnyxVoiceFace`: `.shadow(color: phase == .idle ? .clear: phaseColor.opacity(0.9),
-        // radius: 10)` — la lueur vive collée au visage pendant qu'il parle. Un flou de 10 pt: le
+        // `OnyxVoiceFace` : `.shadow(color: phase == .idle ? .clear : phaseColor.opacity(0.9),
+        // radius: 10)` — la lueur vive collée au visage pendant qu'il parle. Un flou de 10 pt : le
         // bord du visage est au plus vif, puis la lumière s'éteint en ~35 pt (un dégradé plus
         // court se lisait comme un anneau néon, pas comme une lueur).
         Box(
@@ -642,15 +721,15 @@ private fun GroupVoiceOrbDisplay(
                 ),
         )
         val handoffDistance = with(LocalDensity.current) { 150.dp.roundToPx() }
-        // `.id(replySpeaker)` + `.transition(.handoff)`: le visage qui était là s'efface vers la
+        // `.id(replySpeaker)` + `.transition(.handoff)` : le visage qui était là s'efface vers la
         // gauche en rétrécissant, celui qui parle entre par la droite, en ressort.
         //
-        // `transition(reduceMotion ? .opacity: .handoff)` et
-        // `animation(reduceMotion ? .easeInOut(duration: 0.35): .spring(duration: 0.6, bounce: 0.3))`
-        //: sous Reduce Motion, le visage ne glisse pas, il se fond.
+        // `transition(reduceMotion ? .opacity : .handoff)` et
+        // `animation(reduceMotion ? .easeInOut(duration: 0.35) : .spring(duration: 0.6, bounce: 0.3))`
+        // (`VoiceView:597-599`) : sous Reduce Motion, le visage ne glisse pas, il se fond.
         val reduceMotion = LocalReduceMotion.current
         AnimatedContent(
-            targetState = speaker,
+            targetState = orbFace,
             transitionSpec = {
                 if (reduceMotion) {
                     fadeIn(OnyxMotion.Sites.VoiceHandoffReduced)
@@ -670,9 +749,10 @@ private fun GroupVoiceOrbDisplay(
             label = "groupVoiceHandoff",
         ) { current ->
             if (current != null) {
-                // Le grand visage de l'orbe: celui du bot qui parle, **vivant** — yeux qui
-                // clignent, regard qui suit, bouche qui bat avec sa voix (`VoiceFace`, le
-                // `OnyxVoiceFace`). Les autres se sont effacés vers le côté.
+                // Le grand visage de l'orbe : **un seul**, celui du bot qui parle — vivant (yeux qui
+                // clignent, regard qui suit, bouche qui bat avec sa voix : `VoiceFace`, le
+                // `OnyxVoiceFace` de la référence). Au repos, c'est le dernier qui a parlé, et sa
+                // bouche reste fermée : l'orbe ne fait jamais parler tout le monde à la fois.
                 VoiceFace(
                     name = current.name,
                     faceCode = current.faceCode,
@@ -680,58 +760,14 @@ private fun GroupVoiceOrbDisplay(
                     level = { speakingLevel },
                     size = 196.dp,
                 )
-            } else {
-                GroupVoiceFaces(
-                    group = group,
-                    phase = phase,
-                    modifier = Modifier.graphicsLayer {
-                        scaleX = 1f + amplitude * 0.04f
-                        scaleY = 1f + amplitude * 0.04f
-                    },
-                )
             }
         }
     }
 }
 
-/** `GroupVoiceFaces`: jusqu'à six créatures réparties dans l'empreinte de l'orbe. */
-@Composable
-private fun GroupVoiceFaces(group: GroupVoiceScene, phase: VoicePhase, modifier: Modifier = Modifier) {
-    val shown = group.bots.take(6)
-    val faceSize = when {
-        shown.size <= 2 -> 104.dp
-        shown.size <= 4 -> 88.dp
-        else -> 74.dp
-    }
-    val radius = when (shown.size) {
-        0, 1 -> 0f
-        2 -> 56f
-        else -> 66f
-    }
-    Box(modifier = modifier.size(233.dp), contentAlignment = Alignment.Center) {
-        shown.forEachIndexed { index, bot ->
-            val step = 2 * Math.PI / shown.size
-            val angle = Math.PI / 2 + (if (shown.size % 2 == 0) step / 2 else 0.0) + index * step
-            BotLook(
-                name = bot.name,
-                faceCode = bot.faceCode,
-                size = faceSize,
-                // Dans l'orbe, les visages au repos disent la phase: à l'écoute ils sont attentifs,
-                // en réflexion ils réfléchissent, sinon ils se tiennent tranquilles.
-                mood = when (phase) {
-                    VoicePhase.LISTENING -> BotMood.LISTENING
-                    VoicePhase.THINKING -> BotMood.THINKING
-                    else -> BotMood.IDLE
-                },
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(x = (radius * cos(angle)).dp, y = (radius * sin(angle)).dp),
-            )
-        }
-    }
-}
-
-/** `groupExchange`: uniquement le dernier round, avec les réponses encore en cours. */
+/**
+ * `groupExchange` : uniquement le dernier round, avec les réponses encore en cours.
+ */
 @Composable
 private fun GroupVoiceExchange(group: GroupVoiceScene, modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
@@ -769,7 +805,7 @@ private fun GroupVoiceExchange(group: GroupVoiceScene, modifier: Modifier = Modi
 }
 
 /**
- * Une ligne du round de la salle: la question de la personne dans sa bulle, la réponse d'un bot
+ * Une ligne du round de la salle : la question de la personne dans sa bulle, la réponse d'un bot
  * à plat sous son visage — exactement les lignes du fil de la salle (`MineRow` / `RoomMemberRow`),
  * comme `VoiceView.groupExchange` reprend le `MessageRow` du chat.
  */
@@ -799,59 +835,59 @@ private fun GroupVoiceLineRow(line: GroupVoiceLine, server: ServerConfig, speaki
 // MARK: - Le choix de l'orbe (item 2)
 
 /**
- * Les orbes que le mode vocal peut montrer, repris de `design/icons/orbs`: le même vocabulaire,
- * le même ordre et les mêmes libellés que `VoiceOrb` (SettingsSections → VoiceOrbSettings).
+ * Les orbes que le mode vocal peut montrer, repris de `design/icons/orbs` : le même vocabulaire,
+ * le même ordre et les mêmes libellés que `VoiceOrb` de la référence (SettingsSections → VoiceOrbSettings).
  *
- * Onyx n'a pas d'image: il est **dessiné** par `LiquidOrb` (comme `GlassOrb`/`OnyxVoiceFace`
- * est dessiné ); les autres sont les images `…Blank`, sur lesquelles on pose les barres
- * vivantes. L'`id` est la valeur brute , gardée telle quelle pour que le réglage enregistré
+ * Onyx n'a pas d'image : il est **dessiné** par `LiquidOrb` (comme `GlassOrb`/`OnyxVoiceFace`
+ * est dessiné par la référence) ; les autres sont les images `…Blank`, sur lesquelles on pose les barres
+ * vivantes. L'`id` est la valeur brute de la référence, gardée telle quelle pour que le réglage enregistré
  * corresponde à `Settings.voiceOrb`.
  *
- * « Dark Glass » manque: le dessine en code (`GlassOrb`) et ce port n'a pas cette forme; il
+ * « Dark Glass » manque : la référence le dessine en code (`GlassOrb`) et ce port n'a pas cette forme ; il
  * n'est donc pas proposé (les douze autres le sont).
  */
 enum class VoiceOrbChoice(val id: String, val label: String, @DrawableRes val face: Int?) {
-    /** L'orbe-maison, dessiné: c'est `LiquidOrb` (`onyxFace`), pas une image. */
+    /** L'orbe-maison, dessiné : c'est `LiquidOrb` (`onyxFace`), pas une image. */
     ONYX("onyxFace", "Onyx", null),
-    /** `waveform` (« Softer Glass »), en image. */
+    /** `waveform` de la référence (« Softer Glass »), en image. */
     WAVEFORM("waveform", "Softer Glass", R.drawable.ic_waveformblank),
-    /** `glassWave`. */
+    /** `glassWave` de la référence. */
     GLASS("glassWave", "Glass", R.drawable.ic_glasswaveblank),
-    /** `matteWave`. */
+    /** `matteWave` de la référence. */
     MATTE("matteWave", "Matte", R.drawable.ic_mattewaveblank),
-    /** `flatWave`. */
+    /** `flatWave` de la référence. */
     FLAT("flatWave", "Flat", R.drawable.ic_flatwaveblank),
-    /** `bubbleWave`. */
+    /** `bubbleWave` de la référence. */
     BUBBLE("bubbleWave", "Bubble", R.drawable.ic_bubblewaveblank),
-    /** `bubbleMatteWave`. */
+    /** `bubbleMatteWave` de la référence. */
     BUBBLE_MATTE("bubbleMatteWave", "Matte Bubble", R.drawable.ic_bubblemattewaveblank),
-    /** `navyGlassWave` (« Navy Glass »). */
+    /** `navyGlassWave` de la référence (« Navy Glass »). */
     NAVY_GLASS("navyGlassWave", "Navy Glass", R.drawable.ic_navyglasswaveblank),
-    /** `navyMatteWave`. */
+    /** `navyMatteWave` de la référence. */
     NAVY_MATTE("navyMatteWave", "Navy Matte", R.drawable.ic_navymattewaveblank),
-    /** `steelGlassWave`. */
+    /** `steelGlassWave` de la référence. */
     STEEL_GLASS("steelGlassWave", "Steel Glass", R.drawable.ic_steelglasswaveblank),
-    /** `inkWave`. */
+    /** `inkWave` de la référence. */
     INK("inkWave", "Ink", R.drawable.ic_inkwaveblank),
-    /** `goldWave`: ses barres sont sombres sur le disque doré. */
+    /** `goldWave` de la référence : ses barres sont sombres sur le disque doré. */
     GOLD("goldWave", "Gold", R.drawable.ic_goldwaveblank),
     ;
 
-    /** La couleur des barres sur cette face: sombres sur l'or, claires partout ailleurs. */
+    /** La couleur des barres sur cette face : sombres sur l'or, claires partout ailleurs. */
     val waveColor: Color
-        get() = if (this == GOLD) Color(0xFF1B2230) else Color(0xFFDCE3EE)
+        get() = if (this == GOLD) ReferencePalette.DarkPage else ReferencePalette.DarkText
 
-    /** La face-bulle a une queue: son contour est un rectangle arrondi, pas un rond. */
+    /** La face-bulle a une queue : son contour est un rectangle arrondi, pas un rond. */
     val isRound: Boolean get() = this != BUBBLE && this != BUBBLE_MATTE && this != ONYX
 
     companion object {
-        /** L'orbe enregistré, ou Onyx quand rien ne correspond (défaut ). */
+        /** L'orbe enregistré, ou Onyx quand rien ne correspond (défaut de la référence). */
         fun fromId(raw: String?): VoiceOrbChoice = entries.firstOrNull { it.id == raw } ?: ONYX
     }
 }
 
 /**
- * L'orbe affiché: `LiquidOrb` pour Onyx, l'image choisie avec son anneau de phase et ses barres
+ * L'orbe affiché : `LiquidOrb` pour Onyx, l'image choisie avec son anneau de phase et ses barres
  * sinon. Le même encombrement dans les deux cas (233 dp), pour que rien sous l'orbe ne bouge quand
  * on change de face.
  */
@@ -863,7 +899,7 @@ private fun VoiceOrbDisplay(
     phase: VoicePhase,
     listening: Boolean,
     agentName: String,
-    /** L'orbe est un bouton , jamais une image sans action. */
+    /** L'orbe est un bouton (`VoiceView:123`), jamais une image sans action. */
     onClick: () -> Unit,
 ) {
     Box(
@@ -885,7 +921,7 @@ private fun VoiceOrbDisplay(
     }
 }
 
-/** Une face-image: l'orbe `…Blank`, l'anneau de la couleur de phase, et les barres vivantes. */
+/** Une face-image : l'orbe `…Blank`, l'anneau de la couleur de phase, et les barres vivantes. */
 @Composable
 private fun OrbPictureFace(
     choice: VoiceOrbChoice,
@@ -902,14 +938,14 @@ private fun OrbPictureFace(
     val ringColor = phaseColor(theme, phase)
 
     Box(modifier = Modifier.size(233.dp), contentAlignment = Alignment.Center) {
-        // `OrbFace`: l'aura du modèle, la même pour **toutes** les faces — une image aussi.
+        // `OrbFace` : l'aura de la référence, la même pour **toutes** les faces — une image aussi.
         // Un seul halo diffus, dans la couleur de la phase, large et vif pendant l'écoute.
         val auraRadius = if (listening) 143f + amplitude * 44f else 110f
         Box(
             modifier = Modifier
                 .size((if (listening) 297f + amplitude * 55f else 216f).dp)
                 .background(
-                    // `startRadius: 66`: la couleur tient jusqu'à 66 points, puis s'éteint
+                    // `startRadius: 66` : la couleur tient jusqu'à 66 points, puis s'éteint
                     // jusqu'au bord du halo — c'est ce plateau qui fait la lueur large de la
                     // référence. Sur un dégradé qui part du centre, elle s'éteignait avant le bord
                     // du disque et ne laissait qu'un liseré.
@@ -924,8 +960,8 @@ private fun OrbPictureFace(
                     CircleShape,
                 ),
         )
-        // `Halos`: les ondulations vivent **hors** du visage, pour toutes les faces —
-        // y compris les images, qui ne les portaient pas. Au repos: une seule, discrète.
+        // `Halos` de la référence : les ondulations vivent **hors** du visage, pour toutes les faces —
+        // y compris les images, qui ne les portaient pas. Au repos : une seule, discrète.
         // `Halos(diameter: 198)` pour une face-image.
         VoiceHalos(
             color = ringColor,
@@ -938,7 +974,7 @@ private fun OrbPictureFace(
             contentScale = ContentScale.Fit,
             modifier = Modifier.size(232.dp),
         )
-        // L'anneau de phase: absent au repos (comme `phaseColor.opacity(phase == .idle ? 0 …)`),
+        // L'anneau de phase : absent au repos (comme `phaseColor.opacity(phase == .idle ? 0 …)`),
         // puis vif à l'écoute ou pendant la lecture.
         Box(
             modifier = Modifier
@@ -961,7 +997,7 @@ private fun OrbPictureFace(
 }
 
 /**
- * La rangée de pastilles: chaque choix montre l'orbe qu'il sélectionne, entouré d'un anneau
+ * La rangée de pastilles : chaque choix montre l'orbe qu'il sélectionne, entouré d'un anneau
  * quand il est retenu. Toucher une pastille change l'orbe affiché et prévient l'appelant.
  */
 @Composable
@@ -998,7 +1034,7 @@ private fun OrbChooserRow(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (choice.face == null) {
-                        // Onyx: le visage de l'agent, en miniature comme l'orbe — toujours un
+                        // Onyx : le visage de l'agent, en miniature comme l'orbe — toujours un
                         // visage, jamais une initiale (c'est un aperçu d'orbe).
                         com.onyx.app.ui.design.BotLook(
                             name = "default",
@@ -1024,14 +1060,14 @@ private fun OrbChooserRow(
 
 // MARK: - Le panneau de réglages vocaux en ligne (item 1)
 
-/** « Talk over replies »: les trois choix , dans l'ordre et avec les mêmes libellés. */
+/** « Talk over replies » : les trois choix de la référence, dans l'ordre et avec les mêmes libellés. */
 enum class TalkOverChoice(val label: String) {
     OFF("Off"),
     HEADPHONES("With headphones"),
     EVERYWHERE("Headphones and speaker"),
     ;
 
-    /** Le réglage enregistré: c'est lui, avec la route du moment, qui décide du micro. */
+    /** Le réglage enregistré : c'est lui, avec la route du moment, qui décide du micro. */
     val setting: TalkOver
         get() = when (this) {
             OFF -> TalkOver.OFF
@@ -1049,8 +1085,8 @@ enum class TalkOverChoice(val label: String) {
 }
 
 /**
- * Le panneau de réglages vocaux, en ligne sous l'orbe: les mêmes rangées que Réglages → Voix du
- * . La vitesse a un `OnyxSlider` de 0,5 à 2,0 au pas de 0,05 (comme le `Slider` ), et
+ * Le panneau de réglages vocaux, en ligne sous l'orbe : les mêmes rangées que Réglages → Voix du
+ * la référence. La vitesse a un `OnyxSlider` de 0,5 à 2,0 au pas de 0,05 (comme le `Slider` la référence), et
  * « Talk over replies » un petit menu déroulant maison — les deux se règlent en local quand
  * l'appelant ne fournit pas de rappel.
  */
@@ -1070,7 +1106,7 @@ private fun VoiceSettingsPanel(
     onOrbLightChange: (OrbLight) -> Unit = {},
 ) {
     val theme = LocalOnyxTheme.current
-    // Les replis locaux: le panneau reste utilisable seul (aperçus, appelant qui ne fournit que
+    // Les replis locaux : le panneau reste utilisable seul (aperçus, appelant qui ne fournit que
     // la valeur). Chaque changement est aussi poussé au rappel quand il existe.
     var speed by remember { mutableStateOf(voiceSpeed) }
     var handsFreeDefault by remember { mutableStateOf(handsFreeByDefault) }
@@ -1082,9 +1118,9 @@ private fun VoiceSettingsPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .background(theme.surfaceColor, RoundedCornerShape(12.dp)),
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FormCorner)),
     ) {
-        // Langue d'écoute: vide ⇒ langue de l'appareil (adaptation Android du libellé ).
+        // Langue d'écoute : vide ⇒ langue de l'appareil (adaptation Android du libellé de la référence).
         OnyxValueRow(
             label = "Listening language",
             value = listeningLanguage.ifEmpty { "Device language" },
@@ -1092,7 +1128,7 @@ private fun VoiceSettingsPanel(
             onClick = { onPickListeningLanguage?.invoke() },
         )
         OnyxRowDivider()
-        // Langue de réponse: vide ⇒ « Automatic », comme `ReplyLanguageView`.
+        // Langue de réponse : vide ⇒ « Automatic », comme `ReplyLanguageView` côté la référence.
         OnyxValueRow(
             label = "Reply language",
             value = replyLanguage.ifEmpty { "Automatic" },
@@ -1100,7 +1136,7 @@ private fun VoiceSettingsPanel(
             onClick = { onPickReplyLanguage?.invoke() },
         )
         OnyxRowDivider()
-        // Vitesse de la voix: la valeur en chiffres monospacés, puis le curseur, comme le
+        // Vitesse de la voix : la valeur en chiffres monospacés, puis le curseur, comme le
         // `LabeledContent("Voice speed")` suivi du `Slider`.
         OnyxRow {
             BasicText(
@@ -1117,7 +1153,7 @@ private fun VoiceSettingsPanel(
             value = speed,
             range = 0.5f..2.0f,
             onValueChange = { next ->
-                // Pas de 0,05, le pas du `Slider`.
+                // Pas de 0,05, le pas du `Slider` la référence.
                 val snapped = (Math.round(next / 0.05f) * 0.05f).coerceIn(0.5f, 2.0f)
                 speed = snapped
                 onVoiceSpeedChange?.invoke(snapped)
@@ -1125,7 +1161,7 @@ private fun VoiceSettingsPanel(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
         )
         OnyxRowDivider()
-        // « Start voice mode in hands-free »: le même `Toggle` que.
+        // « Start voice mode in hands-free » : le même `Toggle` que la référence.
         OnyxToggleRow(
             label = "Start voice mode in hands-free",
             checked = handsFreeDefault,
@@ -1135,7 +1171,7 @@ private fun VoiceSettingsPanel(
             },
         )
         OnyxRowDivider()
-        // « Talk over replies »: un `Picker`-menu chez , ici une rangée qui ouvre un menu.
+        // « Talk over replies » : un `Picker`-menu chez la référence, ici une rangée qui ouvre un menu.
         OnyxRow(onClick = { showTalkOverMenu = true }) {
             BasicText(
                 text = "Talk over replies",
@@ -1149,7 +1185,7 @@ private fun VoiceSettingsPanel(
             OnyxIcon(Symbols.ChevronUpDown, tint = theme.tertiaryText, size = 12.dp)
         }
         OnyxRowDivider()
-        // `Picker("Orb light")` de: même libellé et mêmes trois choix.
+        // `Picker("Orb light")` de VoiceOrbSettings : même libellé et mêmes trois choix.
         OnyxRow(onClick = { showOrbLightMenu = true }) {
             BasicText(
                 text = "Orb light",
@@ -1201,9 +1237,9 @@ private fun VoiceSettingsPanel(
 // MARK: - Les derniers échanges, en « live captions » (item 3)
 
 /**
- * Les derniers tours, façon sous-titres: « You » puis le nom de l'agent, chaque texte tronqué,
+ * Les derniers tours, façon sous-titres : « You » puis le nom de l'agent, chaque texte tronqué,
  * et un indicateur vivant (`LiveMark`) sur l'échange en cours — celui dont la réplique s'écrit
- * encore quand `streaming` est vrai. Les trois derniers tours seulement, comme la fenêtre.
+ * encore quand `streaming` est vrai. Les trois derniers tours seulement, comme la fenêtre de la référence.
  */
 @Composable
 private fun LiveCaptions(
@@ -1216,7 +1252,7 @@ private fun LiveCaptions(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(theme.surfaceColor.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+            .background(theme.surfaceColor.copy(alpha = 0.6f), RoundedCornerShape(OnyxSpace.FormCorner))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1261,30 +1297,30 @@ private fun LiveCaptions(
 // MARK: - Les états d'échec du moteur (item 5)
 
 /**
- * Ce que le moteur vocal ne peut pas faire, avec le texte que affiche pour chacune de ces
- * pannes. Repris de `SpeechRecognizer.Failure` (`assetsUnavailable`, `permissionDenied`); pour le
- * réseau, n'a pas de cas dédié — c'est le texte que ce moteur-ci pose déjà
+ * Ce que le moteur vocal ne peut pas faire, avec le texte que la référence affiche pour chacune de ces
+ * pannes. Repris de `SpeechRecognizer.Failure` (`assetsUnavailable`, `permissionDenied`) ; pour le
+ * réseau, la référence n'a pas de cas dédié — c'est le texte que ce moteur-ci pose déjà
  * (`SpeechEngine`, branche `ERROR_NETWORK`).
  */
 enum class VoiceEngineFailure(val message: String, @DrawableRes val symbol: Int) {
-    /** Pas de reconnaissance installée: `Failure.assetsUnavailable`. */
+    /** Pas de reconnaissance installée : `Failure.assetsUnavailable`. */
     NO_RECOGNISER(
         "The on-device speech model isn't installed yet.",
         Symbols.ExclamationTriangle,
     ),
-    /** Permission refusée: `Failure.permissionDenied`. */
+    /** Permission refusée : `Failure.permissionDenied`. */
     PERMISSION_DENIED(
         "Microphone access was denied. Enable it for Onyx in Settings.",
         Symbols.Mic,
     ),
-    /** Réseau requis: la langue a besoin du moteur en ligne. */
+    /** Réseau requis : la langue a besoin du moteur en ligne. */
     NETWORK_REQUIRED(
         "The speech recogniser needs a network for this language.",
         Symbols.WifiExclamation,
     ),
 }
 
-/** Le bloc rouge d'un échec du moteur: l'icône, le texte, et « Try again » s'il y a un rappel. */
+/** Le bloc rouge d'un échec du moteur : l'icône, le texte, et « Try again » s'il y a un rappel. */
 @Composable
 private fun EngineFailureHelp(failure: VoiceEngineFailure?, onRetry: (() -> Unit)?) {
     if (failure == null) return
@@ -1320,7 +1356,7 @@ private fun EngineFailureHelp(failure: VoiceEngineFailure?, onRetry: (() -> Unit
 }
 
 /**
- * L'en-tête: le titre de la conversation, puis l'état mains-libres à droite, et l'accès aux
+ * L'en-tête : le titre de la conversation, puis l'état mains-libres à droite, et l'accès aux
  * réglages vocaux quand l'appelant le fournit.
  */
 @Composable
@@ -1339,8 +1375,8 @@ private fun VoiceHeader(
             .padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // `soloHeader`: Hands-free à gauche, titre de conversation à droite. Sans rappel, la
-        // pastille n'est pas dessinée du tout: jamais un interrupteur sans effet.
+        // `soloHeader` : Hands-free à gauche, titre de conversation à droite. Sans rappel, la
+        // pastille n'est pas dessinée du tout : jamais un interrupteur sans effet.
         onToggleHandsFree?.let { toggle ->
             HandsFreePill(handsFree = handsFree, onToggle = toggle)
             Spacer(Modifier.width(12.dp))
@@ -1349,10 +1385,10 @@ private fun VoiceHeader(
             text = conversationTitle,
             localize = false,
             style = theme.footnote.copy(color = theme.secondaryText, textAlign = TextAlign.End),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            // `frame(maxWidth: 170, alignment: .trailing)` de `soloHeader`: le début de la
-            // transcription se tronque là où le tronque.
+            // `frame(maxWidth: 170, alignment: .trailing)` de `soloHeader` : le début de la
+            // transcription se tronque là où la référence le tronque.
             modifier = Modifier.weight(1f).widthIn(max = 170.dp),
         )
         if (onOpenSettings != null) {
@@ -1370,7 +1406,7 @@ private fun VoiceHeader(
 }
 
 /**
- * La pastille « Hands-free »: elle montre « On » ou « Off », prend la teinte de l'accent quand
+ * La pastille « Hands-free » : elle montre « On » ou « Off », prend la teinte de l'accent quand
  * elle est active, et son libellé d'aide est lu par les lecteurs d'écran.
  */
 @Composable
@@ -1403,9 +1439,9 @@ private fun HandsFreePill(handsFree: Boolean, onToggle: () -> Unit) {
 }
 
 /**
- * Le niveau par barre: sept barres centrées, dont la hauteur suit `level`. Chaque barre a son
+ * Le niveau par barre : sept barres centrées, dont la hauteur suit `level`. Chaque barre a son
  * propre poids, la plus haute au centre et chaque barre vers l'extérieur un cran plus basse,
- * symétrique — la même allure que les barres du `LiveWaveform` , mais posée ici sous l'orbe.
+ * symétrique — la même allure que les barres du `LiveWaveform` la référence, mais posée ici sous l'orbe.
  */
 @Composable
 private fun LevelBars(level: Float, phase: VoicePhase) {
@@ -1417,7 +1453,7 @@ private fun LevelBars(level: Float, phase: VoicePhase) {
         label = "levelBars",
     )
     val weights = floatArrayOf(0.13f, 0.27f, 0.51f, 1f, 0.51f, 0.27f, 0.13f)
-    // Au repos chaque barre est un tiret; le centre peut monter jusqu'à 44 dp.
+    // Au repos chaque barre est un tiret ; le centre peut monter jusqu'à 44 dp.
     val rest = 3f
     val tallest = 44f
 
@@ -1438,38 +1474,54 @@ private fun LevelBars(level: Float, phase: VoicePhase) {
 }
 
 /**
- * L'aide du bas quand le micro est refusé ou que le moteur ne répond pas: le texte porté par
- * `problem`, en rouge, sous une icône d'avertissement. Rien n'est dessiné quand il est absent.
+ * L'aide du bas quand le micro est refusé, que rien n'est capté, ou que le moteur ne répond pas :
+ * le texte porté par `problem`, en rouge, sous une icône d'avertissement — et **l'action** qui va
+ * avec (« Réessayer », « Ouvrir les réglages »). Rien n'est dessiné quand le texte est absent.
  */
 @Composable
-private fun ProblemHelp(problem: String?) {
+private fun ProblemHelp(problem: String?, action: VoiceAlertAction? = null) {
     if (problem == null) return
     val theme = LocalOnyxTheme.current
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+            .padding(horizontal = 24.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        OnyxIcon(
-            symbol = Symbols.ExclamationTriangle,
-            tint = theme.error,
-            size = 13.dp,
-        )
-        Spacer(Modifier.width(6.dp))
-        BasicText(
-            text = problem,
-            style = theme.footnote.copy(color = theme.error, textAlign = TextAlign.Center),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            OnyxIcon(
+                symbol = Symbols.ExclamationTriangle,
+                tint = theme.error,
+                size = 13.dp,
+            )
+            Spacer(Modifier.width(6.dp))
+            BasicText(
+                text = problem,
+                style = theme.footnote.copy(color = theme.error, textAlign = TextAlign.Center),
+            )
+        }
+        if (action != null) {
+            Spacer(Modifier.size(4.dp))
+            BasicText(
+                text = action.label,
+                style = theme.footnote.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
+                modifier = Modifier
+                    .onyxTappable(onClick = action.onClick)
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
     }
 }
 
 /**
- * L'orbe du mode vocal: le visage de l'agent dans sa sphère, sous deux anneaux.
+ * L'orbe du mode vocal : le visage de l'agent dans sa sphère **dessinée**, sous un halo unique.
  *
- * C'est ce que montre l'app: pas un cercle nu, mais le bot lui-même — ses yeux s'ouvrent
- * quand il travaille, se ferment quand il attend — et l'aura respire avec la voix.
+ * L'orbe n'est plus une image : un disque de couleur unie, la lumière par-dessus, la finition du
+ * verre (vignette, reflet, liseré) et la vague. Voir `VoiceOrbGlass.kt` pour ce qui causait les
+ * coutures et les anneaux.
  */
 @Composable
 private fun VoiceOrb(
@@ -1485,95 +1537,42 @@ private fun VoiceOrb(
         animationSpec = OnyxMotion.Sites.VoiceLevel,
         label = "amplitude",
     )
-    val mood = when (phase) {
-        VoicePhase.LISTENING -> com.onyx.app.ui.design.BotMood.IDLE
-        VoicePhase.THINKING -> com.onyx.app.ui.design.BotMood.WAITING
-        VoicePhase.SPEAKING -> com.onyx.app.ui.design.BotMood.WORKING
-        VoicePhase.IDLE -> com.onyx.app.ui.design.BotMood.PLEASED
-    }
-    // `phaseColor`: accent à l'écoute, orange système qui réfléchit, vert système qui parle.
+    // `phaseColor` de la référence : accent à l'écoute, orange système qui réfléchit, vert système qui parle.
     val phaseColor = when (phase) {
-        VoicePhase.THINKING -> Color(0xFFFF9F0A)
-        VoicePhase.SPEAKING -> Color(0xFF30D158)
+        VoicePhase.THINKING -> ReferencePalette.Warning.dark
+        VoicePhase.SPEAKING -> ReferencePalette.Success.dark
         else -> theme.accent
     }
-    // Formule exacte de — `live` = micro actif ou réponse en lecture.
+    // Formule exacte de VoiceView:558 — `live` = micro actif ou réponse en lecture.
     val live = listening || phase == VoicePhase.SPEAKING
-    val strength = if (live) 0.8f + level * 0.35f else if (phase == VoicePhase.IDLE) 0.42f else 0.62f
+    // **Sous « Réduire les animations », rien de l'orbe ne suit la voix** : la lumière, le halo et
+    // la vague restent à leur pose de repos. Sans cette garde, le niveau du micro continuait de
+    // faire respirer la lueur et la capture « figée » différait d'une image à l'autre (mesuré).
+    val reduceMotion = LocalReduceMotion.current
+    val glow = if (reduceMotion) 0f else amplitude
+    val strength = if (live && !reduceMotion) {
+        0.8f + level * 0.35f
+    } else if (phase == VoicePhase.IDLE) {
+        0.42f
+    } else {
+        0.62f
+    }
 
     Box(modifier = Modifier.size(233.dp), contentAlignment = Alignment.Center) {
-        // `OrbFace`: l'**aura** — un seul halo diffus dans la couleur de la phase, large et vif
-        // pendant l'écoute (297 pt + la voix), ténu au repos (216 pt). Elle manquait à la voix
-        // solo, qui ne portait que ses trois cercles nets sur le noir; mêmes nombres et même forme
-        // que la scène d'une salle, et découpée au cercle: jamais de bord carré.
-        val auraRadius = if (listening) 143f + amplitude * 44f else 110f
-        Box(
-            modifier = Modifier
-                .size((if (listening) 297f + amplitude * 55f else 216f).dp)
-                .background(
-                    // `startRadius: 66`: la couleur tient jusqu'à 66 points, puis s'éteint
-                    // jusqu'au bord du halo — c'est ce plateau qui fait la lueur large de la
-                    // référence. Sur un dégradé qui part du centre, elle s'éteignait avant le bord
-                    // du disque et ne laissait qu'un liseré.
-                    Brush.radialGradient(
-                        colorStops = arrayOf(
-                            VoiceAuraPlateau / auraRadius to phaseColor.copy(alpha = if (listening) 0.45f else 0.16f),
-                            1f to Color.Transparent,
-                        ),
-                        center = Offset.Unspecified,
-                        radius = with(LocalDensity.current) { auraRadius.dp.toPx() },
-                    ),
-                    CircleShape,
-                ),
-        )
-        // Les trois anneaux du modèle. Le premier est l'anneau de phase, **collé au bord du
-        // disque** — `GlassOrb.overlay { Circle.strokeBorder(phaseColor.opacity(phase == .idle
-        // ? 0: 0.8), lineWidth: 3).padding(GlassOrb.ringOutset) }` — éteint au repos.
-        Box(
-            modifier = Modifier
-                .size(OrbRingDiameter.dp)
-                .border(
-                    width = 3.dp,
-                    color = phaseColor.copy(alpha = if (phase == VoicePhase.IDLE) 0f else 0.8f),
-                    shape = CircleShape,
-                ),
-        )
-        // Les deux autres sont les `Halos(color: phaseColor, diameter: GlassOrb.haloDiameter)`:
-        // deux cercles qui partent du bord du disque et s'ouvrent bien plus loin que lui, puis
-        // s'éteignent. Au repos, le seul anneau discret du `Halos(subtle: true)`.
-        if (live || phase == VoicePhase.IDLE) {
-            VoiceHalos(
-                color = phaseColor,
-                subtle = phase == VoicePhase.IDLE,
-                diameter = OrbHaloDiameter.dp,
-            )
-        }
-        // La lumière « nebula »: géométrie exacte de DriftingBlobs.
-        when (light) {
-            OrbLight.NEBULA -> DriftingBlobs(
-                color = phaseColor,
-                strength = strength,
-                swirling = phase == VoicePhase.THINKING,
-                modifier = Modifier.size(172.dp),
-            )
-            OrbLight.AURORA -> AuroraLight(
-                color = phaseColor,
-                strength = strength,
-                swirling = phase == VoicePhase.THINKING,
-                modifier = Modifier.size(172.dp),
-            )
-            OrbLight.CORE -> CoreLight(
-                color = phaseColor,
-                strength = strength,
-                swirling = phase == VoicePhase.THINKING,
-                modifier = Modifier.size(172.dp),
-            )
-        }
-        // `darkGlass` garde ses pixels d'origine; seule sa waveform figée devient `LiveWaveform`.
-        DarkGlassWaveOrb(
+        // **Un seul halo doux**, jamais des cercles concentriques tracés : un unique dégradé
+        // radial à arrêts calculés, dont la luminance décroît sans palier ni marche. Les deux
+        // `drawCircle(style = Stroke)` empilés d'avant, plus le `border(3.dp)` collé au disque,
+        // faisaient exactement le « liseré double » et les anneaux à raccords signalés.
+        VoiceOrbHalo(color = phaseColor, listening = listening, amplitude = glow)
+        // L'ombre douce sous la sphère (`GlassOrb.shadow`).
+        OrbSoftShadow(tint = phaseColor)
+        // Le disque de verre : face, lumière, finition, vague — entièrement calculé.
+        LiquidOrbBody(
+            light = light,
             phase = phase,
+            phaseColor = phaseColor,
+            strength = strength,
             level = level,
-            modifier = Modifier.size((190f + amplitude * 12f).dp),
         )
         if (phase == VoicePhase.THINKING) {
             VoiceThinkingArc(
@@ -1585,46 +1584,43 @@ private fun VoiceOrb(
 }
 
 
-/** La couleur de l'état, comme `phaseColor`: accent à l'écoute, orange qui réfléchit, vert qui parle. */
-// MARK: - Le carré du bouton rouge et la géométrie des anneaux de l'orbe (`GlassOrb` )
+/** La couleur de l'état, comme `phaseColor` : accent à l'écoute, orange qui réfléchit, vert qui parle. */
+// MARK: - Le carré du bouton rouge et la géométrie des anneaux de l'orbe (`GlassOrb` de la référence)
 
 /**
- * La boîte du carré d'arrêt: `stop.fill` du modèle dessine son carré à **0,27 du bouton**
- * de 60 points (mesuré: 21 à 22 px de carré dans un disque de 80). Le glyphe embarqué ne remplit
- * que 10/24 de sa boîte (7 → 17 sur 24): la boîte doit donc mesurer 39 points pour que le carré
+ * La boîte du carré d'arrêt : `stop.fill` de la référence dessine son carré à **0,27 du bouton**
+ * de 60 points (mesuré : 21 à 22 px de carré dans un disque de 80). Le glyphe embarqué ne remplit
+ * que 10/24 de sa boîte (7 → 17 sur 24) : la boîte doit donc mesurer 39 points pour que le carré
  * en fasse 16 — deux fois ce qu'il faisait à 20 points (8 points, 0,13 du bouton).
  */
 private const val VoiceStopGlyph = 39f
 
 /**
- * `OrbFace`: le rayon où l'aura tient son plein avant de s'éteindre (`startRadius: 66` du
- * dégradé radial du modèle). Sans ce plateau, la lueur s'éteignait avant le bord du disque.
+ * `OrbFace` : le rayon où l'aura tient son plein avant de s'éteindre (`startRadius: 66` du
+ * dégradé radial de la référence). Sans ce plateau, la lueur s'éteignait avant le bord du disque.
  */
 private const val VoiceAuraPlateau = 66f
 
-/** `GlassOrb.diameter`: le disque de verre dessiné. */
-private const val OrbFaceDiameter = 190f
+/**
+ * `GlassOrb.diameter` : le disque de verre dessiné. `internal` : la géométrie de l'orbe est
+ * partagée avec `VoiceOrbGlass.kt`, qui le dessine.
+ */
+internal const val OrbFaceDiameter = 190f
 
 /**
- * `GlassOrb.pictureDisc`: le disque d'une face-image dans son carré de 172 points. Les mesures de
+ * `GlassOrb.pictureDisc` : le disque d'une face-image dans son carré de 172 points. Les mesures de
  * l'orbe dessiné s'y rapportent, pour que ses anneaux soient aux mêmes distances proportionnelles
  * que ceux des orbes-image.
  */
 private const val OrbPictureDisc = 172f * 46f / 48f
 
-/** `GlassOrb.ringOutset`: ce que l'anneau de phase dépasse du disque. */
-private const val OrbRingOutset = (172f + 8f - OrbPictureDisc) / 2f
-
-/** L'anneau de phase: le diamètre du disque plus deux fois ce débord (≈ 205 points). */
-private const val OrbRingDiameter = OrbFaceDiameter + 2f * OrbRingOutset
-
-/** `GlassOrb.haloDiameter`: la base des anneaux qui s'ouvrent autour du disque (≈ 228 points). */
+/** `GlassOrb.haloDiameter` : la base des anneaux qui s'ouvrent autour du disque (≈ 228 points). */
 private const val OrbHaloDiameter = OrbFaceDiameter * 198f / OrbPictureDisc
 
-/** `Halos(diameter: 198)`: la base des anneaux d'une face-image. */
+/** `Halos(diameter: 198)` : la base des anneaux d'une face-image. */
 private const val OrbPictureHaloDiameter = 198f
 
-/** Le mot d'état affiché, avec le nom de l'agent quand il réfléchit. */
+/** Le mot d'état tel que la référence l'écrit, avec le nom de l'agent quand il réfléchit. */
 private fun phaseTitle(phase: VoicePhase, agentName: String): String = when (phase) {
     VoicePhase.IDLE -> "Ready"
     VoicePhase.LISTENING -> "Listening"

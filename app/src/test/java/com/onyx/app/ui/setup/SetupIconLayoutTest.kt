@@ -7,12 +7,18 @@ import org.junit.Test
 
 class SetupIconLayoutTest {
     private val source = File("src/main/java/com/onyx/app/ui/setup/SetupScreen.kt").readText()
+    private val anatomy = File("src/main/java/com/onyx/app/ui/setup/SetupAnatomy.kt").readText()
 
     @Test
-    fun `accueil reprend la marque Graphite de 76 points`() {
-        assertTrue(source.contains("OnyxMarkSize = 76.dp"))
+    fun `accueil reprend la marque Graphite en petit carre arrondi en haut a gauche`() {
+        // L'anatomie de la référence : l'icône est **petite** et posée en haut à gauche, avec le
+        // titre à sa suite — ce n'est plus une grande vignette centrée.
+        assertTrue(anatomy.contains("internal val OnyxMarkSize = 30.dp"))
+        assertTrue(anatomy.contains("internal val OnyxMarkCorner = OnyxSpace.ControlCorner"))
         assertTrue(source.contains("R.mipmap.ic_launcher_graphite"))
-        assertTrue(source.contains("RoundedCornerShape(17.dp)"))
+        assertTrue(source.contains("RoundedCornerShape(OnyxMarkCorner)"))
+        assertTrue(source.contains("horizontalAlignment = Alignment.Start"))
+        assertFalse(source.contains("horizontalAlignment = Alignment.CenterHorizontally,"))
         assertFalse(source.contains("OnyxIcon(Symbols.ServerRack, tint = theme.accent, size = 34.dp)"))
     }
 
@@ -47,7 +53,9 @@ class SetupIconLayoutTest {
     @Test
     fun `le test de connexion na pas dicone permanente et son resultat est marque`() {
         assertFalse(source.contains("OnyxIcon(Symbols.WifiExclamation"))
-        assertTrue(source.contains("if (testing) SetupSpinner()"))
-        assertTrue(source.contains("if (result.ok) Symbols.CheckmarkCircle else Symbols.XmarkOctagonFill"))
+        // L'anneau du test tourne **dans** la pilule, et le verdict porte son icône.
+        assertTrue(anatomy.contains("if (testing) {"))
+        assertTrue(anatomy.contains("SetupSpinner()"))
+        assertTrue(anatomy.contains("if (result.ok) Symbols.CheckmarkCircle else Symbols.XmarkOctagonFill"))
     }
 }

@@ -6,11 +6,11 @@ import kotlinx.serialization.Serializable
 /**
  * Transport utilisé pour parler au serveur.
  *
- * Comme l'`enum Transport` de l'app:
- * - [CHAT_COMPLETIONS]: endpoint OpenAI-compatible `/v1/chat/completions` (LM Studio, OpenRouter,
- * llama.cpp, vLLM…). C'est le mode par défaut et le seul requis par le brief.
- * - [HERMES_SESSIONS]: API gateway Hermes avec bearer key et sessions côté serveur.
- * - [HERMES_SERVE]: dashboard `hermes serve` (WebSocket), non implémenté côté Android.
+ * Miroir de l'`enum Transport` de l'app de référence :
+ * - [CHAT_COMPLETIONS] : endpoint OpenAI-compatible `/v1/chat/completions` (LM Studio, OpenRouter,
+ *   llama.cpp, vLLM…). C'est le mode par défaut et le seul requis par le brief.
+ * - [HERMES_SESSIONS] : API gateway Hermes avec bearer key et sessions côté serveur.
+ * - [HERMES_SERVE] : dashboard `hermes serve` (WebSocket), non implémenté côté Android.
  */
 enum class Transport {
     CHAT_COMPLETIONS,
@@ -27,7 +27,7 @@ enum class Transport {
     }
 }
 
-/** En-tête HTTP personnalisé; sa valeur est un secret et n'apparaît jamais dans la revue. */
+/** En-tête HTTP personnalisé ; sa valeur est un secret et n'apparaît jamais dans la revue. */
 @Serializable
 data class CustomHeader(val name: String, val value: String) {
     val id: String get() = name.lowercase()
@@ -55,8 +55,8 @@ data class CustomHeader(val name: String, val value: String) {
 /**
  * Configuration d'un serveur Onyx.
  *
- * Équivalent Android du couple `HermesServer` (non secret) + `Settings` (runtime).
- * Les champs secrets ([apiKey]) ne sont jamais persistés en clair: voir `ServerRepository`.
+ * Équivalent Android du couple `HermesServer` (non secret) + `Settings` (runtime) côté référence.
+ * Les champs secrets ([apiKey]) ne sont jamais persistés en clair : voir `ServerRepository`.
  */
 @Serializable
 data class ServerConfig(
@@ -73,15 +73,15 @@ data class ServerConfig(
     val customHeaders: List<CustomHeader> = emptyList(),
     val transport: Transport = Transport.CHAT_COMPLETIONS,
     /**
-     * Le Dashboard Hermes (`hermes serve`): une adresse à part, un identifiant et un mot de
+     * Le Dashboard Hermes (`hermes serve`) : une adresse à part, un identifiant et un mot de
      * passe. C'est lui qui ouvre les fichiers, le gateway, le cron, le kanban et le contexte —
-     * les mêmes écrans que.
+     * les mêmes écrans que côté référence.
      */
     val serveBaseUrl: String = "",
     val serveUsername: String = "",
     val servePassword: String = "",
     /**
-     * La fenêtre de contexte du modèle, en tokens. Zéro veut dire « inconnue »: l'anneau de
+     * La fenêtre de contexte du modèle, en tokens. Zéro veut dire « inconnue » : l'anneau de
      * contexte ne s'affiche que si elle est renseignée.
      */
     val contextWindow: Int = 0,
@@ -92,7 +92,7 @@ data class ServerConfig(
 ) {
     /** `true` si le serveur a assez d'informations pour être utilisé. */
     /**
-     * Un serveur est utilisable dès qu'on a **une** adresse: l'endpoint API
+     * Un serveur est utilisable dès qu'on a **une** adresse : l'endpoint API
      * (`baseUrl`, transport `chat/completions`) ou l'adresse du Dashboard
      * (`serveBaseUrl`, transports Hermes). Ne tester que `baseUrl` laissait l'écran
      * « Set up Onyx » affiché après « Done » en mode Dashboard — l'adresse remplie
@@ -110,26 +110,47 @@ data class ServerConfig(
             var value = serveBaseUrl.trim()
             while (value.endsWith("/")) value = value.dropLast(1)
             // Un hôte saisi sans schéma (`xxx.trycloudflare.com`) est une erreur de frappe
-            // courante: on suppose https au lieu de refuser la configuration entière
+            // courante : on suppose https au lieu de refuser la configuration entière
             // (« L'adresse du serveur est invalide »).
             if (value.isNotEmpty() && !value.contains("://")) value = "https://$value"
             return value
         }
 
-    /** `true` si le Dashboard est configuré (adresse + identifiant + mot de passe). */
-    val hasServeCredentials: Boolean
+    /**
+     * Le Dashboard est joignable avec un couple identifiant / mot de passe.
+     */
+    val hasServePassword: Boolean
         get() = serveBase.isNotEmpty() && serveUsername.isNotBlank() && servePassword.isNotEmpty()
+
+    /**
+     * `true` si le Dashboard est configuré : soit un couple identifiant / mot de passe, soit
+     * **seulement la clé du serveur**.
+     *
+     * Le service compagnon « une clé » sert `/api/…` et `/v1/…` à la **même adresse** et accepte
+     * la clé d'installation en `Authorization: Bearer` sur les deux : il entretient lui-même la
+     * session du Dashboard. L'app n'a donc **ni nom d'utilisateur ni mot de passe** à fournir —
+     * un seul lien, une seule clé, et les bots, les salles et le temps réel arrivent comme le chat.
+     */
+    val hasServeCredentials: Boolean
+        get() = serveBase.isNotEmpty() && (hasServePassword || effectiveApiKey.isNotBlank())
+
+    /**
+     * La clé du serveur fait office d'identité au Dashboard : aucune session à ouvrir par
+     * identifiant, la clé part en `Bearer` sur `/api/…` et le serveur s'occupe du reste.
+     */
+    val servesWithKey: Boolean
+        get() = effectiveApiKey.isNotBlank() && !hasServePassword
 
     /** Les écrans du Dashboard — fichiers, gateway, cron, kanban — ne s'ouvrent qu'avec lui. */
     val canAdminister: Boolean get() = hasServeCredentials
 
-    /** Un serveur Hermes joignable: une clé API ou une connexion au Dashboard suffit. */
+    /** Un serveur Hermes joignable : une clé API ou une connexion au Dashboard suffit. */
     val canReachGateway: Boolean
         get() = effectiveApiKey.isNotBlank() || hasServeCredentials
 
     /**
-     * Base normalisée: sans `/` final, et sans `/v1` final (les endpoints l'ajoutent eux-mêmes),
-     * comme `Settings.normalizedBase`.
+     * Base normalisée : sans `/` final, et sans `/v1` final (les endpoints l'ajoutent eux-mêmes),
+     * comme `Settings.normalizedBase` côté référence.
      */
     val normalizedBaseUrl: String
         get() {
@@ -137,12 +158,12 @@ data class ServerConfig(
             while (value.endsWith("/")) value = value.dropLast(1)
             if (value.endsWith("/v1")) value = value.dropLast(3)
             while (value.endsWith("/")) value = value.dropLast(1)
-            // Même tolérance que pour le Dashboard: un hôte sans schéma reçoit `https://`.
+            // Même tolérance que pour le Dashboard : un hôte sans schéma reçoit `https://`.
             if (value.isNotEmpty() && !value.contains("://")) value = "https://$value"
             return value
         }
 
-    /** Profil Hermes effectif: `""` ou `"default"` signifient « profil par défaut ». */
+    /** Profil Hermes effectif : `""` ou `"default"` signifient « profil par défaut ». */
     val effectiveProfile: String?
         get() = hermesProfile.trim().takeIf { it.isNotEmpty() && !it.equals("default", ignoreCase = true) }
 
@@ -151,24 +172,27 @@ data class ServerConfig(
         get() = if (effectiveProfile != null && profileKey.isNotBlank()) profileKey else apiKey
 
     /**
-     * Base « gateway »: la base plus `/p/<profil>` lorsque plusieurs profils Hermes cohabitent
-     * sur la même machine.
+     * Base « gateway » : la base **nue**, sans préfixe de profil.
+     *
+     * Le préfixe `/p/<profil>` n'est **pas** employé, et c'est délibéré : il n'existe que sur le
+     * serveur API de la passerelle **pris directement**, où il exige la clé **propre au profil**
+     * (`API_SERVER_KEY` du profil ; sans elle, la passerelle refuse en 401). Le compagnon « une clé »
+     * qui sert cette app ne relaie **pas** ce préfixe : il ne sert que `/v1/…` (→ serveur API) et
+     * `/api/…` (→ tableau de bord). Une requête sur `/p/<profil>/…` partait donc au tableau de bord,
+     * qui répondait `405 Method Not Allowed` — la panne que le propriétaire a vue. Le profil, lui, est
+     * porté par le **RPC du tableau de bord** (`profile` sur `session.create`), jamais par l'adresse.
      */
     val gatewayBaseUrl: String
-        get() {
-            val base = normalizedBaseUrl
-            val profile = effectiveProfile ?: return base
-            return "$base/p/$profile"
-        }
+        get() = normalizedBaseUrl
 
     /**
      * Base à utiliser pour les appels HTTP, selon le transport.
      *
-     * Le gateway Hermes est scopé par profil (`/p/<profil>`); un endpoint OpenAI-compatible
-     * générique (LM Studio, OpenRouter…) ne l'est pas.
+     * Le profil n'est **jamais** porté par l'adresse (voir [gatewayBaseUrl]) : les deux transports
+     * emploient la même base nue, et le profil part par le canal qui le sert.
      */
     val apiBaseUrl: String
-        get() = if (transport == Transport.HERMES_SESSIONS) gatewayBaseUrl else normalizedBaseUrl
+        get() = normalizedBaseUrl
 
     /** Modèle demandé, ou `null` pour laisser le serveur choisir. */
     val effectiveModel: String? get() = model.trim().takeIf { it.isNotEmpty() }
@@ -180,11 +204,11 @@ data class ServerConfig(
         get() = name.trim().ifEmpty { normalizedBaseUrl.ifEmpty { "(serveur)" } }
 
     /**
-     * Signature de la configuration: change dès qu'un champ utile change.
+     * Signature de la configuration : change dès qu'un champ utile change.
      *
      * Elle complète l'`id` du serveur comme clé des ViewModels d'écran (`key = "cron-" + id + …`).
      * Sans elle, corriger l'adresse ou le mot de passe dans les Réglages ne reconstruisait pas les
-     * écrans: ils gardaient l'ancienne configuration en mémoire et retentaient dans le vide — un
+     * écrans : ils gardaient l'ancienne configuration en mémoire et retentaient dans le vide — un
      * « 404 Endpoint introuvable » qui persistait alors que le serveur n'était même plus appelé.
      */
     val configSignature: String

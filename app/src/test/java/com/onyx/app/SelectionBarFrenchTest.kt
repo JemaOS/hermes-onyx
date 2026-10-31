@@ -9,7 +9,7 @@ import org.junit.Test
 /**
  * Les mots de la barre de sélection multiple, en français.
  *
- * Le panneau parle français jusqu'à la confirmation: le titre de la suppression groupée était
+ * Le panneau parle français jusqu'à la confirmation : le titre de la suppression groupée était
  * resté **en anglais** (« Delete 4 conversations? ») sous un message français, parce que le motif
  * de traduction attendait la phrase sans le « ? » que l'écran ajoute. Aucun mot du parcours ne doit
  * rester anglais sur un téléphone français.
@@ -32,7 +32,7 @@ class SelectionBarFrenchTest {
     fun `le titre de la confirmation de suppression est en francais`() {
         assertEquals("Supprimer 4 conversations ?", fr("Delete 4 conversations?"))
         assertEquals("Supprimer 1 conversation ?", fr("Delete 1 conversation?"))
-        // Le motif d'origine reste servi: les deux écritures se traduisent pareil.
+        // Le motif d'origine reste servi : les deux écritures se traduisent pareil.
         assertEquals("Supprimer 4 conversations ?", fr("Delete 4 conversations"))
     }
 

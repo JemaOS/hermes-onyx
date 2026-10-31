@@ -1,5 +1,9 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,18 +45,18 @@ import kotlinx.coroutines.delay
 /**
  * Les tâches lancées par l'agent, ouvertes depuis la conversation.
  *
- * C'est l'écran qui répond à « je veux voir travailler les sous-agents »: une ligne par tâche
- * déléguée, son état, **le temps écoulé qui avance**, et sa dernière action; un tap ouvre sa
+ * C'est l'écran qui répond à « je veux voir travailler les sous-agents » : une ligne par tâche
+ * déléguée, son état, **le temps écoulé qui avance**, et sa dernière action ; un tap ouvre sa
  * transcription.
  *
- * D'où viennent les lignes — et ce que chaque transport donne:
- * - **Dashboard (`hermes serve`)**: les trames `subagent.*` (but, profondeur, dernier outil,
- * tour d'outils, état) et le roster `subagent.list` (date de départ, `last_tool`); le temps
- * écoulé est donc celui du serveur, et la transcription existe;
- * - **API de conversation (`/v1`)**: rien de tout cela n'est transporté — seul l'appel
- * `delegate_task` est visible, avec le but dans son libellé. La tâche apparaît en
- * [SubagentStatus.DISPATCHED] (« Lancé »): le but est connu, l'état réel ne l'est pas, et
- * l'écran ne propose ni transcription ni arrêt, parce que le transport ne les porte pas.
+ * D'où viennent les lignes — et ce que chaque transport donne :
+ *  - **Dashboard (`hermes serve`)** : les trames `subagent.*` (but, profondeur, dernier outil,
+ *    tour d'outils, état) et le roster `subagent.list` (date de départ, `last_tool`) ; le temps
+ *    écoulé est donc celui du serveur, et la transcription existe ;
+ *  - **API de conversation (`/v1`)** : rien de tout cela n'est transporté — seul l'appel
+ *    `delegate_task` est visible, avec le but dans son libellé. La tâche apparaît en
+ *    [SubagentStatus.DISPATCHED] (« Lancé ») : le but est connu, l'état réel ne l'est pas, et
+ *    l'écran ne propose ni transcription ni arrêt, parce que le transport ne les porte pas.
  */
 @Composable
 fun SubagentListScreen(
@@ -78,7 +82,7 @@ fun SubagentListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
@@ -128,7 +132,7 @@ private fun TaskRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(tint.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+            .background(tint.copy(alpha = 0.08f), RoundedCornerShape(OnyxSpace.ControlCorner))
             .onyxClickable { if (openable) onOpen(agent) }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -168,8 +172,8 @@ private fun TaskRow(
 }
 
 /**
- * L'ordre de la liste: ce qui travaille d'abord (les plus récents en tête), puis ce qui est fini,
- * du plus récent au plus ancien. Une tâche lancée et sans nouvelle reste **en haut**: c'est
+ * L'ordre de la liste : ce qui travaille d'abord (les plus récents en tête), puis ce qui est fini,
+ * du plus récent au plus ancien. Une tâche lancée et sans nouvelle reste **en haut** : c'est
  * elle qu'on venait voir.
  */
 internal val subagentOrder: Comparator<SubagentActivity> =

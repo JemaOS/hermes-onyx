@@ -4,5 +4,6 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M3,6 h5.2 l2,2.4 H21 v10.1 H3 Z" android:fillColor="#FFFFFFFF" />
+    <!-- Le dossier plein : le contour du tracé, rempli — meme bord, meme encre. -->
+    <path android:pathData="M4.4,4 H9.9 A2.1,2.1 0 0 1 12,6.1 V6.8 H18.8 A3.2,3.2 0 0 1 22,10 V16.8 A3.2,3.2 0 0 1 18.8,20 H5.2 A3.2,3.2 0 0 1 2,16.8 V6.4 A2.4,2.4 0 0 1 4.4,4 Z" android:fillColor="#FFFFFFFF" />
 </vector>

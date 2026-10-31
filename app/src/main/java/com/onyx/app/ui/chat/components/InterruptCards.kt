@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +34,7 @@ import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
-/** La réponse à une question: le texte libre nettoyé prime, sinon les choix triés. */
+/** La réponse à une question : le texte libre nettoyé prime, sinon les choix triés. */
 internal fun clarifyAnswer(question: ClarifyQuestion, picked: Set<String>, typed: String): String {
     val clean = typed.trim()
     if (clean.isNotEmpty()) return clean
@@ -49,7 +51,7 @@ internal fun clarifyAllAnswered(
 }
 
 /**
- * « Onyx a une question » (`ClarifyCard`): choix en pastilles, réponse libre, envoi immédiat
+ * « Onyx a une question » (`ClarifyCard`) : choix en pastilles, réponse libre, envoi immédiat
  * d'un choix unique, et réponses groupées lorsque la demande en contient plusieurs.
  */
 @Composable
@@ -57,7 +59,7 @@ fun ClarifyCard(
     request: ClarifyRequest,
     onRespond: (Map<String, String>) -> Unit,
     modifier: Modifier = Modifier,
-    /** Qui pose la question: le nom du bot dans son fil, sinon « Onyx ». */
+    /** Qui pose la question : le nom du bot dans son fil, sinon « Onyx ». */
     speaker: String = "Onyx",
 ) {
     val theme = LocalOnyxTheme.current
@@ -79,7 +81,7 @@ fun ClarifyCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF007AFF).copy(alpha = 0.10f), RoundedCornerShape(14.dp))
+.background(theme.tertiarySurfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -132,7 +134,7 @@ fun ClarifyCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(theme.surfaceColor, RoundedCornerShape(8.dp))
+                        .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.ControlCorner))
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                 ) {
                     OnyxTextField(
@@ -162,7 +164,7 @@ fun ClarifyCard(
     }
 }
 
-/** « sudo password needed »: le mot de passe ne quitte que vers le terminal du gateway. */
+/** « sudo password needed » : le mot de passe ne quitte que vers le terminal du gateway. */
 @Composable
 fun SudoCard(
     onRespond: (String) -> Unit,
@@ -180,7 +182,7 @@ fun SudoCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(theme.error.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
+            .background(theme.error.copy(alpha = 0.10f), RoundedCornerShape(OnyxSpace.FieldCorner))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -202,7 +204,7 @@ fun SudoCard(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(theme.surfaceColor, RoundedCornerShape(8.dp))
+                    .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.ControlCorner))
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 OnyxTextField(
@@ -221,13 +223,13 @@ fun SudoCard(
     }
 }
 
-/** « Onyx needs a secret »: enregistrement sur le gateway, ou passage avec une valeur vide. */
+/** « Onyx needs a secret » : enregistrement sur le gateway, ou passage avec une valeur vide. */
 @Composable
 fun SecretCard(
     request: SecretRequest,
     onRespond: (String) -> Unit,
     modifier: Modifier = Modifier,
-    /** Qui demande le secret: le nom du bot dans son fil, sinon « Onyx ». */
+    /** Qui demande le secret : le nom du bot dans son fil, sinon « Onyx ». */
     speaker: String = "Onyx",
 ) {
     val theme = LocalOnyxTheme.current
@@ -242,7 +244,7 @@ fun SecretCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFFAF52DE).copy(alpha = 0.10f), RoundedCornerShape(14.dp))
+.background(theme.tertiarySurfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -274,7 +276,7 @@ fun SecretCard(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(theme.surfaceColor, RoundedCornerShape(8.dp))
+                    .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.ControlCorner))
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 OnyxTextField(
@@ -293,7 +295,7 @@ fun SecretCard(
     }
 }
 
-/** Le titre rempli: texte du thème sur l'accent, texte secondaire lorsqu'il est inactif. */
+/** Le titre rempli de la référence : texte du thème sur l'accent, texte secondaire lorsqu'il est inactif. */
 @Composable
 private fun InterruptAction(
     title: String,
@@ -319,7 +321,7 @@ private fun InterruptAction(
                     filled -> theme.accent
                     else -> Color.Transparent
                 },
-                RoundedCornerShape(8.dp),
+                RoundedCornerShape(OnyxSpace.ControlCorner),
             )
             .onyxClickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),

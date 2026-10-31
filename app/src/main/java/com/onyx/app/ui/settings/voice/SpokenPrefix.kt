@@ -3,7 +3,7 @@ package com.onyx.app.ui.settings.voice
 import kotlinx.serialization.Serializable
 
 /**
- * Une règle de préfixe parlé (`SpokenPrefix`): un mot entendu devient un préfixe de texte, et
+ * Une règle de préfixe parlé (`SpokenPrefix`) : un mot entendu devient un préfixe de texte, et
  * peut envoyer vers un bot ou un modèle.
  */
 @Serializable
@@ -34,9 +34,9 @@ data class SpokenPrefix(
 data class VoiceRoute(val text: String, val bot: String?, val model: String?)
 
 /**
- * Applique la première règle qui correspond, comme `VoiceRouting.route`.
+ * Applique la première règle qui correspond, comme `VoiceRouting.route` côté référence.
  *
- * Le mot doit ouvrir la phrase; les alias attrapent ce que la reconnaissance entend à la place.
+ * Le mot doit ouvrir la phrase ; les alias attrapent ce que la reconnaissance entend à la place.
  */
 fun routeVoiceText(text: String, rules: List<SpokenPrefix>): VoiceRoute {
     val trimmed = text.trimStart()
@@ -46,7 +46,7 @@ fun routeVoiceText(text: String, rules: List<SpokenPrefix>): VoiceRoute {
         val clean = word.trim().lowercase()
         if (clean.isEmpty() || !lower.startsWith(clean)) return null
         val rest = trimmed.substring(clean.length)
-        // Le mot doit être un mot entier: « Claude, … » ou « Claude … », pas « Claudette ».
+        // Le mot doit être un mot entier : « Claude, … » ou « Claude … », pas « Claudette ».
         if (rest.isNotEmpty() && rest.first().isLetterOrDigit()) return null
         return clean.length
     }

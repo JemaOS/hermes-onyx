@@ -7,12 +7,12 @@ import kotlinx.serialization.json.buildJsonObject
 /**
  * Ce que le serveur dit de son activité, par conversation et par salle.
  *
- * Comme `ChatActivity.kinds` / `ChatActivity.roomKinds` (
- * et:188), lus sur `session.active_list`, qui liste **toutes** les sessions vivantes du processus
+ * Miroir de `ChatActivity.kinds` / `ChatActivity.roomKinds` (Echo/Services/ChatActivity:170
+ * et :188), lus sur `session.active_list`, qui liste **toutes** les sessions vivantes du processus
  * du Dashboard — les cachées aussi (c'est ce qui laisse voir les salles travailler).
  */
 
-/** L'état d'une conversation ou d'une salle: un tour en cours, ou une question posée à la personne. */
+/** L'état d'une conversation ou d'une salle : un tour en cours, ou une question posée à la personne. */
 enum class ActivityKind { WORKING, NEEDS_YOU }
 
 /** Ce que `session.active_list` dit, par clé de session et par id de salle. */
@@ -20,14 +20,14 @@ data class ActivityKinds(
     val sessions: Map<String, ActivityKind> = emptyMap(),
     val rooms: Map<String, ActivityKind> = emptyMap(),
 ) {
-    /** Vrai si rien n'est signalé: la liste montre alors la date à la place du rond. */
+    /** Vrai si rien n'est signalé : la liste montre alors la date à la place du rond. */
     val isEmpty: Boolean get() = sessions.isEmpty() && rooms.isEmpty()
 }
 
 /**
  * L'activité du Dashboard, par le RPC (`session.active_list`).
  *
- * Une seule lecture donne les deux: la conversation où le bot écrit, et la salle où l'un de ses
+ * Une seule lecture donne les deux : la conversation où le bot écrit, et la salle où l'un de ses
  * bots écrit. C'est la source des pastilles « au travail » / « en attente » de la liste.
  */
 class ServeActivityRpc(private val rpc: RpcChannel) {
@@ -51,7 +51,7 @@ class ServeActivityRpc(private val rpc: RpcChannel) {
 
         /**
          * Les conversations où un tour est en cours, par identifiant de session stocké.
-         * « starting » est un tour qui s'en va; les sessions cachées des salles n'en sont pas
+         * « starting » est un tour qui s'en va ; les sessions cachées des salles n'en sont pas
          * (elles comptent pour leur salle), et la fin d'un bot n'est pas la fin d'une conversation.
          */
         fun kinds(activeList: JsonElement): Map<String, ActivityKind> {
@@ -72,7 +72,7 @@ class ServeActivityRpc(private val rpc: RpcChannel) {
 
         /**
          * Les salles où des bots travaillent ou attendent, par identifiant de salle. Une salle
-         * hébergée y est sous son propre id; une salle d'Hermes Desktop sous « desktop:id:<salle> ».
+         * hébergée y est sous son propre id ; une salle d'Hermes Desktop sous « desktop:id:<salle> ».
          * Une salle qui attend quelqu'un l'emporte sur une salle qui travaille.
          */
         fun roomKinds(activeList: JsonElement): Map<String, ActivityKind> {

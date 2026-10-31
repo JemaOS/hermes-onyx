@@ -12,7 +12,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * La lecture d'une page par le téléphone (`LinkPreviews.fromSite`), éprouvée sur la JVM: une page
+ * La lecture d'une page par le téléphone (`LinkPreviews.fromSite`), éprouvée sur la JVM : une page
  * sans métadonnées, une image absente, une page lente, un contenu trop gros, et le suivi d'une
  * redirection.
  */
@@ -70,7 +70,7 @@ class LinkPreviewFetcherTest {
         )
         server.start()
         try {
-            // `android.graphics` n'existe pas sur la JVM: la mise à l'échelle est injectée.
+            // `android.graphics` n'existe pas sur la JVM : la mise à l'échelle est injectée.
             LinkPreviewFetcher.compress = { byteArrayOf(9, 9) }
             val preview = requireNotNull(LinkPreviewFetcher.fromSite(server.url("/page").toString()))
             assertEquals("Trail", preview.title)

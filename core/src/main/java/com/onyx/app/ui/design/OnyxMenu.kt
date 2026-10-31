@@ -1,6 +1,7 @@
 package com.onyx.app.ui.design
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +53,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** Une entrée du menu « … »: son libellé, son icône, son sous-menu, et s'il est destructeur. */
+/** Une entrée du menu « … » : son libellé, son icône, son sous-menu, et s'il est destructeur. */
 data class MenuItem(
     val label: String,
     val symbol: Int? = null,
@@ -60,52 +61,52 @@ data class MenuItem(
     val checked: Boolean? = null,
     val localize: Boolean = true,
     /**
-     * Les lignes de son sous-menu (« Mute › »): la ligne porte alors le chevron et ouvre son
+     * Les lignes de son sous-menu (« Mute › ») : la ligne porte alors le chevron et ouvre son
      * propre panneau à côté, au lieu d'agir elle-même. Vide ou nulle, la ligne agit.
      */
     val submenu: List<MenuItem>? = null,
     /**
-     * Un filet au-dessus de cette ligne. Le menu du modèle ne sépare que ses groupes: un filet
+     * Un filet au-dessus de cette ligne. Le menu du modèle ne sépare que ses groupes : un filet
      * devant « Réordonner les bots », et rien entre deux lignes d'un même groupe.
      */
     val groupBreak: Boolean = false,
     val onSelect: () -> Unit,
 )
 
-/** La largeur du panneau d'une rangée: le menu compact du modèle, entre 250 et 290 dp. */
+/** La largeur du panneau d'une rangée : le menu compact du modèle, entre 250 et 290 dp. */
 private val MenuWidth = 280.dp
 
-/** Ses coins, la hauteur d'une de ses lignes, et la marge intérieure d'une ligne. */
-private val MenuCorner = 14.dp
-private val MenuRowHeight = 44.dp
-private val MenuRowInset = 14.dp
+/** Ses coins — ceux de la famille des panneaux de verre —, la hauteur d'une ligne et sa marge. */
+private val MenuCorner = GlassPanelCorner
+private val MenuRowHeight = OnyxSpace.RowHeight
+private val MenuRowInset = OnyxSpace.CardPadding
 
 /** L'icône d'une ligne, l'écart qui la sépare du libellé, et la taille du chevron des sous-menus. */
 private val MenuIconSize = 17.dp
-private val MenuIconGap = 12.dp
+private val MenuIconGap = OnyxSpace.IconLabelGap
 private val MenuChevronSize = 13.dp
 
 /** L'écart entre la rangée touchée et le panneau, et la marge qu'il garde au bord de l'écran. */
-private val MenuGap = 6.dp
-private val MenuMargin = 10.dp
+private val MenuGap = OnyxSpace.Hair
+private val MenuMargin = OnyxSpace.Snug
 
 /** La marge du panneau centré (les menus qui ne sont pas ancrés à une rangée). */
 private val MenuCenteredInset = 32.dp
 
-/** Le voile: léger, il laisse voir l'écran et se ferme quand on appuie à côté du panneau. */
+/** Le voile : léger, il laisse voir l'écran et se ferme quand on appuie à côté du panneau. */
 private val MenuScrim = Color.Black.copy(alpha = 0.18f)
 
 /** Le fond du panneau est translucide, comme le menu du modèle posé sur la liste. */
 private const val MenuSurfaceAlpha = 0.94f
 
 /**
- * Le menu du modèle (`Menu`): un panneau arrondi, une ligne par action, l'icône à gauche et le
+ * Le menu du modèle (`Menu`) : un panneau arrondi, une ligne par action, l'icône à gauche et le
  * chevron des sous-menus à droite.
  *
- * Compose n'a pas de menu qui ressemble à celui-là sans Material: celui-ci est dessiné à la main,
+ * Compose n'a pas de menu qui ressemble à celui-là sans Material : celui-ci est dessiné à la main,
  * avec les icônes du thème, le même ordre (le destructeur en rouge) et un filet entre les groupes.
  *
- * [anchor] est la rangée touchée (ses limites dans la fenêtre, `boundsInWindow`): le panneau
+ * [anchor] est la rangée touchée (ses limites dans la fenêtre, `boundsInWindow`) : le panneau
  * s'ouvre alors **près d'elle**, aligné sur son bord, en dessous ou au-dessus selon la place. Sans
  * ancre, il s'ouvre au centre de l'écran, comme avant.
  */
@@ -115,7 +116,7 @@ fun OnyxMenu(
     onDismiss: () -> Unit,
     anchor: Rect? = null,
 ) {
-    // Le voile et le panneau vivent dans la fenêtre du menu, pas sous les barres système: celui
+    // Le voile et le panneau vivent dans la fenêtre du menu, pas sous les barres système : celui
     // d'une rangée couvre tout l'écran, si bien que rien ne dépasse du voile.
     val properties = if (anchor == null) {
         DialogProperties(usePlatformDefaultWidth = false)
@@ -123,6 +124,9 @@ fun OnyxMenu(
         DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     }
     Dialog(onDismissRequest = onDismiss, properties = properties) {
+        // Le panneau vit dans sa fenêtre : le flou vient du système (ce qui passe **derrière** la
+        // fenêtre), et le voile prend le relais quand il n'est pas disponible.
+        DialogWindowBlur(FrostSurface.MENU)
         MenuOverlay(items = items, onDismiss = onDismiss, anchor = anchor)
     }
 }
@@ -136,12 +140,12 @@ private fun MenuOverlay(
 ) {
     val theme = LocalOnyxTheme.current
     val focus = remember { FocusRequester() }
-    // Le sous-menu ouvert et la ligne qui l'a ouvert: son panneau se pose à côté du premier, à la
+    // Le sous-menu ouvert et la ligne qui l'a ouvert : son panneau se pose à côté du premier, à la
     // hauteur de cette ligne.
     var submenu by remember { mutableStateOf<Pair<List<MenuItem>, Rect>?>(null) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
     var submenuSize by remember { mutableStateOf(IntSize.Zero) }
-    // Où le voile lui-même tombe: la rangée touchée est dans la fenêtre, le voile peut être
+    // Où le voile lui-même tombe : la rangée touchée est dans la fenêtre, le voile peut être
     // décalé par une barre système. On mesure, on ne devine pas.
     var placed by remember { mutableStateOf<Offset?>(null) }
 
@@ -150,7 +154,7 @@ private fun MenuOverlay(
             .fillMaxSize()
             .onGloballyPositioned { placed = it.boundsInWindow().topLeft }
             .background(MenuScrim)
-            // Un appui hors du panneau referme le menu, comme celui du modèle: sans ça le voile
+            // Un appui hors du panneau referme le menu, comme celui du modèle : sans ça le voile
             // plein écran avalait le geste et le menu restait ouvert.
             .onyxTappable(onClick = onDismiss)
             .focusRequester(focus)
@@ -182,7 +186,7 @@ private fun MenuOverlay(
                 min(MenuWidth.roundToPx(), (constraints.maxWidth - marginPx * 2).coerceAtLeast(0))
             }
         }
-        // La hauteur du panneau avant sa première mesure: ses lignes, ses filets, sa marge.
+        // La hauteur du panneau avant sa première mesure : ses lignes, ses filets, sa marge.
         val heightPx = if (panelSize.height > 0) panelSize.height else estimateMenuHeight(items, density)
         val x = row
             ?.let { it.left.roundToInt().coerceIn(marginPx, max(marginPx, constraints.maxWidth - widthPx - marginPx)) }
@@ -196,7 +200,7 @@ private fun MenuOverlay(
             }
             ?: ((constraints.maxHeight - heightPx) / 2)
 
-        // Où va un sous-menu: à droite du panneau, à gauche s'il n'y a plus de place, et à sa
+        // Où va un sous-menu : à droite du panneau, à gauche s'il n'y a plus de place, et à sa
         // place quand deux panneaux ne tiennent pas côte à côte (un téléphone).
         val beside = row != null && x + widthPx + gapPx + widthPx + marginPx <= constraints.maxWidth
         val leftOf = row != null && !beside && x - gapPx - widthPx >= marginPx
@@ -208,7 +212,7 @@ private fun MenuOverlay(
             modifier = Modifier
                 .offset { IntOffset(x, y) }
                 .width(with(density) { widthPx.toDp() })
-                // Le panneau attend d'être placé: il ne se montre pas une image au mauvais endroit.
+                // Le panneau attend d'être placé : il ne se montre pas une image au mauvais endroit.
                 // Il s'efface aussi quand un sous-menu prend sa place, faute de largeur.
                 .alpha(if (placed == null || replacingPanel) 0f else 1f)
                 .onSizeChanged { panelSize = it },
@@ -218,7 +222,7 @@ private fun MenuOverlay(
         submenu?.let { (subItems, bounds) ->
             val subHeightPx = if (submenuSize.height > 0) submenuSize.height else estimateMenuHeight(subItems, density)
             val right = x + widthPx + gapPx
-            // À droite du panneau quand il y a la place, à gauche sinon: le sous-menu ne sort pas
+            // À droite du panneau quand il y a la place, à gauche sinon : le sous-menu ne sort pas
             // de l'écran. Trop étroit pour deux panneaux — un téléphone —, il prend la place du
             // panneau, comme le fait le modèle.
             val subX = when {
@@ -244,46 +248,56 @@ private fun MenuOverlay(
     }
 }
 
-/** La hauteur d'un panneau avant sa mesure: ses lignes, ses filets, et sa marge intérieure. */
+/** La hauteur d'un panneau avant sa mesure : ses lignes, ses filets, et sa marge intérieure. */
 private fun estimateMenuHeight(items: List<MenuItem>, density: Density): Int = with(density) {
     val rows = items.size.coerceAtLeast(1) * MenuRowHeight.roundToPx()
     val dividers = items.count { it.groupBreak } * 2
-    rows + 6.dp.roundToPx() * 2 + dividers
+    rows + OnyxSpace.Half.roundToPx() * 2 + dividers
 }
 
-/** Le panneau: une ligne par entrée, l'une sous l'autre, un filet là où le groupe change. */
+/** Le panneau : une ligne par entrée, l'une sous l'autre, un filet là où le groupe change. */
 @Composable
 private fun MenuPanel(
     items: List<MenuItem>,
     theme: ResolvedTheme,
     modifier: Modifier = Modifier,
-    /** L'appui d'une ligne à sous-menu: son panneau s'ouvre à côté, la ligne n'agit pas. */
+    /** L'appui d'une ligne à sous-menu : son panneau s'ouvre à côté, la ligne n'agit pas. */
     onOpenSubmenu: ((List<MenuItem>, Rect) -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
-            // Le panneau lui-même n'est pas une zone de fermeture: appuyer entre deux lignes ne
+            // Le panneau lui-même n'est pas une zone de fermeture : appuyer entre deux lignes ne
             // doit rien faire (l'appui est avalé ici, pas transmis au voile).
             .onyxTappable(onClick = {})
-            .clip(RoundedCornerShape(MenuCorner))
-            .background(theme.surfaceColor.copy(alpha = MenuSurfaceAlpha))
-            .padding(vertical = 6.dp),
+            // Le barreau des surfaces **flottantes** ([OnyxSurfaces.surfaceHigh]) : un menu posé sur
+            // une page sombre ne se détachait pas de `surfaceColor` (1,096:1). Le filet de la maison
+            // suit la forme du panneau — un seul filet pour toute l'app.
+            .frostedBar(
+                FrostSurface.MENU,
+                RoundedCornerShape(MenuCorner),
+                tint = OnyxSurfaces.surfaceHigh(theme),
+            )
+            .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), RoundedCornerShape(MenuCorner))
+            .padding(vertical = OnyxSpace.Half),
     ) {
         items.forEachIndexed { index, item ->
             if (index > 0 && item.groupBreak) OnyxRowDivider(inset = 12.dp)
-            MenuRow(item = item, theme = theme, onOpenSubmenu = onOpenSubmenu)
+            // La cascade ([MotionFamily.Row]) : chaque ligne se pose après la précédente.
+            Box(modifier = Modifier.rowArrival(index)) {
+                MenuRow(item = item, theme = theme, onOpenSubmenu = onOpenSubmenu)
+            }
         }
     }
 }
 
-/** Une ligne: son icône, son libellé, la coche d'une ligne cochée et le chevron d'un sous-menu. */
+/** Une ligne : son icône, son libellé, la coche d'une ligne cochée et le chevron d'un sous-menu. */
 @Composable
 private fun MenuRow(
     item: MenuItem,
     theme: ResolvedTheme,
     onOpenSubmenu: ((List<MenuItem>, Rect) -> Unit)?,
 ) {
-    // L'endroit où la ligne est: le panneau de son sous-menu s'y accroche.
+    // L'endroit où la ligne est : le panneau de son sous-menu s'y accroche.
     var bounds by remember { mutableStateOf(Rect.Zero) }
     val submenu = item.submenu
 
@@ -299,14 +313,18 @@ private fun MenuRow(
                 }
             }
             .defaultMinSize(minHeight = MenuRowHeight)
-            .padding(horizontal = MenuRowInset, vertical = 11.dp),
+            .padding(horizontal = MenuRowInset, vertical = OnyxSpace.Snug),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(MenuIconGap),
     ) {
         item.symbol?.let {
             OnyxIcon(
                 symbol = it,
-                tint = if (item.destructive) theme.error else theme.accent,
+                // L'**encre du thème**, monochrome : l'icône d'une ligne de menu n'est pas un état,
+                // donc elle ne porte pas l'accent — c'est la règle « une seule couleur d'icône,
+                // partout ». Le **rouge** reste, et lui seul, pour l'entrée destructrice : une action
+                // qui ne se rattrape pas est un état. Le libellé suit la même encre.
+                tint = if (item.destructive) theme.error else theme.textColor,
                 size = MenuIconSize,
             )
         }
@@ -321,7 +339,7 @@ private fun MenuRow(
             modifier = Modifier.weight(1f),
         )
         item.checked?.let { checked ->
-            if (checked) OnyxIcon(Symbols.Checkmark, tint = theme.accent, size = 14.dp)
+            if (checked) OnyxIcon(Symbols.Checkmark, tint = theme.accentInk, size = 14.dp)
         }
         if (!submenu.isNullOrEmpty()) {
             OnyxIcon(symbol = Symbols.ChevronRight, tint = theme.secondaryText, size = MenuChevronSize)
@@ -329,7 +347,7 @@ private fun MenuRow(
     }
 }
 
-/** Une feuille de saisie d'une ligne (nom de dossier, chemin), comme le prompt. */
+/** Une feuille de saisie d'une ligne (nom de dossier, chemin), comme le prompt d'la référence. */
 @Composable
 fun OnyxPrompt(
     title: String,
@@ -355,8 +373,13 @@ fun OnyxPrompt(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(theme.surfaceColor, RoundedCornerShape(14.dp))
-                    .padding(16.dp),
+                    .background(OnyxSurfaces.surfaceHigh(theme), RoundedCornerShape(GlassPanelCorner))
+                    .border(
+                        OnyxSpace.Stroke,
+                        OnyxSurfaces.hairline(theme),
+                        RoundedCornerShape(GlassPanelCorner),
+                    )
+                    .padding(OnyxSpace.CardPadding),
             ) {
                 BasicText(text = title, style = theme.headline.copy(color = theme.textColor))
                 message?.let {
@@ -370,7 +393,7 @@ fun OnyxPrompt(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp)
-                        .background(theme.fill, RoundedCornerShape(8.dp))
+                        .background(theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
                         .padding(horizontal = 8.dp, vertical = 7.dp),
                 ) {
                     OnyxTextField(
@@ -381,12 +404,12 @@ fun OnyxPrompt(
                     )
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = OnyxSpace.BlockGap),
                     horizontalArrangement = Arrangement.End,
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(end = 16.dp)
+                            .padding(end = OnyxSpace.CardPadding)
                             .onyxTappable(onClick = onDismiss),
                     ) {
                         BasicText("Cancel", style = theme.body.copy(color = theme.secondaryText))

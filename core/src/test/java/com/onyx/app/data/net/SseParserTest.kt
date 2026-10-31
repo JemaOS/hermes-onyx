@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Vérifie le décodage SSE: c'est la pièce la plus fragile de la couche réseau et elle est
+ * Vérifie le décodage SSE : c'est la pièce la plus fragile de la couche réseau et elle est
  * difficile à observer sans serveur, d'où ce test hors appareil.
  */
 class SseParserTest {

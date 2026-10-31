@@ -6,8 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le implémentation de , et , et la décision
- * qui en sort pour `VoiceSession`: sans mots, sans micro, sans horloge — donc éprouvable ici.
+ * Le portage de `BargeInDetector`, `Backchannel` et `StopWord`, et la décision
+ * qui en sort pour `VoiceSession` : sans mots, sans micro, sans horloge — donc éprouvable ici.
  */
 class BargeInTest {
 
@@ -16,9 +16,9 @@ class BargeInTest {
     @Test
     fun `une voix au-dessus du bruit de la pièce déclenche`() {
         val detector = BargeInDetector.echoCancelled()
-        // Le réglage initial est la fenêtre d'annulation d'écho: rien ne compte encore.
+        // Le réglage initial est la fenêtre d'annulation d'écho : rien ne compte encore.
         repeat(12) { assertFalse("pendant l'échauffement", detector.feed(SILENCE, STEP)) }
-        // La pièce se met à son niveau (95 dBFS), puis une voix arrive à -20.
+        // La pièce se met à son niveau (-95 dBFS), puis une voix arrive à -20.
         detector.feed(SILENCE, STEP)
         var tripped = false
         repeat(20) { if (detector.feed(VOICE, STEP)) tripped = true }
@@ -35,15 +35,15 @@ class BargeInTest {
     fun `une voix plus courte que la tenue ne déclenche pas`() {
         val detector = BargeInDetector.echoCancelled()
         detector.feed(SILENCE, STEP)
-        // Un dixième de seconde: sous les 0,16 s.
+        // Un dixième de seconde : sous les 0,16 s de la référence.
         assertFalse(detector.feed(VOICE, STEP))
     }
 
     @Test
     fun `un creux entre syllabes ne reprend que ce qu il dure`() {
-        // Sans fenêtre d'échauffement: c'est la tenue qu'on éprouve ici, pas l'annulation d'écho.
+        // Sans fenêtre d'échauffement : c'est la tenue qu'on éprouve ici, pas l'annulation d'écho.
         val detector = BargeInDetector(minimum = -28f, settle = 0.0)
-        // La pièce se déclare d'abord: le plancher de bruit tombe, et c'est lui qui décide du seuil.
+        // La pièce se déclare d'abord : le plancher de bruit tombe, et c'est lui qui décide du seuil.
         assertFalse(detector.feed(SILENCE, 0.05))
         assertFalse(detector.feed(VOICE, 0.1))          // 0,10 s de voix
         assertFalse(detector.feed(SILENCE, 0.05))       // un creux de 0,05 s
@@ -64,7 +64,7 @@ class BargeInTest {
     fun `un micro de casque a un seuil plus bas que celui du téléphone`() {
         val phone = BargeInDetector.echoCancelled()
         val headset = BargeInDetector.headset()
-        // -32 dBFS: sous le seuil du téléphone (28), au-dessus de celui du casque (38).
+        // -32 dBFS : sous le seuil du téléphone (-28), au-dessus de celui du casque (-38).
         val quietRoom = -70f
         listOf(phone to false, headset to true).forEach { (detector, expected) ->
             detector.feed(quietRoom, STEP)
@@ -142,11 +142,11 @@ class BargeInTest {
     }
 
     private companion object {
-        /** Un pas de mesure: `onRmsChanged` en livre une dizaine par seconde. */
+        /** Un pas de mesure : `onRmsChanged` en livre une dizaine par seconde. */
         const val STEP = 0.1
         /** Le silence après annulation d'écho, ce que le détecteur voit d'une pièce calme. */
         const val SILENCE = -95f
-        /** Une voix à bout de bras, la fourchette basse mesurée par. */
+        /** Une voix à bout de bras, la fourchette basse mesurée par référence. */
         const val VOICE = -20f
     }
 }

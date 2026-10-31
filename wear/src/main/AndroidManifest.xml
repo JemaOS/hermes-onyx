@@ -34,7 +34,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.onyx.app.action.ASK" />
+                <action android:name="${onyxNamespace}.action.ASK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

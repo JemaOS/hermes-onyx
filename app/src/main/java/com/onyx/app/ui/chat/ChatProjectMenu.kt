@@ -90,7 +90,7 @@ fun rememberChatProjectDirectory(server: ServerConfig, stored: String?): ChatPro
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            // Comme , un échec de simple lecture laisse seulement « New Project… ».
+            // Comme sur la référence, un échec de simple lecture laisse seulement « New Project… ».
         }
     }
     DisposableEffect(directory) { onDispose { directory?.close() } }

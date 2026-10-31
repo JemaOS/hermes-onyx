@@ -1,9 +1,0 @@
-rotation=0
-text='New Group Chat' | class='android.widget.TextView' | bounds='[162,995][510,1049]' | enabled='true'
-text='Pick who answers. Everyone speaks in turn, each in their own voice.' | class='android.widget.TextView' | bounds='[162,1065][918,1147]' | enabled='true'
-class='android.view.View' | bounds='[162,1172][918,1268]' | clickable='true' | enabled='true'
-text='Onyx' | class='android.widget.TextView' | bounds='[235,1208][918,1262]' | enabled='true'
-class='android.view.View' | bounds='[162,1268][918,1394]' | clickable='true' | enabled='true'
-text='kilo' | class='android.widget.TextView' | bounds='[235,1304][918,1358]' | enabled='true'
-text='Cancel' | class='android.widget.TextView' | bounds='[162,1388][307,1514]' | clickable='true' | enabled='true'
-text='Create' | class='android.widget.TextView' | bounds='[349,1388][491,1514]' | clickable='true' | enabled='true'

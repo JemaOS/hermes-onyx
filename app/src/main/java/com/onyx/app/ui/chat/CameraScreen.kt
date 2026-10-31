@@ -42,6 +42,8 @@ import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import java.io.File
+import com.onyx.app.ui.design.tapLabel
+import com.onyx.app.ui.localization.resolveOnyxText
 
 /**
  * L'appareil photo de Onyx (`CameraPicker`).
@@ -107,7 +109,7 @@ fun CameraScreen(
         }
     }
 
-    // La bascule avant/arrière: l'objectif change, la torche s'éteint (l'objectif avant en a
+    // La bascule avant/arrière : l'objectif change, la torche s'éteint (l'objectif avant en a
     // rarement une).
     val flip: () -> Unit = {
         torchOn = false
@@ -118,7 +120,7 @@ fun CameraScreen(
         }
     }
 
-    // La torche: on l'allume et on l'éteint sur l'objectif courant.
+    // La torche : on l'allume et on l'éteint sur l'objectif courant.
     val toggleTorch: () -> Unit = {
         val next = !torchOn
         torchOn = next
@@ -140,7 +142,10 @@ fun CameraScreen(
                     .align(Alignment.BottomCenter)
                     .size(72.dp)
                     .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                    .onyxClickable(pressedScale = 0.9f) { takePhoto(context, capture, onCapture) },
+                    .onyxClickable(pressedScale = 0.9f) { takePhoto(context, capture, onCapture) }
+                    // L'obturateur est un rond **sans texte** : son nom est le seul moyen de savoir
+                    // ce qu'il fait (relevé d'arbre : zone cliquable muette).
+                    .tapLabel(resolveOnyxText("Take photo")),
             )
             // La sortie.
             OnyxIcon(
@@ -150,8 +155,10 @@ fun CameraScreen(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(start = 28.dp, bottom = 48.dp)
-                    .onyxClickable(onClick = onClose),
-                contentDescription = "Close",
+                    .onyxClickable(onClick = onClose)
+                    // Le libellé est porté par la **zone**, l'icône devient décorative : le porter
+                    // deux fois ferait deux annonces pour un seul bouton.
+                    .tapLabel(resolveOnyxText("Close")),
             )
             // La bascule avant/arrière, quand il y a un objectif avant.
             if (granted && hasFrontCamera) {
@@ -159,32 +166,34 @@ fun CameraScreen(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 28.dp, bottom = 44.dp),
+                    label = resolveOnyxText("Flip camera"),
                     onClick = flip,
                 ) {
                     OnyxIcon(
                         symbol = Symbols.ArrowClockwise,
                         tint = Color.White,
                         size = 26.dp,
-                        contentDescription = "Flip camera",
                     )
                 }
             }
         }
 
-        // La torche: le même « bolt.fill » que l'appareil photo , allumé en orangé.
+        // La torche : le même « bolt.fill » que l'appareil photo de la référence, allumé en orangé.
         if (granted && hasFlash) {
             CameraRoundControl(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(16.dp),
+                // La lampe est **un** contrôle dont le nom dit ce que le prochain appui fera —
+                // comme le contrôle du volet (« Replier » / « Déplier »).
+                label = resolveOnyxText(if (torchOn) "Turn off the light" else "Turn on the light"),
                 onClick = toggleTorch,
             ) {
                 OnyxIcon(
                     symbol = Symbols.Bolt,
                     tint = if (torchOn) theme.warning else Color.White,
                     size = 20.dp,
-                    contentDescription = if (torchOn) "Turn off the light" else "Turn on the light",
                 )
             }
         }
@@ -198,7 +207,7 @@ fun CameraScreen(
 }
 
 /**
- * La grille des tiers, comme le quadrillage de l'appareil photo: deux traits verticaux et
+ * La grille des tiers, comme le quadrillage de l'appareil photo de la référence : deux traits verticaux et
  * deux traits horizontaux, fins et translucides, posés sur l'image.
  */
 @Composable
@@ -219,6 +228,8 @@ private fun ThirdsGrid(modifier: Modifier = Modifier) {
 @Composable
 private fun CameraRoundControl(
     modifier: Modifier = Modifier,
+    /** Le nom du contrôle : le rond n'a qu'une icône, et une icône seule ne se annonce pas. */
+    label: String,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -226,16 +237,23 @@ private fun CameraRoundControl(
         modifier = modifier
             .size(44.dp)
             .background(Color.Black.copy(alpha = 0.35f), CircleShape)
-            .onyxClickable(pressedScale = 0.9f, onClick = onClick),
+            .onyxClickable(pressedScale = 0.9f, onClick = onClick)
+            .tapLabel(label),
         contentAlignment = Alignment.Center,
     ) {
         content()
     }
 }
 
-/** Prend la photo, l'écrit dans le cache et la rend à l'appelant (`CameraPicker.onCapture`). */
+/**
+ * Prend la photo, l'écrit dans le **stockage privé durable** et la rend à l'appelant
+ * (`CameraPicker.onCapture`).
+ *
+ * L'écrire dans `cacheDir` (ce que faisait ce code) la condamnait : le système purge le cache, et
+ * la bulle du fil — qui se décode depuis cette URI — devenait « Illisible » après fermeture.
+ */
 private fun takePhoto(context: Context, capture: ImageCapture, onCapture: (android.net.Uri) -> Unit) {
-    val folder = File(context.cacheDir, "photos").apply { mkdirs() }
+    val folder = File(context.filesDir, "photos").apply { mkdirs() }
     val file = File(folder, "photo-${System.currentTimeMillis()}.jpg")
     capture.takePicture(
         ImageCapture.OutputFileOptions.Builder(file).build(),

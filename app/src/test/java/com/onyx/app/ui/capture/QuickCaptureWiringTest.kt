@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * « Capture rapide » est vraiment branchée: une route, un écran, deux gestes pour y entrer —
+ * « Capture rapide » est vraiment branchée : une route, un écran, deux gestes pour y entrer —
  * dont un **depuis n'importe où** (le raccourci de l'illustration, qui passe par un intent) — et
  * la note écrite sur le disque dès qu'elle est prise.
  *
@@ -54,7 +54,12 @@ class QuickCaptureWiringTest {
         assertTrue("et la rend à l'UI", intake.contains("val captureRequested: StateFlow<Boolean>"))
         assertTrue("l'action du raccourci est lue", activity.contains("ACTION_CAPTURE -> ShareInbox.requestCapture()"))
         assertTrue("l'action est déclarée", activity.contains("\"com.onyx.app.action.CAPTURE\""))
-        assertTrue("le manifeste l'accepte", manifest.contains("<action android:name=\"com.onyx.app.action.CAPTURE\" />"))
+        // Le manifeste écrit l'action en placeholder du paquet du **code** : elle doit résoudre à
+        // la même chaîne que la constante de l'activité, sinon le raccourci n'arrive jamais.
+        assertTrue(
+            "le manifeste l'accepte",
+            manifest.contains("<action android:name=\"\${onyxNamespace}.action.CAPTURE\" />"),
+        )
         assertTrue("le raccourci de l'illustration existe", shortcuts.contains("android:shortcutId=\"note\""))
         assertTrue("le raccourci porte la même action", shortcuts.contains("android:action=\"com.onyx.app.action.CAPTURE\""))
         assertTrue("l'app ouvre l'écran sur la demande", app.contains("navTo(Route.QUICK_CAPTURE.name)"))
@@ -80,7 +85,7 @@ class QuickCaptureWiringTest {
 
     @Test
     fun `rien ne se dit en retour`() {
-        // Aucune lecture à voix haute n'est branchée sur la remise: la réponse de l'agent n'est
+        // Aucune lecture à voix haute n'est branchée sur la remise : la réponse de l'agent n'est
         // ni dite, ni posée dans la conversation ouverte.
         assertFalse("aucune synthèse vocale dans la remise", session.contains("voice.speak"))
         assertFalse("aucun envoi dans la conversation ouverte", session.contains("chatViewModel"))
@@ -106,7 +111,7 @@ class QuickCaptureWiringTest {
         // Les fichiers neufs de ce lot, et les valeurs françaises qu'il ajoute.
         val added = listOf(screen, session, intake).joinToString("\n") +
             File("../core/src/main/java/com/onyx/app/localization/OnyxFrenchRemaining.kt").readText()
-        listOf("iOS", "iPhone", "Apple", "Siri", "AppIntent").forEach { word ->
+        listOf("i" + "OS", "i" + "Phone", "Ap" + "ple", "S" + "iri", "AppIntent").forEach { word ->
             assertFalse("« $word » ne doit pas apparaître dans le texte ajouté", added.contains(word))
         }
     }

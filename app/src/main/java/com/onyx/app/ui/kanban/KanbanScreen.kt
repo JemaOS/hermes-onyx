@@ -1,7 +1,15 @@
 package com.onyx.app.ui.kanban
 
+import com.onyx.app.ui.design.BadgeGeometry
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
+import com.onyx.app.localization.OnyxLanguage
+import com.onyx.app.ui.common.OnyxLoadingRows
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.onyx.app.ui.localization.BasicText
@@ -25,15 +34,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onyx.app.data.model.serve.KanbanCard
 import com.onyx.app.data.model.serve.KanbanStatus
 import com.onyx.app.data.model.serve.relativeLabel
 import com.onyx.app.ui.design.AlertAction
+import com.onyx.app.ui.design.ChipRowFit
 import com.onyx.app.ui.design.OnyxAlert
 import com.onyx.app.ui.design.OnyxEmptyState
 import com.onyx.app.ui.design.OnyxFormSection
@@ -51,26 +64,28 @@ import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.theme.LocalOnyxTheme
+import com.onyx.app.ui.design.tapLabel
+import com.onyx.app.ui.localization.resolveOnyxText
 
 /**
- * La réserve fixe de droite d'une carte: le « … » a sa propre colonne, donc le titre et le
+ * La réserve fixe de droite d'une carte : le « … » a sa propre colonne, donc le titre et le
  * résumé ne passent jamais dessous, quelle que soit la longueur du texte. 44 dp, la zone
- * touchable du guide — la capture du Magic V3 déplié montrait le bouton collé au texte.
+ * touchable du guide de la référence — la capture du Magic V3 déplié montrait le bouton collé au texte.
  */
 internal val KanbanRowMenuSize: Dp = 44.dp
 
-/** Le plancher de hauteur d'une carte: un titre court ne tasse pas la rangée. */
+/** Le plancher de hauteur d'une carte : un titre court ne tasse pas la rangée. */
 internal val KanbanRowMinHeight: Dp = 72.dp
 
 /**
  * Réglages → Kanban.
  *
- * Comme: une colonne à la fois, son sélecteur en haut, ses cartes, et
- * l'éditeur d'une carte. Les colonnes, les priorités et les phrases sont celles , et le
+ * Port de `KanbanView` : une colonne à la fois, son sélecteur en haut, ses cartes, et
+ * l'éditeur d'une carte. Les colonnes, les priorités et les phrases sont celles de la référence, et le
  * tableau se relit tout seul quand le serveur le change (le socket d'événements du plugin).
  *
- * @param topRow la rangée du haut passée à la vue Kanban (le sélecteur de section de la
- * liste): en deux panneaux, le tableau porte la sienne au-dessus de ses capsules.
+ * @param topRow la rangée du haut qu'référence passe à `KanbanView` (le sélecteur de section de la
+ * liste) : en deux panneaux, le tableau porte la sienne au-dessus de ses capsules.
  */
 @Composable
 fun KanbanScreen(
@@ -80,7 +95,7 @@ fun KanbanScreen(
     modifier: Modifier = Modifier,
     topRow: (@Composable () -> Unit)? = null,
     /**
-     * Le contrôle du volet (`sidebar.left`) quand le tableau **est** le volet des deux panneaux:
+     * Le contrôle du volet (`sidebar.left`) quand le tableau **est** le volet des deux panneaux :
      * la barre le porte à gauche, comme celle de la liste des conversations.
      */
     sidebarControl: (@Composable () -> Unit)? = null,
@@ -92,7 +107,7 @@ fun KanbanScreen(
     var movingCard by remember { mutableStateOf<Pair<KanbanCard, KanbanStatus>?>(null) }
     var moveNote by remember { mutableStateOf("") }
 
-    // Le direct ne vit que tant que l'écran est là: arrête son socket en
+    // Le direct ne vit que tant que l'écran est là : la référence arrête son socket en
     // `onDisappear` et le reprend en `onAppear`.
     DisposableEffect(viewModel) {
         viewModel.startLive()
@@ -100,7 +115,7 @@ fun KanbanScreen(
     }
 
     /**
-     * Le glissement vers l'avant: la colonne suivante , tout de suite — sauf quand cette
+     * Le glissement vers l'avant : la colonne suivante de la référence, tout de suite — sauf quand cette
      * colonne veut une raison (« What is it waiting on? »), que la feuille demande alors.
      */
     fun forward(card: KanbanCard) {
@@ -132,7 +147,12 @@ fun KanbanScreen(
         else -> Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(theme.pageColor),
+                .onyxPage(theme)
+                // La zone du système est prise par la racine de l'écran : la dernière rangée
+                // du corps ne peut plus être enterrée sous la barre de navigation ni sous la
+                // zone du geste d'accueil. L'encart est **lu à l'exécution** (24 dp en gestes,
+                // 48 dp à trois boutons) — jamais une valeur en dur qui ne vaut que pour un écran.
+                .navigationBarsPadding(),
         ) {
             Column(modifier = Modifier.statusBarsPadding()) {
                 OnyxPageHeader(
@@ -142,8 +162,8 @@ fun KanbanScreen(
                     action = "New card",
                     onAction = viewModel::startNew,
                     actionEnabled = !state.needsDashboard,
-                    // Le modèle pose un symbole de liaison à droite tant que le Dashboard
-                    // répond: `arrow.clockwise` (secondaire) quand le direct n'écoute pas,
+                    // La référence pose un symbole de liaison à droite tant que le Dashboard
+                    // répond : `arrow.clockwise` (secondaire) quand le direct n'écoute pas,
                     // `dot.radiowaves.left.and.right` (vert) quand il écoute.
                     trailingSymbol = when {
                         state.needsDashboard -> null
@@ -155,7 +175,7 @@ fun KanbanScreen(
                 )
             }
 
-            // La rangée du haut de `KanbanView(topRow:)`: en deux panneaux, le sélecteur de
+            // La rangée du haut de `KanbanView(topRow:)` : en deux panneaux, le sélecteur de
             // section vit dans le panneau du tableau, au-dessus de ses capsules.
             topRow?.invoke()
 
@@ -203,9 +223,7 @@ fun KanbanScreen(
                     }
 
                     when {
-                        state.loading -> OnyxFormSection {
-                            OnyxRow { BasicText("Loading from Onyx…", style = theme.body.copy(color = theme.secondaryText)) }
-                        }
+                        state.loading -> OnyxLoadingRows(label = "Loading from Onyx…")
 
                         state.cardsIn(state.column).isEmpty() -> KanbanEmptyState(
                             symbol = kanbanStatusSymbol(state.column),
@@ -219,7 +237,7 @@ fun KanbanScreen(
                                     card = card,
                                     onClick = { viewModel.openDetail(card) },
                                     onMenu = { menuFor = card },
-                                    // Le glissement vers l'avant: la colonne suivante d'un
+                                    // Le glissement vers l'avant de la référence : la colonne suivante d'un
                                     // coup, avec la raison demandée quand la colonne en veut une.
                                     onForward = { forward(card) },
                                     onDelete = { pendingDelete = card },
@@ -323,53 +341,92 @@ private fun ColumnCapsules(
     onSelect: (KanbanStatus) -> Unit,
 ) {
     val theme = LocalOnyxTheme.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        KanbanStatus.entries.forEach { column ->
-            val active = column == selected
-            Row(
-                modifier = Modifier
-                    .background(
-                        color = if (active) theme.accent else theme.fill,
-                        shape = RoundedCornerShape(50),
-                    )
-                    .onyxClickable(pressedScale = 0.96f) { onSelect(column) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                OnyxIcon(
-                    symbol = kanbanStatusSymbol(column),
-                    tint = if (active) theme.userText else theme.textColor,
-                    size = 13.dp,
-                )
-                BasicText(
-                    text = column.label,
-                    style = theme.footnote.copy(
-                        color = if (active) theme.userText else theme.textColor,
-                        fontWeight = FontWeight.Medium,
-                    ),
-                )
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints {
+        // **La rangée tient, elle ne se coupe pas.** Dans le volet du pliable replié (340 dp), les
+        // capsules de colonne débordaient : il n'en restait qu'un fragment de bord au droit, et
+        // Compose ne dessine aucun indicateur de défilement — ce fragment se lit comme un défaut.
+        // La maison a une règle pour ça ([ChipRowFit]) : on **mesure** et on **réduit** d'un
+        // demi-point jusqu'à ce que la rangée tienne, jamais sous le plancher de lisibilité.
+        val available = maxWidth.value
+        val gapDp = 6f
+        // Le dégagement d'une capsule : ses marges, son icône et l'écart avant le libellé.
+        val chipInsetDp = 10f * 2f + 13f + 4f
+        val measure: (String, Float) -> Float = { text, size ->
+            val style = theme.footnote.copy(fontSize = size.sp, fontWeight = FontWeight.Medium)
+            with(density) {
+                measurer.measure(text = text, style = style, maxLines = 1).size.width.toDp().value
+            }
+        }
+        // Le compte est mesuré **avec** le libellé : c'est la même capsule qui doit tenir.
+        val widestPerColumn = { size: Float ->
+            KanbanStatus.entries.map { column ->
                 val count = counts(column)
-                if (count > 0) {
-                    BasicText(
-                        text = count.toString(),
-                        style = theme.caption2.copy(
-                            color = if (active) theme.userText else theme.textColor,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                        modifier = Modifier
-                            .background(
-                                if (active) Color.White.copy(alpha = 0.25f) else theme.accent.copy(alpha = 0.15f),
-                                RoundedCornerShape(50),
-                            )
-                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                val label = if (count > 0) "${column.label}  $count" else column.label
+                measure(label, size)
+            }
+        }
+        val plan = ChipRowFit.plan(
+            availableDp = available,
+            chipInsetDp = chipInsetDp,
+            gapDp = gapDp,
+            baseSp = theme.footnote.fontSize.value,
+        ) { size, _ -> widestPerColumn(size) }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Qui tient ne défile pas : le défilement reste le dernier recours, avec des
+                // libellés entiers — il ne coupe aucun mot.
+                .then(if (plan.fits) Modifier else Modifier.horizontalScroll(rememberScrollState()))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(gapDp.dp),
+        ) {
+            KanbanStatus.entries.forEach { column ->
+                val active = column == selected
+                Row(
+                    modifier = Modifier
+                        .background(
+                            color = if (active) theme.accent else theme.fill,
+                            shape = RoundedCornerShape(50),
+                        )
+                        .onyxClickable(pressedScale = 0.96f) { onSelect(column) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    OnyxIcon(
+                        symbol = kanbanStatusSymbol(column),
+                        tint = if (active) theme.userText else theme.textColor,
+                        size = 13.dp,
                     )
+                    BasicText(
+                        text = column.label,
+                        style = theme.footnote.copy(
+                            color = if (active) theme.userText else theme.textColor,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = plan.fontSizeSp.sp,
+                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                    val count = counts(column)
+                    if (count > 0) {
+                        BasicText(
+                            text = count.toString(),
+                            style = theme.caption2.copy(
+                                color = if (active) theme.userText else theme.textColor,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                            modifier = Modifier
+                                .background(
+                                    if (active) Color.White.copy(alpha = 0.25f) else theme.accent.copy(alpha = 0.15f),
+                                    RoundedCornerShape(50),
+                                )
+                                .padding(horizontal = 5.dp, vertical = BadgeGeometry.PadVertical),
+                        )
+                    }
                 }
             }
         }
@@ -410,7 +467,7 @@ private fun KanbanRow(
                 .heightIn(min = KanbanRowMinHeight)
                 .onyxTappable(onClick = onClick)
                 .padding(start = 16.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
-            // Le haut, pas le centre: le « … » reste sur la ligne du titre, il ne descend pas
+            // Le haut, pas le centre : le « … » reste sur la ligne du titre, il ne descend pas
             // jusqu'au résumé d'une carte à deux lignes.
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -434,7 +491,7 @@ private fun KanbanRow(
                             maxLines = 1,
                             modifier = Modifier
                                 .background(priorityTint.copy(alpha = 0.15f), RoundedCornerShape(50))
-                                .padding(horizontal = 5.dp, vertical = 1.dp),
+                                .padding(horizontal = 5.dp, vertical = BadgeGeometry.PadVertical),
                         )
                     }
                 }
@@ -461,7 +518,7 @@ private fun KanbanRow(
                             maxLines = 1,
                         )
                     }
-                    // `task.createdAt.relativeLabel`: l'âge (« 1 hr. ago »), pas l'estampille.
+                    // `task.createdAt.relativeLabel` : l'âge (« 1 hr. ago »), pas l'estampille.
                     cardAge(card)?.let { age ->
                         BasicText(text = age, localize = false, style = theme.caption.copy(color = theme.secondaryText), maxLines = 1)
                     }
@@ -471,6 +528,7 @@ private fun KanbanRow(
                             text = card.commentCount.toString(),
                             style = theme.caption.copy(color = theme.secondaryText),
                             maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                         )
                     }
                     if (card.failed) {
@@ -478,20 +536,19 @@ private fun KanbanRow(
                     }
                 }
             }
-            // La réserve de droite, de largeur fixe: quoi qu'écrive la carte, le texte s'arrête
-            // avant elle (`TextOverflow.Ellipsis` sur le titre et le résumé) et le « … » ne
+            // La réserve de droite, de largeur fixe : quoi qu'écrive la carte, le texte s'arrête
             // chevauche jamais ni l'un ni l'autre. C'est aussi la zone touchable de 44 dp.
             Box(
                 modifier = Modifier
                     .size(KanbanRowMenuSize)
-                    .onyxClickable(onClick = onMenu),
+                    .onyxClickable(onClick = onMenu)
+                    .tapLabel(resolveOnyxText("Card menu")),
                 contentAlignment = Alignment.TopCenter,
             ) {
                 OnyxIcon(
                     symbol = Symbols.Ellipsis,
                     tint = theme.secondaryText,
                     size = 16.dp,
-                    contentDescription = "Card menu",
                 )
             }
         }
@@ -499,19 +556,19 @@ private fun KanbanRow(
 }
 
 /**
- * L'âge d'une carte, comme la rangée: `created_at` arrive en secondes d'époque, et c'est
+ * L'âge d'une carte, comme la rangée de la référence : `created_at` arrive en secondes d'époque, et c'est
  * `relativeLabel` qui en fait « 1 hr. ago ». Une estampille déjà lisible est rendue telle quelle.
  */
 internal fun cardAge(
     card: KanbanCard,
     nowMillis: Long = System.currentTimeMillis(),
-    locale: java.util.Locale = java.util.Locale.getDefault(),
+    locale: java.util.Locale = OnyxLanguage.preferred,
 ): String? = card.createdAtMillis?.let { relativeLabel(it, nowMillis, locale) } ?: card.createdAt
 
-/** `Created` du détail: la date , ou la valeur brute quand le serveur ne donne pas d'heure. */
+/** `Created` du détail : la date de la référence, ou la valeur brute quand le serveur ne donne pas d'heure. */
 internal fun cardCreatedLabel(card: KanbanCard): String? =
     card.createdAtMillis?.let {
-        java.text.SimpleDateFormat("d MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it))
+        java.text.SimpleDateFormat("d MMM, HH:mm", OnyxLanguage.preferred).format(java.util.Date(it))
     } ?: card.createdAt
 
 @Composable
@@ -528,7 +585,13 @@ private fun KanbanEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme)
+            // La zone du système est prise par la racine de l'écran : la dernière rangée du
+            // corps ne peut plus être enterrée sous la barre de navigation ni sous la zone du
+            // geste d'accueil. L'encart est **lu à l'exécution** (24 dp en navigation par
+            // gestes, 48 dp à trois boutons, et ce qu'il faut sur un pliable déplié) — jamais
+            // une valeur en dur qui ne vaut que pour un écran.
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
@@ -602,7 +665,7 @@ private fun PriorityRow(value: Int, onChange: (Int) -> Unit) {
         BasicText("Priority $value", style = theme.body.copy(color = theme.textColor), modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
-                .background(theme.fill, RoundedCornerShape(8.dp))
+                .background(theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
                 .onyxClickable { onChange((value + 1) % 6) }
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         ) {
@@ -613,7 +676,7 @@ private fun PriorityRow(value: Int, onChange: (Int) -> Unit) {
                 text = "−",
                 style = theme.body.copy(color = if (value > 0) theme.accent else theme.tertiaryText),
                 modifier = Modifier
-                    .background(theme.fill, RoundedCornerShape(8.dp))
+                    .background(theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
                     .onyxClickable(enabled = value > 0) { onChange((value - 1).coerceAtLeast(0)) }
                     .padding(horizontal = 12.dp, vertical = 5.dp),
             )
@@ -640,7 +703,13 @@ private fun KanbanDetailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme)
+            // La zone du système est prise par la racine de l'écran : la dernière rangée du
+            // corps ne peut plus être enterrée sous la barre de navigation ni sous la zone du
+            // geste d'accueil. L'encart est **lu à l'exécution** (24 dp en navigation par
+            // gestes, 48 dp à trois boutons, et ce qu'il faut sur un pliable déplié) — jamais
+            // une valeur en dur qui ne vaut que pour un écran.
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = card.title, onBack = onBack, action = "Edit", onAction = onEdit, localizeTitle = false)
@@ -773,7 +842,7 @@ private fun KanbanDetailScreen(
                 OnyxRow(onClick = {
                     onAskOnyx("Tell me about the kanban card “${card.title}” (${card.id}) and what to do next.")
                 }) {
-                    OnyxIcon(Symbols.SquareAndPencil, tint = theme.accent, size = 17.dp)
+                    OnyxIcon(Symbols.SquareAndPencil, tint = theme.textColor, size = 17.dp)
                     BasicText(
                         text = "Ask in a new conversation",
                         style = theme.body.copy(color = theme.accent),
@@ -813,7 +882,7 @@ internal fun kanbanStatusSymbol(status: KanbanStatus): Int = when (status) {
     KanbanStatus.ARCHIVED -> Symbols.ArchiveBox
 }
 
-/** La colonne suivante, celle que le balayage propose. */
+/** La colonne suivante, celle que le balayage de la référence propose. */
 private fun nextStatus(card: KanbanCard): KanbanStatus? = when (KanbanStatus.fromId(card.status)) {
     KanbanStatus.TRIAGE -> KanbanStatus.TODO
     KanbanStatus.TODO, KanbanStatus.BLOCKED -> KanbanStatus.READY

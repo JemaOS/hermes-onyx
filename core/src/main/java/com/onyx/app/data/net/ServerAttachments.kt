@@ -12,7 +12,7 @@ data class PlacedServerAttachment(val source: ServerAttachment, val path: String
 fun serverAttachmentUploadName(stamp: String, copy: Int, filename: String): String =
     if (copy == 1) "$stamp $filename" else "$stamp $copy $filename"
 
-/** `ServerFiles.place`: dépôt daté dans « Onyx attachments », sans écraser un fichier. */
+/** `ServerFiles.place` : dépôt daté dans « Onyx attachments », sans écraser un fichier. */
 class ServerAttachments(private val files: ServeFilesApi) {
     suspend fun place(attachments: List<ServerAttachment>, now: Date = Date()): List<PlacedServerAttachment> {
         if (attachments.isEmpty()) return emptyList()
@@ -21,7 +21,7 @@ class ServerAttachments(private val files: ServeFilesApi) {
         try {
             files.makeFolder(folder)
         } catch (_: Exception) {
-            // Le dossier existe déjà: la lecture résout aussi une éventuelle racine canonicalisée.
+            // Le dossier existe déjà : la lecture résout aussi une éventuelle racine canonicalisée.
             files.folderPath(folder)
         }
         val stamp = SimpleDateFormat("yyyy-MM-dd HHmmss", Locale.US).format(now)

@@ -20,13 +20,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
-/** Ce qui arrive: rien, votre message envoyé, ou la rangée de la réponse qui attend. */
+/** Ce qui arrive : rien, votre message envoyé, ou la rangée de la réponse qui attend. */
 enum class ArrivalKind { NONE, SENT, WAITING_REPLY, QUEUED }
 
 /**
  * Un message qui arrive dans le fil (`MessageArrival`).
  *
- * Le vôtre monte du composeur: il part plus bas, derrière le champ, et remonte en place. La
+ * Le vôtre monte du composeur : il part plus bas, derrière le champ, et remonte en place. La
  * rangée de la réponse attend un battement, pour que les deux ne se croisent pas.
  */
 fun Modifier.messageArrival(
@@ -52,8 +52,8 @@ fun Modifier.messageArrival(
         }
     }
 
-    // `MessageArrival`: `let rising = kind == .sent && !landed && !reduceMotion`
-    // — sous Reduce Motion le message ne monte pas, il paraît.
+    // `MessageArrival` : `let rising = kind == .sent && !landed && !reduceMotion`
+    // (`MessageArrival:41`) — sous Reduce Motion le message ne monte pas, il paraît.
     val reduceMotion = LocalReduceMotion.current
     val rising = (kind == ArrivalKind.SENT || kind == ArrivalKind.QUEUED) && !landed && !reduceMotion
     val density = LocalDensity.current
@@ -71,7 +71,7 @@ fun Modifier.messageArrival(
     val opacity by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = when {
-            // `.easeOut(duration: 0.25).delay(reduceMotion ? 0: 0.24)`.
+            // `.easeOut(duration: 0.25).delay(reduceMotion ? 0 : 0.24)` (`MessageArrival:54`).
             kind == ArrivalKind.WAITING_REPLY ->
                 if (reduceMotion) OnyxMotion.Sites.MessageVisibleImmediate else OnyxMotion.Sites.MessageVisibleDelayed
             kind == ArrivalKind.QUEUED -> OnyxMotion.Sites.MessageLanded

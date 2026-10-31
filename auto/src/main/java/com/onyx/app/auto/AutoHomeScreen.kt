@@ -19,7 +19,7 @@ import com.onyx.app.car.AutoStart
 import com.onyx.app.data.model.ChatTurn
 import com.onyx.app.localization.OnyxLocalization
 
-/** Les cartes Android Auto qui ont une action possible: poursuivre Ask, ou repartir d'un chat vide. */
+/** Les cartes Android Auto qui ont une action possible : poursuivre Ask, ou repartir d'un chat vide. */
 class AutoHomeScreen(
     carContext: CarContext,
     private val history: MutableList<ChatTurn>,
@@ -38,7 +38,7 @@ class AutoHomeScreen(
             .setStartHeaderAction(Action.APP_ICON)
             .build()
 
-        // GridTemplate appartient à l'API 2; un hôte d'API 1 reçoit les mêmes cartes en lignes.
+        // GridTemplate appartient à l'API 2 ; un hôte d'API 1 reçoit les mêmes cartes en lignes.
         return if (carContext.carAppApiLevel >= CarAppApiLevels.LEVEL_2) {
             val list = ItemList.Builder()
             items.forEach { start -> list.addItem(gridItem(start, look)) }

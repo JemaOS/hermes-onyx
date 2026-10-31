@@ -32,7 +32,7 @@ import kotlinx.coroutines.delay
 /**
  * Les questions de relance de la dernière réponse (`FollowUpChips`).
  *
- * Elles arrivent une à une (90 ms d'écart), et partent ensemble; un tap l'envoie.
+ * Elles arrivent une à une (90 ms d'écart), et partent ensemble ; un tap l'envoie.
  */
 @Composable
 fun FollowUpChips(
@@ -43,7 +43,7 @@ fun FollowUpChips(
     if (suggestions.isEmpty()) return
     val theme = LocalOnyxTheme.current
     var shown by remember(suggestions) { mutableIntStateOf(0) }
-    // `if !reduceMotion { try? await Task.sleep(…) }`.
+    // `if !reduceMotion { try? await Task.sleep(…) }` (`FollowUpChips:43`).
     val firstChip = reducedStagger(40)
     val nextChip = reducedStagger(90)
 
@@ -79,7 +79,7 @@ fun FollowUpChips(
                         text = text,
                         localize = false,
                         style = theme.subheadline.copy(color = theme.textColor),
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }

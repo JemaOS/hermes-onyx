@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Où l'on est dans l'arborescence: une pile de dossiers, `null` pour la racine. */
+/** Où l'on est dans l'arborescence : une pile de dossiers, `null` pour la racine. */
 data class FilesUiState(
     val stack: List<String?> = listOf(null),
     val entries: List<FileEntry> = emptyList(),
@@ -33,7 +33,7 @@ data class FilesUiState(
 /**
  * Le navigateur de fichiers du serveur.
  *
- * Une pile de dossiers, les fichiers
+ * Miroir de `FilesView` + `ServerFilesModel` : une pile de dossiers, les fichiers
  * cachés qu'on peut montrer, le téléversement et la suppression — les mêmes gestes, les mêmes
  * phrases.
  */
@@ -79,7 +79,7 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
         reload()
     }
 
-    /** Remonte d'un dossier; faux à la racine, où l'écran se ferme. */
+    /** Remonte d'un dossier ; faux à la racine, où l'écran se ferme. */
     fun back(): Boolean {
         if (_state.value.atRoot) return false
         _state.update { it.copy(stack = it.stack.dropLast(1), entries = emptyList()) }
@@ -140,14 +140,14 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
 /**
  * L'éditeur d'un fichier texte du serveur.
  *
- * Comme `ServerTextFileView`: le chemin en en-tête, un éditeur monospace, et « Save ».
+ * Miroir de `ServerTextFileView` : le chemin en en-tête, un éditeur monospace, et « Save ».
  */
 class FileEditorViewModel(
     private val config: ServerConfig,
     private val path: String,
     /**
      * Quand on édite le prompt d'un bot, on passe par la route du profil (`api/profiles/{nom}/soul`)
-     * plutôt que par le fichier: c'est celle que le Dashboard trouve tout seul.
+     * plutôt que par le fichier : c'est celle que le Dashboard trouve tout seul.
      */
     private val soulProfile: String? = null,
 ) : ViewModel() {

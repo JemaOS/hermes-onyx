@@ -6,13 +6,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La géométrie de la carte statique composée sur des tuiles OpenStreetMap (l'comme
- * la carte MapKit ): projection de Mercator, choix du zoom, tuiles à demander, place des
+ * La géométrie de la carte statique composée sur des tuiles OpenStreetMap (l'adaptation Android de
+ * la carte MapKit de la référence) : projection de Mercator, choix du zoom, tuiles à demander, place des
  * points dans l'image.
  */
 class OsmTilesTest {
 
-    /** Lisbonne: le bureau (Praça do Comércio) et Rossio Roasters, comme la démo. */
+    /** Lisbonne : le bureau (Praça do Comércio) et Rossio Roasters, comme la démo de la référence. */
     private val office = 38.7076 to -9.1365
     private val rossio = 38.7176 to -9.1404
 
@@ -69,7 +69,7 @@ class OsmTilesTest {
         }
         assertTrue("les deux cafés sont séparés à l'écran", view.pixelDistance(office, rossio) > 60f)
         // Le nord est plus haut que le sud, l'est plus à droite que l'ouest (le bureau est à
-        // l'est de Rossio: -9,1365 contre -9,1404).
+        // l'est de Rossio : -9,1365 contre -9,1404).
         assertTrue(view.pixelOf(rossio.first, rossio.second).second < view.pixelOf(office.first, office.second).second)
         assertTrue(view.pixelOf(rossio.first, rossio.second).first < view.pixelOf(office.first, office.second).first)
     }

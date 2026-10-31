@@ -6,11 +6,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le branchement de la liste des mentions `@`: le fil la lit sur le roster des bots, la pose
+ * Le branchement de la liste des mentions `@` : le fil la lit sur le roster des bots, la pose
  * au-dessus du champ, n'écrit que le mot en cours, et laisse aux salles de groupe la liste qu'elles
  * ont déjà (`GroupComposer.tags`).
  *
- * Vérifications de source: elles portent sur le câblage, pas sur le rendu — c'est la capture
+ * Vérifications de source : elles portent sur le câblage, pas sur le rendu — c'est la capture
  * d'émulateur qui juge le rendu.
  */
 class MentionMenuWiringTest {
@@ -41,7 +41,7 @@ class MentionMenuWiringTest {
 
     @Test
     fun `la salle de groupe garde sa propre liste de mentions`() {
-        // Le modèle ne pose la liste des bots que dans le composeur d'un fil; une salle a la
+        // La référence ne pose la liste des bots que dans le composeur d'un fil ; une salle a la
         // sienne, avec ses membres et leurs poignées.
         assertFalse(groupChat.contains("MentionSuggestions("))
         assertFalse(groupComposer.contains("MentionSuggestions("))

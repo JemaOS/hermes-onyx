@@ -10,22 +10,22 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 /**
- * Les pages des fiches, lues par le téléphone lui-même, une fois chacune: gardées en mémoire et
+ * Les pages des fiches, lues par le téléphone lui-même, une fois chacune : gardées en mémoire et
  * dans le cache par adresse.
  *
- * Comme `LinkPreviews`. Éteint jusqu'à ce qu'on l'allume: le site voit la
+ * Port de `LinkPreviews` (LinkPreviews:23). Éteint jusqu'à ce qu'on l'allume : le site voit la
  * visite, là où Onyx ne parle sinon qu'aux serveurs qu'on lui a donnés. Une page qu'on n'a pas pu
  * lire n'est pas redemandée pendant un moment. Les requêtes en cours sont dédoublonnées (une seule
- * lecture par adresse), et l'horodatage de l'échec suit le `failedAt`.
+ * lecture par adresse), et l'horodatage de l'échec suit le `failedAt` de la référence.
  */
 class LinkPreviews(
-    /** Le dossier du cache; `null` = rien sur disque (la démo, et les tests qui le veulent). */
+    /** Le dossier du cache ; `null` = rien sur disque (la démo, et les tests qui le veulent). */
     internal val folder: File?,
     /** Comment une page est lue. Les tests et la démo en fournissent une autre. */
     private var fetch: suspend (String) -> LinkPreview? = { LinkPreviewFetcher.fromSite(it) },
 ) {
 
-    /** Ce qui a été lu, au fur et à mesure: les fiches se dessinent à partir de ça. */
+    /** Ce qui a été lu, au fur et à mesure : les fiches se dessinent à partir de ça. */
     private val known = mutableMapOf<String, LinkPreview>()
     private val failedAt = mutableMapOf<String, Long>()
     private val fetching = mutableSetOf<String>()
@@ -36,7 +36,7 @@ class LinkPreviews(
         explicitNulls = false
     }
 
-    /** La fiche de [url] si elle est connue, en mémoire ou sur disque; `null` sinon. */
+    /** La fiche de [url] si elle est connue, en mémoire ou sur disque ; `null` sinon. */
     fun preview(url: String): LinkPreview? = known[url]
 
     /** Remplace la lecture d'une page (les tests s'en servent). */
@@ -81,7 +81,7 @@ class LinkPreviews(
 
     private fun fileFor(url: String): File? {
         val folder = folder ?: return null
-        // FNV-1a 64 bits, comme `LinkPreviews.file(for:)`: la même adresse donne le même nom.
+        // FNV-1a 64 bits, comme `LinkPreviews.file(for:)` : la même adresse donne le même nom.
         var hash = 0xcbf2_9ce4_8422_2325uL
         for (byte in url.toByteArray(Charsets.UTF_8)) {
             hash = hash xor byte.toUByte().toULong()
@@ -107,10 +107,10 @@ class LinkPreviews(
     }
 
     companion object {
-        /** Le temps pendant lequel une page illisible est laissée tranquille: 15 minutes. */
+        /** Le temps pendant lequel une page illisible est laissée tranquille : 15 minutes. */
         const val RETRY_AFTER_MS = 15L * 60 * 1000
 
-        /** La même instance pour toute l'app, comme `LinkPreviews.shared`. */
+        /** La même instance pour toute l'app, comme `LinkPreviews.shared` de la référence. */
         @Volatile
         private var instance: LinkPreviews = LinkPreviews(folder = null)
 

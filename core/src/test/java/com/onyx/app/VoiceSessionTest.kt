@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le demi-duplex, vu du branchement de la session: le micro ne se rouvre pendant la lecture que si
+ * Le demi-duplex, vu du branchement de la session : le micro ne se rouvre pendant la lecture que si
  * la personne a demandé l'interruption (« Talk over replies ») **et** que la route du moment s'y
  * prête, et jamais pour une lecture demandée depuis le fil.
  */

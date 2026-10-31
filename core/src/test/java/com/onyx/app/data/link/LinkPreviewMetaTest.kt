@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** La lecture des balises d'une page: Open Graph d'abord, puis les replis de Messages. */
+/** La lecture des balises d'une page : Open Graph d'abord, puis les replis de Messages. */
 class LinkPreviewMetaTest {
 
     @Test
@@ -29,7 +29,7 @@ class LinkPreviewMetaTest {
 
     @Test
     fun `l icone sert de repli a l image`() {
-        val meta = LinkPreviewMeta.parse("""<link rel="apple-touch-icon" href="/icon.png">""")
+        val meta = LinkPreviewMeta.parse("""<link rel="icon" href="/icon.png">""")
         assertEquals("/icon.png", meta.imageUrl)
     }
 

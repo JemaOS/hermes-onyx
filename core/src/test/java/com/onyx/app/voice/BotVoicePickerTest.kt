@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le choix de la voix d'un bot (`BotVoicePicker`): ce que la feuille montre, ce que dit
+ * Le choix de la voix d'un bot (`BotVoicePicker`) : ce que la feuille montre, ce que dit
  * « Automatique », le résumé d'un choix, et la fiche qu'un appui écrit — la même résolution que la
  * lecture, donc rien qui ne se vérifie sans appareil.
  */
@@ -43,7 +43,7 @@ class BotVoicePickerTest {
         // Le détail est la qualité puis la langue, comme `Self.quality + " · " + language`.
         assertEquals("Enhanced · fr-FR", choices[0].detail)
         assertEquals("Default · fr-FR", choices[1].detail)
-        // Le nom d'une voix Android est son identifiant: c'est lui qui se montre.
+        // Le nom d'une voix Android est son identifiant : c'est lui qui se montre.
         assertEquals("fr-fr-x-fre-enhanced", choices[0].name)
         assertEquals(BotVoice(onDevice = "fr-fr-x-fre-enhanced"), choices[0].voice)
     }
@@ -58,12 +58,12 @@ class BotVoicePickerTest {
             installed = emptyList(),
             listening = "fr",
         )
-        // L'américain (la langue d'Onyx) d'abord, par identifiant; le français ensuite.
+        // L'américain (la langue d'Onyx) d'abord, par identifiant ; le français ensuite.
         assertEquals(listOf("am_adam", "am_onyx", "bm_george", "ff_siwis"), choices.map { it.id })
-        // La voix d'Onyx s'annonce comme la sienne; les autres, par leur identifiant.
+        // La voix d'Onyx s'annonce comme la sienne ; les autres, par leur identifiant.
         assertEquals("Hermes's voice", choices.first { it.id == "am_onyx" }.detail)
         assertEquals("am_adam", choices.first { it.id == "am_adam" }.detail)
-        // Et son nom se lit: « Adam (American, male) ».
+        // Et son nom se lit : « Adam (American, male) ».
         assertEquals("Adam (American, male)", choices.first { it.id == "am_adam" }.name)
         assertEquals(BotVoice(kokoro = "bm_george"), choices.first { it.id == "bm_george" }.voice)
         // Rien de deux fois, même si le serveur se répète.
@@ -103,7 +103,7 @@ class BotVoicePickerTest {
 
     @Test
     fun `automatique ne promet rien quand il n y a rien a repartir`() {
-        // Une seule voix installée, et c'est celle d'Onyx: le bot lit de la sienne.
+        // Une seule voix installée, et c'est celle d'Onyx : le bot lit de la sienne.
         val only = listOf(SpokenVoice("fr-fr-x-frd-local", "fr-FR", quality = 1))
         assertNull(
             BotVoicePicker.automaticVoice(ReplyVoice.ON_DEVICE, "quill", emptyMap(), "", emptyList(), only, "fr", "fr-fr-x-frd-local", listOf("quill")),
@@ -147,7 +147,7 @@ class BotVoicePickerTest {
         )
         // « Automatique » efface la voix et garde la vitesse.
         assertEquals(BotVoice(speed = 1.4f), BotVoicePicker.withVoice(null, current))
-        // Sans vitesse, la fiche est vide: rien n'est gardé du tout.
+        // Sans vitesse, la fiche est vide : rien n'est gardé du tout.
         assertNull(BotVoicePicker.withVoice(null, BotVoice(onDevice = "x")))
     }
 
@@ -157,7 +157,7 @@ class BotVoicePickerTest {
             BotVoice(kokoro = "am_adam", speed = 1.05f),
             BotVoicePicker.withSpeed(1.05f, BotVoice(kokoro = "am_adam")),
         )
-        // Elle seule compte: elle se garde même sans voix réglée.
+        // Elle seule compte : elle se garde même sans voix réglée.
         assertEquals(BotVoice(speed = 1.05f), BotVoicePicker.withSpeed(1.05f, null))
         // Et s'éteindre efface la fiche quand il n'y a plus rien à dire.
         assertNull(BotVoicePicker.withSpeed(null, null))

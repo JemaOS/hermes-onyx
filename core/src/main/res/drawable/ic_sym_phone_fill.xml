@@ -1,8 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    `phone.fill` — **le même combiné, peint.**
+
+    Ce fichier était un **rectangle arrondi plein** (le corps d'un appareil, avec une encoche) :
+    un carré noir posé dans la colonne au trait de Réglages, et un carré noir sous le doigt sur le
+    bouton « Répondre » d'un appel entrant. Le nom disait `phone.fill`, le dessin montrait un
+    appareil — c'est la cause du défaut relevé par le propriétaire.
+
+    Le dessin est maintenant le **combiné au trait** de `ic_sym_phone.xml`, rempli. Son contour est
+    poussé vers l'extérieur d'un demi-trait (**échelle 10/9 autour de (12, 12)** : l'encre du tracé
+    va de 3 à 21, celle du plein de **2 à 22**) pour que le plein et le contour partagent le même
+    bord extérieur — la règle des dossiers (`FolderIconGeometryTest`, « le plein est le contour du
+    tracé, pas une forme à part »). Sa couleur est le blanc de la famille, teinté par `OnyxIcon`.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M6.6,2.8 H17.4 A2.2,2.2 0 0 1 19.6,5.0 V19.0 A2.2,2.2 0 0 1 17.4,21.2 H6.6 A2.2,2.2 0 0 1 4.4,19.0 V5.0 A2.2,2.2 0 0 1 6.6,2.8 Z M9.4,6.2 H14.6 V7.8 H9.4 Z" android:fillColor="#FFFFFFFF" />
+    <group
+        android:scaleX="1.1111111"
+        android:scaleY="1.1111111"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:pathData="M6.62,10.79 c1.44,2.83 3.76,5.14 6.59,6.59 l2.2,-2.2 c0.27,-0.27 0.67,-0.36 1.02,-0.24 c1.12,0.37 2.33,0.57 3.57,0.57 c0.55,0 1,0.45 1,1 V20 c0,0.55 -0.45,1 -1,1 c-9.39,0 -17,-7.61 -17,-17 c0,-0.55 0.45,-1 1,-1 h3.5 c0.55,0 1,0.45 1,1 c0,1.25 0.2,2.45 0.57,3.57 c0.11,0.35 0.03,0.74 -0.25,1.02 Z"
+            android:fillColor="#FFFFFFFF" />
+    </group>
 </vector>

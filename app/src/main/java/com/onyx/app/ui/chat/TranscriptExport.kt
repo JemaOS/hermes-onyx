@@ -6,9 +6,9 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 
 /**
- * « Export as Markdown »: le fil dans un fichier, confié au partage d'Android.
+ * « Export as Markdown » : le fil dans un fichier, confié au partage d'Android.
  *
- * Comme `TranscriptExporter.file(title:messages:)`: le même Markdown, le même geste
+ * Miroir de `TranscriptExporter.file(title:messages:)` côté référence : le même Markdown, le même geste
  * — un fichier `.md` qu'on envoie où l'on veut.
  */
 fun shareTranscript(context: Context, markdown: String, title: String) {

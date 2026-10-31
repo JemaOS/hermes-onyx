@@ -12,18 +12,18 @@ import com.onyx.app.ui.localization.BasicText
  * Du texte de conversation, que le doigt peut prendre.
  *
  * Un appui long pose la sélection sur un mot, deux poignées l'étendent, et c'est la **barre du
- * système** qui s'affiche (Couper / Copier / Coller / Tout sélectionner): le mécanisme est celui
+ * système** qui s'affiche (Couper / Copier / Coller / Tout sélectionner) : le mécanisme est celui
  * de Compose ([SelectionContainer]), jamais une barre dessinée par l'app. Les poignées et le
  * surlignage prennent la couleur de l'app par `LocalTextSelectionColors` (posé par le thème).
  *
- * **Pourquoi pas dans [BasicText] ?** Ce dernier habille toute l'app: l'activer globalement
+ * **Pourquoi pas dans [BasicText] ?** Ce dernier habille toute l'app : l'activer globalement
  * donnerait une sélection dans les écrans de réglages, où elle n'a pas de sens, et volerait
  * l'appui long des lignes de liste, qui portent un menu ancré. La sélection se demande donc
- * explicitement, texte par texte, là où il y a quelque chose à lire et à reprendre: les messages,
+ * explicitement, texte par texte, là où il y a quelque chose à lire et à reprendre : les messages,
  * le raisonnement déplié, les sorties d'outils, les blocs de code et les notes du fil.
  *
- * **Là où il ne faut PAS l'utiliser**: dans une ligne dont l'appui long ouvre déjà un menu
- * (`onyxTappable(onLongPress = …)` — liste des conversations, brouillons en file, pièces d'aperçu);
+ * **Là où il ne faut PAS l'utiliser** : dans une ligne dont l'appui long ouvre déjà un menu
+ * (`onyxTappable(onLongPress = …)` — liste des conversations, brouillons en file, pièces d'aperçu) ;
  * la sélection prendrait le geste. Là, la ligne reste un menu.
  */
 @Composable

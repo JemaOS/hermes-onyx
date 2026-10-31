@@ -26,19 +26,19 @@ import org.junit.Test
  * « Pendant la lecture d'un bot dans une salle, le grand visage affiché est celui du bot qui parle,
  * et la légende le nomme. »
  *
- * C'est la propriété que le modèle demande (`VoiceView.groupSpeaker` → `OrbFace.replyFace`,
- * `phaseTitle`) et que le implémentation ratait: **le grand visage ne venait jamais**, l'orbe gardait tous
- * les visages côte à côte et la légende restait générique. Trois raisons, une par épreuve:
+ * C'est la propriété que la référence demande (`VoiceView.groupSpeaker` → `OrbFace.replyFace`,
+ * `phaseTitle`) et que le portage ratait : **le grand visage ne venait jamais**, l'orbe gardait tous
+ * les visages côte à côte et la légende restait générique. Trois raisons, une par épreuve :
  *
  * 1. le fil d'une **salle du serveur** donnait à `GroupVoiceLine.profile` l'**identifiant du
- * membre** (`actorID`) alors que toute la scène y lit un **profil** de bot (`GroupVoiceScene`,
- * `BotVoices`). Dès que la salle distingue les deux — `{"kind":"member","id":…,"profile":…}`,
- * ce que la passerelle envoie — la scène ne trouvait aucun bot: la légende restait
- * « A bot is speaking » et les visages restaient côte à côte;
+ *    membre** (`actorID`) alors que toute la scène y lit un **profil** de bot (`GroupVoiceScene`,
+ *    `BotVoices`). Dès que la salle distingue les deux — `{"kind":"member","id":…,"profile":…}`,
+ *    ce que la passerelle envoie — la scène ne trouvait aucun bot : la légende restait
+ *    « A bot is speaking » et les visages restaient côte à côte ;
  * 2. le fil d'une **salle neuve** (créée sur le téléphone) ne portait ni `seq` ni `draftId`, si
- * bien que `GroupVoiceReplies` n'en lisait **rien**: aucun bot ne parlait, donc aucun visage;
- * 3. le bouton du milieu était la relance, **grise quand rien ne se lisait** — là où le modèle
- * met le ⏸ de la pause.
+ *    bien que `GroupVoiceReplies` n'en lisait **rien** : aucun bot ne parlait, donc aucun visage ;
+ * 3. le bouton du milieu était la relance, **grise quand rien ne se lisait** — là où la référence
+ *    met le ⏸ de la pause.
  */
 class GroupVoiceBigFaceTest {
 
@@ -69,7 +69,7 @@ class GroupVoiceBigFaceTest {
 
     @Test
     fun `une salle du serveur pose le visage du bot qui parle, et la legende le nomme`() {
-        // Ce que la passerelle envoie: `id` est l'identifiant du membre, `profile` le bot.
+        // Ce que la passerelle envoie : `id` est l'identifiant du membre, `profile` le bot.
         val room = GroupRoom(
             id = "room-1",
             name = "Weekend hike",
@@ -101,11 +101,11 @@ class GroupVoiceBigFaceTest {
         ).voiceLines()
 
         val said = lines.first { !it.isMine }
-        // Sa voix et son visage se lisent sur le **profil** du bot, pas sur l'identifiant du membre:
+        // Sa voix et son visage se lisent sur le **profil** du bot, pas sur l'identifiant du membre :
         // `BotVoices` et le roster de la salle ne connaissent que celui-là.
         assertEquals("le fil porte le profil du bot", "scout", said.profile)
 
-        // Ce que le coordinateur annonce à la scène (`GroupVoice.next`: `reply.profile`).
+        // Ce que le coordinateur annonce à la scène (`GroupVoice.next` : `reply.profile`).
         val scene = GroupVoiceScene(
             roomName = room.name,
             server = ServerConfig(id = "s"),
@@ -130,7 +130,7 @@ class GroupVoiceBigFaceTest {
         val already = listOf(ask(1))
         val replies = GroupVoiceReplies(already)
 
-        // Le bot répond pendant que la voix est ouverte: c'est cette réponse qui doit être lue.
+        // Le bot répond pendant que la voix est ouverte : c'est cette réponse qui doit être lue.
         val said = answer(2, scout, "Boots, not sneakers.")
         replies.update(already + said, held = false)
 
@@ -161,7 +161,7 @@ class GroupVoiceBigFaceTest {
         val already = listOf(ask(1))
         val replies = GroupVoiceReplies(already)
 
-        // Ce qu'un fil local montre pendant l'écriture: un brouillon, sans numéro.
+        // Ce qu'un fil local montre pendant l'écriture : un brouillon, sans numéro.
         val writing = GroupVoiceLine(
             id = "voice-writing",
             profile = "quill",
@@ -174,7 +174,7 @@ class GroupVoiceBigFaceTest {
         replies.update(already + writing, held = false)
         assertNull("rien n'est lu tant que la réponse s'écrit", replies.takeNext())
 
-        // Finie: elle prend son numéro et c'est elle qui passe.
+        // Finie : elle prend son numéro et c'est elle qui passe.
         val done = writing.copy(text = "And here's your invite.", live = false, seq = 2, draftId = null)
         replies.update(already + done, held = false)
         assertEquals("quill", replies.takeNext()?.profile)
@@ -184,7 +184,7 @@ class GroupVoiceBigFaceTest {
     fun `le fil d une salle neuve porte de quoi etre lu par la voix`() {
         val viewModel = File("src/main/java/com/onyx/app/ui/bots/GroupChatViewModel.kt").readText()
         // La salle neuve (compositeur local) donne à ses lignes le vocabulaire d'une salle du
-        // serveur: un numéro par message, un brouillon tant qu'il s'écrit, le profil de son bot.
+        // serveur : un numéro par message, un brouillon tant qu'il s'écrit, le profil de son bot.
         assertTrue("un numéro par question", viewModel.contains("val userSeq = ++messageSequence"))
         assertTrue("et par réponse", viewModel.contains("val replySeq = ++messageSequence"))
         assertTrue(

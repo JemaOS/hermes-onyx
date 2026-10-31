@@ -38,7 +38,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-/** L'action qu'un glissement révèle: son libellé, son symbole, et ses deux couleurs. */
+/** L'action qu'un glissement révèle : son libellé, son symbole, et ses deux couleurs. */
 data class KanbanSwipeAction(
     val label: String,
     val symbol: Int,
@@ -48,12 +48,12 @@ data class KanbanSwipeAction(
 
 /**
  * Une rangée du tableau qui se glisse vers l'avant ou vers l'arrière, comme `swipeActions`
- *: vers la droite la colonne suivante, vers la gauche la
+ * de la référence (`KanbanView:52`) : vers la droite la colonne suivante, vers la gauche la
  * suppression.
  *
- * Le geste suit le doigt; lâché avant la moitié de l'action, la rangée revient à sa place, et un
+ * Le geste suit le doigt ; lâché avant la moitié de l'action, la rangée revient à sa place, et un
  * glissement franc — 45 % de la largeur, ou 800 px/s — déclenche l'action sans s'arrêter dessus
- * (`allowsFullSwipe: true`). La rangée révélée reste appuyable, comme le bouton.
+ * (`allowsFullSwipe: true`). La rangée révélée reste appuyable, comme le bouton de la référence.
  */
 @Composable
 fun KanbanSwipeRow(
@@ -121,9 +121,9 @@ fun KanbanSwipeRow(
                             val velocity = tracker.calculateVelocity().x
                             val flungForward = forward != null && travelled > 0f && fullSwipeReached(travelled, rowWidth, velocity)
                             val flungTrailing = trailing != null && travelled < 0f && fullSwipeReached(travelled, rowWidth, velocity)
-                            // Un glissement qui n'atteint pas le seuil **revient en place**: avant,
+                            // Un glissement qui n'atteint pas le seuil **revient en place** : avant,
                             // il restait ouvert à mi-course et la rangée gardait son panneau
-                            // d'action affiché pour toujours (« Archivé ça marche pas »: le
+                            // d'action affiché pour toujours (« Archivé ça marche pas » : le
                             // panneau restait collé à la rangée, la carte ne bougeait pas).
                             val target = when {
                                 flungForward -> forwardLimit
@@ -163,7 +163,7 @@ fun KanbanSwipeRow(
     }
 }
 
-/** Le panneau révélé: la teinte de la colonne visée, son symbole et son libellé. */
+/** Le panneau révélé : la teinte de la colonne visée, son symbole et son libellé. */
 @Composable
 private fun SwipeActionPanel(action: KanbanSwipeAction, width: Dp, onClick: () -> Unit) {
     Column(
@@ -181,8 +181,8 @@ private fun SwipeActionPanel(action: KanbanSwipeAction, width: Dp, onClick: () -
 }
 
 /**
- * Vrai quand le geste suffit à déclencher l'action d'un coup: 45 % de la rangée couverts, ou
- * l'élan de 800 px/s — le seuil d'`allowsFullSwipe`.
+ * Vrai quand le geste suffit à déclencher l'action d'un coup : 45 % de la rangée couverts, ou
+ * l'élan de 800 px/s — le seuil d'`allowsFullSwipe` de la référence.
  */
 internal fun fullSwipeReached(travelled: Float, rowWidth: Float, velocity: Float): Boolean =
     abs(travelled) >= rowWidth * FULL_SWIPE || abs(velocity) >= FLING

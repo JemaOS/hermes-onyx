@@ -1,5 +1,8 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.foundation.Canvas
@@ -48,7 +51,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Request
 
 /**
- * Un point sur la carte statique: ses coordonnées, le numéro à écrire dedans quand la liste sous
+ * Un point sur la carte statique : ses coordonnées, le numéro à écrire dedans quand la liste sous
  * la carte est numérotée, et s'il porte le drapeau d'arrivée d'un chemin.
  */
 data class MapPoint(
@@ -62,7 +65,7 @@ data class MapPoint(
  * Les tuiles OpenStreetMap, téléchargées une fois chacune.
  *
  * La politique d'usage d'OpenStreetMap demande un agent identifiable et interdit le téléchargement
- * massif: un petit cache LRU (96 tuiles) et un en-tête `User-Agent` explicite suffisent pour
+ * massif : un petit cache LRU (96 tuiles) et un en-tête `User-Agent` explicite suffisent pour
  * quelques cartes statiques. Aucune clé d'API, aucun SDK payant.
  */
 object OsmTileCache {
@@ -79,7 +82,7 @@ object OsmTileCache {
     private val inFlight = mutableMapOf<String, Deferred<ImageBitmap?>>()
     private val gate = Semaphore(4)
 
-    /** La tuile, du cache ou du réseau; `null` quand elle n'a pas pu être obtenue. */
+    /** La tuile, du cache ou du réseau ; `null` quand elle n'a pas pu être obtenue. */
     suspend fun tile(tile: OsmTiles.Tile, scope: CoroutineScope): ImageBitmap? {
         cache.get(tile.key)?.let { return it }
         val pending = synchronized(inFlight) {
@@ -105,16 +108,16 @@ object OsmTileCache {
 }
 
 /**
- * La carte statique d'une réponse, bâtie sur des tuiles OpenStreetMap: le cadre est calculé sur la
+ * La carte statique d'une réponse, bâtie sur des tuiles OpenStreetMap : le cadre est calculé sur la
  * boîte englobante des points ([OsmTiles]), les tuiles posées côte à côte, les épingles dessinées
  * par-dessus. Aucune interaction — elle vit dans un fil qui défile — mais un appui l'ouvre ailleurs
  * ([onOpen]).
  *
- * La carte est une **adaptation Android assumée**: la dessine avec MapKit, qui n'existe pas
- * ici et dont les équivalents sont payants. Les tuiles OSM sont libres et sans clé; l'attribution
+ * La carte est une **adaptation Android assumée** : référence la dessine avec MapKit, qui n'existe pas
+ * ici et dont les équivalents sont payants. Les tuiles OSM sont libres et sans clé ; l'attribution
  * « © OpenStreetMap » est obligatoire et toujours dessinée.
  *
- * Quand aucune tuile n'arrive (pas de réseau), [onUnavailable] est appelé: l'appelant dessine
+ * Quand aucune tuile n'arrive (pas de réseau), [onUnavailable] est appelé : l'appelant dessine
  * alors la liste des lieux à la place, jamais un cadre vide.
  */
 @Composable
@@ -122,7 +125,7 @@ fun OsmStaticMap(
     points: List<MapPoint>,
     height: Dp,
     modifier: Modifier = Modifier,
-    /** Le chemin, tracé entre ses points (une ligne droite: sans moteur de routage). */
+    /** Le chemin, tracé entre ses points (une ligne droite : sans moteur de routage). */
     line: List<MapPoint> = emptyList(),
     /** Les épingles portent leur numéro, comme la liste sous la carte. */
     numbered: Boolean = false,
@@ -137,7 +140,7 @@ fun OsmStaticMap(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(OnyxSpace.FormCorner))
             .background(theme.surfaceColor)
             .then(if (onOpen != null) Modifier.onyxTappable(onClick = onOpen) else Modifier),
     ) {
@@ -209,10 +212,10 @@ fun OsmStaticMap(
                     else -> drawCircle(color = Color.White, radius = radius * 0.38f, center = centre)
                 }
             }
-            // L'attribution: obligatoire, jamais omise, même sur une carte à moitié chargée.
+            // L'attribution : obligatoire, jamais omise, même sur une carte à moitié chargée.
             val label = measurer.measure(
                 text = OsmTiles.attribution,
-                style = TextStyle(fontSize = 9.sp, color = theme.tertiaryText),
+                style = TextStyle(fontSize = OnyxSocle.Micro, color = theme.tertiaryText),
             )
             if (tiles.isNotEmpty()) {
                 val pad = 3.dp.toPx()

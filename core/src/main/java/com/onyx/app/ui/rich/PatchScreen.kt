@@ -1,5 +1,7 @@
 package com.onyx.app.ui.rich
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +39,7 @@ data class PatchFile(
 /**
  * Lit un diff unifié (`git diff`, ou celui de Python) en fichiers.
  *
- * Comme `Patch.files`: les chemins `a/` et `b/` s'effacent, les en-têtes de difflib sont
+ * Miroir de `Patch.files` : les chemins `a/` et `b/` s'effacent, les en-têtes de difflib sont
  * coupés à la tabulation, et les lignes d'index ne disent rien au lecteur.
  */
 fun patchFiles(text: String): List<PatchFile> {
@@ -115,7 +117,7 @@ fun looksLikePatch(text: String): Boolean =
  * Un changement à lire (`PatchView`).
  *
  * Chaque fichier avec ce qu'il ajoute et retire, ses lignes en monospace, les ajouts en vert et
- * les retraits en rouge; une longue ligne passe à la ligne au lieu de défiler.
+ * les retraits en rouge ; une longue ligne passe à la ligne au lieu de défiler.
  */
 @Composable
 fun PatchScreen(
@@ -130,7 +132,7 @@ fun PatchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = title, onBack = onBack)

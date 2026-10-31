@@ -5,22 +5,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le champ d'une rangée, au banc: une valeur plus longue que le champ.
+ * Le champ d'une rangée, au banc : une valeur plus longue que le champ.
  *
  * Le propriétaire déplaçait le curseur de gauche à droite sans jamais voir toutes les lettres — le
  * repère restait posé au milieu d'un texte tronqué. Ces tests mesurent la position du texte pendant
- * ce déplacement: le curseur doit rester dans la fenêtre visible à chaque pas, et la valeur entière
+ * ce déplacement : le curseur doit rester dans la fenêtre visible à chaque pas, et la valeur entière
  * doit pouvoir être lue, du premier caractère au dernier.
  */
 class OnyxFieldScrollTest {
 
-    /** Une colonne étroite de formulaire: le libellé prend la moitié, la valeur le reste. */
+    /** Une colonne étroite de formulaire : le libellé prend la moitié, la valeur le reste. */
     private val viewport = 260
 
-    /** Le champ secret du pont: `https://give-overnight-reveal-na….trycloudflare.com`. */
+    /** Le champ secret du pont : `https://give-overnight-reveal-na….trycloudflare.com`. */
     private val longValue = "https://give-overnight-reveal-na7x.trycloudflare.com"
 
-    /** La largeur du texte, comme la mise en page la mesure: chaque caractère avance de [advance]. */
+    /** La largeur du texte, comme la mise en page la mesure : chaque caractère avance de [advance]. */
     private fun width(advance: Int) = longValue.length * advance
 
     /** L'abscisse du curseur posé devant le [index]-ième caractère, bornée à la fin du texte. */
@@ -87,7 +87,7 @@ class OnyxFieldScrollTest {
     fun `un collage en fin de texte ramene la queue dans la fenetre`() {
         val advance = 9
         val content = width(advance)
-        // Le curseur était au début du champ, on colle: il saute à la fin d'un coup.
+        // Le curseur était au début du champ, on colle : il saute à la fin d'un coup.
         val origin = OnyxFieldScroll.origin(
             viewport = viewport,
             content = content,
@@ -102,7 +102,7 @@ class OnyxFieldScrollTest {
 
     @Test
     fun `une police agrandie ne perd pas le curseur`() {
-        // 1,3×: chaque caractère avance plus large, la valeur déborde davantage du champ.
+        // 1,3× : chaque caractère avance plus large, la valeur déborde davantage du champ.
         val advance = 12
         val content = width(advance)
         var origin = OnyxFieldScroll.rest(viewport, content, alignEnd = true)
@@ -131,7 +131,7 @@ class OnyxFieldScrollTest {
 
     @Test
     fun `une selection multiple garde sa fin visible`() {
-        // Le curseur actif d'une sélection est à sa fin: c'est lui qui doit rester dans la fenêtre.
+        // Le curseur actif d'une sélection est à sa fin : c'est lui qui doit rester dans la fenêtre.
         val advance = 9
         val content = width(advance)
         val selectionEnd = caretX(40, advance)

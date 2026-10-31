@@ -12,15 +12,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le fil d'une salle: ce qu'une entrée du journal dit d'un tour, la réponse qui s'écrit dans la
+ * Le fil d'une salle : ce qu'une entrée du journal dit d'un tour, la réponse qui s'écrit dans la
  * session cachée d'un bot, et ce que la salle attend.
  *
- * Le modèle est `GroupEvent.note(in:)` / `GroupDraft.read(_:)` / `GroupState`
- * (257 et:217).
+ * La référence est `GroupEvent.note(in:)` / `GroupDraft.read(_:)` / `GroupState`
+ * (Echo/Services/Transport/ServerGroups:183, :257 et :217).
  */
 class GroupThreadTest {
 
-    /** Les libellés d'un fil sont localisés: ces tests les lisent en anglais, comme. */
+    /** Les libellés d'un fil sont localisés : ces tests les lisent en anglais, comme la référence. */
     private var previousLocale: java.util.Locale = java.util.Locale.getDefault()
 
     @org.junit.Before
@@ -92,7 +92,7 @@ class GroupThreadTest {
     }
 
     @Test
-    fun `un evenement se lit comme  le lit`() {
+    fun `un evenement se lit comme la référence le lit`() {
         val message = GroupEvent.from(
             json(
                 """{"seq":12,"kind":"message.member","actor":{"kind":"member","id":"scout"},
@@ -126,7 +126,7 @@ class GroupThreadTest {
         assertEquals("Falls Loop ", draft.text)
         assertNull("elle n'est pas finie", draft.finishedAtMillis)
 
-        // Ce qu'un bot écrit à côté d'un appel d'outil est remis à zéro, comme.
+        // Ce qu'un bot écrit à côté d'un appel d'outil est remis à zéro, comme la référence.
         read = draft.read(listOf(json("""{"type":"message.interim"}"""), json("""{"type":"message.delta","payload":{"text":"Falls Loop est ouverte"}}""")))
         draft = read.draft
         assertFalse(read.started)
@@ -145,7 +145,7 @@ class GroupThreadTest {
         val draft = GroupDraft(id = "sess-1", memberID = "scout", text = "la fin d'une réponse", after = 3)
         val read = draft.read(listOf(json("""{"type":"message.delta","payload":{"text":" et la suite."}}""")))
         assertFalse("aucun début n'était là", read.started)
-        // C'est l'appelant qui pose les points de suspension, comme (`first`, `truncated`).
+        // C'est l'appelant qui pose les points de suspension, comme la référence (`first`, `truncated`).
         assertEquals("la fin d'une réponse et la suite.", read.draft.text)
     }
 
@@ -175,7 +175,7 @@ class GroupThreadTest {
         assertEquals("deny", state.approvals.single().request.denyChoice)
         assertEquals(listOf("t9"), state.retries)
 
-        // Rien: la salle ne travaille pas et n'attend personne.
+        // Rien : la salle ne travaille pas et n'attend personne.
         val idle = GroupState.from(json("""{}"""))
         assertEquals(GroupState(), idle)
         assertFalse(idle.waitsOnPerson)

@@ -2,6 +2,25 @@ package com.onyx.app.localization
 
 /** Libellés propres aux écrans Onyx, absents du catalogue partagé ou adaptés à son interface. */
 internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
+    // Le modèle **en force** et son repli : l'en-tête, le sélecteur et la consommation le lisent.
+    "%1\$s → fallback: %2\$s" to "%1\$s → repli : %2\$s",
+    "This turn is served by a fallback model: %1\$s. The configured model is %2\$s." to
+        "Ce tour est servi par un modèle de repli : %1\$s. Le modèle configuré est %2\$s.",
+    "The fallback model (%1\$s) does not offer the reasoning levels; none is shown as active." to
+        "Le modèle de repli (%1\$s) ne propose pas les niveaux de réflexion ; aucun n’est affiché comme actif.",
+    "Served locally by the fallback — no price per million tokens." to
+        "Servi en local par le repli — aucun prix par million de jetons.",
+    "Served now by the fallback" to "Servi en ce moment par le repli",
+    "local" to "local",
+    // Configuration — les deux rangées qui collent ne font pas le même travail : chacune dit ce
+    // qu'elle accepte, et l'échec nomme ce qui a été collé et où il va.
+    "A full setup link from another device — it starts with onyx://. An address alone goes in the field above." to "Un lien de configuration complet, venu d’un autre appareil — il commence par onyx://. Une adresse seule va dans le champ ci-dessus.",
+    "One address only — where your dashboard runs. A full setup link goes in the row below." to "Une seule adresse — celle où tourne votre tableau de bord. Un lien de configuration complet va dans la rangée du dessous.",
+    "Nothing to paste — the clipboard is empty." to "Rien à coller — le presse-papiers est vide.",
+    "That's an address, not a setup link. Paste it in the Gateway address field above, or paste a full setup link (onyx://…) from a device that is already set up." to "C’est une adresse, pas un lien de configuration. Collez-la dans le champ Adresse de la passerelle ci-dessus, ou collez un lien de configuration complet (onyx://…) depuis un appareil déjà configuré.",
+    "That isn't an Onyx setup link. A setup link starts with onyx:// and comes from Settings › Connection › Set up another device on a phone that is already set up." to "Ce n’est pas un lien de configuration Onyx. Un lien de configuration commence par onyx:// et vient de Réglages › Connexion › Configurer un autre appareil, sur un téléphone déjà configuré.",
+    "The key your gateway asks for by name. Without it the server answers 401." to "La clé que votre passerelle réclame par son nom. Sans elle, le serveur répond 401.",
+    "Connected. The server announced nothing else — set the model and the voices by hand under Advanced." to "Connecté. Le serveur n’a rien annoncé d’autre — réglez le modèle et les voix à la main dans Avancé.",
     // Configuration.
     "Talk to your own AI agent by voice or chat." to "Parlez à votre propre agent IA par voix ou par chat.",
     "Your own server" to "Votre propre serveur",
@@ -13,6 +32,30 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Have a setup code?" to "Vous avez un code de configuration ?",
     "A setup code fills in everything below. Make one on a device that is already set up: Settings › Connection › Set up another device." to "Un code de configuration remplit tous les champs ci-dessous. Créez-en un sur un appareil déjà configuré : Réglages › Connexion › Configurer un autre appareil.",
     "How does Onyx reach it?" to "Comment Onyx s’y connecte-t-il ?",
+    // Le geste « tout en un » : le paragraphe d'aide (neuf — sans cette entrée il restait en
+    // anglais), le mode Simple/Advanced et la découverte du reste.
+    "One link sets up everything at once: server, key, model, voices, the Computer bridge and the language. Make one on a device that is already set up: Settings › Connection › Set up another device." to "Un seul lien configure tout d’un coup : serveur, clé, modèle, voix, le pont Ordinateur et la langue. Créez-en un sur un appareil déjà configuré : Réglages › Connexion › Configurer un autre appareil.",
+    "Set the transport by hand. Simple fills these in from the server." to "Réglez le transport à la main. Simple les remplit depuis le serveur.",
+    "Enter the server's address and its key. Onyx finds the model, the voices, the Computer bridge and the language on its own — leave anything it doesn't announce empty." to "Saisissez l’adresse du serveur et sa clé. Onyx trouve seul le modèle, les voix, le pont Ordinateur et la langue — laissez vide ce qu’il n’annonce pas.",
+    "Address and key. Onyx finds the rest." to "Adresse et clé. Onyx trouve le reste.",
+    "Choose the transport and fill everything by hand." to "Choisissez le transport et remplissez tout à la main.",
+    "Advanced" to "Avancé",
+    // Le mode « Simple » : sa clé, et **ce qu'il propose**. Le champ de clé, les quatre sources
+    // d'une adresse offerte, la confirmation du lien copié, et la phrase qui dit ce que la
+    // découverte n'a **pas** trouvé (le silence était le défaut).
+    "Key" to "Clé",
+    "Gateway key" to "Clé de la passerelle",
+    "This server's address" to "L’adresse de ce serveur",
+    "This phone's network" to "Le réseau de ce téléphone",
+    "The gateway you used last" to "La passerelle que vous utilisiez",
+    "One of your saved servers" to "Un de vos serveurs enregistrés",
+    "Setup link copied." to "Lien de configuration copié.",
+    "Connected. The server announced nothing else — set the model and the voices by hand under Advanced." to "Connecté. Le serveur n’a rien annoncé d’autre — réglez le modèle et les voix à la main dans Avancé.",
+    "Find the rest" to "Trouver le reste",
+    "Finding the rest…" to "Recherche du reste…",
+    "Nothing answered at that address. Check it, or add the connection by hand under Advanced." to "Rien n’a répondu à cette adresse. Vérifiez-la, ou ajoutez la connexion à la main dans Avancé.",
+    "Voices" to "Voix",
+    "token included" to "jeton inclus",
     "Hermes Dashboard (WebSocket)" to "Dashboard Hermes (WebSocket)",
     "Hermes API (shared sessions)" to "API Hermes (sessions partagées)",
     "OpenAI-compatible (direct to a model)" to "Compatible OpenAI (directement vers un modèle)",
@@ -24,13 +67,45 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Hermes Dashboard" to "Dashboard Hermes",
     "The same login as the Hermes Dashboard: its username and password, or Sign in with a browser where it uses Google or another provider. Adds tool approvals and slash commands." to "Les mêmes identifiants que le Dashboard Hermes : nom d’utilisateur et mot de passe, ou une connexion par navigateur là où il utilise Google ou un autre fournisseur. Ajoute les approbations d’outils et les commandes slash.",
     "API address" to "Adresse API",
+    // L'écran de mise en route refait sur l'anatomie de la référence : la phrase qui rassure, le
+    // libellé et l'aide du champ, l'action de test, et les cinq repliables.
+    "Connect to your Hermes gateway. Nothing is sent until you connect." to "Connectez-vous à votre passerelle Hermes. Rien n’est envoyé tant que vous ne vous êtes pas connecté.",
+    "Gateway address" to "Adresse de la passerelle",
+    "Where your dashboard runs: LAN, Tailscale or HTTPS." to "Où tourne votre tableau de bord : LAN, Tailscale ou HTTPS.",
+    "Which address do I use?" to "Quelle adresse utiliser ?",
+    "Same Wi-Fi / local network" to "Même Wi-Fi / réseau local",
+    "The address of the machine that runs the dashboard, on your own network. Start the dashboard with --host 0.0.0.0 so it answers on the network, and not only on the machine itself." to "L’adresse de la machine qui fait tourner le tableau de bord, sur votre réseau. Lancez le tableau de bord avec --host 0.0.0.0 pour qu’il réponde sur le réseau, et pas seulement sur la machine elle-même.",
+    "Tailscale" to "Tailscale",
+    "A tailnet address (100.64.0.0/10), or a machine name such as machine.tailnet-name.ts.net. It works from anywhere, as long as Tailscale is up on both ends." to "Une adresse de tailnet (100.64.0.0/10), ou un nom de machine comme machine.tailnet-name.ts.net. Elle fonctionne de partout, tant que Tailscale est actif des deux côtés.",
+    "HTTPS" to "HTTPS",
+    "Behind a reverse proxy. The proxy has to let the WebSockets through on /api/ws — without that, the reply is written but never streams." to "Derrière un proxy inverse. Le proxy doit laisser passer les WebSocket sur /api/ws — sans cela, la réponse s’écrit mais n’arrive jamais en flux.",
+    "Behind Cloudflare Access?" to "Derrière Cloudflare Access ?",
+    "If the dashboard sits behind Cloudflare Access instead of a tailnet, make a service token in Zero Trust. The pair is sent as CF-Access-Client-Id / -Secret on every request and WebSocket." to "Si le tableau de bord est derrière Cloudflare Access plutôt que sur un tailnet, créez un jeton de service dans Zero Trust. Le couple part en CF-Access-Client-Id / -Secret à chaque requête et chaque WebSocket.",
+    "Stored encrypted on this phone, and sent only to this address." to "Stocké chiffré sur ce téléphone, et envoyé uniquement à cette adresse.",
+    "Connect another way" to "Connecter autrement",
+    "What else is on the server?" to "Quoi d’autre sur le serveur ?",
+    "What does Onyx do?" to "Que fait Onyx ?",
+    // Les sorties de l'écran de configuration : la phrase de « Done » quand il ne peut pas
+    // conclure, et ce que le fil dit quand la configuration a été passée sans adresse.
+    "Add the server's address first." to "Saisissez d’abord l’adresse du serveur.",
+    "A connection test is running — one moment." to "Un test de connexion est en cours — un instant.",
+    "No server set up yet" to "Aucun serveur configuré",
+    "Onyx needs a server address before it can talk. You can add one whenever you like under Settings › Connection." to "Onyx a besoin de l’adresse d’un serveur pour discuter. Vous pouvez en ajouter une quand vous voulez dans Réglages › Connexion.",
     "Change the model for this conversation" to "Changer le modèle de cette conversation",
     "queued behind a running turn…" to "en file derrière un tour en cours…",
     "Lost the connection to the Hermes Dashboard." to "Connexion perdue au Dashboard Hermes.",
-    // L'état d'un tour en cours: le fil dit toujours où en est l'agent, même quand le serveur
+    // L'état d'un tour en cours : le fil dit toujours où en est l'agent, même quand le serveur
     // n'envoie rien.
     "Waiting for the server" to "En attente du serveur",
     "Thinking" to "Réflexion",
+    // LOT réflexion discrète : le bloc de raisonnement s'annonce. « Model reasoning » est
+    // l'annonce en petites capitales au-dessus du bloc ; « raw, untranslated » dit qu'un
+    // raisonnement dans une autre langue que l'app est **brut** ; « See all » / « Show less »
+    // sont le pied du bloc (troncature et refermeture).
+    "Model reasoning" to "Raisonnement du modèle",
+    "raw, untranslated" to "brut, non traduit",
+    "See all" to "Voir tout",
+    "Show less" to "Réduire",
     "Writing the reply" to "Rédaction de la réponse",
     "a tool" to "un outil",
     "Running %1\$s" to "Exécution de %1\$s",
@@ -62,7 +137,31 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Files your agent sends come through the Hermes Dashboard. Add its login in Settings → Connection details." to "Les fichiers envoyés par votre agent passent par le Dashboard Hermes. Ajoutez ses identifiants dans Réglages → Détails de connexion.",
     "It isn't on the server where the reply says, or the chat isn't on the server yet." to "Il est introuvable à l’emplacement indiqué dans la réponse, ou la discussion n’est pas encore sur le serveur.",
     "It isn't on the server where the reply says." to "Il est introuvable à l’emplacement indiqué dans la réponse.",
+    // Une **adresse** nommée par la réponse : c'est elle qui devait répondre. Le dire ainsi, plutôt
+    // que « pas sur le serveur », qui envoie chercher au mauvais endroit un fichier qui n'y a
+    // jamais été (relevé du 30/10/2026 : « me.json » et « about.json » étaient des adresses).
+    "The address the reply named answers nothing (404): the file is gone from there, or it was never served." to
+        "L’adresse nommée par la réponse ne répond rien (404) : le fichier n’y est plus, ou il n’y a jamais été servi.",
+    // Ce qui a **changé**, quand personne ne sert plus la cible. Le nom et la date sont déjà sur la
+    // carte ; celle-ci dit le reste, et ne propose aucun geste qui ne peut pas aboutir.
+    "No one serves this file at %1\$s any more: it was removed, or it was written in a working folder that has since been cleaned up." to
+        "Personne ne sert plus ce fichier à %1\$s : il a été retiré, ou il a été écrit dans un dossier de travail qui a été nettoyé depuis.",
     "The server won't share this file." to "Le serveur ne partage pas ce fichier.",
+    // Ce que dit le bandeau quand une pièce jointe ne passe pas : le geste à faire, jamais un code.
+    "The server refused this request (400). It may be too heavy, or in a shape it doesn't take." to
+        "Le serveur a refusé la demande (400). Le fichier est peut-être trop lourd, ou dans un format qu’il n’accepte pas. Retirez la pièce ou choisissez-en une autre.",
+    "The server says that file is too heavy (413). Choose a smaller one." to
+        "Le serveur refuse ce fichier : trop lourd (413). Choisissez un fichier plus petit.",
+    "The server has no room for a file of that name (409). Try again." to
+        "Un fichier de ce nom est déjà sur le serveur (409). Réessayez dans un instant.",
+    "The server refused this file (403). It isn't allowed to write there." to
+        "Le serveur a refusé ce fichier (403). L’écriture n’est pas autorisée à cet endroit.",
+    "The server doesn't know that route (404). Check the Dashboard address in Settings." to
+        "Le serveur ne connaît pas cette route (404). Vérifiez l’adresse du Dashboard dans les réglages.",
+    "The file is still on this device, not on the server: it opens from here." to
+        "Ce fichier est sur cet appareil, pas sur le serveur : il s’ouvre directement.",
+    "The picture didn't reach the server." to "L’image n’est pas arrivée au serveur.",
+    "the server refused the image" to "le serveur a refusé l’image",
     "Select text" to "Sélectionner du texte",
     "Select some of it and copy it, or quote it in your next message." to "Sélectionnez une partie pour la copier ou la citer dans votre prochain message.",
     "Copy all" to "Tout copier",
@@ -102,12 +201,18 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "You can attach up to 10 files." to "Vous pouvez joindre jusqu’à 10 fichiers.",
     "That's more than 25 MB." to "Cela dépasse 25 Mo.",
     "Steer the reply…" to "Guider la réponse…",
-    "the group" to "le groupe",
-    "Message the group" to "Envoyer un message au groupe",
+    "the group" to "le salon",
+    "Message the group" to "Envoyer un message au salon",
     "Listening…" to "À l’écoute…",
     "Stop dictating" to "Arrêter la dictée",
     "Camera isn't available." to "L’appareil photo n’est pas disponible.",
     "Couldn't send: %1\$s" to "Échec de l’envoi : %1\$s",
+    // Un envoi qui n'arrive pas **se dit** : la bulle reste, et la raison s'affiche.
+    "Your message did not reach the room: %1\$s" to
+        "Votre message n’a pas pu être envoyé dans la salle : %1\$s",
+    // Une salle qui ne répond pas du tout : un mot, pas une attente muette.
+    "The room isn't answering. Check the connection and try again." to
+        "La salle ne répond pas. Vérifiez la connexion puis réessayez.",
     "The attachment couldn't be uploaded." to "Impossible de téléverser la pièce jointe.",
     "1 message waiting" to "1 message en attente",
     "Open the editor" to "Ouvrir l’éditeur",
@@ -140,6 +245,16 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Fast mode" to "Mode rapide",
     "Run commands without asking" to "Exécuter les commandes sans confirmation",
     "Run commands without asking?" to "Exécuter les commandes sans confirmation ?",
+    // Les **sous-lignes courtes** du mode rapide et de l'approbation : le paragraphe de cinq lignes
+    // qui les expliquait est passé dans l'aide repliée de la section.
+    "The provider's faster tier, often dearer." to
+        "Le niveau accéléré du fournisseur, souvent plus cher.",
+    "This server never asks, for every conversation." to
+        "Ce serveur ne demande jamais, pour toutes les conversations.",
+    "Commands in this conversation run without your go-ahead." to
+        "Les commandes de cette conversation passent sans votre accord.",
+    "What these switches change" to "Ce que ces interrupteurs changent",
+    "Hide what these switches change" to "Masquer ce que ces interrupteurs changent",
     "Run Without Asking" to "Exécuter sans confirmation",
     "In this conversation Hermes will run every command it wants to, including the ones it would have stopped to ask you about." to "Dans cette conversation, Hermes exécutera toutes les commandes qu’il souhaite, y compris celles pour lesquelles il aurait normalement demandé votre accord.",
     "Couldn't read this conversation's settings:" to "Impossible de lire les réglages de cette conversation :",
@@ -165,7 +280,6 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
 
     // Liste des conversations.
     "Select" to "Sélectionner",
-    "Search conversations" to "Rechercher des conversations",
     "No conversations yet" to "Aucune conversation pour le moment",
     "Conversations from every platform appear here." to "Les conversations de toutes les plateformes apparaissent ici.",
     "Nothing here by that name." to "Aucun résultat pour ce nom.",
@@ -181,9 +295,25 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Copy title" to "Copier le titre",
     "Unarchive" to "Désarchiver",
     "Rename session" to "Renommer la session",
+    // **Les tuiles du volet** : les mots de la grille de la référence, traduits un pour un. La clé
+    // est le mot anglais de la référence ; c'est lui qui s'affiche, traduit ici.
+    "Plugins" to "Greffons",
+    "Config" to "Configuration",
+    // Le mot de la maison pour **l'ensemble des conversations rangées** : « Archives » (déjà
+    // « Afficher les archives », « Masquer les archives »). « Archived » reste, lui, l'état — la
+    // colonne d'un tableau et le bandeau d'une action, deux autres emplois.
+    "Archives" to "Archives",
+    // L'écran « Archives » — la vue des conversations rangées (les mots de la référence).
+    "Nothing archived" to "Rien d’archivé",
+    "Archived sessions are hidden from Recent but stay resumable." to
+        "Les conversations archivées quittent la liste des discussions mais restent reprenables.",
     "This only removes them from this phone." to "Cela les supprime uniquement de ce téléphone.",
+    "They leave this phone and your server. This can't be undone."
+        to "Elles quittent ce téléphone et le serveur. C’est définitif.",
     "Loading…" to "Chargement…",
+    "The server is taking longer than usual." to "Le serveur met plus de temps que d’habitude.",
     "Deselect all" to "Tout désélectionner",
+    "Deselect" to "Désélectionner",
     "Select all" to "Tout sélectionner",
     "Bots are your server's other profiles. With the Dashboard login in Settings, Onyx lists them." to "Les bots sont les autres profils de votre serveur. Avec les identifiants du Dashboard dans Réglages, Onyx les répertorie.",
     "Add Bot" to "Ajouter un bot",
@@ -198,7 +328,7 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Remove from Onyx" to "Retirer de Onyx",
     "Edit Bot…" to "Modifier le bot…",
     "Change Face…" to "Changer de visage…",
-    "Drag bots and group chats by their handles into the order you want." to "Glissez les bots et les discussions de groupe par leur poignée dans l’ordre que vous voulez.",
+    "Drag bots and group chats by their handles into the order you want." to "Glissez les bots et les salons par leur poignée dans l’ordre que vous voulez.",
     "Hidden Bots" to "Bots masqués",
     "Show" to "Afficher",
     "Hidden here and in Hermes Desktop alike. A hidden bot keeps its chat, and the other bots can still message it." to "Masqué ici comme dans Hermes Desktop. Un bot masqué garde sa discussion, et les autres bots peuvent encore lui écrire.",
@@ -247,13 +377,17 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Say something to all of them, or start with @ and a name to ask one. " to "Dites quelque chose à tous, ou commencez par @ suivi d’un nom pour vous adresser à l’un d’eux. ",
     "A bot that has nothing to add stays quiet." to "Un bot qui n’a rien à ajouter reste silencieux.",
     "Say something to all of them, or start with @ and a name to ask one. A bot that has nothing to add stays quiet." to "Dites quelque chose à tous, ou commencez par @ suivi d’un nom pour vous adresser à l’un d’eux. Un bot qui n’a rien à ajouter reste silencieux.",
-    "What you say goes to the group." to "Ce que vous dites est transmis au groupe.",
+    "What you say goes to the group." to "Ce que vous dites est transmis au salon.",
     "Reading the replies" to "Lecture des réponses",
-    "Tap Talk to the group to answer by voice." to "Touchez « Parler au groupe » pour répondre à voix haute.",
+    "Tap Talk to the group to answer by voice." to "Touchez « Parler au salon » pour répondre à voix haute.",
     "The bots' replies are read to you." to "Les réponses des bots vous sont lues.",
     "Replying…" to "Réponse en cours…",
     "A bot" to "Un bot",
     "The bots are talking" to "Les bots discutent",
+    // Une salle annoncée au travail qui ne produit **rien** : l'attente est finie sans réponse, et
+    // la scène le dit au lieu de laisser « les bots discutent » tourner dans le vide.
+    "Nobody is answering" to "Personne ne répond",
+    "The room didn't answer: its bots are stopped, or the server sent nothing back." to "La salle n’a pas répondu : ses bots sont arrêtés, ou le serveur n’a rien renvoyé.",
     // Le fil d'une salle du serveur (`GroupRoomScreen`, `GroupRoomFeed`).
     "The bots are talking…" to "Les bots discutent…",
     "Waiting on you" to "En attente de vous",
@@ -269,8 +403,8 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Earlier messages are in Hermes Desktop." to "Les messages plus anciens sont dans Hermes Desktop.",
     "Nothing said yet in Hermes Desktop." to "Rien n’a encore été dit dans Hermes Desktop.",
     "This group chat runs in Hermes Desktop. Its last messages show here; to talk in it, use Desktop." to
-        "Cette discussion de groupe se tient dans Hermes Desktop. Ses derniers messages s’affichent ici ; pour y parler, utilisez Desktop.",
-    "This group chat was ended in Hermes Desktop." to "Cette discussion de groupe a été terminée dans Hermes Desktop.",
+        "Ce salon se tient dans Hermes Desktop. Ses derniers messages s’affichent ici ; pour y parler, utilisez Desktop.",
+    "This group chat was ended in Hermes Desktop." to "Ce salon a été terminé dans Hermes Desktop.",
     "%1\$s wants to run a command" to "%1\$s veut exécuter une commande",
     "Not answered in about 5 minutes, it isn't run." to "Sans réponse sous cinq minutes environ, elle n’est pas exécutée.",
     "%1\$s's reply didn't finish" to "La réponse de %1\$s ne s’est pas terminée",
@@ -278,11 +412,11 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
         "Elle s’est arrêtée en chemin et Hermes ne sait pas jusqu’où elle est allée. La relancer ?",
     "Find in Chat" to "Rechercher dans la discussion",
     "Find in chat" to "Rechercher dans la discussion",
-    "Rename group chat" to "Renommer la discussion de groupe",
-    "End Group Chat" to "Terminer la discussion de groupe",
+    "Rename group chat" to "Renommer le salon",
+    "End Group Chat" to "Terminer le salon",
     "End “%1\$s”?" to "Terminer « %1\$s » ?",
     "The bots stop and the group chat goes, on the server too. The bots' own chats stay." to
-        "Les bots s’arrêtent et la discussion de groupe disparaît, sur le serveur aussi. Les conversations propres aux bots restent.",
+        "Les bots s’arrêtent et le salon disparaît, sur le serveur aussi. Les conversations propres aux bots restent.",
     "Name" to "Nom",
     "Looks things up on the web and comes back with what it found, and where it found it." to "Recherche sur le Web et revient avec ses découvertes et leurs sources.",
     "Drafts, edits and tightens writing, in your voice." to "Rédige, modifie et resserre vos textes, avec votre style.",
@@ -291,6 +425,14 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Keeps your plans, lists and reminders, and nudges you on time." to "Garde vos projets, listes et rappels, et vous relance au bon moment.",
     "Bot" to "Bot",
     "Change Face" to "Changer de visage",
+    // **Le visage est une porte** : l'appui dessus ouvre l'identité du bot. Le mot dit ce que le
+    // geste **va faire**, et il est le même pour les deux endroits où le visage est un contrôle
+    // (le repère de la barre du bas, le visage de l'en-tête du fil).
+    "Open the bot's identity" to "Ouvrir l’identité du bot",
+    // La rangée « Idées » de la page d'identité : c'est par elle que « Idées » reste atteignable
+    // depuis que le visage a cessé d'ouvrir la page qui portait ce mot.
+    "Its suggestions in this chat, and the ideas you kept." to
+        "Ses suggestions dans cette conversation, et les idées que vous avez gardées.",
     "Start from" to "Commencer à partir de",
     "Its name, what it does, its personality, face and tools filled in. Change any of them before you make it." to "Son nom, sa fonction, sa personnalité, son visage et ses outils sont préremplis. Modifiez-les avant de le créer.",
     "Blank" to "Vide",
@@ -298,7 +440,7 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Others call it @%1\$s. Its handle stays @%1\$s." to "Les autres l’appellent @%1\$s. Son identifiant reste @%1\$s.",
     "Others call it @%1\$s." to "Les autres l’appellent @%1\$s.",
     "It starts as a copy of %1\$s's setup on your server: its settings, API keys and sign-ins, so it can use the same models and tools. Its chats and memories are its own." to "Il commence comme une copie de la configuration de %1\$s sur votre serveur : réglages, clés API et connexions, pour utiliser les mêmes modèles et outils. Ses conversations et ses mémoires sont indépendantes.",
-    "What its replies are read in, in voice mode, group chats and the car." to "La voix utilisée pour lire ses réponses en mode vocal, dans les discussions de groupe et en voiture.",
+    "What its replies are read in, in voice mode, group chats and the car." to "La voix utilisée pour lire ses réponses en mode vocal, dans les salons et en voiture.",
     "What it does" to "Sa fonction",
     "Under its name in your chat list, and how the other bots know what to ask it." to "Sous son nom dans votre liste de conversations, et pour indiquer aux autres bots ce qu’ils peuvent lui demander.",
     "What it's for" to "Son rôle",
@@ -312,7 +454,7 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Bots are Hermes profiles. Add one in Hermes Desktop and it appears here." to "Les bots sont des profils Hermes. Ajoutez-en un dans Hermes Desktop pour le voir apparaître ici.",
     "Hide bots" to "Masquer les bots",
     "Show bots" to "Afficher les bots",
-    "Bots are your server's other profiles. On the Hermes API, add each by its name and its own API key; with the Dashboard login saved in Settings, Onyx lists them and has group chats too." to "Les bots sont les autres profils de votre serveur. Avec l’API Hermes, ajoutez chacun par son nom et sa propre clé d’API ; avec les identifiants du Dashboard enregistrés dans Réglages, Onyx les liste et propose aussi les discussions de groupe.",
+    "Bots are your server's other profiles. On the Hermes API, add each by its name and its own API key; with the Dashboard login saved in Settings, Onyx lists them and has group chats too." to "Les bots sont les autres profils de votre serveur. Avec l’API Hermes, ajoutez chacun par son nom et sa propre clé d’API ; avec les identifiants du Dashboard enregistrés dans Réglages, Onyx les liste et propose aussi les salons.",
     "Orb of %1\$s" to "Orbe de %1\$s",
     "main" to "principal",
     "A bot is one of your server's profiles: the name its folder has under ~/.hermes/profiles. Onyx opens its chat, the one Hermes Desktop and the Dashboard show for it." to "Un bot est l’un des profils de votre serveur : le nom de son dossier sous ~/.hermes/profiles. Onyx ouvre sa conversation, celle que Hermes Desktop et le Dashboard affichent pour lui.",
@@ -325,11 +467,15 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
 
     // Voix et réglages vocaux.
     "1 turn" to "1 tour",
-    "Say “stop listening” or “that's all” to end hands-free." to "Dites « stop listening » ou « that's all » pour quitter le mode mains libres.",
+    // La phrase d'aide **se compose** des phrases réellement écoutées (celles que la personne a
+    // réglées, sinon celles de base) : elle ne cite plus des mots anglais au-dessus de réglages
+    // français. Le gabarit est traduit, la liste des phrases reste telle quelle.
+    "Say %1\$s to end hands-free." to "Dites %1\$s pour quitter le mode mains libres.",
+    " or " to " ou ",
     "Switch to typing" to "Passer à la saisie",
     "Replay the last answer" to "Réécouter la dernière réponse",
     "End voice mode" to "Quitter le mode vocal",
-    "Tap the orb and talk to the group." to "Touchez l’orbe et parlez au groupe.",
+    "Tap the orb and talk to the group." to "Touchez l’orbe et parlez au salon.",
     "Wave" to "Vague",
     "Gold" to "Or",
     "Glass" to "Verre",
@@ -342,6 +488,9 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Reply language" to "Langue des réponses",
     "Voice speed" to "Vitesse de la voix",
     "Start voice mode in hands-free" to "Démarrer le mode vocal en mains libres",
+    // « Reconnaître hors ligne » : éteint par défaut — la reconnaissance se fait en ligne, et un
+    // moteur hors ligne qui n'a pas la langue bascule en ligne tout seul.
+    "Recognise offline" to "Reconnaître hors ligne",
     "Talk over replies" to "Parler pendant les réponses",
     "Orb light" to "Halo de l’orbe",
     "The on-device speech model isn't installed yet." to "Le modèle vocal sur l’appareil n’est pas encore installé.",
@@ -350,20 +499,28 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "This device has no speech recogniser." to "Cet appareil ne possède aucun moteur de reconnaissance vocale.",
     "The microphone is not allowed for this app." to "Cette application n’a pas l’autorisation d’utiliser le micro.",
     "The recogniser is busy." to "Le moteur de reconnaissance est occupé.",
-    "The speech service disconnected or failed. Onyx will retry." to "Le service vocal s’est déconnecté ou a échoué. Onyx réessaiera.",
-    "The speech service is receiving too many requests. Onyx will retry." to "Le service vocal reçoit trop de demandes. Onyx réessaiera.",
+    "The speech service disconnected or failed." to "Le service vocal s’est déconnecté ou a échoué.",
+    "The speech service is receiving too many requests." to "Le service vocal reçoit trop de demandes.",
     "Speech recognition is not available in this language on this device." to "La reconnaissance vocale n’est pas disponible dans cette langue sur cet appareil.",
     "This language is not supported by the speech recogniser." to "Cette langue n’est pas prise en charge par le moteur de reconnaissance vocale.",
     "Onyx cannot check speech recognition support on this device." to "Onyx ne peut pas vérifier la prise en charge de la reconnaissance vocale sur cet appareil.",
     "The recogniser could not start (code 5). Tap the orb to listen again." to "Le moteur de reconnaissance n’a pas pu démarrer (code 5). Touchez l’orbe pour réécouter.",
     "The recogniser stopped and listening is off. Tap the orb to listen again." to "Le moteur de reconnaissance s’est arrêté et l’écoute est coupée. Touchez l’orbe pour réécouter.",
     "Onyx needs the microphone to listen. Allow it in Android's Settings → Apps → Onyx." to "Onyx a besoin du micro pour écouter. Autorisez-le dans Réglages Android → Applications → Onyx.",
+    // « On n'entend rien » : l'écoute reste ouverte, mais l'écran le dit au bout de cinq secondes —
+    // jamais rester muet sur « À L'ÉCOUTE ».
+    "I can't hear anything — check your microphone." to "Je n'entends rien — vérifie le micro.",
+    // Le moteur qui ne répond pas du tout, et celui qui reçoit du son sans rendre un mot : deux
+    // causes différentes du même silence, deux phrases — l'écran ne peut plus rester muet.
+    "The device's speech recogniser never answered. Tap the orb to listen again." to "Le moteur de reconnaissance de l’appareil n’a pas répondu. Touchez l’orbe pour réécouter.",
+    "The recogniser is running but finding no words. Tap the orb and try again." to "Le moteur de reconnaissance tourne mais ne trouve aucun mot. Touchez l’orbe et réessayez.",
+    "Open Android settings" to "Ouvrir les réglages Android",
     "context" to "contexte",
     "Hands-free, on" to "Mode mains libres : activé",
     "Hands-free, off" to "Mode mains libres : désactivé",
     "Hands-free" to "Mains libres",
     "Go ahead." to "Allez-y.",
-    // « Earpiece when raised to your ear » , le réglage de l'appel à
+    // « Earpiece when raised to your ear » (`SettingsSections:531`), le réglage de l'appel à
     // l'oreille, et le nom que porte l'orbe pour les lecteurs d'écran.
     "Earpiece when raised to your ear" to "Écouteur quand on le lève à l’oreille",
     "Talk to %1\$s" to "Parler à %1\$s",
@@ -384,7 +541,7 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Couldn't reach Kokoro: %1\$s" to "Kokoro est injoignable : %1\$s",
     "Server unreachable" to "Serveur injoignable",
     "Stop preview" to "Arrêter l’extrait",
-    // La voix d'un bot (`BotVoicePicker`): sa vitesse, l'écoute d'un échantillon, et ce que dit
+    // La voix d'un bot (`BotVoicePicker`) : sa vitesse, l'écoute d'un échantillon, et ce que dit
     // chaque entrée. Les gabarits à `%1\$s` sont remplis par `OnyxLocalization.format`.
     "Hear it" to "Écouter",
     "Speed" to "Vitesse",
@@ -397,8 +554,8 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "%1\$s's voice, for now: the server has no other voice in its language" to "la voix de %1\$s, pour l’instant : le serveur n’a pas d’autre voix dans sa langue",
     "%1\$s's voice, for now: no other voice is installed for its language" to "la voix de %1\$s, pour l’instant : aucune autre voix n’est installée pour sa langue",
     "%1\$s reads at %2\$s's speed, %3\$s (Settings → Voice → Voice speed)." to "%1\$s lit à la vitesse de %2\$s, %3\$s (Réglages → Voix → Voice speed).",
-    "%1\$s reads at this speed in voice mode, in group chats and in the car, whatever its voice." to "%1\$s lit à cette vitesse en mode vocal, dans les discussions de groupe et en voiture, quelle que soit sa voix.",
-    "Automatic gives %1\$s a voice of its own, not %2\$s's and not another bot's while there are voices to go round. It reads %1\$s's replies in voice mode, in group chats and in the car." to "Automatique donne à %1\$s une voix de son cru, ni celle de %2\$s, ni celle d’un autre bot tant qu’il y a des voix à répartir. Il lit les réponses de %1\$s en mode vocal, dans les discussions de groupe et en voiture.",
+    "%1\$s reads at this speed in voice mode, in group chats and in the car, whatever its voice." to "%1\$s lit à cette vitesse en mode vocal, dans les salons et en voiture, quelle que soit sa voix.",
+    "Automatic gives %1\$s a voice of its own, not %2\$s's and not another bot's while there are voices to go round. It reads %1\$s's replies in voice mode, in group chats and in the car." to "Automatique donne à %1\$s une voix de son cru, ni celle de %2\$s, ni celle d’un autre bot tant qu’il y a des voix à répartir. Il lit les réponses de %1\$s en mode vocal, dans les salons et en voiture.",
     "American English" to "Anglais américain",
     "British English" to "Anglais britannique",
     "Spanish" to "Espagnol",
@@ -527,7 +684,15 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Nothing asked yet." to "Aucune question pour le moment.",
     "Waiting for an answer…" to "En attente d’une réponse…",
 
-    // Écran « Ordinateur »: l'aperçu du PC, la main, l'approbation.
+    // Suivi du travail : le réglage de Réglages → Notifications, et la notification de fin.
+    "Work tracking" to "Suivi du travail",
+    "Never" to "Jamais",
+    "When the turn ends" to "À la fin seulement",
+    "At every step" to "À chaque étape",
+    "Shows while a bot is working, and when its answer is ready." to "Affichée pendant qu’un bot travaille, et quand sa réponse est prête.",
+    "Tells you when a bot finishes its work. “At every step” also keeps a progress notification in the status bar — a live update on Android 16 — with the current step, the elapsed time and a Stop button. Nothing is posted while Onyx is open on the conversation itself, and nothing at all once Android stops allowing Onyx's notifications." to "Vous prévient quand un bot a fini son travail. « À chaque étape » garde en plus une notification d’avancement dans la barre d’état — une mise à jour en direct sur Android 16 — avec l’étape en cours, le temps écoulé et un bouton Arrêter. Rien n’est publié quand Onyx est ouvert sur la conversation elle-même, ni quand Android a cessé d’autoriser les notifications d’Onyx.",
+
+    // Écran « Ordinateur » : l'aperçu du PC, la main, l'approbation.
     "Computer" to "Ordinateur",
     "The computer screen" to "L’écran de l’ordinateur",
     "You have the hand." to "Vous avez la main.",
@@ -535,10 +700,50 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Take over" to "Prendre la main",
     "Hand back" to "Rendre la main",
     "Hand back to the agent" to "Rendre la main à l’agent",
+    // Les libellés **courts** de la barre du bas : un mot, jamais une phrase qui déborde.
+    "Take" to "Prendre",
+    "Release" to "Rendre",
+    "Full screen" to "Plein écran",
+    "Exit full screen" to "Quitter le plein écran",
+    "Fit the screen" to "Ajuster à l’écran",
     "Take the hand to type and to click." to "Prenez la main pour cliquer et pour taper.",
+    // La ligne d'aide des gestes : une seule ligne, les quatre gestes, sans jargon. Le point médian
+    // sépare les gestes comme une phrase d'aide système, et aucun mot d'une autre plateforme n'y
+    // entre — c'est la règle de l'écran.
+    "Drag to move · tap to click · long-press for right-click · two fingers to scroll" to
+        "Glisser pour déplacer · taper pour cliquer · appui long pour clic droit · deux doigts pour défiler",
+    // Le cran de vitesse du pointeur, dit pour qui n'entend pas le fond du bouton.
+    "Pointer: precision" to "Pointeur : précision",
+    "Pointer: normal" to "Pointeur : normal",
+    "Pointer: fast" to "Pointeur : rapide",
     "Type on the computer…" to "Écrire sur l’ordinateur…",
     "Type it on the computer" to "L’écrire sur l’ordinateur",
     "Connecting to the computer…" to "Connexion à l’ordinateur…",
+    // La reprise automatique : on grise l'image et on le dit, jamais un silence figé.
+    "Reconnecting…" to "Reconnexion…",
+    "The screen stopped updating. Reconnecting…" to "L’écran ne se rafraîchit plus. Reconnexion…",
+    "The connection dropped. Reconnecting…" to "La connexion a lâché. Reconnexion…",
+    // Les détails du flux : les chiffres qui décident de la qualité, montrés tels quels.
+    "Stream details" to "Détails du flux",
+    "What the link is doing right now — the same numbers that set the quality." to
+        "Ce que fait la liaison à l’instant — les mêmes chiffres qui règlent la qualité.",
+    "Nothing measured yet." to "Rien de mesuré pour l’instant.",
+    "Round-trip latency" to "Latence aller-retour",
+    "Jitter" to "Gigue",
+    "Frames per second" to "Images par seconde",
+    "Frames dropped" to "Images jetées",
+    "Frames missed" to "Trames manquées",
+    "Requested size" to "Taille demandée",
+    "Estimated bitrate" to "Débit estimé",
+    "Quality" to "Qualité",
+    "Automatic" to "Automatique",
+    "Economical link" to "Liaison économe",
+    "Step %1\$d of %2\$d" to "Cran %1\$d sur %2\$d",
+    "The link sets its own level: it drops fast when it degrades, climbs back slowly." to
+        "La liaison règle son niveau seule : elle descend vite quand ça se dégrade, remonte lentement.",
+    "Economical link keeps the lightest setting — for a metered network." to
+        "La liaison économe garde le réglage le plus léger — pour un réseau compté.",
+    "Done" to "Terminé",
     "The computer's screen isn't coming through." to "L’écran de l’ordinateur ne passe pas.",
     "Try again" to "Réessayer",
     "Run a command…" to "Exécuter une commande…",
@@ -557,6 +762,10 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Escape" to "Échap",
     "Up" to "Haut",
     "Down" to "Bas",
+    // Les deux commandes de défilement repliées dans « Plus » : elles disent ce qu'elles font à
+    // l'écran du PC — un mot de la rangée ne suffisait plus une fois hors de son icône.
+    "Scroll up" to "Défiler vers le haut",
+    "Scroll down" to "Défiler vers le bas",
     "Close the session" to "Fermer la session",
     "Bridge address" to "Adresse du pont",
     "Computer bridge" to "Pont ordinateur",
@@ -591,7 +800,7 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Couldn't reach the bridge: %1\$s" to "Impossible de joindre le pont : %1\$s",
     // Panne de la session « Ordinateur », une phrase par cause. Le texte d'une bibliothèque
     // réseau (« sent ping but didn't receive pong within 20000ms ») n'apprend rien à qui lit
-    // l'écran: on dit ce qui s'est passé, et ce qu'il y a à faire.
+    // l'écran : on dit ce qui s'est passé, et ce qu'il y a à faire.
     "That address doesn't exist. Check the bridge address." to
         "Cette adresse n’existe pas. Vérifiez l’adresse du pont.",
     "The bridge's certificate was refused." to
@@ -623,8 +832,57 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
         "Trop de tentatives : réessayez dans quelques minutes.",
     "The bridge doesn't answer at that path." to "Le pont ne répond pas à ce chemin.",
     "The bridge token is missing." to "Le jeton du pont manque.",
-    // Voix: phrase de test lue à voix haute, et exemple de routage d'un préfixe parlé.
+    // Voix : phrase de test lue à voix haute, et exemple de routage d'un préfixe parlé.
     "This is your Hermes, reading replies out with its own voice." to
         "Voici votre Hermes, qui lit les réponses avec sa propre voix.",
     ", what's using port 8880?" to ", qu’est-ce qui utilise le port 8880 ?",
+    // « Ce qui remplit la fenêtre de contexte » : les postes que `session.context_breakdown`
+    // renvoie **en anglais** (`label`). Ce ne sont pas des libellés du code mais des mots du
+    // serveur : ils vivent donc ici, et non dans le dictionnaire des menus (qui refuse une entrée
+    // sans littéral correspondant dans l'arbre).
+    "System prompt" to "Invite système",
+    "Tool definitions" to "Définitions des outils",
+    "Subagent definitions" to "Définitions des sous-agents",
+    "Conversation history" to "Historique de la conversation",
+    "Attachments" to "Pièces jointes",
+    // Les phrases de la feuille des actions qui portent des arguments (`String.format`) : le
+    // contrôle des menus refuse une clé contenant « $ » (le littéral du source l'échappe), elles
+    // vivent donc ici — traduites quand même, et lues par `OnyxLocalization.format`.
+    "Running for %1\$s" to "En cours depuis %1\$s",
+    "Failed (exit code %1\$d)" to "Échoué (code %1\$d)",
+    "Session id copied (%1\$d characters)" to "Identifiant de session copié (%1\$d caractères)",
+    "Couldn't copy it: %1\$s" to "Impossible de le copier : %1\$s",
+    // Restaurer la conversation à un message : la ligne d'action, la confirmation et l'avis.
+    "Restore to here" to "Restaurer à ce message",
+    "Restore to this message?" to "Restaurer à ce message ?",
+    "Restore" to "Restaurer",
+    "1 message" to "1 message",
+    // **Le zéro ne se dit pas.** Quand rien ne suit le message visé, la phrase change — elle dit ce
+    // qui est vrai (« rien ne le suit ») au lieu d'annoncer un compte nul, qui rend la phrase absurde.
+    "Nothing follows this message: restoring would remove nothing." to
+        "Rien ne suit ce message : la restauration ne retirerait rien.",
+    "This removes %1\$s and everything after it, and rewinds the server to the same point. It can't be undone." to
+        "Cela retire %1\$s et tout ce qui suit, et rembobine le serveur au même point. C’est irréversible.",
+    "Restored here — %1\$s removed." to "Restauré ici — retiré : %1\$s.",
+    "Restored here — nothing was removed." to "Restauré ici — rien n’a été retiré.",
+    "The session was rewound to the same point." to
+        "La session du serveur a été rembobinée au même point.",
+    "The server could not rewind its own copy; it still holds them." to
+        "Le serveur n’a pas pu rembobiner sa propre copie ; elle les garde encore.",
+    // Brancher à partir d'ici : la ligne d'action, le titre de la boîte et ses quatre lignes.
+    //
+    // La pilule ne peut pas s'appeler « Branch » : cette clé est déjà prise par le champ de dépôt
+    // de l'écran Code (`onyxCodeFrench`, « Branch » → « Branche » — une branche de dépôt, un nom),
+    // qui l'emporterait dans la fusion des dictionnaires. La clé porte donc le geste en entier, et
+    // le français reste le verbe : « Brancher ».
+    "Branch from here" to "Brancher à partir d’ici",
+    "Branch from here?" to "Brancher à partir d’ici ?",
+    "Branch this conversation" to "Brancher",
+    "Copies this conversation up to this message into a new conversation, and opens it." to
+        "Copie cette conversation jusqu’à ce message dans une nouvelle conversation, et l’ouvre.",
+    "This conversation stays as it is." to "La conversation actuelle reste telle quelle.",
+    "No task starts until you send something in the new conversation." to
+        "Aucune tâche ne démarre tant que vous n’envoyez rien dans la nouvelle.",
+    "The copy lives on this phone: %1\$s, attachments included." to
+        "La copie vit sur ce téléphone : %1\$s, pièces jointes comprises.",
 )

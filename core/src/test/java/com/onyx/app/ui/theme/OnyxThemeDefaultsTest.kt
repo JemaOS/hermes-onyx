@@ -7,7 +7,7 @@ import org.junit.Test
 
 class OnyxThemeDefaultsTest {
     @Test
-    fun `les identifiants suivent les raw values  et le repli est Messages`() {
+    fun `les identifiants suivent les raw values la référence et le repli est Messages`() {
         assertEquals(
             listOf("githubDark", "standard", "paper", "slate", "terminal", "amber", "claudeCode"),
             OnyxTheme.entries.map { it.id },

@@ -7,10 +7,10 @@ import com.onyx.app.ui.design.BotFace
  * Résout une fois les visages du roster pour tous les écrans (liste, groupe, voix et piles).
  *
  * Les choix locaux priment sur `ui_meta.onyx.face`, comme dans `BotFaceStore`. Les anciennes orbes
- * purement numériques restent inchangées; les autres codes sont relus par [BotFace.parse], puis
- * réécrits dans le format serveur après attribution sans doublons.
+ * purement numériques restent inchangées ; les autres codes sont relus par [BotFace.parse], puis
+ * réécrits dans le format serveur la référence après attribution sans doublons.
  */
-fun List<BotProfile>.withOnyxFaces(localCodes: Map<String, String?> = emptyMap()): List<BotProfile> {
+fun List<BotProfile>.withSwiftFaces(localCodes: Map<String, String?> = emptyMap()): List<BotProfile> {
     val raw = associate { bot -> bot.name to (localCodes[bot.name] ?: bot.faceCode) }
     val picked = raw.mapNotNull { (name, code) ->
         BotFace.parse(code)?.let { face -> name to face }

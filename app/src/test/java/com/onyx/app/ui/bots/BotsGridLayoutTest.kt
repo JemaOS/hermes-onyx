@@ -9,9 +9,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * L'écran Bots doit dessiner la section « Bots » telle qu'elle est **par défaut**:
- * `botGrid` , des vignettes de visage cinq par rangée, leurs marques,
- * puis la tuile qui en fait un nouveau — et non les lignes d'aperçu de `botRow`, que ne
+ * L'écran Bots doit dessiner la section « Bots » de la référence telle qu'elle est **par défaut** :
+ * `botGrid` (`ConversationsView`), des vignettes de visage cinq par rangée, leurs marques,
+ * puis la tuile qui en fait un nouveau — et non les lignes d'aperçu de `botRow`, que la référence ne
  * montre que pendant « Reorder Bots » (`arrangingBots`).
  */
 class BotsGridLayoutTest {
@@ -20,7 +20,7 @@ class BotsGridLayoutTest {
     // MARK: - La grille, et non la liste
 
     @Test
-    fun `la grille des bots est celle du botGrid `() {
+    fun `la grille des bots est celle du botGrid de la référence`() {
         assertTrue("cinq visages à la rangée", source.contains("BOT_GRID_COLUMNS = 5"))
         assertTrue("plus de six bots la replient", source.contains("BOT_GRID_FOLDS_AFTER = 6"))
         assertTrue("un visage de 52 pt", source.contains("BOT_TILE_FACE: Dp = 52.dp"))
@@ -36,27 +36,27 @@ class BotsGridLayoutTest {
     }
 
     @Test
-    fun `les marques du bot sont celles du botTile `() {
+    fun `les marques du bot sont celles du botTile de la référence`() {
         val tile = source.substringAfter("private fun BotTile(").substringBefore("/** Ce qui suit les visages")
-        // Au travail: le rond qui tourne, en haut à droite.
+        // Au travail : le rond qui tourne, en haut à droite.
         assertTrue(tile.contains("activity.working ->"))
         assertTrue(tile.contains("TileSpinner()"))
-        // En attente de vous: le point d'exclamation orange.
+        // En attente de vous : le point d'exclamation orange.
         assertTrue(tile.contains("activity.needsYou ->"))
         assertTrue(tile.contains("symbol = Symbols.ExclamationCircle"))
         assertTrue(tile.contains("tint = theme.warning"))
-        // Pas encore lu: la pastille d'accent de 9 pt.
+        // Pas encore lu : la pastille d'accent de 9 pt.
         assertTrue(tile.contains("activity.unread ->"))
         assertTrue(tile.contains(".size(9.dp)"))
-        // Tu: la cloche barrée, en bas à droite.
+        // Tu : la cloche barrée, en bas à droite.
         assertTrue(tile.contains("symbol = mutedMark"))
         assertTrue(tile.contains("contentDescription = \"Muted\""))
-        // Ouvert: le fond teinté du listRowBackground et le nom en accent.
+        // Ouvert : le fond teinté du listRowBackground et le nom en accent.
         assertTrue(tile.contains("theme.accent.copy(alpha = 0.1f)"))
     }
 
     @Test
-    fun `le repli et la tuile d'action suivent `() {
+    fun `le repli et la tuile d'action suivent la référence`() {
         val grid = source.substringAfter("private fun BotsGrid(").substringBefore("private fun BotTile(")
         assertTrue("une tuile d'action suit les visages", grid.contains("GridAction("))
         assertTrue("la tuile dit New Bot", grid.contains("\"New Bot\""))
@@ -67,21 +67,41 @@ class BotsGridLayoutTest {
     }
 
     @Test
-    fun `les discussions de groupe et les lignes d'action sont sous la grille`() {
+    fun `les discussions de groupe et la ligne d'action restent sous la grille`() {
         val screen = source.substringAfter("fun BotsScreen(").substringBefore("/** Bots à la rangée")
         assertTrue("les groupes passent par GroupRow", screen.contains("GroupRow("))
         assertTrue("leurs visages s'empilent", source.contains("MemberFaces("))
-        assertTrue(screen.contains("ActionRow(title = \"New Group Chat\""))
-        assertTrue(screen.contains("symbol = Symbols.Person3"))
         assertTrue(screen.contains("title = \"Let bots message each other\""))
         assertTrue(screen.contains("symbol = Symbols.Bubbles"))
 
-        // Group chats et lignes d'action viennent après la grille, comme dans.
+        // Group chats et ligne d'action viennent après la grille, comme dans la référence.
         val grid = screen.indexOf("BotsGrid(")
         val groupRow = screen.indexOf("GroupRow(")
-        val newGroup = screen.indexOf("ActionRow(title = \"New Group Chat\"")
+        val otherRow = screen.indexOf("title = \"Let bots message each other\"")
         assertTrue("les groupes suivent la grille", groupRow > grid)
-        assertTrue("New Group Chat suit les groupes", newGroup > groupRow)
+        assertTrue("la ligne d'action suit les groupes", otherRow > groupRow)
+    }
+
+    @Test
+    fun `la creation d'un salon n'a plus qu'une entree, dans l'en-tete`() {
+        // **Le verrou déplacé.** Il comptait la rangée « New room » sous la grille (icône `person.3`).
+        // Sur ordre explicite du propriétaire, la création n'a plus qu'**une** entrée — l'action de
+        // l'en-tête (en accent, en haut à droite) — car l'écran portait « Nouveau salon » **deux
+        // fois** : l'en-tête **et** la rangée du bas. Ce test mord si la rangée revient, ou si
+        // l'en-tête perd son action.
+        val screen = source.substringAfter("fun BotsScreen(").substringBefore("/** Bots à la rangée")
+        assertFalse(
+            "plus de rangée « New room » sous la grille",
+            screen.contains("ActionRow(title = \"New room\""),
+        )
+        assertFalse(
+            "plus d'icône de grille (person.3) portant la création",
+            screen.contains("symbol = Symbols.Person3"),
+        )
+        assertTrue(
+            "l'en-tête est le seul porteur de la création",
+            screen.contains("action = if (arranging) \"Done\" else \"New room\""),
+        )
     }
 
     @Test
@@ -95,7 +115,7 @@ class BotsGridLayoutTest {
     // MARK: - L'en-tête de section (foldingHeader)
 
     @Test
-    fun `l'en-tete de section est le foldingHeader `() {
+    fun `l'en-tete de section est le foldingHeader de la référence`() {
         assertTrue(source.contains("SectionLabel("))
         assertTrue(
             "le compte n'apparait que repliee",
@@ -153,7 +173,7 @@ class BotsGridLayoutTest {
     fun `les libelles de la grille sont dits en francais`() {
         assertEquals("Nouveau bot", OnyxLocalization.translate("New Bot", Locale.FRENCH))
         assertEquals("Ajouter un bot", OnyxLocalization.translate("Add Bot", Locale.FRENCH))
-        assertEquals("Nouvelle discussion de groupe", OnyxLocalization.translate("New Group Chat", Locale.FRENCH))
+        assertEquals("Nouveau salon", OnyxLocalization.translate("New Group Chat", Locale.FRENCH))
         assertEquals("Action requise", OnyxLocalization.translate("Needs you", Locale.FRENCH))
         assertEquals("Réduire", OnyxLocalization.translate("Fewer", Locale.FRENCH))
         assertEquals("3 de plus", OnyxLocalization.translate("3 more", Locale.FRENCH))

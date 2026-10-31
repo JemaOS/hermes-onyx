@@ -14,7 +14,7 @@ import org.junit.Test
 private fun json(text: String): JsonElement = Json.parseToJsonElement(text)
 
 /**
- * Les écritures d'un bot par le RPC du Dashboard (`ServerBots` ): le visage dans
+ * Les écritures d'un bot par le RPC du Dashboard (`ServerBots` de la référence) : le visage dans
  * `ui_meta.onyx`, la visibilité dans `ui_meta["hermes-bots"]`, et la révision attendue qui
  * accompagne chaque écriture — Hermes refuse un `ui_meta` changé entre-temps.
  */
@@ -98,7 +98,7 @@ class ServeBotsRpcWriteTest {
         val face = (fake.params!!["ui_meta"] as JsonObject)["onyx"]!!.jsonObject["face"]!!.toString()
         assertEquals("1:round:round:none:none:4:0:0", face.trim('"'))
 
-        // Sans visage choisi, `ui_meta.onyx` vaut `null`: le nom du bot décide, comme.
+        // Sans visage choisi, `ui_meta.onyx` vaut `null` : le nom du bot décide, comme sur la référence.
         ServeBotsRpc(fake).setFace("scout", null, revision = 3)
         val cleared = (fake.params!!["ui_meta"] as JsonObject)["onyx"]
         assertEquals("null", cleared.toString())
@@ -117,5 +117,47 @@ class ServeBotsRpcWriteTest {
 
         assertTrue(bot.isHidden)
         assertEquals("la révision accompagne une écriture", 4, bot.setUpRevision)
+    }
+
+    /**
+     * « Épingler en haut » : le même `ui_meta` que la visibilité, la même révision attendue — c'est
+     * le réglage de la référence (`changeMeta(bot, "pinned", …)`), et Hermes Desktop le voit.
+     */
+    @Test
+    fun `epingler un bot ecrit pinned dans le meme bloc que la visibilite`() = runBlocking {
+        val fake = Fake()
+
+        ServeBotsRpc(fake).setPinned("scout", pinned = true, revision = 3)
+
+        assertEquals("profiles.configure", fake.method)
+        val params = fake.params!!
+        assertEquals("scout", params["name"]!!.toString().trim('"'))
+        assertEquals("true", meta(params)["pinned"]!!.toString())
+        assertEquals("3", params["ui_meta_expected_revisions"]!!.jsonObject["hermes-bots"]!!.toString())
+    }
+
+    @Test
+    fun `detacher un bot ecrit pinned false`() = runBlocking {
+        val fake = Fake()
+
+        ServeBotsRpc(fake).setPinned("scout", pinned = false, revision = 0)
+
+        assertEquals("false", meta(fake.params!!)["pinned"]!!.toString())
+    }
+
+    @Test
+    fun `le roster lit l epingle, et un conflit d ui_meta est dit en clair`() = runBlocking {
+        val roster = Fake {
+            json("""{"profiles":[{"name":"scout","ui_meta":{"hermes-bots":{"pinned":true}}}]}""")
+        }
+        val bot = ServeBotsRpc(roster).profiles().single()
+        assertTrue("le roster dit l'épingle", bot.pinned)
+
+        val conflicted = Fake {
+            json("""{"applied":{"ui_meta":true,"ui_meta_conflicts":{"hermes-bots":{"expected":3,"actual":9}}}}""")
+        }
+        val problem = runCatching { ServeBotsRpc(conflicted).setPinned("scout", pinned = true, revision = 3) }
+            .exceptionOrNull()
+        assertTrue("un conflit est une erreur lisible, pas un silence", problem is TransportError)
     }
 }

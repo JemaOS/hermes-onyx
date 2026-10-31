@@ -5,8 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Quel lien reçoit une fiche: les mêmes cas que `LinkPreviewTests` 
- * — le premier lien web, jamais dans du code, jamais une image,
+ * Quel lien reçoit une fiche : les mêmes cas que `LinkPreviewTests` côté référence
+ * (EchoTests/LinkPreviewTests) — le premier lien web, jamais dans du code, jamais une image,
  * jamais autre chose qu'http ou https.
  */
 class LinkPreviewLinksTest {

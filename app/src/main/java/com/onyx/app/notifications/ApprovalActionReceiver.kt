@@ -13,9 +13,9 @@ import kotlinx.coroutines.launch
 /**
  * Répond à une approbation depuis la notification, sans ouvrir l'app.
  *
- * C'est l'équivalent Android des boutons d'une notification: le choix est transmis au
+ * C'est l'équivalent Android des boutons d'une notification référence : le choix est transmis au
  * gateway (`POST /v1/runs/{id}/approval`). La demande est retirée aussitôt — ses boutons ne
- * doivent pas rester à l'écran pendant l'appel — puis remplacée par son résultat: « Approved »
+ * doivent pas rester à l'écran pendant l'appel — puis remplacée par son résultat : « Approved »
  * ou « Denied », ou « Couldn't answer » si l'appel a échoué.
  */
 class ApprovalActionReceiver : BroadcastReceiver() {
@@ -29,7 +29,7 @@ class ApprovalActionReceiver : BroadcastReceiver() {
         val command = intent.getStringExtra(EXTRA_COMMAND).orEmpty()
         val title = intent.getStringExtra(EXTRA_TITLE)
 
-        // La demande s'efface d'abord: ses boutons ne doivent pas rester cliquables pendant
+        // La demande s'efface d'abord : ses boutons ne doivent pas rester cliquables pendant
         // l'appel, et c'est le résultat qui reprend place sous le même identifiant.
         notificationId?.let { ApprovalNotifier.clear(context, it) }
         if (runId.isNullOrEmpty() || choice.isNullOrEmpty()) return
@@ -44,7 +44,7 @@ class ApprovalActionReceiver : BroadcastReceiver() {
             try {
                 GatewayApprovalClient(server).respond(runId, requestId, choice)
             } catch (error: Exception) {
-                // Le refus ne peut pas s'afficher dans l'app (elle n'est pas ouverte): c'est la
+                // Le refus ne peut pas s'afficher dans l'app (elle n'est pas ouverte) : c'est la
                 // notification qui le dit, pour que la commande ne reste pas en attente muette.
                 failed = true
             } finally {

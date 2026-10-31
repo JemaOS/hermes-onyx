@@ -23,7 +23,7 @@ import org.junit.Test
 /**
  * La route « sous-agent » du transport Dashboard, rejouée avec les vraies frames du gateway.
  *
- * C'est la preuve que la route n'est plus morte: les trames `subagent.*` qui tombaient dans
+ * C'est la preuve que la route n'est plus morte : les trames `subagent.*` qui tombaient dans
  * l'ignorance deviennent des [TurnEvent.Subagent], et l'identifiant **runtime** de la session (que
  * `subagent.tail` / `.steer` attendent) est remonté à l'appelant.
  */
@@ -126,13 +126,13 @@ class HermesServeSubagentTest {
             SubagentUpdate.Phase.Completed(succeeded = true, summary = "Three tiers.", duration = 12.5),
             subagents[3].phase,
         )
-        // Le tour se termine normalement: la trame sous-agent ne l'a pas court-circuité.
+        // Le tour se termine normalement : la trame sous-agent ne l'a pas court-circuité.
         assertTrue(events.any { it is TurnEvent.Done })
     }
 
     @Test
     fun `une trame subagent compte comme un evenement de tour`() {
-        // `underWay` décide si un `session.info running=false` clôt ce tour: une trame de
+        // `underWay` décide si un `session.info running=false` clôt ce tour : une trame de
         // sous-agent prouve que le tour travaille, donc elle doit le compter.
         assertTrue(ServeChatEvents.isTurnEvent("subagent.start"))
         assertTrue(ServeChatEvents.isTurnEvent("subagent.tool"))
@@ -162,7 +162,7 @@ class HermesServeSubagentTest {
         )!!
         assertEquals("c1", update.childSessionId)
 
-        // Le statut que l'app dessine pour un sous-agent du socket: il travaille.
+        // Le statut que l'app dessine pour un sous-agent du socket : il travaille.
         val row = com.onyx.app.data.model.SubagentActivity(id = update.id).applying(update, 0L)
         assertEquals(SubagentStatus.RUNNING, row.status)
         assertTrue(row.hasTranscript)
@@ -170,7 +170,7 @@ class HermesServeSubagentTest {
 
     @Test
     fun `le roster, la transcription et les deux gestes se lisent par le RPC`() = runBlocking {
-        // Les réponses sont celles du gateway (`methods_subagents.py`): le roster borne ses
+        // Les réponses sont celles du gateway (`methods_subagents.py`) : le roster borne ses
         // champs, `tail` rend `available: false` quand l'enfant n'a rien écrit, `steer` dit
         // « queued » ou « rejected », `interrupt` dit « found ».
         val calls = mutableListOf<Pair<String, JsonObject>>()
@@ -228,14 +228,14 @@ class HermesServeSubagentTest {
         assertTrue(tail.available)
         assertTrue(tail.text.contains("three tiers"))
 
-        // La session runtime part avec les deux gestes: sans elle le gateway refuse.
+        // La session runtime part avec les deux gestes : sans elle le gateway refuse.
         assertTrue(client.steer("runtime-7", "sa-1", "drop the priciest"))
         assertTrue(client.interrupt("runtime-7", "sa-1"))
         assertEquals(
             "runtime-7",
             calls.first { it.first == "subagent.steer" }.second["session_id"].toString().trim('"'),
         )
-        // Un identifiant vide ne fait pas d'appel: rien à demander.
+        // Un identifiant vide ne fait pas d'appel : rien à demander.
         assertTrue(client.list("").isEmpty())
         assertTrue(client.tail("runtime-7", "").let { it == null })
     }
@@ -259,7 +259,7 @@ class HermesServeSubagentTest {
         val result: JsonElement,
         val emit: List<ServeEvent> = emptyList(),
     )
-    /** Un canal scripté, sans socket: c'est le vrai [HermesServeChat] qui tourne. */
+    /** Un canal scripté, sans socket : c'est le vrai [HermesServeChat] qui tourne. */
     private class ScriptedChannel(
         private val responder: (String, JsonObject) -> Reply,
     ) : ServeChatChannel {

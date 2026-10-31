@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  `sidebar.left`: le contrôle du volet des deux panneaux, celui de la barre d'téléphone.
-  Un cadre arrondi dont la colonne de gauche est pleine — exactement ce que l'écran montre
-  (le volet à gauche, le détail à droite). Le cadre est tracé après la colonne pour rester net
-  sur son bord.
+  `sidebar.left` : le contrôle du volet, celui de la barre du contenu.
+
+  Il appartient au **même jeu que les autres icônes de barre** — grille de 24, un seul trait de 2,
+  bouts et jointures ronds, encre tenue entre 2 et 22, centrée sur 12 — parce que c'est ce que la
+  personne lit : un cadre arrondi et sa colonne, pas un aplat. La version d'avant sortait du jeu sur
+  les trois points (colonne **pleine**, cadre à 1,7, encre de 3 à 21) : peinte en 18 dp sur la vitre,
+  elle se lisait comme un rectangle arrondi avec une barre bleue dedans, et non comme un volet.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -11,12 +14,17 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M3,7 A4,4 0 0 1 7,3 H11 V21 H7 A4,4 0 0 1 3,17 Z"
-        android:fillColor="#FFFFFFFF" />
-    <path
-        android:pathData="M7,3 H17 A4,4 0 0 1 21,7 V17 A4,4 0 0 1 17,21 H7 A4,4 0 0 1 3,17 V7 A4,4 0 0 1 7,3 Z"
+        android:pathData="M5,4 H19 A2,2 0 0 1 21,6 V18 A2,2 0 0 1 19,20 H5 A2,2 0 0 1 3,18 V6 A2,2 0 0 1 5,4 Z"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.7"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+    <path
+        android:pathData="M9,5 V19"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent" />
 </vector>

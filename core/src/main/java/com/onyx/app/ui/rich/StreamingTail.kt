@@ -29,7 +29,7 @@ import kotlinx.coroutines.delay
  * texte s'arrête un moment (le modèle réfléchit, appelle un outil), le bord se stabilise et tout
  * reprend sa force — le point reste, la réponse n'est pas finie.
  *
- * @param dot la couleur du point; celle de l'accent si l'on n'en donne pas.
+ * @param dot la couleur du point ; celle de l'accent si l'on n'en donne pas.
  * @param settleDelayMillis le silence après lequel le bord se stabilise, en millisecondes.
  */
 @Composable
@@ -43,7 +43,7 @@ fun StreamingTailText(
     val theme = LocalOnyxTheme.current
     val dotColor = dot ?: theme.accent
 
-    // Après un court silence, le bord se stabilise: plus de pâleur, plus de décalage, mais le
+    // Après un court silence, le bord se stabilise : plus de pâleur, plus de décalage, mais le
     // point reste — la réponse n'est pas finie.
     var revision by remember { mutableIntStateOf(0) }
     var settled by remember { mutableStateOf(false) }
@@ -62,7 +62,7 @@ fun StreamingTailText(
                 append(text.dropLast(TAIL_LENGTH))
                 val tail = text.takeLast(TAIL_LENGTH)
                 tail.forEachIndexed { index, char ->
-                    // La distance depuis la fin: le dernier glyphe est à 0.
+                    // La distance depuis la fin : le dernier glyphe est à 0.
                     val remaining = tail.length - 1 - index
                     val strength = tailStrength(remaining = remaining, settled = settled)
                     if (strength >= 1f) {
@@ -74,7 +74,7 @@ fun StreamingTailText(
                                 color = ink,
                                 // Le glyphe part trois points plus bas et remonte en arrivant.
                                 baselineShift = BaselineShift(-(1f - strength) * LIFT_MULTIPLIER),
-                                // Les cinq derniers, encore flous: Compose n'a pas de flou par
+                                // Les cinq derniers, encore flous : Compose n'a pas de flou par
                                 // glyphe, un halo de la couleur du texte en tient lieu.
                                 shadow = if (remaining < BLURRED_LENGTH) {
                                     Shadow(color = ink, blurRadius = (1f - strength) * BLUR_RADIUS)
@@ -91,8 +91,8 @@ fun StreamingTailText(
         }
     }
 
-    // Avec « Réduire les animations », le bord ne s'anime pas: le texte arrive d'un bloc, comme
-    // quand l'accessibilité le demande. Le drapeau vient
+    // Avec « Réduire les animations », le bord ne s'anime pas : le texte arrive d'un bloc, comme
+    // sur la référence quand l'accessibilité le demande (`StreamingTail:94-101`). Le drapeau vient
     // du réglage système, posé par `ProvideReduceMotion` à la racine.
     val reduceMotion = LocalReduceMotion.current
 
@@ -104,8 +104,8 @@ fun StreamingTailText(
 }
 
 /**
- * Combien un glyphe a monté, de 0 (à peine posé) à 1 (comme le reste du texte): selon sa distance
- * à la fin du texte, et selon que le bord s'est stabilisé ou non. Comme `StreamingTail.strength`.
+ * Combien un glyphe a monté, de 0 (à peine posé) à 1 (comme le reste du texte) : selon sa distance
+ * à la fin du texte, et selon que le bord s'est stabilisé ou non. Port de `StreamingTail.strength`.
  */
 private fun tailStrength(remaining: Int, settled: Boolean): Float {
     if (remaining >= TAIL_LENGTH) return 1f

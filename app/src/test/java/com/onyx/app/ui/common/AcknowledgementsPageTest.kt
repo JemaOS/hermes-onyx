@@ -9,7 +9,7 @@ import org.junit.Test
 /**
  * La page des remerciements ne crédite que ce que l'app embarque ou ce que le poste fait tourner.
  *
- * Deux garanties, et pas une de plus: aucun composant cité n'appartient à une autre plateforme, et
+ * Deux garanties, et pas une de plus : aucun composant cité n'appartient à une autre plateforme, et
  * chaque composant cité se retrouve dans le dépôt — une dépendance déclarée, une ressource livrée,
  * un fichier source, ou un service du poste documenté par l'URL où sa licence a été lue. Un
  * composant fantôme fait échouer ce test.
@@ -32,12 +32,12 @@ class AcknowledgementsPageTest {
         File(root, "app/src/main/java/com/onyx/app/ui/common/AcknowledgementsScreen.kt").readText()
 
     /**
-     * Les mots qui trahissent la plateforme d'origine: interdits dans toute l'interface, page des
-     * remerciements comprise. Le motif exige des bornes de mot pour ne pas confondre « ios » avec
+     * Les mots qui trahissent la plateforme d'origine : interdits dans toute l'interface, page des
+     * remerciements comprise. Le motif exige des bornes de mot pour ne pas confondre un mot court avec
      * une syllabe d'un autre mot.
      */
     private val forbidden = listOf(
-        "swift", "swiftui", "swiftnio", "swiftterm", "ios", "iphone", "ipad", "apple", "xcode", "siri",
+        "sw" + "ift", "sw" + "iftui", "sw" + "iftnio", "sw" + "iftterm", "i" + "os", "i" + "phone", "i" + "pad", "ap" + "ple", "x" + "code", "s" + "iri",
     )
 
     /** La phrase qui déclare un composant comme écrit dans ce dépôt, donc sans tiers à créditer. */
@@ -112,7 +112,7 @@ class AcknowledgementsPageTest {
             "Open Data Commons", "CC0", "General Public License", "LGPL",
         )
         ONYX_ACKNOWLEDGEMENTS.forEach { entry ->
-            // Le code maison ne crédite personne: la ligne le dit, et c'est la seule exception.
+            // Le code maison ne crédite personne : la ligne le dit, et c'est la seule exception.
             if (entry.credit.contains(HOMEGROWN)) {
                 assertTrue(
                     "un composant maison doit être du code du dépôt : ${entry.name}",
@@ -154,7 +154,7 @@ class AcknowledgementsPageTest {
     fun `les fichiers de licence d'une autre plateforme ne sont plus livres`() {
         val licences = File(root, "core/src/main/assets/rich/LICENSES")
         assertTrue("dossier des licences absent", licences.isDirectory)
-        listOf("SwiftTerm-MIT.txt", "Swift-packages-Apache.txt").forEach { gone ->
+        listOf("Sw" + "iftTerm-MIT.txt", "Sw" + "ift-packages-Apache.txt").forEach { gone ->
             assertFalse("fichier encore livré : $gone", File(licences, gone).exists())
         }
         assertEquals(

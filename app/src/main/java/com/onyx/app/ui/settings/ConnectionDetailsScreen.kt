@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -30,14 +31,14 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * « Connection details », comme `ConnectionDetailsView`.
+ * « Connection details », port de `ConnectionDetailsView` (Echo/Views/ConnectionSettings:9).
  *
  * Toutes les adresses, clés et identifiants d'une connexion sur une page à part, hors du premier
- * écran des Réglages: l'adresse et la clé de l'API Hermes, la connexion au Dashboard, Cloudflare
+ * écran des Réglages : l'adresse et la clé de l'API Hermes, la connexion au Dashboard, Cloudflare
  * Access, et les en-têtes d'un proxy inverse.
  *
- * Une adaptation assumée: ces réglages vivent dans le Keychain d'un seul appareil et
- * valent pour tous les serveurs; ici ils appartiennent au serveur actif ([server]), comme tout le
+ * Une adaptation assumée : côté référence ces réglages vivent dans le Keychain d'un seul appareil et
+ * valent pour tous les serveurs ; ici ils appartiennent au serveur actif ([server]), comme tout le
  * reste de la configuration Android. Chaque champ écrit dans le dépôt des serveurs dès la saisie —
  * la clé API part dans le Keystore, jamais en clair dans les préférences.
  */
@@ -49,7 +50,7 @@ fun ConnectionDetailsScreen(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
-    // Le brouillon est local: chaque frappe remonte au dépôt et l'écran repart de sa valeur.
+    // Le brouillon est local : chaque frappe remonte au dépôt et l'écran repart de sa valeur.
     var draft by remember(server.id) { mutableStateOf(server) }
     var headerName by remember { mutableStateOf("") }
     var headerValue by remember { mutableStateOf("") }
@@ -63,7 +64,11 @@ fun ConnectionDetailsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.formPageColor),
+            .background(theme.formPageColor)
+            // La zone du système est prise par la racine : la dernière rangée du corps ne peut
+            // plus être enterrée sous la barre de navigation. Encart lu à l'exécution, jamais
+            // une valeur en dur qui ne vaut que pour un écran.
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Connection details", onBack = onBack)
@@ -75,7 +80,7 @@ fun ConnectionDetailsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 40.dp),
         ) {
-            // `GatewayKeySettings`: l'adresse de l'API et sa clé.
+            // `GatewayKeySettings` : l'adresse de l'API et sa clé.
             OnyxFormSection(
                 header = "Hermes API",
                 footer = if (draft.apiKey.isNotBlank()) {
@@ -101,7 +106,7 @@ fun ConnectionDetailsScreen(
                 )
             }
 
-            // `ServeLoginSettings`: le Dashboard, sa connexion, et son état.
+            // `ServeLoginSettings` : le Dashboard, sa connexion, et son état.
             OnyxFormSection(
                 header = "Hermes Dashboard",
                 footer = "The same login as the Hermes Dashboard: its username and password. " +
@@ -137,8 +142,8 @@ fun ConnectionDetailsScreen(
                         modifier = Modifier.weight(1f),
                     )
                     BasicText(
-                        // Le `stateLabel` dit l'état du WebSocket; ce port ouvre une
-                        // session par appel et n'en tient donc aucun: la ligne dit ce qui est
+                        // Le `stateLabel` de la référence dit l'état du WebSocket ; ce port ouvre une
+                        // session par appel et n'en tient donc aucun : la ligne dit ce qui est
                         // configuré, pas un état qu'elle ne peut pas connaître.
                         text = if (draft.hasServeCredentials) "configured" else "not connected",
                         style = theme.body.copy(color = theme.secondaryText),
@@ -146,7 +151,7 @@ fun ConnectionDetailsScreen(
                 }
             }
 
-            // `CloudflareSettings`: le jeton de service de Zero Trust.
+            // `CloudflareSettings` : le jeton de service de Zero Trust.
             OnyxFormSection(
                 header = "Cloudflare Access (optional)",
                 footer = "If the Hermes Dashboard sits behind Cloudflare Access instead of a " +
@@ -169,7 +174,7 @@ fun ConnectionDetailsScreen(
                 )
             }
 
-            // `CustomHeadersSettings`: les en-têtes du proxy de l'utilisateur.
+            // `CustomHeadersSettings` : les en-têtes du proxy de l'utilisateur.
             OnyxFormSection(
                 header = "Custom headers (optional)",
                 footer = "If a reverse proxy in front of your Hermes server asks for a header of " +

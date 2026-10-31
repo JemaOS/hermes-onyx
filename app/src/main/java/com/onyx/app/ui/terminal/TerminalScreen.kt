@@ -1,5 +1,9 @@
 package com.onyx.app.ui.terminal
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import android.content.ClipData
 import android.content.Intent
 import androidx.activity.compose.BackHandler
@@ -87,12 +91,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** États visibles de la coquille, comme `TerminalModel.Phase`. */
+/** États visibles de la coquille, comme `TerminalModel.Phase` côté la référence. */
 enum class TerminalPhase { NEEDS_ACCOUNT, CONNECTING, FAILED, LIVE }
 
 data class TerminalFailure(val message: String, val wantsKey: Boolean)
 
-/** Le modèle possède la session; aucun mot de passe ni `PromiscuousVerifier` ne subsiste. */
+/** Le modèle possède la session ; aucun mot de passe ni `PromiscuousVerifier` ne subsiste. */
 class TerminalModel(
     private val terminal: SshTerminal,
     private val identity: SshIdentity,
@@ -213,7 +217,7 @@ class TerminalModel(
     }
 }
 
-/** Terminal plein écran: compte, confiance TOFU, coquille, fin, reconnexion et menu More. */
+/** Terminal plein écran : compte, confiance TOFU, coquille, fin, reconnexion et menu More. */
 @Composable
 fun TerminalScreen(
     server: ServerConfig,
@@ -246,7 +250,7 @@ fun TerminalScreen(
     }
 
     LaunchedEffect(server.id) {
-        // Comme le modèle: rien n'est prérempli tant qu'aucun compte n'a été enregistré.
+        // Comme la référence : rien n'est prérempli tant qu'aucun compte n'a été enregistré.
         // L'hôte que le serveur suggère s'affiche en **gris dans le champ** (son exemple), et
         // reste une valeur vide — si bien que la première alerte nomme le nom d'hôte.
         account = accounts.saved(server.id) ?: TerminalAccount()
@@ -256,7 +260,7 @@ fun TerminalScreen(
     DisposableEffect(model) { onDispose { model.close() } }
     BackHandler { close() }
 
-    Column(modifier = modifier.fillMaxSize().background(theme.pageColor)) {
+    Column(modifier = modifier.fillMaxSize().onyxPage(theme)) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
                 title = if (model.showsScreen) model.title else "Terminal",
@@ -333,8 +337,8 @@ fun TerminalScreen(
                 AlertAction("Trust") { model.answerTrust(true, scope) },
                 AlertAction("Cancel") { model.answerTrust(false, scope) },
             ),
-            // On ne ferme pas une question de confiance en touchant à côté: ses deux boutons
-            // sont les seules issues, comme l'alerte.
+            // On ne ferme pas une question de confiance en touchant à côté : ses deux boutons
+            // sont les seules issues, comme l'alerte de la référence.
             onDismiss = null,
         )
     }
@@ -403,7 +407,7 @@ private fun TerminalStatusCard(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(24.dp)
-                        .background(theme.surfaceColor, RoundedCornerShape(14.dp))
+                        .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -431,8 +435,8 @@ private fun TerminalAccountForm(
     askedToConnect: Int = 0,
     identity: SshIdentity? = null,
     /**
-     * Ce qui est écrit en gris dans le champ *Host* tant qu'il est vide: l'hôte que le serveur
-     * suggère. C'est un **exemple**, pas une valeur — comme le modèle, qui montre là
+     * Ce qui est écrit en gris dans le champ *Host* tant qu'il est vide : l'hôte que le serveur
+     * suggère. C'est un **exemple**, pas une valeur — comme la référence, qui montre là
      * `hermes.example.ts.net` et laisse le champ vide, si bien que le premier mot d'alerte
      * nomme le nom d'hôte, et non le reste.
      */
@@ -520,7 +524,7 @@ private fun TerminalField(
     }
 }
 
-/** Carte de la clé publique: copie, partage et destination authorized_keys. */
+/** Carte de la clé publique : copie, partage et destination authorized_keys. */
 @Composable
 private fun TerminalKeyCard(
     identity: SshIdentity,
@@ -542,7 +546,7 @@ private fun TerminalKeyCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(theme.fill, RoundedCornerShape(12.dp))
+            .background(theme.fill, RoundedCornerShape(OnyxSpace.FormCorner))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -625,7 +629,7 @@ private fun TerminalSurface(model: TerminalModel, scope: CoroutineScope, modifie
     }
 }
 
-/** Champ clavier et touches: texte direct, Backspace, Esc, Ctrl, Tab et flèches. */
+/** Champ clavier et touches SwiftTerm : texte direct, Backspace, Esc, Ctrl, Tab et flèches. */
 @Composable
 private fun TerminalInputBar(model: TerminalModel, scope: CoroutineScope) {
     val theme = LocalOnyxTheme.current
@@ -712,7 +716,7 @@ private fun TerminalKey(label: String, selected: Boolean = false, onClick: () ->
         text = label,
         style = theme.footnote.copy(color = if (selected) theme.pageColor else theme.textColor),
         modifier = Modifier
-            .background(if (selected) theme.accent else theme.fill, RoundedCornerShape(6.dp))
+            .background(if (selected) theme.accent else theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
             .onyxClickable(onClick = onClick)
             .padding(horizontal = 11.dp, vertical = 7.dp),
     )
@@ -725,7 +729,7 @@ private fun TerminalButton(label: String, primary: Boolean, onClick: () -> Unit)
         text = label,
         style = theme.body.copy(color = if (primary) theme.pageColor else theme.accent),
         modifier = Modifier
-            .background(if (primary) theme.accent else theme.fill, RoundedCornerShape(9.dp))
+            .background(if (primary) theme.accent else theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
             .onyxClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     )
@@ -752,7 +756,7 @@ private fun TerminalSpinner() {
     }
 }
 
-/** Réglages › Terminal: compte, clé du téléphone, clé connue du serveur et renouvellement. */
+/** Réglages › Terminal : compte, clé du téléphone, clé connue du serveur et renouvellement. */
 @Composable
 fun TerminalSettingsView(
     server: ServerConfig,
@@ -772,14 +776,14 @@ fun TerminalSettingsView(
     var keyGeneration by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(server.id) {
-        // Comme le modèle: l'hôte suggéré est l'exemple en gris du champ, pas une valeur.
+        // Comme la référence : l'hôte suggéré est l'exemple en gris du champ, pas une valeur.
         account = accounts.saved(server.id) ?: TerminalAccount()
     }
     val current = account
     val knownName = TerminalKnownHosts.name(current?.host?.trim().orEmpty(), current?.port ?: 22)
     LaunchedEffect(knownName, current) { trusted = knownHosts.trusted(knownName) }
 
-    Column(modifier = modifier.fillMaxSize().background(theme.pageColor)) {
+    Column(modifier = modifier.fillMaxSize().onyxPage(theme)) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Terminal", onBack = onBack)
         }
@@ -801,7 +805,7 @@ fun TerminalSettingsView(
                     OnyxRow(onClick = {
                         if (current.isComplete) onOpenTerminal() else askedToConnect++
                     }) {
-                        OnyxIcon(Symbols.Terminal, tint = theme.accent, size = 18.dp)
+                        OnyxIcon(Symbols.Terminal, tint = theme.textColor, size = 18.dp)
                         BasicText(
                             text = "Open Terminal",
                             style = theme.body.copy(color = theme.accent),
@@ -882,7 +886,7 @@ fun TerminalSettingsView(
     }
 }
 
-/** Une ligne du tampon: couleurs SGR et inversion, indexée par rangée (doublons compris). */
+/** Une ligne du tampon : couleurs SGR et inversion, indexée par rangée (doublons compris). */
 private fun paintLine(buffer: TerminalBuffer, row: Int, line: String): AnnotatedString {
     if (line.isEmpty()) return AnnotatedString("")
     return buildAnnotatedString {

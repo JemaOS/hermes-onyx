@@ -29,13 +29,13 @@ class SpeechAudio(
     val mimeType: String,
     val provider: String? = null,
 ) {
-    /** Kokoro répond en PCM brut; un serveur qui renvoie tout de même un WAV est détecté au RIFF. */
+    /** Kokoro répond en PCM brut ; un serveur qui renvoie tout de même un WAV est détecté au RIFF. */
     val isRawPcm: Boolean
         get() = mimeType.substringBefore(';').equals("audio/pcm", ignoreCase = true) &&
             !hasRiffHeader(bytes)
 }
 
-/** Normalise l'adresse du serveur Kokoro sans lui ajouter un `/v1` qu'il n'a pas. */
+/** Normalise l'adresse du serveur Kokoro sans lui ajouter un `/v1` qu'il n'a pas sur la référence. */
 fun normalizedKokoroBase(raw: String): String? {
     var value = raw.trim()
     while (value.endsWith('/')) value = value.dropLast(1)
@@ -44,10 +44,17 @@ fun normalizedKokoroBase(raw: String): String? {
     return value
 }
 
-/** Client OpenAI-compatible du serveur Kokoro (`KokoroPlayer.voiceIDs` et `fetch` ). */
+/** Client OpenAI-compatible du serveur Kokoro (`KokoroPlayer.voiceIDs` et `fetch` sur la référence). */
 class KokoroSpeechClient(
     private val voicesClient: OkHttpClient = OnyxHttp.shortClient(6),
     private val speechClient: OkHttpClient = OnyxHttp.shortClient(60),
+    /**
+     * Le jeton du service vocal, quand il est protégé derrière un mandataire à jeton. **Vide par
+     * défaut** : sans jeton, aucun en-tête `Authorization` n'est envoyé — c'est le comportement
+     * d'origine, pour un serveur local ouvert. Le jeton ne va jamais dans l'adresse (elle finit
+     * dans les copies d'écran et les journaux) ; il ne voyage que dans l'en-tête, ici.
+     */
+    private val token: String = "",
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -59,6 +66,8 @@ class KokoroSpeechClient(
             .get()
             .header("Accept", "application/json")
             .header("User-Agent", OnyxHttp.USER_AGENT)
+            // Un mandataire protégé exige le jeton ; sans jeton réglé, rien n'est ajouté.
+            .apply { if (token.isNotBlank()) header("Authorization", "Bearer " + token) }
             .build()
         try {
             voicesClient.newCall(request).execute().use { response ->
@@ -82,7 +91,7 @@ class KokoroSpeechClient(
         }
     }
 
-    /** Demande le PCM 24 kHz mono du modèle; la lecture sait aussi reconnaître un WAV. */
+    /** Demande le PCM 24 kHz mono du modèle la référence ; la lecture sait aussi reconnaître un WAV. */
     suspend fun speak(
         text: String,
         baseUrl: String,
@@ -104,6 +113,8 @@ class KokoroSpeechClient(
             .post(payload.toString().toRequestBody(JSON))
             .header("Accept", "audio/pcm, audio/wav, application/octet-stream")
             .header("User-Agent", OnyxHttp.USER_AGENT)
+            // Même en-tête que la liste des voix : un jeton vide ne change rien.
+            .apply { if (token.isNotBlank()) header("Authorization", "Bearer " + token) }
             .build()
         try {
             speechClient.newCall(request).execute().use { response ->
@@ -144,7 +155,7 @@ class HermesSpeechClient(
 ) {
     val isAvailable: Boolean get() = server.hasServeCredentials
 
-    /** La réponse entière porte `data_url` et le provider: c'est ce que le test de réglages affiche. */
+    /** La réponse entière porte `data_url` et le provider : c'est ce que le test de réglages affiche. */
     suspend fun speak(text: String): SpeechAudio {
         val answer = client.request(
             path = "api/audio/speak",
@@ -181,7 +192,7 @@ fun decodeSpeechDataUrl(url: String, declaredMime: String? = null, provider: Str
     return SpeechAudio(bytes, mime, provider)
 }
 
-/** Le nom donné au provider dans HermesVoiceRows, mot pour mot du modèle. */
+/** Le nom donné au provider dans HermesVoiceRows, mot pour mot du modèle la référence. */
 fun hermesProviderName(id: String): String = when (id.lowercase(Locale.ROOT)) {
     "" -> "your Hermes"
     "edge" -> "Edge, Microsoft's online voice"

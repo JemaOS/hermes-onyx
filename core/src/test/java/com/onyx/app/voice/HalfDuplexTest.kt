@@ -6,9 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les trois garde-fous du mode vocal: demi-duplex, garde anti-écho, endpointing.
+ * Les trois garde-fous du mode vocal : demi-duplex, garde anti-écho, endpointing.
  *
- * Toutes les décisions sont pures, donc éprouvées ici; l'émulateur n'a pas de micro, et c'est
+ * Toutes les décisions sont pures, donc éprouvées ici ; l'émulateur n'a pas de micro, et c'est
  * justement pour cela que la boucle (effet Larsen) se teste par injection et non au téléphone.
  */
 class HalfDuplexTest {
@@ -17,7 +17,7 @@ class HalfDuplexTest {
 
     @Test
     fun `la reponse lue qui revient par le micro est reconnue pour un écho`() {
-        // Le cas exact de la boucle observée: la réponse transcrite à la ponctuation près.
+        // Le cas exact de la boucle observée : la réponse transcrite à la ponctuation près.
         assertTrue(
             isEchoOfReply(
                 "bonjour comment puis-je t'aider aujourd'hui",
@@ -36,14 +36,14 @@ class HalfDuplexTest {
 
     @Test
     fun `un fragment de la reponse entendu par le haut parleur est un echo`() {
-        // La capture du propriétaire: le micro reprend trois mots de la réponse en cours, avec un
+        // La capture du propriétaire : le micro reprend trois mots de la réponse en cours, avec un
         // mot que le moteur a écrit autrement (« plus » pour « plutôt »). Sans la comparaison par
         // préfixe, rien de tout cela n'était un écho — la réponse était coupée en plein milieu et
         // le fragment devenait la question suivante.
         val reply = "Bien sûr ! Je suis plutôt à l'aise pour discuter de tout : " +
             "tech, musique, ciné, bouffe, philo de comp"
         assertTrue(isEchoOfReply("je suis plus", reply))
-        // Le moteur réordonne et abrège: « Ma question, c'était juste: tu veux parler de quoi ? »
+        // Le moteur réordonne et abrège : « Ma question, c'était juste : tu veux parler de quoi ? »
         assertTrue(isEchoOfReply("tu veux parler de quoi", "Ma question, c'était juste : tu veux parler de quoi ?"))
         // Et une vraie question garde son chemin.
         assertFalse(isEchoOfReply("tu peux me faire une liste de courses", reply))
@@ -55,7 +55,7 @@ class HalfDuplexTest {
         assertTrue("plutot".matchesEchoToken("plus"))
         assertTrue("questions".matchesEchoToken("question"))
         assertFalse("chat".matchesEchoToken("chien"))
-        // Deux lettres ne suffisent pas: « tu » et « tout » ne sont pas le même mot.
+        // Deux lettres ne suffisent pas : « tu » et « tout » ne sont pas le même mot.
         assertFalse("tu".matchesEchoToken("tout"))
     }
 
@@ -80,7 +80,7 @@ class HalfDuplexTest {
         assertEquals(1f, transcriptSimilarity("un deux trois", "trois deux un"), 0.0001f)
         assertEquals(0f, transcriptSimilarity("un deux", "trois quatre"), 0.0001f)
         assertEquals(0f, transcriptSimilarity("", "trois"), 0.0001f)
-        // 2 mots communs sur 4 distincts: 0,5 (Jaccard).
+        // 2 mots communs sur 4 distincts : 0,5 (Jaccard).
         assertEquals(0.5f, transcriptSimilarity("un deux trois", "deux trois quatre"), 0.0001f)
     }
 
@@ -97,7 +97,7 @@ class HalfDuplexTest {
 
     @Test
     fun `le micro reste fermé pendant la lecture tant que le barge-in n est pas demandé`() {
-        // Demi-duplex: rien ne rouvre le micro tant que « Talk over replies » est éteint.
+        // Demi-duplex : rien ne rouvre le micro tant que « Talk over replies » est éteint.
         assertFalse(
             shouldReopenMicForSpeech(
                 VoicePhase.SPEAKING, isListening = false, listenAfterSpeech = true, micBehindReply = false,
@@ -150,9 +150,9 @@ class HalfDuplexTest {
     fun `le silence qui termine l écoute est réglable`() {
         assertFalse(shouldEndBySilence("bonjour", 1200, 2000, silenceMs = 1400))
         assertTrue(shouldEndBySilence("bonjour", 1200, 2000, silenceMs = 900))
-        // **1,2 s: la valeur du modèle** (`SpeechRecognizer.silenceTimeout`). À 1,1 s, une
+        // **1,2 s : la valeur de la référence** (`SpeechRecognizer.silenceTimeout`). À 1,1 s, une
         // hésitation au milieu d'une phrase la faisait couper (« ça se bloque toujours en plein
-        // milieu d'une phrase »); le modèle demande aussi que la pièce soit calme depuis
+        // milieu d'une phrase ») ; la référence demande aussi que la pièce soit calme depuis
         // 0,6 × ce temps, ce que porte `EndpointWatcher`.
         assertEquals(1200L, DEFAULT_ENDPOINT_SILENCE_MS)
     }
@@ -161,17 +161,17 @@ class HalfDuplexTest {
 
     @Test
     fun `la reponse lue qui revient telle quelle est jetee et la boucle ne part pas`() {
-        // La séquence exacte de la capture: « bonjour » part, la réponse est lue, puis le micro
+        // La séquence exacte de la capture : « bonjour » part, la réponse est lue, puis le micro
         // rend la réponse mot pour mot. Elle doit être jetée — sinon « bonjour comment puis-je
         // t'aider aujourd'hui » devient la question suivante, et la boucle Larsen s'installe.
         val reply = "Bonjour ! Comment puis-je t'aider aujourd'hui ?"
         val heardEcho = "bonjour comment puis-je t'aider aujourd'hui"
 
-        // 1. La personne dit « bonjour »: ça part, une fois.
+        // 1. La personne dit « bonjour » : ça part, une fois.
         assertTrue(shouldSendHeardTranscript("bonjour", lastReply = "", alreadySent = false))
 
         // 2. La réponse est lue (`VoiceSession.speak` pose ce texte comme `lastReplyText`).
-        // 3. Le micro rend la réponse telle quelle: jetée.
+        // 3. Le micro rend la réponse telle quelle : jetée.
         assertFalse("la réponse lue qui revient est un écho", shouldSendHeardTranscript(heardEcho, reply, false))
         assertFalse("la réponse entière aussi", shouldSendHeardTranscript(reply, reply, false))
 
@@ -186,14 +186,14 @@ class HalfDuplexTest {
     fun `la garde anti-echo vaut aussi sur la parole par-dessus la lecture`() {
         val reply = "Bonjour ! Comment puis-je t'aider aujourd'hui ?"
 
-        // Le micro rouvert pour le barge-in rend un morceau de la réponse: ce n'est pas une prise
+        // Le micro rouvert pour le barge-in rend un morceau de la réponse : ce n'est pas une prise
         // de parole, la réponse n'est donc pas coupée.
         assertFalse(shouldSendHeardTranscript("comment puis-je t'aider", reply, alreadySent = false))
         assertFalse(shouldSendHeardTranscript(reply, reply, alreadySent = false))
 
         // Une vraie prise de parole, elle, passe — c'est le barge-in.
         assertTrue(shouldSendHeardTranscript("non attends", reply, alreadySent = false))
-        // Et un mot isolé reste une parole: « bonjour » n'est pas la réponse qui revient (c'est la
+        // Et un mot isolé reste une parole : « bonjour » n'est pas la réponse qui revient (c'est la
         // règle voulue — un mot de la réponse ne suffit jamais à la prendre pour un écho).
         assertTrue(shouldSendHeardTranscript("bonjour", reply, alreadySent = false))
     }

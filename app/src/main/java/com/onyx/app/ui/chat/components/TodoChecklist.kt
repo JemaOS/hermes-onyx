@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +47,7 @@ fun TodoChecklist(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(theme.surfaceColor.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+            .background(theme.surfaceColor.copy(alpha = 0.5f), RoundedCornerShape(OnyxSpace.ControlCorner))
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {

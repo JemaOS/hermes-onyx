@@ -1,17 +1,17 @@
 package com.onyx.app.data.link
 
 /**
- * Ce qu'une page dit d'elle-même: son titre et l'image de sa fiche.
+ * Ce qu'une page dit d'elle-même : son titre et l'image de sa fiche.
  *
- * Côté c'est `LPMetadataProvider` qui s'en charge; Android n'a pas d'équivalent, donc le port
+ * Côté référence c'est `LPMetadataProvider` qui s'en charge ; Android n'a pas d'équivalent, donc le port
  * lit lui-même les balises Open Graph (`og:title`, `og:image`), puis les replis de Messages — la
- * balise `<title>`, puis l'icône du site. Tout ici est du texte: aucun accès Android, donc
+ * balise `<title>`, puis l'icône du site. Tout ici est du texte : aucun accès Android, donc
  * éprouvable sur la JVM.
  */
 data class LinkPreviewMeta(
-    /** Le titre de la page, déjà nettoyé et décodé; `null` s'il est vide. */
+    /** Le titre de la page, déjà nettoyé et décodé ; `null` s'il est vide. */
     val title: String? = null,
-    /** L'image de la page, telle qu'écrite dans la balise (relative possible); `null` sinon. */
+    /** L'image de la page, telle qu'écrite dans la balise (relative possible) ; `null` sinon. */
     val imageUrl: String? = null,
 ) {
     companion object {
@@ -38,7 +38,7 @@ data class LinkPreviewMeta(
                 }
             }
 
-            // Replis, dans l'ordre de Messages: la balise <title>, puis l'icône du site.
+            // Replis, dans l'ordre de Messages : la balise <title>, puis l'icône du site.
             if (title == null) title = titleTag.find(html)?.groupValues?.get(1)
             if (image == null) {
                 for (tag in linkTag.findAll(html)) {
@@ -67,7 +67,7 @@ data class LinkPreviewMeta(
             }
         }
 
-        /** Les entités HTML courantes; de quoi lire un titre sans dépendance. */
+        /** Les entités HTML courantes ; de quoi lire un titre sans dépendance. */
         private fun decodeEntities(text: String?): String? {
             if (text == null) return null
             if (!text.contains('&')) return text

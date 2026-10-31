@@ -10,23 +10,23 @@ import com.onyx.app.data.model.ToolStatus
 /**
  * La doublure de QA des sous-agents (`am start --ez onyx.subagentDemo true`).
  *
- * Un émulateur n'a ni Dashboard ni agent: aucun enfant ne peut donc naître pour de vrai. Le
+ * Un émulateur n'a ni Dashboard ni agent : aucun enfant ne peut donc naître pour de vrai. Le
  * drapeau pose un fil et un roster **injectés** — exactement le même genre de doublure que
  * `onyx.demoBots` pour le roster des bots, ou `onyx.voiceDemo` pour l'écran vocal.
  *
- * Les **états** couverts sont ceux que l'app sait dessiner:
- * - une tâche qui travaille, avec un outil en cours et un compteur d'outils;
- * - une tâche qui démarre (aucun outil encore);
- * - une tâche **lancée à l'aveugle** ([SubagentStatus.DISPATCHED]) — celle que l'API de
- * conversation produit, sans session d'enfant: rien à ouvrir, rien à arrêter;
- * - une tâche finie, et une en échec.
+ * Les **états** couverts sont ceux que l'app sait dessiner :
+ *  - une tâche qui travaille, avec un outil en cours et un compteur d'outils ;
+ *  - une tâche qui démarre (aucun outil encore) ;
+ *  - une tâche **lancée à l'aveugle** ([SubagentStatus.DISPATCHED]) — celle que l'API de
+ *    conversation produit, sans session d'enfant : rien à ouvrir, rien à arrêter ;
+ *  - une tâche finie, et une en échec.
  *
- * Le drapeau ne change **rien** quand il est absent: [conversation] et [agents] ne sont appelés
+ * Le drapeau ne change **rien** quand il est absent : [conversation] et [agents] ne sont appelés
  * que sur demande explicite.
  */
 internal object SubagentStandIn {
 
-    /** Le roster injecté: quatre tâches, dont deux vivantes. */
+    /** Le roster injecté : quatre tâches, dont deux vivantes. */
     fun agents(now: Long): List<SubagentActivity> = listOf(
         SubagentActivity(
             id = "sa-pricing",
@@ -64,7 +64,7 @@ internal object SubagentStandIn {
             model = "gpt-4.1",
             startedAt = now - 95_000,
         ),
-        // Une ligne « lancée » sans session d'enfant: celle que seule l'API de conversation
+        // Une ligne « lancée » sans session d'enfant : celle que seule l'API de conversation
         // permet de voir, et sur laquelle ni transcription ni arrêt ne sont proposés.
         SubagentActivity(
             id = "delegate:run:0",
@@ -75,7 +75,7 @@ internal object SubagentStandIn {
         ),
     )
 
-    /** Le fil injecté: la question, puis la réponse qui a délégué. */
+    /** Le fil injecté : la question, puis la réponse qui a délégué. */
     fun conversation(now: Long): List<ChatMessage> = listOf(
         ChatMessage(
             id = "demo-user",
@@ -102,7 +102,7 @@ internal object SubagentStandIn {
     )
 
     /**
-     * La transcription injectée d'un enfant: ce que `subagent.tail` rendrait pour lui — les
+     * La transcription injectée d'un enfant : ce que `subagent.tail` rendrait pour lui — les
      * derniers tours de sa propre conversation, tels qu'ils sortent du fichier vivant du gateway.
      */
     fun transcript(agent: SubagentActivity): String = when (agent.id) {

@@ -16,10 +16,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les compétences d'un bot: on/off et « always loaded », écrits au serveur pour ce profil-là.
+ * Les compétences d'un bot : on/off et « always loaded », écrits au serveur pour ce profil-là.
  *
- * Les routes sont celles (`HermesServeClient.toggleSkill`, `setAlwaysLoadedSkills`,
- * `dashboardSkills`): `PUT api/skills/toggle`, `PUT api/config`, `GET api/skills`, chacune avec
+ * Les routes sont celles de la référence (`HermesServeClient.toggleSkill`, `setAlwaysLoadedSkills`,
+ * `dashboardSkills`) : `PUT api/skills/toggle`, `PUT api/config`, `GET api/skills`, chacune avec
  * son `?profile=`.
  */
 class ServeSkillsApiTest {
@@ -87,7 +87,7 @@ class ServeSkillsApiTest {
     @Test
     fun `un refus du serveur remonte au lieu de passer pour un reglage pose`() = runBlocking {
         val calls = mutableListOf<Recorded>()
-        // Seule la bascule est refusée: la connexion au Dashboard, elle, répond.
+        // Seule la bascule est refusée : la connexion au Dashboard, elle, répond.
         val api = ServeSkillsApi(
             ServeClient(
                 config(),
@@ -112,7 +112,7 @@ class ServeSkillsApiTest {
         servePassword = "x",
     )
 
-    /** Un client qui note chaque appel: sa méthode, son chemin, son corps et sa requête. */
+    /** Un client qui note chaque appel : sa méthode, son chemin, son corps et sa requête. */
     private fun client(
         calls: MutableList<Recorded>,
         status: (Request) -> Int = { 200 },
@@ -140,7 +140,7 @@ class ServeSkillsApiTest {
     )
 }
 
-/** La lecture de `skills.auto_load`: celle de l'éditeur d'un bot, quand rien n'est épinglé. */
+/** La lecture de `skills.auto_load` : celle de l'éditeur d'un bot, quand rien n'est épinglé. */
 class ServeSkillsAutoLoadTest {
     @Test
     fun `une config sans auto_load donne une liste vide`() {

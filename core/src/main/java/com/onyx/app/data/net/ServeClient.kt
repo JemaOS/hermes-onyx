@@ -12,23 +12,25 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
  * Le client du Dashboard Hermes (`hermes serve`).
  *
- * Comme `HermesServeClient` 
- *: la même connexion (un cookie de session
+ * Miroir de `HermesServeClient` côté référence
+ * (Echo/Services/Transport/HermesServeClient) : la même connexion (un cookie de session
  * obtenu par `auth/password-login`), les mêmes routes (`api/…`), et la même façon de lire des
  * formes JSON qui varient d'une version du serveur à l'autre.
  *
- * C'est lui qui ouvre les écrans que seul le Dashboard connaît: Gateway, Fichiers, Contexte,
+ * C'est lui qui ouvre les écrans que seul le Dashboard connaît : Gateway, Fichiers, Contexte,
  * Cron, Kanban.
  */
 class ServeClient(
@@ -53,11 +55,20 @@ class ServeClient(
      * Ouvre la session si besoin.
      *
      * Une sonde bon marché (`api/sessions?limit=1`) vérifie qu'un cookie d'une session précédente
-     * vit encore, comme; sinon on s'authentifie avec `auth/password-login`.
+     * vit encore, comme sur la référence ; sinon on s'authentifie avec `auth/password-login`.
      */
     suspend fun login(force: Boolean = false) = withContext(Dispatchers.IO) {
         val base = base()
-        if (!config.hasServeCredentials) throw TransportError.MissingApiKey
+        if (!config.hasServeCredentials) throw TransportError.SignInRequired
+
+        // « Une clé » : le serveur accepte la clé d'installation en `Bearer` sur `/api/*` et
+        // entretient lui-même la session du Dashboard. Aucun identifiant à envoyer, aucun mot de
+        // passe à demander : la clé (posée par l'intercepteur de [clientFor]) suffit, et il n'y a
+        // aucune sonde à faire — il n'y a pas de cookie de session à valider ici.
+        if (config.servesWithKey) {
+            loggedInAt = System.currentTimeMillis()
+            return@withContext
+        }
 
         if (!force && loggedInAt > 0 && System.currentTimeMillis() - loggedInAt < SESSION_TTL_MS) return@withContext
 
@@ -82,11 +93,12 @@ class ServeClient(
         try {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
+                    // Le corps est gardé tel quel : c'est lui qui dit *pourquoi* (« Invalid
+                    // credentials », « no_cookie », « session_expired »), et c'est de lui que
+                    // `TransportError.userMessage` tire un message clair. Un mot de passe refusé
+                    // ne doit jamais être remplacé par un « login rejected » anonyme.
                     val detail = runCatching { response.peekBody(2_000L).string() }.getOrDefault("")
-                    throw TransportError.Http(
-                        response.code,
-                        if (response.code == 401) "login rejected" else detail,
-                    )
+                    throw TransportError.Http(response.code, detail)
                 }
             }
         } catch (error: IOException) {
@@ -109,7 +121,7 @@ class ServeClient(
      * Un aller-retour JSON. `timeoutSeconds` sert aux routes lentes (test d'un serveur MCP,
      * déclenchement d'une tâche) que le délai ordinaire couperait.
      *
-     * Un cookie mort est rattrapé **une fois**: sans cette reprise, un écran ouvert après
+     * Un cookie mort est rattrapé **une fois** : sans cette reprise, un écran ouvert après
      * l'expiration de la session — ou après un redémarrage du dashboard — restait bloqué sur
      * « Non autorisé (401). Vérifiez la clé API. » alors que les identifiants étaient bons.
      */
@@ -135,9 +147,9 @@ class ServeClient(
     /**
      * Un ticket à usage unique pour ouvrir un socket du Dashboard (`POST api/auth/ws-ticket`).
      *
-     * Les sockets du Dashboard refusent un cookie seul: `api/ws` comme le socket d'événements
+     * Les sockets du Dashboard refusent un cookie seul : `api/ws` comme le socket d'événements
      * d'un plugin demandent ce ticket (`?ticket=…`), exactement comme
-     * `HermesServeClient.authenticate`. La session est ouverte au passage.
+     * `HermesServeClient.authenticate()` côté référence. La session est ouverte au passage.
      */
     suspend fun socketTicket(): String {
         val payload = request(path = "api/auth/ws-ticket", method = "POST", body = emptyBody()).asObject()
@@ -149,8 +161,8 @@ class ServeClient(
      * Un aller-retour JSON sans corps (`DELETE`).
      *
      * Les routes de suppression du Dashboard refusent un corps vide `{}` là où elles attendent
-     * une requête sans corps (Hermes n'a pas d'appel socket pour supprimer un profil: c'est une
-     * route REST, `DELETE api/profiles/{name}`, et `HermesServeClient.deleteProfile` part
+     * une requête sans corps (Hermes n'a pas d'appel socket pour supprimer un profil : c'est une
+     * route REST, `DELETE api/profiles/{name}`, et `HermesServeClient.deleteProfile` de la référence part
      * sans corps). Même reprise qu'ailleurs sur un cookie mort.
      */
     suspend fun delete(path: String, timeoutSeconds: Long? = null): JsonElement = withContext(Dispatchers.IO) {
@@ -166,7 +178,7 @@ class ServeClient(
         error(OnyxLocalization["Dashboard session rejected twice in a row"])
     }
 
-    /** L'envoi brut; la session est supposée ouverte (voir [request]). */
+    /** L'envoi brut ; la session est supposée ouverte (voir [request]). */
     private fun send(
         path: String,
         method: String,
@@ -243,7 +255,7 @@ class ServeClient(
 
     // MARK: - Textes du serveur
 
-    /** Une chaîne plate (les routes qui ne rendent pas de JSON: un texte, un markdown). */
+    /** Une chaîne plate (les routes qui ne rendent pas de JSON : un texte, un markdown). */
     suspend fun text(path: String, query: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
         login()
         val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
@@ -294,7 +306,7 @@ class ServeClient(
     }
 
     /**
-     * Un envoi multipart (le téléversement d'un fichier): la route attend un formulaire avec la
+     * Un envoi multipart (le téléversement d'un fichier) : la route attend un formulaire avec la
      * destination, l'autorisation d'écraser, et le fichier lui-même.
      */
     suspend fun multipart(
@@ -346,15 +358,32 @@ class ServeClient(
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
         /**
-         * Un client pour le Dashboard: le bocal à cookies est partagé par tout le processus, et
+         * Un client pour le Dashboard : le bocal à cookies est partagé par tout le processus, et
          * les délais laissent le temps aux routes lentes (test MCP, `trigger` d'une tâche).
          */
-        fun clientFor(config: ServerConfig): OkHttpClient = OkHttpClient.Builder()
-            .cookieJar(ServeCookieJar)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(90, TimeUnit.SECONDS)
-            .callTimeout(120, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build()
+        fun clientFor(config: ServerConfig): OkHttpClient {
+            val builder = OkHttpClient.Builder()
+                .cookieJar(ServeCookieJar)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .callTimeout(120, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+            // Le serveur « une clé » (le compagnon) accepte la clé d'installation en `Bearer` sur
+            // tout `/api/*` : c'est son identité, il n'y a pas de session par mot de passe à ouvrir.
+            if (config.servesWithKey) builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey))
+            return builder.build()
+        }
+    }
+}
+
+/**
+ * Pose `Authorization: Bearer <clé du serveur>` sur les appels du Dashboard quand la clé fait
+ * l'identité — le cas du service compagnon « une clé ». Un en-tête déjà posé n'est pas écrasé.
+ */
+private class ServeKeyInterceptor(private val key: String) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        if (request.header("Authorization") != null) return chain.proceed(request)
+        return chain.proceed(request.newBuilder().header("Authorization", "Bearer $key").build())
     }
 }

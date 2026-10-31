@@ -1,5 +1,7 @@
 package com.onyx.app.ui.servers
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,7 +40,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * À quel profil Hermes Onyx parle (`ProfilePickerView`).
  *
- * La liste vient du Dashboard; sans lui, un profil se nomme à la main, que l'API Hermes atteint
+ * La liste vient du Dashboard ; sans lui, un profil se nomme à la main, que l'API Hermes atteint
  * à `/p/<profil>/`.
  */
 @Composable
@@ -70,7 +72,7 @@ fun ProfilePickerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Profile", onBack = onBack)

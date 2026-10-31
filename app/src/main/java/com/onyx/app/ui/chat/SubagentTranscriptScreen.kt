@@ -1,5 +1,9 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,15 +48,15 @@ import kotlinx.coroutines.launch
 
 /**
  * La transcription d'un sous-agent
- * (`SubagentTranscriptView`, ).
+ * (`SubagentTranscriptView`, Echo/Views/SubagentTranscriptView:8).
  *
  * Son but en tête, son état, son modèle, et sa conversation — ou ce qui en est lu.
  *
- * **D'où vient la transcription**: le Dashboard seul sait la donner, par `subagent.tail`
+ * **D'où vient la transcription** : le Dashboard seul sait la donner, par `subagent.tail`
  * (`subagent_id`) — la tranche vivante de ce que l'enfant a écrit. L'API de conversation ne la
- * transporte pas: quand le transport ne peut pas la donner, l'écran le dit au lieu de laisser
+ * transporte pas : quand le transport ne peut pas la donner, l'écran le dit au lieu de laisser
  * un chargement tourner pour toujours. Le `child_session_id` n'est pas transporté non plus par
- * l'API, et c'est lui qu'il faudrait pour `session.resume`: les deux chemins manquent pour la
+ * l'API, et c'est lui qu'il faudrait pour `session.resume` : les deux chemins manquent pour la
  * même raison.
  */
 @Composable
@@ -60,11 +64,11 @@ fun SubagentTranscriptScreen(
     agent: SubagentActivity,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Lit la transcription vivante (Dashboard); `null` quand le transport ne la porte pas. */
+    /** Lit la transcription vivante (Dashboard) ; `null` quand le transport ne la porte pas. */
     loadTranscript: (suspend (SubagentActivity) -> SubagentTailView?)? = null,
-    /** Oriente le sous-agent; la transcription dit si la consigne a été prise. */
+    /** Oriente le sous-agent ; la transcription dit si la consigne a été prise. */
     onSteer: (suspend (String) -> Boolean)? = null,
-    /** Arrête le sous-agent; `false` s'il avait déjà fini. */
+    /** Arrête le sous-agent ; `false` s'il avait déjà fini. */
     onStop: (suspend () -> Boolean)? = null,
     now: Long = System.currentTimeMillis(),
 ) {
@@ -76,7 +80,7 @@ fun SubagentTranscriptScreen(
     var unavailable by remember(agent.id) { mutableStateOf(false) }
     val running = agent.status == SubagentStatus.RUNNING
 
-    // La tranche vivante se relit tant que l'enfant travaille: sa conversation grandit pendant
+    // La tranche vivante se relit tant que l'enfant travaille : sa conversation grandit pendant
     // qu'on la regarde. Une fois la tâche finie, une seule lecture suffit.
     LaunchedEffect(agent.id, agent.status, loadTranscript) {
         val load = loadTranscript
@@ -97,7 +101,7 @@ fun SubagentTranscriptScreen(
                     transcript = read.text
                     unavailable = false
                 }
-                // `available: false` est normal: l'enfant démarre, ou il n'a rien écrit encore.
+                // `available: false` est normal : l'enfant démarre, ou il n'a rien écrit encore.
                 else -> unavailable = true
             }
             loading = false
@@ -109,14 +113,14 @@ fun SubagentTranscriptScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
                 title = "Subagent",
                 onBack = onBack,
                 // « Stop » n'apparaît que sur un sous-agent qui tourne **et** que le gateway laisse
-                // piloter: sans le canal du Dashboard, l'écran reste en lecture seule, comme quand
+                // piloter : sans le canal du Dashboard, l'écran reste en lecture seule, comme quand
                 // le tour tourne dans le gateway.
                 action = if (onStop != null && running) "Stop" else null,
                 onAction = if (onStop != null && running) {
@@ -155,7 +159,7 @@ fun SubagentTranscriptScreen(
                 BasicText(
                     text = buildString {
                         append(subagentStateLabel(agent.status))
-                        // Le détail se traduit **à part**: dans la ligne complète, le motif
+                        // Le détail se traduit **à part** : dans la ligne complète, le motif
                         // « N tools · … » ne s'accroche plus et le compte restait en anglais
                         // (« Terminé · 7 tools · … », vu en capture).
                         if (!running) append(" · ").append(OnyxLocalization[subagentDetail(agent, now)])
@@ -167,7 +171,7 @@ fun SubagentTranscriptScreen(
             }
         }
 
-        // La zone de contenu prend ce qui reste, et seulement ce qui reste: un `fillMaxSize`
+        // La zone de contenu prend ce qui reste, et seulement ce qui reste : un `fillMaxSize()`
         // ici pousserait la barre de consigne hors de l'écran (vu en capture), et le geste de
         // pilotage n'aurait plus nulle part où se poser.
         Box(modifier = Modifier.weight(1f)) {
@@ -193,7 +197,7 @@ fun SubagentTranscriptScreen(
             }
         }
 
-        // On peut orienter le sous-agent en cours de route, comme.
+        // On peut orienter le sous-agent en cours de route, comme la référence.
         if (onSteer != null && running) {
             var steer by remember { mutableStateOf("") }
             Row(
@@ -207,7 +211,7 @@ fun SubagentTranscriptScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(theme.fill, RoundedCornerShape(10.dp))
+                        .background(theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
                         .padding(horizontal = 10.dp, vertical = 7.dp),
                 ) {
                     androidx.compose.foundation.text.BasicTextField(
@@ -235,7 +239,7 @@ fun SubagentTranscriptScreen(
                         val text = steer
                         steer = ""
                         scope.launch {
-                            // La consigne peut être refusée: le gateway le dit, la transcription
+                            // La consigne peut être refusée : le gateway le dit, la transcription
                             // le répète — jamais un appui sans issue.
                             note = if (onSteer.invoke(text)) {
                                 "Sent to the subagent"
@@ -269,7 +273,7 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-/** Ce que le lecteur de transcription a trouvé: la tranche vivante, ou rien. */
+/** Ce que le lecteur de transcription a trouvé : la tranche vivante, ou rien. */
 data class SubagentTailView(
     val text: String,
     val available: Boolean,

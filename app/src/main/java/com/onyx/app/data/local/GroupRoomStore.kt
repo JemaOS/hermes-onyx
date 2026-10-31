@@ -16,7 +16,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Un endroit où l'on écrit du texte par clé: les préférences d'Android, ou une carte en mémoire
+ * Un endroit où l'on écrit du texte par clé : les préférences d'Android, ou une carte en mémoire
  * quand on éprouve ce qui est gardé sans appareil.
  */
 interface TextStore {
@@ -24,7 +24,7 @@ interface TextStore {
     fun put(key: String, value: String)
 }
 
-/** [TextStore] sur les préférences d'Android: ce qui est écrit là survit à une relance. */
+/** [TextStore] sur les préférences d'Android : ce qui est écrit là survit à une relance. */
 class PreferencesTextStore(context: Context, name: String) : TextStore {
     private val prefs = context.applicationContext.getSharedPreferences(name, Context.MODE_PRIVATE)
     override fun get(key: String): String? = prefs.getString(key, null)
@@ -36,12 +36,12 @@ class PreferencesTextStore(context: Context, name: String) : TextStore {
 /**
  * Le magasin des salles gardées **sur ce téléphone**.
  *
- * Un « New Group Chat » fait sans Dashboard n'a pas de serveur pour tenir sa salle: celle-ci est
+ * Un « New Group Chat » fait sans Dashboard n'a pas de serveur pour tenir sa salle : celle-ci est
  * donc écrite ici, avec son nom et ses membres, sous la connexion qui l'a demandée. Elle réapparaît
  * dans la liste au prochain lancement — la même promesse qu'une salle que le serveur tient, sans le
  * serveur.
  *
- * Même nom, même salle: redemander deux fois le même nom n'en garde qu'une (idempotence). Tout
+ * Même nom, même salle : redemander deux fois le même nom n'en garde qu'une (idempotence). Tout
  * tient sous une seule clé, un objet JSON `{"<connexion>": [ salle, … ]}`.
  */
 class GroupRoomStore(private val text: TextStore) {
@@ -54,7 +54,7 @@ class GroupRoomStore(private val text: TextStore) {
 
     /**
      * Garde une salle neuve et la rend telle que la liste la montrera. Une salle du même nom déjà
-     * gardée revient telle quelle: rien n'est écrit deux fois.
+     * gardée revient telle quelle : rien n'est écrit deux fois.
      */
     fun save(server: String, draft: GroupRoomDraft): GroupRoom {
         val kept = all()
@@ -80,7 +80,7 @@ class GroupRoomStore(private val text: TextStore) {
         write(kept)
     }
 
-    /** « Erase everything »: plus aucune salle gardée ici. */
+    /** « Erase everything » : plus aucune salle gardée ici. */
     fun clearAll() {
         text.put(KEY, EMPTY)
     }

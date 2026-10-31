@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import com.onyx.app.ui.localization.BasicText
+import com.onyx.app.voice.comparableStopPhrase
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -151,9 +152,9 @@ fun addable(phrase: String, own: List<String>): String? {
     }
 }
 
-/** La phrase telle qu'elle est entendue: minuscules, sans politesses autour. */
+/** La phrase telle qu'elle est entendue : minuscules, sans politesses autour. */
 fun normalizePhrase(phrase: String): String {
-    val clean = phrase.lowercase().replace(Regex("[\\p{Punct}]"), " ")
+    val clean = phrase.lowercase().replace(Regex("[\\p{Punct}’‘´`«»]"), " ")
     val tokens = clean.split(Regex("\\s+")).filter { it.isNotEmpty() }.toMutableList()
     val leading = setOf("okay", "ok", "hey", "onyx", "please")
     val trailing = listOf(listOf("thank", "you"), listOf("thanks"), listOf("please"))
@@ -172,16 +173,26 @@ fun normalizePhrase(phrase: String): String {
     return tokens.joinToString(" ")
 }
 
-/** Combien de phrases on peut ajouter, et leur longueur maximale, . */
+/** Combien de phrases on peut ajouter, et leur longueur maximale, comme référence. */
 const val MOST_OWN = 12
 const val LONGEST_OWN = 40
 
-/** Celles qui sont toujours entendues. */
-val BUILT_IN_HEARD = setOf(
+/** Celles qui sont toujours entendues : le français par défaut, puis celles de la référence. */
+val BUILT_IN_HEARD: Set<String> = listOf(
+    "arrête", "arrête d'écouter", "c'est tout", "ça suffit", "au revoir", "bonne nuit",
+    "termine la conversation", "laisse tomber", "annule", "merci",
     "stop", "stop listening", "that's all", "that's enough", "goodbye", "good night",
     "end conversation", "we're done", "never mind", "cancel", "thank you",
 )
+    // La même forme comparable que le moteur vocal : une phrase française avec apostrophe doit
+    // compter comme déjà entendue, sans dépendre du caractère que le moteur a écrit.
+    .flatMap { listOf(it, comparableStopPhrase(it)) }
+    .filter { it.isNotEmpty() }
+    .toSet()
 
+/** La liste montrée : les phrases **françaises d'abord**, parce que c'est ce que l'app écoute. */
 private const val BUILT_IN =
-    "“stop”, “stop listening”, “that's all”, “that's enough”, “goodbye”, “good night”, " +
-        "“end conversation”, “we're done”, “never mind”, “cancel”, “thank you”"
+    "« arrête », « arrête d'écouter », « c'est tout », « ça suffit », « au revoir », « bonne nuit », " +
+        "« termine la conversation », « laisse tomber », « annule », « merci », " +
+        "« stop », « stop listening », « that's all », « that's enough », « goodbye », « good night », " +
+        "« end conversation », « we're done », « never mind », « cancel », « thank you »"

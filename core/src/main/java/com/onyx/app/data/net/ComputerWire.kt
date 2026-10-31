@@ -17,11 +17,11 @@ import kotlinx.serialization.json.putJsonArray
 /**
  * Le protocole du pont « Ordinateur » — l'écran du PC, l'image, la main, les entrées.
  *
- * Deux familles de trames sur une seule connexion: les **images** (binaires, du JPEG brut) et le
+ * Deux familles de trames sur une seule connexion : les **images** (binaires, du JPEG brut) et le
  * **texte** (JSON, des deux côtés). Une image ne porte jamais de commande, et une commande ne
- * porte jamais d'image: il n'y a donc pas de trames mêlées à découper.
+ * porte jamais d'image : il n'y a donc pas de trames mêlées à découper.
  *
- * La main est un état du pont, pas un réglage de l'app: l'app la demande (`take`), la rend
+ * La main est un état du pont, pas un réglage de l'app : l'app la demande (`take`), la rend
  * (`release`), et le pont refuse toute entrée de qui ne la détient pas. C'est ce qui fait qu'un
  * simple regard ne peut pas cliquer sur le bureau de quelqu'un.
  */
@@ -52,7 +52,7 @@ data class ComputerState(
     }
 }
 
-/** Ce que le pont annonce en s'ouvrant: la taille de l'écran du PC et celle de l'image envoyée. */
+/** Ce que le pont annonce en s'ouvrant : la taille de l'écran du PC et celle de l'image envoyée. */
 data class ComputerHello(
     val screenWidth: Int,
     val screenHeight: Int,
@@ -71,7 +71,7 @@ sealed interface ComputerEvent {
     data class RunResult(val id: Int?, val ok: Boolean, val exit: Int, val output: String) : ComputerEvent
     data object Pong : ComputerEvent
 
-    /** Une trame qu'on ne connaît pas: ignorée, jamais une erreur pour l'écran. */
+    /** Une trame qu'on ne connaît pas : ignorée, jamais une erreur pour l'écran. */
     data object Ignored : ComputerEvent
 }
 
@@ -153,8 +153,8 @@ object ComputerWire {
     /**
      * Un appui.
      *
-     * `space` dit dans quel espace sont `x` et `y`: `screen` = des pixels de l'écran du PC (ce
-     * que l'app envoie: elle a mesuré l'image affichée chez elle avant de la ramener à l'écran),
+     * `space` dit dans quel espace sont `x` et `y` : `screen` = des pixels de l'écran du PC (ce
+     * que l'app envoie : elle a mesuré l'image affichée chez elle avant de la ramener à l'écran),
      * `view` = des pixels de l'image envoyée, que le pont agrandit lui-même. Le dire évite une
      * mise à l'échelle faite deux fois — un clic qui part ailleurs.
      */
@@ -182,6 +182,46 @@ object ComputerWire {
 
     fun typeText(id: Int, text: String): String = frame("text", id) { put("text", text) }
 
+    /**
+     * Un **déplacement** du pointeur, sans clic.
+     *
+     * Message **additif** : un pont plus ancien ne le connaît pas et le refuse
+     * (`unknown_action:motion`) — ce refus ne dit rien de l'écran, donc l'app l'avale, exactement
+     * comme la taille d'image et la cadence. Un pont à jour déplace le vrai pointeur du PC ; l'app,
+     * elle, dessine déjà le sien, si bien que le pilotage fonctionne même sans ce message.
+     */
+    fun motion(id: Int, x: Int, y: Int, space: String = SPACE_SCREEN): String = frame("motion", id) {
+        put("x", x)
+        put("y", y)
+        put("space", space)
+    }
+
+    /**
+     * Ce que l'app veut recevoir : la largeur de l'image, son quantificateur, et — **additif** —
+     * un plafond de cadence.
+     *
+     * Le pont n'est pas obligé de dire oui : il borne (jamais moins de 480, jamais plus que son
+     * propre plafond ni que l'écran du PC), et il le dit dans son accusé. Redemander la même chose
+     * ne redémarre rien : une session qui se reconnecte ne doit pas faire clignoter la capture.
+     *
+     * `fps` est **additif** : un pont plus ancien ne lit que `width` et `quality` et ignore le
+     * champ en trop — jamais une panne. Il sert à la « liaison économe », qui demande moins
+     * d'images. `0` = aucun plafond.
+     */
+    fun stream(id: Int, width: Int, quality: Int, fps: Int = 0): String = frame("stream", id) {
+        put("width", width)
+        put("quality", quality)
+        if (fps > 0) put("fps", fps)
+    }
+
+    /**
+     * Le taux d'images demandé : haut pendant un geste, au repos autrement.
+     *
+     * C'est une demande, pas un ordre — le pont applique son propre plafond et garde la main.
+     */
+    fun rate(id: Int, moving: Boolean): String = frame("rate", id) { put("moving", moving) }
+
+
     fun key(id: Int, keys: String, approved: Boolean): String = frame("key", id) {
         put("keys", keys)
         put("approved", approved)
@@ -195,7 +235,7 @@ object ComputerWire {
     /**
      * Le refus du pont, dit à l'écran.
      *
-     * Les raisons sont peu nombreuses et techniques; l'écran, lui, doit dire *pourquoi* — et
+     * Les raisons sont peu nombreuses et techniques ; l'écran, lui, doit dire *pourquoi* — et
      * surtout que ce n'est pas la faute du réseau. Les phrases restent des clés traduisibles.
      */
     fun denialMessage(reason: String): String = when (reason) {

@@ -8,9 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La voix de chaque bot: celle qui lui a été réglée, sinon une des siennes, **jamais deux fois la
+ * La voix de chaque bot : celle qui lui a été réglée, sinon une des siennes, **jamais deux fois la
  * même** tant qu'il y a des voix à répartir, et jamais une hauteur inventée — c'est la voix du bot
- * qui décide (`BotVoices` , ).
+ * qui décide (`BotVoices` de la référence, `Echo/Services/Voice/BotVoices`).
  */
 class BotVoicesTest {
 
@@ -126,7 +126,7 @@ class BotVoicesTest {
     @Test
     fun `une voix Kokoro non identifiee ne dit pas sa langue`() {
         assertNull(BotVoices.kokoroLanguage("echo"))
-        // Un mélange: c'est la **première** voix qui donne la langue, comme.
+        // Un mélange : c'est la **première** voix qui donne la langue, comme la référence.
         assertEquals("en", BotVoices.kokoroLanguage("am_onyx(2)+bm_george(1)"))
         assertEquals("fr", BotVoices.kokoroLanguage("ff_siwis"))
         assertEquals("en", BotVoices.kokoroLanguage("bm_george"))
@@ -155,9 +155,9 @@ class BotVoicesTest {
     }
 
     @Test
-    fun `l empreinte d un nom est la FNV-1a `() {
+    fun `l empreinte d un nom est la FNV-1a de la référence`() {
         assertEquals(0xcbf29ce484222325uL, BotVoices.hash(""))
-        // Le même algorithme que `BotFace.forName`: les octets UTF-8, un par un.
+        // Le même algorithme que `BotFace.forName` : les octets UTF-8, un par un.
         assertEquals(BotVoices.hash("quill"), BotVoices.hash("quill"))
         assertNotEquals(BotVoices.hash("quill"), BotVoices.hash("scout"))
     }

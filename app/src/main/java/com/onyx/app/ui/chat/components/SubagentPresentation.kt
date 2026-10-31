@@ -10,8 +10,8 @@ import java.util.Locale
 /**
  * Ce qu'une ligne de sous-agent dit, mis en commun par le fil et la liste des tâches.
  *
- * Comme `SubagentRows.detail(_:)` / `label(_:)` / `icon(_:)` / `tint(_:)`
- *: les deux écrans montrent la même chose, ils ne la
+ * Miroir de `SubagentRows.detail(_:)` / `label(_:)` / `icon(_:)` / `tint(_:)`
+ * (Echo/Views/SubagentRows:77) : les deux écrans montrent la même chose, ils ne la
  * reformulent pas chacun à sa façon.
  */
 
@@ -19,7 +19,7 @@ import java.util.Locale
 fun subagentGoal(agent: SubagentActivity): String =
     agent.goal.takeIf { it.isNotBlank() } ?: "Delegated task"
 
-/** L'état, en un mot: « En cours », « Lancé », « Terminé », « Échec ». */
+/** L'état, en un mot : « En cours », « Lancé », « Terminé », « Échec ». */
 fun subagentStateLabel(status: SubagentStatus): String = when (status) {
     SubagentStatus.RUNNING -> "Running"
     SubagentStatus.DISPATCHED -> "Dispatched"
@@ -44,7 +44,7 @@ fun subagentTint(status: SubagentStatus, theme: ResolvedTheme): Color = when (st
 }
 
 /**
- * Une durée en secondes, comme: « 12 s » sous la minute, « 1,5 min » au-delà.
+ * Une durée en secondes, comme la référence : « 12 s » sous la minute, « 1,5 min » au-delà.
  *
  * Les chiffres sont séparés (`monospacedDigit` côté écran) pour que la ligne ne danse pas quand
  * le temps avance d'une seconde à l'autre.
@@ -56,7 +56,7 @@ fun subagentDuration(seconds: Double): String =
 /**
  * La ligne de détail sous le but.
  *
- * Le met le temps écoulé, l'outil en cours et le résumé de fin sur cette seule ligne; on
+ * Le la référence met le temps écoulé, l'outil en cours et le résumé de fin sur cette seule ligne ; on
  * fait pareil, et les motifs de localisation du dictionnaire reprennent « N tools · … ».
  */
 fun subagentDetail(agent: SubagentActivity, now: Long): String {
@@ -67,7 +67,7 @@ fun subagentDetail(agent: SubagentActivity, now: Long): String {
             agent.lastTool?.takeIf { it.isNotBlank() }?.let { add(it) }
         }.joinToString(" · ").ifEmpty { "Working…" }
 
-        // On sait seulement que la tâche est partie: l'API de conversation ne dit rien de plus.
+        // On sait seulement que la tâche est partie : l'API de conversation ne dit rien de plus.
         SubagentStatus.DISPATCHED -> "Running in the background; results arrive in a later turn"
 
         SubagentStatus.COMPLETED, SubagentStatus.FAILED -> buildList {
@@ -78,21 +78,21 @@ fun subagentDetail(agent: SubagentActivity, now: Long): String {
     }
 }
 
-/** Vrai si cette tâche a lancé au moins un outil: la liste s'en sert pour trier. */
+/** Vrai si cette tâche a lancé au moins un outil : la liste s'en sert pour trier. */
 fun SubagentActivity.hasWorked(): Boolean = toolCount > 0 || !lastTool.isNullOrBlank()
 
 /**
- * La ligne de détail de la **liste des tâches**: la même chose que [subagentDetail], mais le
+ * La ligne de détail de la **liste des tâches** : la même chose que [subagentDetail], mais le
  * temps écoulé passe en tête et **avance**, vivant ou fini.
  *
- * C'est le seul endroit où il compte: dans le fil, un compteur qui s'incrémente changerait la
+ * C'est le seul endroit où il compte : dans le fil, un compteur qui s'incrémente changerait la
  * hauteur du message et ré-attacherait le défilement (défaut déjà signalé).
  */
 fun subagentListDetail(agent: SubagentActivity, now: Long): String = when (agent.status) {
-    // Vivante: la durée d'abord, et c'est celle qui avance (le serveur n'en donne pas encore).
+    // Vivante : la durée d'abord, et c'est celle qui avance (le serveur n'en donne pas encore).
     SubagentStatus.RUNNING, SubagentStatus.DISPATCHED ->
         "${subagentDuration(agent.elapsedSeconds(now))} · ${subagentDetail(agent, now)}"
-    // Finie: [subagentDetail] porte déjà la durée retenue par le serveur — la préfixer la dirait
+    // Finie : [subagentDetail] porte déjà la durée retenue par le serveur — la préfixer la dirait
     // deux fois (« 23 s · 4 outils · 23 s · … », vu en capture).
     SubagentStatus.COMPLETED, SubagentStatus.FAILED -> subagentDetail(agent, now)
 }

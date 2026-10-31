@@ -36,6 +36,21 @@ class ComputerLocalizationTest {
     }
 
     @Test
+    fun `la barre du bas parle francais en un mot`() {
+        val cases = linkedMapOf(
+            "Take" to "Prendre",
+            "Release" to "Rendre",
+            "Full screen" to "Plein écran",
+            "Exit full screen" to "Quitter le plein écran",
+            "Fit the screen" to "Ajuster à l’écran",
+        )
+        cases.forEach { (english, french) ->
+            assertEquals(french, OnyxLocalization.translate(english, Locale.FRANCE))
+            assertEquals(english, OnyxLocalization.translate(english, Locale.ENGLISH))
+        }
+    }
+
+    @Test
     fun `l'approbation d'une action sensible parle francais`() {
         val cases = linkedMapOf(
             "Run a command" to "Exécuter une commande",
@@ -66,7 +81,7 @@ class ComputerLocalizationTest {
         assertEquals("En cours…", OnyxLocalization.translate("Working…", Locale.FRANCE))
         assertEquals(
             "Refusé : rien n’est parti. (uname -a)",
-            OnyxLocalization.format("Refused: nothing was sent. (%1\$s)", "uname -a", locale = Locale.FRANCE),
+            OnyxLocalization.format("Refused: nothing was sent. (%1\$s)", "uname -a", Locale.FRANCE),
         )
     }
 }

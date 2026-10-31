@@ -1,5 +1,7 @@
 package com.onyx.app.ui.settings
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +37,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * Réglages → Gateway → Logs.
  *
- * Comme `GatewayLogView`: les trois journaux, le filtre, la recherche, le partage, et les
+ * Port de `GatewayLogView` : les trois journaux, le filtre, la recherche, le partage, et les
  * lignes colorées par niveau.
  */
 @Composable
@@ -85,7 +87,7 @@ fun LogsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp)
-                    .background(theme.surfaceColor, RoundedCornerShape(10.dp))
+                    .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.ControlCorner))
                     .padding(horizontal = 10.dp, vertical = 8.dp),
             ) {
                 if (state.search.isEmpty()) {

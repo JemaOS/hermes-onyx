@@ -35,6 +35,12 @@ data class SpeechState(
      * le partiel de la dictée est jeté, l'écoute reprend simplement.)
      */
     val failed: Boolean = false,
+    /**
+     * Ce que la session doit **faire** après cet arrêt ([engineStopDecision]), ou `null` quand il
+     * n'y a rien à décider. `failed` dit qu'il y a eu arrêt ; celle-ci dit la suite : rouvrir,
+     * reprendre, **basculer en ligne**, ou s'arrêter en le disant.
+     */
+    val stopDecision: EngineStopDecision? = null,
 ) {
     companion object {
         /** Ce que vaut un silence : assez bas pour ne jamais franchir un seuil de voix. */
@@ -43,19 +49,26 @@ data class SpeechState(
 }
 
 /**
- * La reconnaissance vocale, en local.
+ * La reconnaissance vocale, sur l'appareil.
  *
- * `EXTRA_PREFER_OFFLINE` demande au moteur de l'appareil de travailler sans réseau : la voix ne
- * quitte pas le téléphone, même si le moteur accepte une reconnaissance en ligne.
- * La langue est celle des réglages (`fr-FR` par défaut).
+ * La langue est celle des réglages (`fr-FR` par défaut). Le mode **hors ligne** est un **souhait**
+ * de la personne (Réglages → Voix → « Reconnaître hors ligne »), **éteint par défaut** : quand il
+ * est éteint, l'intention ne porte **pas** `EXTRA_PREFER_OFFLINE` et le moteur travaille **en
+ * ligne**. L'imposer était la cause du code 13 (`language-unavailable`) : sur un téléphone sans
+ * pack hors ligne pour la langue, le moteur démarrait puis s'arrêtait tout seul.
  *
- * Un `SpeechRecognizer` ne tourne pas indéfiniment : il rend la main après une phrase. Le mode
- * mains-libres le relance donc à chaque fin, ce que fait [VoiceSession].
+ * Quand le hors ligne est demandé et que le moteur avoue ne pas savoir le faire pour cette langue
+ * (codes 13, 12, 11, 5, 4, 2, 1), [SpeechEngine] **bascule en ligne de lui-même** — une fois, sans
+ * rien redemander. La décision, code par code, vit dans [engineStopDecision] ; ici, on la suit.
+ *
+ * Un `SpeechRecognizer` ne tourne pas indéfiniment : il rend la main après une phrase. Une **fin
+ * de session normale** (silence, durée maximale) n'est pas une panne : l'écoute se rouvre, ce que
+ * fait [VoiceSession].
  */
 class SpeechEngine(
     private val context: Context,
     private val localeTag: String = DEFAULT_LOCALE,
-) {
+) : SpeechInput {
     private var recognizer: SpeechRecognizer? = null
 
     /** Le `SpeechRecognizer` ne vit que sur le looper principal : tout passe par ce Handler. */
@@ -68,44 +81,117 @@ class SpeechEngine(
     private var sessionActive = false
 
     /**
-     * Le hors-ligne est un souhait (`EXTRA_PREFER_OFFLINE`), pas une garantie : si le moteur du
-     * téléphone ne sait pas le faire pour cette langue, il échoue au premier essai. On retente
-     * alors une fois en ligne au lieu de laisser l'utilisateur devant un code d'erreur.
+     * Le souhait de la personne : « Reconnaître hors ligne » (Réglages → Voix).
+     *
+     * **Faux par défaut** — la reconnaissance se fait **en ligne**, comme le moteur de l'appareil
+     * sait le faire. L'imposer (`EXTRA_PREFER_OFFLINE` systématique) était la cause du `code=13
+     * language-unavailable` du journal : le moteur démarrait, ne trouvait pas sa langue hors ligne,
+     * puis s'arrêtait — et l'app coupait l'écoute.
      */
-    private var preferOffline = true
+    override var offlineWanted: Boolean = false
+        set(value) {
+            field = value
+            // Le souhait rallumé relève la bascule : le réglage reste celui de la personne.
+            if (!value) fellBackOnline = false
+        }
+
+    /**
+     * Le moteur **hors ligne** a échoué pour cette écoute : on ne le retente plus, et l'essai
+     * suivant se fait **en ligne**. Définitif pour l'écoute en cours — jamais de va-et-vient.
+     */
+    private var fellBackOnline = false
+
+    /**
+     * Le souhait **effectif** du prochain départ : le hors ligne de la personne, moins la bascule
+     * (`language-unavailable` notamment). C'est la seule chose que l'intention lit.
+     */
+    private val preferOffline: Boolean get() = offlineWanted && !fellBackOnline
 
     /** Vrai quand la dernière session s'est mal terminée : on repart alors d'un moteur neuf. */
     private var needsFreshRecognizer = false
 
+    /**
+     * Le moteur a-t-il **répondu** ? Vrai dès qu'un rappel du moteur arrive (`onReadyForSpeech`,
+     * une mesure de niveau, un résultat, une erreur). C'est la seule preuve que
+     * « À L'ÉCOUTE » n'est pas un mensonge : [SpeechState.isListening] est posé au départ, avant
+     * que le moteur n'ait dit quoi que ce soit, et ne prouve donc rien.
+     *
+     * Il **survit aux reprises automatiques** (une session qui s'ouvre ne remet pas le doute) et
+     * n'est remis à zéro que sur une demande **neuve** ([start] avec `fresh = true`) — sinon un
+     * moteur qui redémarre sa session au silence serait signalé comme absent.
+     */
+    override var answered = false
+        private set
+
     /** Refus consécutifs du moteur : un incident isolé est réessayé en silence. */
     private var consecutiveErrors = 0
 
+    /**
+     * Les mesures de niveau (`onRmsChanged`) reçues depuis le dernier départ : les « trames » du
+     * micro. C'est ce compteur que la page Journaux montre pour distinguer « le moteur tourne mais
+     * le micro ne donne rien » d'« aucune session n'a démarré ».
+     */
+    override var frameCount: Int = 0
+        private set
+
     private val _state = MutableStateFlow(SpeechState())
-    val state: StateFlow<SpeechState> = _state.asStateFlow()
+    override val state: StateFlow<SpeechState> = _state.asStateFlow()
 
     /** Appelé quand le moteur a fini une phrase (ou s'est arrêté), pour relancer si besoin. */
-    var onFinished: (() -> Unit)? = null
+    override var onFinished: (() -> Unit)? = null
 
-    val isAvailable: Boolean get() = SpeechRecognizer.isRecognitionAvailable(context)
+    override val isAvailable: Boolean get() = SpeechRecognizer.isRecognitionAvailable(context)
+
+    /**
+     * Ce que le journal dit d'un moteur qui ne répond pas : le souhait **effectif** hors ligne
+     * (celui de la personne, moins une bascule déjà faite), tel quel.
+     */
+    override val prefersOffline: Boolean get() = preferOffline
+
+    /** La langue demandée au moteur — un moteur muet peut être une affaire de langue. */
+    override val requestedLocale: String get() = localeTag
 
     /**
      * Une reprise automatique a-t-elle encore un sens ? Vrai tant que le moteur n'a pas refusé
      * [MAX_ENGINE_ATTEMPTS] fois d'affilée : au-delà, [VoiceSession] s'arrête et le bandeau dit
      * pourquoi (le repli de la référence). Une session réussie remet le compteur à zéro.
      */
-    val canRetry: Boolean get() = shouldRetryEngine(consecutiveErrors)
+    override val canRetry: Boolean get() = shouldRetryEngine(consecutiveErrors)
+
+    /**
+     * Les refus consécutifs du moteur. C'est ce compteur qui **espace** les reprises
+     * ([engineRetryDelayMs]) : plus le moteur refuse, plus on lui laisse de temps.
+     */
+    override val attempts: Int get() = consecutiveErrors
 
     /**
      * Démarre l'écoute. [fresh] : une demande neuve (un appui, une phrase terminée) — le compteur de
      * refus est remis à zéro. La reprise de [VoiceSession] passe `fresh = false`, sinon un moteur
      * durablement cassé se relancerait sans fin (c'est exactement la boucle signalée).
      */
-    fun start(fresh: Boolean = true) = main.post { startNow(fresh) }
+    override fun start(fresh: Boolean) {
+        main.post { startNow(fresh) }
+    }
 
     private fun startNow(fresh: Boolean = true) {
-        if (sessionActive) return
-        if (fresh) consecutiveErrors = 0
+        // Une demande d'écoute qui tombe sur une session déjà ouverte ne peut pas être ignorée en
+        // silence : c'était l'autre chemin du « rien ne se passe » — l'écran disait « À L'ÉCOUTE »
+        // et le journal n'en disait pas un mot. On le note, sans mentir sur la suite.
+        if (sessionActive) {
+            VoiceDiagnostics.note(
+                "voice: départ ignoré — une session est déjà ouverte " +
+                    "(trames reçues=$frameCount, moteur a répondu=$answered)",
+            )
+            return
+        }
+        if (fresh) {
+            consecutiveErrors = 0
+            // Une demande neuve rouvre le doute : c'est la seule fois où « pas de réponse » se
+            // juge sur cette écoute-là.
+            answered = false
+        }
         if (!isAvailable) {
+            VoiceDiagnostics.note("voice: aucun moteur de reconnaissance sur cet appareil (isRecognitionAvailable=false)")
             _state.update { it.copy(problem = "This device has no speech recogniser.") }
             return
         }
@@ -118,35 +204,58 @@ class SpeechEngine(
             }
         needsFreshRecognizer = false
         sessionActive = true
-        _state.update { it.copy(isListening = true, isFinal = false, transcript = "", problem = null) }
+        frameCount = 0
+        VoiceDiagnostics.note(
+            "voice: moteur démarré (langue=$localeTag, " +
+                (if (preferOffline) "hors ligne" else "en ligne") + ")",
+        )
+        _state.update {
+            it.copy(
+                isListening = true,
+                isFinal = false,
+                transcript = "",
+                problem = null,
+                failed = false,
+                // Une décision d'arrêt appartient à la session qui vient de mourir : un départ
+                // neuf n'en traîne aucune.
+                stopDecision = null,
+            )
+        }
         runCatching { engine.startListening(intent()) }
             .onFailure { error ->
                 sessionActive = false
                 needsFreshRecognizer = true
+                VoiceDiagnostics.note("voice: départ refusé (${error.javaClass.simpleName}: ${error.message})")
                 _state.update { it.copy(problem = error.message, isListening = false) }
             }
     }
 
     /** Arrête d'écouter sans jeter ce qui a été entendu. */
-    fun stop() = main.post {
-        runCatching { recognizer?.stopListening() }
-        _state.update { it.copy(isListening = false, level = 0f) }
-        // Si la session ne rend pas la main (silence, refus du moteur), on libère la place.
-        main.postDelayed({ sessionActive = false }, RESTART_DELAY_MS * 2)
+    override fun stop() {
+        main.post {
+            runCatching { recognizer?.stopListening() }
+            _state.update { it.copy(isListening = false, level = 0f) }
+            // Si la session ne rend pas la main (silence, refus du moteur), on libère la place.
+            main.postDelayed({ sessionActive = false }, RESTART_DELAY_MS * 2)
+        }
     }
 
     /** Arrête, jette la phrase en cours et repart à zéro. */
-    fun cancel() = main.post {
-        runCatching { recognizer?.cancel() }
-        _state.update { SpeechState() }
-        main.postDelayed({ sessionActive = false }, RESTART_DELAY_MS * 2)
+    override fun cancel() {
+        main.post {
+            runCatching { recognizer?.cancel() }
+            _state.update { SpeechState() }
+            main.postDelayed({ sessionActive = false }, RESTART_DELAY_MS * 2)
+        }
     }
 
-    fun release() = main.post {
-        runCatching { recognizer?.destroy() }
-        recognizer = null
-        sessionActive = false
-        _state.update { SpeechState() }
+    override fun release() {
+        main.post {
+            runCatching { recognizer?.destroy() }
+            recognizer = null
+            sessionActive = false
+            _state.update { SpeechState() }
+        }
     }
 
     /**
@@ -163,67 +272,72 @@ class SpeechEngine(
         SpeechRecognizer.createSpeechRecognizer(context).apply {
             setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
+                    // Le premier rappel : le moteur a bien pris la session. C'est la preuve que
+                    // « À L'ÉCOUTE » n'est pas un mensonge.
+                    answered = true
                     _state.update { it.copy(isListening = true, problem = null) }
                 }
 
-                override fun onBeginningOfSpeech() = Unit
+                override fun onBeginningOfSpeech() {
+                    answered = true
+                }
 
                 override fun onRmsChanged(rmsdB: Float) {
                     // `onRmsChanged` arrive vers -2…12 dB : ramené à 0…1 pour l'orbe.
                     val level = ((rmsdB + 2f) / 14f).coerceIn(0f, 1f)
+                    answered = true
+                    frameCount += 1
                     _state.update { it.copy(level = level, rmsDb = rmsdB) }
                 }
 
                 override fun onBufferReceived(buffer: ByteArray?) = Unit
 
                 override fun onEndOfSpeech() {
+                    answered = true
                     _state.update { it.copy(isListening = false, level = 0f) }
                 }
 
                 override fun onError(error: Int) {
-                    // Le moteur hors-ligne peut refuser la langue : l'essai suivant se fera en ligne.
-                    if (error == SpeechRecognizer.ERROR_CLIENT ||
-                        error == SpeechRecognizer.ERROR_SERVER ||
-                        error == SpeechRecognizer.ERROR_NETWORK
-                    ) {
-                        preferOffline = false
-                    }
-                    val problem = when (error) {
-                        SpeechRecognizer.ERROR_NO_MATCH,
-                        SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
-                        -> null // Un silence n'est pas une erreur : on relance simplement.
-                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                            "The microphone is not allowed for this app."
-                        SpeechRecognizer.ERROR_NETWORK,
-                        SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
-                        -> "The speech recogniser needs a network for this language."
-                        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "The recogniser is busy."
-                        SpeechRecognizer.ERROR_SERVER,
-                        SpeechRecognizer.ERROR_SERVER_DISCONNECTED,
-                        -> "The speech service disconnected or failed. Onyx will retry."
-                        SpeechRecognizer.ERROR_TOO_MANY_REQUESTS ->
-                            "The speech service is receiving too many requests. Onyx will retry."
-                        SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
-                            "Speech recognition is not available in this language on this device."
-                        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ->
-                            "This language is not supported by the speech recogniser."
-                        SpeechRecognizer.ERROR_CANNOT_CHECK_SUPPORT ->
-                            "Onyx cannot check speech recognition support on this device."
-                        SpeechRecognizer.ERROR_CLIENT ->
-                            engineFailureMessage(SpeechRecognizer.ERROR_CLIENT)
-                        else -> "The recogniser stopped (code $error)."
-                    }
-                    // Un silence n'est pas un échec : il ne compte pas, et l'écoute reprend.
+                    answered = true
+                    // Un silence (fin de session normale) n'est pas un échec : il ne compte pas.
                     val silence = error == SpeechRecognizer.ERROR_NO_MATCH ||
                         error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
                     consecutiveErrors = if (silence) 0 else consecutiveErrors + 1
+                    // **La décision, code par code** (`engineStopDecision`) : reprendre, basculer
+                    // en ligne, ou s'arrêter en le disant. Elle est prise ici, une fois, et la
+                    // session ne fait que la suivre.
+                    val decision = engineStopDecision(
+                        error = error,
+                        preferOffline = preferOffline,
+                        attempts = consecutiveErrors,
+                    )
+                    if (decision == EngineStopDecision.GO_ONLINE) {
+                        // Le moteur hors ligne ne sait pas cette langue. La bascule n'est **pas**
+                        // un échec : le compteur repart à zéro pour que l'essai en ligne ait tout
+                        // son budget, et rien n'est redemandé à la personne. La ligne dit la
+                        // bascule en clair — c'est celle qu'on lui demande de nous transmettre.
+                        fellBackOnline = true
+                        consecutiveErrors = 0
+                        VoiceDiagnostics.note(
+                            "voice: bascule hors ligne → en ligne (code=$error ${
+                                errorName(error)
+                            }) : le moteur hors ligne ne sert pas la langue=$localeTag, " +
+                                "l'essai suivant se fait en ligne",
+                        )
+                    }
+                    VoiceDiagnostics.note(
+                        "voice: erreur du moteur code=$error (${
+                            errorName(error)
+                        }), trames reçues=$frameCount, décision=${decision.name}",
+                    )
                     sessionActive = false
                     // Une session qui vient d'échouer repartira d'un moteur neuf.
                     needsFreshRecognizer = !silence
-                    // Le nombre de départs d'une même demande d'écoute est borné : au-delà, c'est
-                    // [VoiceSession] qui s'arrête et montre [engineFailureMessage]. Un refus
-                    // passager, lui, se couvre d'une reprise espacée — sans bandeau, comme avant.
-                    val retrying = !silence && isTransientEngineFailure(error) && shouldRetryEngine(consecutiveErrors)
+                    // **Le message suit la décision** (`engineMessage`) : rien à dire pour une fin
+                    // de session normale, une reprise espacée ou une bascule en ligne — elles
+                    // agissent ; un arrêt définitif porte la cause en toutes lettres, sans jamais
+                    // promettre une reprise qui n'aura pas lieu.
+                    val message = engineMessage(error, decision)
                     _state.update {
                         it.copy(
                             isListening = false,
@@ -236,19 +350,14 @@ class SpeechEngine(
                             transcript = "",
                             isFinal = silence,
                             failed = !silence,
-                            // Le bandeau ne s'allume pas pour un incident isolé (il se rétablissait
-                            // seul) : il dit ce qui reste à faire quand plus rien ne réessaie. Et il
-                            // ne promet jamais une reprise qui n'aura pas lieu.
-                            problem = when {
-                                retrying -> null
-                                isTransientEngineFailure(error) -> engineFailureMessage(error)
-                                else -> problem
-                            },
+                            stopDecision = decision,
+                            problem = message,
                         )
                     }
                 }
 
                 override fun onResults(results: Bundle?) {
+                    answered = true
                     val text = results.firstSentence()
                     sessionActive = false
                     consecutiveErrors = 0
@@ -259,6 +368,7 @@ class SpeechEngine(
                             isListening = false,
                             isFinal = text.isNotEmpty(),
                             level = 0f,
+                            stopDecision = null,
                         )
                     }
                     finishLater()
@@ -288,6 +398,27 @@ class SpeechEngine(
 
     private fun Bundle?.firstSentence(): String =
         this?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+
+    /**
+     * Le nom de l'erreur du moteur, pour le journal : un code seul (« 5 ») n'aide pas la personne à
+     * nous renseigner, un nom si. Les mots reconnus, eux, ne sont **jamais** journalisés.
+     */
+    private fun errorName(error: Int): String = when (error) {
+        SpeechRecognizer.ERROR_NO_MATCH -> "no-match"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "speech-timeout"
+        SpeechRecognizer.ERROR_CLIENT -> "client"
+        SpeechRecognizer.ERROR_SERVER -> "server"
+        SpeechRecognizer.ERROR_SERVER_DISCONNECTED -> "server-disconnected"
+        SpeechRecognizer.ERROR_NETWORK -> "network"
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "network-timeout"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "recogniser-busy"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "insufficient-permissions"
+        SpeechRecognizer.ERROR_TOO_MANY_REQUESTS -> "too-many-requests"
+        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "language-not-supported"
+        SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "language-unavailable"
+        SpeechRecognizer.ERROR_CANNOT_CHECK_SUPPORT -> "cannot-check-support"
+        else -> "other"
+    }
 
     companion object {
         const val DEFAULT_LOCALE = "fr-FR"

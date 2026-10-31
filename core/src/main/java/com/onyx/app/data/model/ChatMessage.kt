@@ -44,7 +44,7 @@ enum class ToolStatus(val wire: String) {
 /**
  * Un appel d'outil (tool call) tel qu'il est affiché dans la conversation.
  *
- * Comme `ToolActivity`.
+ * Miroir de `ToolActivity` (Echo/Services/Transport/HermesTransport:45).
  */
 @Serializable
 data class ToolActivity(
@@ -58,22 +58,22 @@ data class ToolActivity(
     val output: String? = null,
     /**
      * L'identifiant du sous-agent auquel cet appel délègue, quand le gateway le donne (`subagent_id`
-     * des arguments). C'est lui qu'attendent `subagent.steer` et `subagent.interrupt`; sans lui, la
-     * transcription s'ouvre en lecture seule, quand le tour tourne dans le gateway.
+     * des arguments). C'est lui qu'attendent `subagent.steer` et `subagent.interrupt` ; sans lui, la
+     * transcription s'ouvre en lecture seule, comme référence quand le tour tourne dans le gateway.
      */
     val subagentId: String? = null,
 ) {
     val isRunning: Boolean get() = status == ToolStatus.RUNNING
 
     companion object {
-        /** Les sorties d'outils sont tronquées: au-delà, elles noient le fil. */
+        /** Les sorties d'outils sont tronquées : au-delà, elles noient le fil. */
         const val DETAIL_CAP = 12_000
 
         /**
          * L'identifiant de sous-agent porté par les arguments d'un `tool.start`, ou `null`.
          *
-         * Le gateway le nomme `subagent_id`; certains transports le rangent sous `id`. On ne
-         * devine pas d'autre forme: un identifiant inventé ferait échouer steer et stop en
+         * Le gateway le nomme `subagent_id` ; certains transports le rangent sous `id`. On ne
+         * devine pas d'autre forme : un identifiant inventé ferait échouer steer et stop en
          * silence, ce qui vaut moins qu'un écran qui ne propose pas ces boutons.
          */
         fun subagentIdOf(args: String?): String? {
@@ -89,8 +89,8 @@ data class ToolActivity(
         }
 
         /**
-         * Le texte d'une étape: rogné, `null` quand il est vide, coupé à [DETAIL_CAP] avec la note
-         * de ce qui manque. Comme `ToolActivity.detail(_:)` (ligne 64).
+         * Le texte d'une étape : rogné, `null` quand il est vide, coupé à [DETAIL_CAP] avec la note
+         * de ce qui manque. Miroir de `ToolActivity.detail(_:)` (la référence, ligne 64).
          */
         fun detail(text: String?): String? {
             val trimmed = text?.trim().orEmpty()
@@ -100,9 +100,9 @@ data class ToolActivity(
         }
 
         /**
-         * Une valeur JSON comme ce texte: une chaîne reste elle-même; un objet devient une ligne
+         * Une valeur JSON comme ce texte : une chaîne reste elle-même ; un objet devient une ligne
          * par champ, les champs de texte en entier (la sortie d'un terminal se lit donc, au lieu
-         * d'une seule ligne échappée); le reste est du JSON compact.
+         * d'une seule ligne échappée) ; le reste est du JSON compact.
          */
         fun detail(value: JsonElement?): String? {
             if (value == null || value is JsonNull) return null
@@ -127,9 +127,9 @@ data class ToolActivity(
         }
 
         /**
-         * Les arguments d'un appel tels que son étape les garde: pour la lecture ([detail]), sauf
+         * Les arguments d'un appel tels que son étape les garde : pour la lecture ([detail]), sauf
          * ceux d'un appel de cartes, gardés comme le JSON reçu pour que les cartes s'y lisent
-         * ([ReplyCards]). Comme `ToolActivity.args(_:_:)` (ligne 101).
+         * ([ReplyCards]). Miroir de `ToolActivity.args(_:_:)` (la référence, ligne 101).
          */
         fun args(name: String, value: JsonElement?): String? {
             if (name != ReplyCards.tool || value == null || value is JsonNull) return detail(value)
@@ -154,8 +154,8 @@ data class TokenUsage(
 /**
  * Demande d'approbation envoyée par le gateway avant d'exécuter un outil sensible.
  *
- * Comme `ApprovalRequest`.
- * Les réponses possibles sont `once` | `session` | `always` | `deny`; l'UI à deux boutons
+ * Miroir de `ApprovalRequest` (Echo/Services/Transport/HermesTransport:549).
+ * Les réponses possibles sont `once` | `session` | `always` | `deny` ; l'UI à deux boutons
  * n'utilise que `once` (« approuver ») et `deny` (« refuser »).
  */
 @Serializable
@@ -188,7 +188,7 @@ data class ApprovalRequest(
         /**
          * Construit une demande à partir de la charge utile du gateway.
          *
-         * Comme `ApprovalRequest(payload:)`: les choix sont pris tels quels s'ils sont listés,
+         * Miroir de `ApprovalRequest(payload:)` : les choix sont pris tels quels s'ils sont listés,
          * sinon reconstruits à partir de `allow_session` / `allow_permanent`.
          */
         fun fromPayload(
@@ -231,7 +231,7 @@ data class PrefillProgress(
 /**
  * Un message du fil de conversation.
  *
- * Comme `Message` , en gardant ce qui est utile à l'UI Android.
+ * Miroir de `Message` (Echo/Models/Message:3), en gardant ce qui est utile à l'UI Android.
  */
 @Serializable
 data class ChatMessage(
@@ -245,14 +245,14 @@ data class ChatMessage(
     val tools: List<ToolActivity> = emptyList(),
     /**
      * Les sous-agents que cette réponse a lancés (`delegate_task`), tels que le gateway les
-     * annonce. Distincts des [tools]: un sous-agent a un but, une transcription et un état de
+     * annonce. Distincts des [tools] : un sous-agent a un but, une transcription et un état de
      * marche, ce qu'une carte d'outil ne porte pas.
      */
     val subagents: List<SubagentActivity> = emptyList(),
     /**
      * Les cartes que cette réponse montre sous ses mots (une carte, des lieux, la météo, l'heure),
      * demandées avec `onyx_show`. `null` tant qu'aucun appel ne les a demandées — c'est la
-     * distinction entre « pas encore cherché » et « cherché, rien à dessiner ».
+     * distinction de la référence entre « pas encore cherché » et « cherché, rien à dessiner ».
      */
     val cards: List<ReplyCard>? = null,
     val approvals: List<ApprovalRequest> = emptyList(),
@@ -279,11 +279,14 @@ data class ChatMessage(
     val isQuestion: Boolean get() = isUser && !isSteer
 }
 
-/** Pièce jointe (image principalement) — portée depuis `Attachment`. */
+/** Pièce jointe (image principalement) — portée depuis `Attachment` côté référence. */
 @Serializable
 data class Attachment(
     val id: String,
     val mimeType: String,
+    /** La **copie durable** de la pièce (`file://` sous `filesDir`), jamais une URI temporaire. */
     val uri: String,
     val name: String? = null,
+    /** Le poids de la copie, en octets : enregistré avec la pièce, pas deviné à l'affichage. */
+    val size: Long = 0L,
 )

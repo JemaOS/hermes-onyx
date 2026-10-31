@@ -4,8 +4,8 @@ package com.onyx.app.localization
  * Les mots des cartes d'une réponse (`ReplyCards` — météo, lieux, heure, carte) et des gabarits
  * `String.format` qu'elles emploient.
  *
- * Les gabarits gardent `%1$s` / `%1$d`: `OnyxLocalization.format` traduit la clé puis réinsère
- * les arguments. Les noms de temps sont ceux (`WeatherCard.name`), traduits ici.
+ * Les gabarits gardent `%1$s` / `%1$d` : `OnyxLocalization.format` traduit la clé puis réinsère
+ * les arguments. Les noms de temps sont ceux de la référence (`WeatherCard.name`), traduits ici.
  */
 internal val onyxCardsFrench: Map<String, String> = linkedMapOf(
     // La carte et ses actions.
@@ -57,7 +57,7 @@ internal val onyxCardsFrench: Map<String, String> = linkedMapOf(
 )
 
 /**
- * Les phrases que les cartes composent elles-mêmes: la différence d'heure (« 8 hr ahead ») et
+ * Les phrases que les cartes composent elles-mêmes : la différence d'heure (« 8 hr ahead ») et
  * l'heure seule (« 2 PM ») — le motif est essayé quand le texte n'est pas une clé du dictionnaire.
  */
 internal val onyxCardsFrenchPatterns: List<Pair<Regex, (MatchResult) -> String>> = listOf(

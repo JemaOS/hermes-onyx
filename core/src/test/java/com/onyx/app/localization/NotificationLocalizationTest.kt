@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Les libellés des notifications, en français: les états d'une approbation, les titres des trois
+ * Les libellés des notifications, en français : les états d'une approbation, les titres des trois
  * questions, et la phrase d'un tour en cours avec son outil et sa durée.
  */
 class NotificationLocalizationTest {
@@ -34,7 +34,7 @@ class NotificationLocalizationTest {
         assertEquals("Onyx a une question", OnyxLocalization.translate("Onyx has a question", fr))
         assertEquals("Un mot de passe est requis", OnyxLocalization.translate("A password is needed", fr))
         assertEquals("Un secret est requis", OnyxLocalization.translate("A secret is needed", fr))
-        // Dans le fil d'un bot, le titre nomme le bot: le motif insère son nom.
+        // Dans le fil d'un bot, le titre nomme le bot : le motif insère son nom.
         assertEquals("writer a une question", OnyxLocalization.translate("writer has a question", fr))
     }
 
@@ -55,5 +55,21 @@ class NotificationLocalizationTest {
             OnyxLocalization.translate("The subagent isn't accepting steering right now", fr),
         )
         assertEquals("Le sous-agent a déjà terminé", OnyxLocalization.translate("Subagent already finished", fr))
+    }
+
+    @Test
+    fun `le suivi du travail et la fin d'un tour sont traduits`() {
+        assertEquals("Suivi du travail", OnyxLocalization.translate("Work tracking", fr))
+        assertEquals("Jamais", OnyxLocalization.translate("Never", fr))
+        assertEquals("À la fin seulement", OnyxLocalization.translate("When the turn ends", fr))
+        assertEquals("À chaque étape", OnyxLocalization.translate("At every step", fr))
+        // Le titre de la notification de fin, et l'action qui arrête le tour.
+        assertEquals("Terminé", OnyxLocalization.translate("Finished", fr))
+        assertEquals("Échec", OnyxLocalization.translate("Failed", fr))
+        assertEquals("Arrêter", OnyxLocalization.translate("Stop", fr))
+        assertEquals(
+            "Affichée pendant qu’un bot travaille, et quand sa réponse est prête.",
+            OnyxLocalization.translate("Shows while a bot is working, and when its answer is ready.", fr),
+        )
     }
 }

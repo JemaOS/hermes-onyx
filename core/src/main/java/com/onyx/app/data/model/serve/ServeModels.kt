@@ -1,5 +1,6 @@
 package com.onyx.app.data.model.serve
 
+import com.onyx.app.localization.OnyxLanguage
 import java.util.Locale
 
 /**
@@ -41,17 +42,81 @@ data class GatewayConnection(val title: String, val state: String, val error: St
     val isConnected: Boolean get() = state.equals("connected", ignoreCase = true)
 }
 
-/** Un serveur MCP: son nom, sa cible, et s'il est activé dans la configuration d'Hermes. */
+/** Un serveur MCP : sa forme, sa cible, et s'il est activé dans la configuration d'Hermes. */
 data class McpServer(
     val name: String,
+    /** La cible telle qu'on la montre : l'adresse, ou la commande locale. */
     val target: String = "",
     val enabled: Boolean = false,
-    /** Renseigné quand c'est un plugin qui l'apporte: l'interrupteur suit le plugin. */
+    /** Renseigné quand c'est un plugin qui l'apporte : l'interrupteur suit le plugin. */
     val plugin: String? = null,
-)
+    /** `http` (une adresse) ou `stdio` (une commande locale) ; `unknown` si le serveur ne le dit pas. */
+    val transport: String = "unknown",
+    val url: String? = null,
+    val command: String? = null,
+    val args: List<String> = emptyList(),
+    val env: Map<String, String> = emptyMap(),
+    val auth: String? = null,
+    /** Les outils auxquels ce serveur est restreint, tels que le serveur les donne ; `null` = tous. */
+    val toolSelection: List<String>? = null,
+    /** `config` (écrit dans la configuration) ou `plugin`. */
+    val source: String = "config",
+) {
+    /** Vrai pour un serveur qui se lance par une commande locale, faux pour une adresse. */
+    val isLocalCommand: Boolean get() = transport == "stdio" || (transport == "unknown" && command != null)
+
+    /** La ligne de commande complète (« python3 -m serveur --port 1 »), ou l'adresse. */
+    val commandLine: String get() = listOfNotNull(command?.takeIf { it.isNotBlank() }, *args.toTypedArray())
+        .joinToString(" ")
+        .ifBlank { target }
+}
+
+/** Un outil qu'un serveur MCP a exposé, tel que la route de test le rend. */
+data class McpTool(val name: String, val description: String = "")
 
 /** Le résultat d'un « Test » sur un serveur MCP. */
-data class McpProbe(val ok: Boolean, val summary: String, val error: String? = null)
+data class McpProbe(
+    val ok: Boolean,
+    val summary: String,
+    val error: String? = null,
+    /** Les outils que le serveur a listés pendant le test. Vide quand le test a échoué. */
+    val tools: List<McpTool> = emptyList(),
+    val prompts: Int = 0,
+    val resources: Int = 0,
+    /** Le temps qu'a pris le test, mesuré sur l'appareil (le serveur ne le rend pas). */
+    val latencyMillis: Long? = null,
+)
+
+/** Ce qu'un « Ajouter une source MCP » envoie, avant l'envoi. */
+data class McpServerDraft(
+    val name: String = "",
+    val transport: String = "stdio",
+    val command: String = "",
+    val args: String = "",
+    val env: String = "",
+    val url: String = "",
+    val auth: String = "none",
+    val bearerToken: String = "",
+) {
+    /** Les arguments, découpés sur les espaces ; les guillemets ne sont pas interprétés. */
+    val argumentList: List<String> get() = args.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+    /**
+     * Les variables d'environnement, une par ligne (« CLE=valeur »).
+     *
+     * Une ligne sans « = » n'est pas une variable : elle est refusée plutôt que posée telle quelle,
+     * parce qu'un nom sans valeur ferait échouer le serveur sans dire pourquoi.
+     */
+    val environment: List<Pair<String, String>>
+        get() = env.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { line ->
+            val (key, value) = line.split("=", limit = 2).let { it.first() to it.getOrElse(1) { "" } }
+            key.trim() to value.trim()
+        }
+
+    /** La ou les lignes d'environnement qui n'ont pas de « = ». */
+    val malformedEnvironment: List<String>
+        get() = env.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.contains('=') }
+}
 
 /** Une ligne de journal. */
 data class ServeLogLine(val text: String, val level: LogLevel)
@@ -73,7 +138,7 @@ data class FileEntry(
             isDirectory -> ""
             size < 1024 -> "$size B"
             size < 1024 * 1024 -> "${size / 1024} KB"
-            else -> "${"%.1f".format(size / 1024.0 / 1024.0)} MB"
+            else -> "${String.format(OnyxLanguage.preferred, "%.1f", size / 1024.0 / 1024.0)} MB"
         }
 }
 
@@ -112,7 +177,7 @@ data class CronJob(
     val sharedWithDesktop: Boolean
         get() = title.startsWith("[bot:") && title.indexOf(']') > 5
 
-    /** L'heure est passée depuis plus de cinq minutes sans exécution: le serveur ne l'a pas tirée. */
+    /** L'heure est passée depuis plus de cinq minutes sans exécution : le serveur ne l'a pas tirée. */
     fun isMissed(nowMillis: Long = System.currentTimeMillis()): Boolean {
         val next = nextRunAt ?: return false
         if (state != "scheduled" || nowMillis - next <= 300_000L) return false
@@ -124,7 +189,7 @@ data class CronJob(
 fun relativeLabel(
     timestampMillis: Long,
     nowMillis: Long = System.currentTimeMillis(),
-    locale: Locale = Locale.getDefault(),
+    locale: Locale = OnyxLanguage.preferred,
 ): String {
     val french = locale.language.equals("fr", ignoreCase = true)
     val delta = timestampMillis - nowMillis
@@ -165,8 +230,8 @@ data class KanbanCard(
     val assignee: String? = null,
     val createdAt: String? = null,
     /**
-     * `created_at` du plugin, en millisecondes: la rangée en montre l'âge (« 1 hr. ago »), comme
-     * le `relativeLabel` de la rangée. `createdAt` garde la valeur brute (le détail).
+     * `created_at` du plugin, en millisecondes : la rangée en montre l'âge (« 1 hr. ago »), comme
+     * le `relativeLabel` de la rangée de la référence. `createdAt` garde la valeur brute (le détail).
      */
     val createdAtMillis: Long? = null,
     val completedAt: String? = null,
@@ -179,7 +244,7 @@ data class KanbanCard(
 
 data class KanbanComment(val id: String, val author: String, val body: String, val at: String? = null)
 
-/** Les colonnes du tableau, dans l'ordre, avec leur libellé et leur icône. */
+/** Les colonnes du tableau, dans l'ordre, avec leur libellé et leur icône (comme référence). */
 enum class KanbanStatus(val id: String, val label: String) {
     TRIAGE("triage", "Triage"),
     TODO("todo", "To do"),
@@ -192,7 +257,7 @@ enum class KanbanStatus(val id: String, val label: String) {
     ARCHIVED("archived", "Archived"),
     ;
 
-    /** Ce que le déplacement demande, comme le dialogue. */
+    /** Ce que le déplacement demande, comme le dialogue de la référence. */
     val movePrompt: String?
         get() = when (this) {
             SCHEDULED -> "Why is it deferred?"

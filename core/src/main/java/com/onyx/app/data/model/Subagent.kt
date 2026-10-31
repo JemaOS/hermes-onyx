@@ -14,17 +14,17 @@ import kotlinx.serialization.json.jsonObject
 /**
  * Un sous-agent délégué (une tâche lancée par l'agent en parallèle du fil).
  *
- * Comme `SubagentActivity`: le même
+ * Miroir de `SubagentActivity` (Echo/Services/Transport/HermesTransport:130) : le même
  * vocabulaire que le gateway (`subagent.start` / `.tool` / `.progress` / `.complete`, et le
  * roster de `subagent.list`).
  *
- * Deux provenances, dans cet ordre de confiance:
- * - le socket du Dashboard (`hermes serve`) émet `subagent.*` **sur la session du parent**, avec
- * l'identifiant de l'enfant (`subagent_id`), son but, sa place dans une série, son dernier
- * outil, son modèle et l'identifiant de sa session (`child_session_id`) — tout est transporté;
- * - l'API de conversation (`/v1`) ne transporte **aucun** de ces champs: le seul indice est
- * l'appel d'outil `delegate_task`, dont les arguments nomment les tâches déléguées. D'où
- * [SubagentStatus.DISPATCHED]: le but est connu, l'état réel de l'enfant ne l'est pas.
+ * Deux provenances, dans cet ordre de confiance :
+ *  - le socket du Dashboard (`hermes serve`) émet `subagent.*` **sur la session du parent**, avec
+ *    l'identifiant de l'enfant (`subagent_id`), son but, sa place dans une série, son dernier
+ *    outil, son modèle et l'identifiant de sa session (`child_session_id`) — tout est transporté ;
+ *  - l'API de conversation (`/v1`) ne transporte **aucun** de ces champs : le seul indice est
+ *    l'appel d'outil `delegate_task`, dont les arguments nomment les tâches déléguées. D'où
+ *    [SubagentStatus.DISPATCHED] : le but est connu, l'état réel de l'enfant ne l'est pas.
  */
 @Serializable
 data class SubagentActivity(
@@ -32,7 +32,7 @@ data class SubagentActivity(
     val id: String,
     /** Le but de la tâche déléguée, tel que le gateway l'annonce. */
     val goal: String = "",
-    /** Sa place dans la série d'un même `delegate_task`: `1/N`. */
+    /** Sa place dans la série d'un même `delegate_task` : `1/N`. */
     val taskIndex: Int = 0,
     val taskCount: Int = 1,
     /** La profondeur d'imbrication (un enfant d'enfant), pour l'indentation des rangées. */
@@ -46,25 +46,25 @@ data class SubagentActivity(
     /** La session de l'enfant, seule clé qui ouvre sa transcription (`session.resume`). */
     val childSessionId: String? = null,
     val model: String? = null,
-    /** Quand l'app a vu la tâche commencer: sert au temps écoulé tant que le serveur n'en donne pas. */
+    /** Quand l'app a vu la tâche commencer : sert au temps écoulé tant que le serveur n'en donne pas. */
     val startedAt: Long = 0L,
-    /** `accepting_steer` du roster: faux quand l'enfant n'écoute plus de consigne. */
+    /** `accepting_steer` du roster : faux quand l'enfant n'écoute plus de consigne. */
     val acceptingSteer: Boolean = true,
 ) {
     /** Vrai tant que la tâche travaille (ou est réputée travailler). */
     val isLive: Boolean get() = status.isLive
 
-    /** Vrai quand on sait ouvrir sa transcription: il faut la session de l'enfant. */
+    /** Vrai quand on sait ouvrir sa transcription : il faut la session de l'enfant. */
     val hasTranscript: Boolean get() = !childSessionId.isNullOrBlank()
 
     /**
-     * Le temps écoulé en secondes: la durée que le serveur a donnée si elle est là, sinon
+     * Le temps écoulé en secondes : la durée que le serveur a donnée si elle est là, sinon
      * l'horloge de l'app depuis le début de la tâche (le transport muet n'en fournit aucune).
      */
     fun elapsedSeconds(now: Long): Double =
         durationSeconds ?: ((now - startedAt).coerceAtLeast(0L) / 1000.0)
 
-    /** Cette activité, mise à jour par [update]: la ligne se crée puis se modifie sur place. */
+    /** Cette activité, mise à jour par [update] : la ligne se crée puis se modifie sur place. */
     fun applying(update: SubagentUpdate, now: Long): SubagentActivity {
         var next = copy(
             goal = update.goal.ifBlank { goal },
@@ -95,7 +95,7 @@ data class SubagentActivity(
                 if (next.status == SubagentStatus.RUNNING) next.copy(status = SubagentStatus.DISPATCHED) else next
             SubagentUpdate.Phase.SpawnRequested -> Unit
         }
-        // Une tâche close du côté du serveur reste close: une trame rejouée ne la rouvre pas,
+        // Une tâche close du côté du serveur reste close : une trame rejouée ne la rouvre pas,
         // sinon une ligne terminée repasserait « en cours » et la liste mentirait.
         val completes = update.phase is SubagentUpdate.Phase.Completed
         return if (isFinished && next.status.isLive && !completes) next.copy(status = status) else next
@@ -112,7 +112,7 @@ enum class SubagentStatus(val wire: String) {
     @SerialName("running")
     RUNNING("running"),
 
-    /** Lancé mais suivi à l'aveugle: le but est connu, l'enfant travaille ailleurs. */
+    /** Lancé mais suivi à l'aveugle : le but est connu, l'enfant travaille ailleurs. */
     @SerialName("dispatched")
     DISPATCHED("dispatched"),
 
@@ -129,8 +129,8 @@ enum class SubagentStatus(val wire: String) {
 /**
  * Un changement d'un sous-agent (`TurnEvent.Subagent`).
  *
- * Comme `SubagentUpdate`. Les champs sont
- * tous optionnels sauf l'identifiant et la phase: chaque trame du gateway n'en porte qu'une part.
+ * Miroir de `SubagentUpdate` (Echo/Services/Transport/HermesTransport:147). Les champs sont
+ * tous optionnels sauf l'identifiant et la phase : chaque trame du gateway n'en porte qu'une part.
  */
 data class SubagentUpdate(
     val id: String,
@@ -144,7 +144,7 @@ data class SubagentUpdate(
     val acceptingSteer: Boolean? = null,
     val phase: Phase,
 ) {
-    /** La phase d'une trame: ce qui vient de se passer pour cet enfant. */
+    /** La phase d'une trame : ce qui vient de se passer pour cet enfant. */
     sealed interface Phase {
         data object Started : Phase
         data class Tool(val name: String) : Phase
@@ -157,7 +157,7 @@ data class SubagentUpdate(
     companion object {
         /**
          * Les types de `subagent.*` que le socket du Dashboard émet (contrat du gateway,
-         * `tui_gateway/contracts/events.py`): `subagent.spawn_requested`, `.start`, `.progress`,
+         * `tui_gateway/contracts/events.py`) : `subagent.spawn_requested`, `.start`, `.progress`,
          * `.thinking`, `.tool`, `.complete`.
          */
         val EVENT_TYPES = setOf(
@@ -168,8 +168,8 @@ data class SubagentUpdate(
         fun isSubagentEvent(type: String): Boolean = type in EVENT_TYPES
 
         /**
-         * Une frame du gateway, telle que `SubagentUpdate(event:_:)` la lit.
-         * `null` quand elle n'identifie pas l'enfant: sans identifiant, steer et stop
+         * Une frame du gateway, telle que `SubagentUpdate(event:_:)` la lit côté la référence.
+         * `null` quand elle n'identifie pas l'enfant : sans identifiant, steer et stop
          * échoueraient en silence, ce qui vaut moins que pas de ligne du tout.
          */
         fun parse(type: String, payload: JsonObject): SubagentUpdate? {
@@ -206,7 +206,7 @@ data class SubagentUpdate(
         /**
          * Une ligne de `subagent.list` (le roster du gateway, lu sans tour en cours).
          *
-         * Le roster nomme les champs autrement que les trames: `parent_id`, `started_at`,
+         * Le roster nomme les champs autrement que les trames : `parent_id`, `started_at`,
          * `last_tool`, `accepting_steer`. C'est la source du **temps écoulé** et du **dernier
          * outil** d'une liste ouverte alors que rien ne streame.
          */
@@ -235,9 +235,9 @@ data class SubagentUpdate(
         /**
          * Les tâches déléguées lues dans les arguments d'un `delegate_task`.
          *
-         * Comme `HermesSessionsTransport.delegatedGoals`
-         * . Le gateway accepte une
-         * `goal` unique ou un lot `tasks=[{goal:…}]`: les deux se lisent, et l'identifiant est
+         * Miroir de `HermesSessionsTransport.delegatedGoals`
+         * (Echo/Services/Transport/HermesSessionsTransport:184). Le gateway accepte une
+         * `goal` unique ou un lot `tasks=[{goal:…}]` : les deux se lisent, et l'identifiant est
          * fabriqué (`delegate:{run}:{i}`) puisque l'API de conversation ne donne pas de
          * `subagent_id`. C'est le **seul** vestige d'un sous-agent sur ce transport.
          */

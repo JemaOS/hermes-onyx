@@ -8,13 +8,13 @@ import org.junit.Test
 /**
  * Les commandes « / » du chat.
  *
- * n'en garde qu'une locale — `/model` nu ouvre le sélecteur — et
+ * référence n'en garde qu'une locale — `/model` nu ouvre le sélecteur (`ComposerView:569`) — et
  * envoie le reste au gateway. On vérifie ici que chaque commande de l'app agit, que le reste part
- * bien au gateway, et qu'un argument change de camp comme.
+ * bien au gateway, et qu'un argument change de camp comme sur la référence.
  */
 class SlashCommandsTest {
     @Test
-    fun `model nu ouvre le selecteur comme `() {
+    fun `model nu ouvre le selecteur comme sur la référence`() {
         assertEquals(SlashAction.OPEN_MODEL_PICKER, SlashCommands.action("/model"))
         assertEquals(SlashAction.OPEN_MODEL_PICKER, SlashCommands.action("  /MODEL  "))
     }
@@ -59,7 +59,7 @@ class SlashCommandsTest {
     fun `le menu local filtre sur ce qui est tape`() {
         assertEquals(listOf("/model"), SlashCommands.matches("/mo").map { it.name })
         assertTrue(SlashCommands.matches("/").isNotEmpty())
-        // Rien ne correspond: on montre tout plutôt qu'un menu vide.
+        // Rien ne correspond : on montre tout plutôt qu'un menu vide.
         assertEquals(SlashCommands.builtIn.size, SlashCommands.matches("/zzz").size)
         assertTrue(SlashCommands.matches("bonjour").isEmpty())
     }

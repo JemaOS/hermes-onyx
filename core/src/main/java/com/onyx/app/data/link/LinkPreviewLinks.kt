@@ -3,12 +3,12 @@ package com.onyx.app.data.link
 /**
  * Quel lien d'un message reçoit sa fiche.
  *
- * Comme `LinkPreviewLinks`. Le premier choix est le **premier** lien
+ * Port de `LinkPreviewLinks` (LinkPreviews:141). Le premier choix est le **premier** lien
  * http/https du message, écrit en clair ou en lien Markdown — jamais dans du code, jamais une image.
  */
 object LinkPreviewLinks {
 
-    /** Un lien http ou https; s'arrête à l'espace ou à un délimiteur de balisage. */
+    /** Un lien http ou https ; s'arrête à l'espace ou à un délimiteur de balisage. */
     private val urlPattern = Regex("""https?://[^\s<>"'`\]]+""", RegexOption.IGNORE_CASE)
 
     /** Le bout d'un lien qui n'en fait pas partie (ponctuation de fin, parenthèse fermante). */
@@ -35,7 +35,7 @@ object LinkPreviewLinks {
         .replace(inlineCode, " ")
         .replace(picture, " ")
 
-    /** L'hôte d'une adresse http/https, ou `null` — sans port, comme `url.host`. */
+    /** L'hôte d'une adresse http/https, ou `null` — sans port, comme `url.host()` de la référence. */
     fun host(url: String): String? {
         val match = Regex("""^https?://([^/?#\s]+)""", RegexOption.IGNORE_CASE).find(url) ?: return null
         val authority = match.groupValues[1].substringAfterLast('@')

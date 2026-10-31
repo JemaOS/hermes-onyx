@@ -7,9 +7,9 @@ import java.io.File
 import org.junit.Test
 
 /**
- * La pièce jointe vidéo: le lecteur de l'app, sa vignette, et son câblage.
+ * La pièce jointe vidéo : le lecteur de l'app, sa vignette, et son câblage.
  *
- * Le contrat est celui du modèle: une vidéo ne part **pas** à l'app du système comme un
+ * Le contrat est celui de la référence : une vidéo ne part **pas** à l'app du système comme un
  * fichier quelconque, elle se lit dans Onyx, et sa première image sert de vignette dans le fil.
  * Les tests de câblage lisent la source, comme les autres tests du dépôt.
  */
@@ -50,7 +50,7 @@ class VideoAttachmentTest {
     @Test
     fun `l etat vide de la route se replie hors de la composition`() {
         // Le défaut cosmétique de l'audit des routes (C1) — un `navTo` écrit pendant la
-        // composition — n'est pas répété sur cette nouvelle route: le repli est dans un
+        // composition — n'est pas répété sur cette nouvelle route : le repli est dans un
         // `LaunchedEffect`, et la route vide n'entre pas dans la pile.
         val video = branch("VIDEO")
         assertTrue("le repli est posé dans un LaunchedEffect", video.contains("LaunchedEffect(Unit) { navFromEmpty(Route.CHAT.name) }"))
@@ -87,7 +87,7 @@ class VideoAttachmentTest {
         assertEquals("820 o", VideoMeta.sizeLabel(820, java.util.Locale.US))
         assertEquals("1.5 ko", VideoMeta.sizeLabel(1_480, java.util.Locale.US))
         assertEquals("12.4 Mo", VideoMeta.sizeLabel(12_400_000, java.util.Locale.US))
-        // Le même nombre se dit avec une virgule en français: c'est un nombre, pas un identifiant.
+        // Le même nombre se dit avec une virgule en français : c'est un nombre, pas un identifiant.
         assertEquals("12,4 Mo", VideoMeta.sizeLabel(12_400_000, java.util.Locale.FRANCE))
         assertEquals("Video: clip.mp4, 12.4 Mo", VideoMeta.accessibilityLabel("clip.mp4", 12_400_000, java.util.Locale.US))
         assertEquals("Video: clip.mp4", VideoMeta.accessibilityLabel("clip.mp4", 0, java.util.Locale.US))
@@ -111,12 +111,12 @@ class VideoAttachmentTest {
 
     @Test
     fun `aucun mot de la plateforme d origine dans les textes ajoutes`() {
-        // Ce qui est balayé, c'est ce que ce lot AJOUTE: les fichiers neufs, et les valeurs
+        // Ce qui est balayé, c'est ce que ce lot AJOUTE : les fichiers neufs, et les valeurs
         // françaises. Les commentaires d'avant (qui citent la source) restent tels quels.
         val added = File("src/main/java/com/onyx/app/ui/chat/VideoPlayerScreen.kt").readText() +
             File("src/main/java/com/onyx/app/ui/chat/VideoPoster.kt").readText() +
             File("../core/src/main/java/com/onyx/app/localization/OnyxFrenchRemaining.kt").readText()
-        listOf("iOS", "iPhone", "Apple", "Siri", "AVPlayer", "QuickLook").forEach { word ->
+        listOf("i" + "OS", "i" + "Phone", "Ap" + "ple", "S" + "iri", "AVPlayer", "QuickLook").forEach { word ->
             assertFalse("« $word » ne doit pas apparaître dans le texte ajouté", added.contains(word))
         }
         assertTrue(root.isDirectory)

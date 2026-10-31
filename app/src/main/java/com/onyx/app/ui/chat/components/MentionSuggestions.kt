@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +30,7 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * La hauteur au plus de la liste. Six lignes tiennent dans une fenêtre dégagée; au-delà (une
+ * La hauteur au plus de la liste. Six lignes tiennent dans une fenêtre dégagée ; au-delà (une
  * police à 1,3×, un écran court, le clavier ouvert) la liste défile, plutôt que de pousser le
  * champ hors de l'écran.
  */
@@ -36,10 +38,10 @@ private val MentionMenuMaxHeight = 232.dp
 
 /**
  * Les bots qu'un mot `@` en cours de frappe peut être, juste au-dessus du champ
- * (`ComposerView.mentionMenu`): le visage du bot, sa poignée « @handle » et son nom. Toucher une
+ * (`ComposerView.mentionMenu`) : le visage du bot, sa poignée « @handle » et son nom. Toucher une
  * ligne finit le mot dans le brouillon.
  *
- * Rien ici ne dépend du thème clair ou sombre: les couleurs viennent du thème courant, et les
+ * Rien ici ne dépend du thème clair ou sombre : les couleurs viennent du thème courant, et les
  * deux panneaux (pliable déplié, grand écran) se partagent la même liste, posée sur le composeur.
  */
 @Composable
@@ -53,8 +55,8 @@ fun MentionSuggestions(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(max = MentionMenuMaxHeight)
-            .background(theme.surfaceColor, RoundedCornerShape(14.dp))
-            .border(1.dp, theme.separator, RoundedCornerShape(14.dp))
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
+            .border(1.dp, theme.separator, RoundedCornerShape(OnyxSpace.FieldCorner))
             .verticalScroll(rememberScrollState())
             .semanticsLabel("Bots to mention"),
     ) {
@@ -70,7 +72,7 @@ fun MentionSuggestions(
                 BotLook(name = bot.name, faceCode = bot.faceCode, size = 22.dp)
                 BasicText(
                     text = "@" + BotMentions.tag(bot),
-                    // Le libellé d'une ligne est la poignée du bot: un identifiant, jamais un
+                    // Le libellé d'une ligne est la poignée du bot : un identifiant, jamais un
                     // libellé du catalogue.
                     localize = false,
                     style = theme.body.copy(color = theme.textColor, fontWeight = FontWeight.Medium),
@@ -80,7 +82,7 @@ fun MentionSuggestions(
                     text = bot.label(),
                     localize = false,
                     style = theme.caption.copy(color = theme.secondaryText),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.weight(1f))

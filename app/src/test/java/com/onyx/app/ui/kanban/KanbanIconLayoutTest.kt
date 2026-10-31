@@ -39,7 +39,7 @@ class KanbanIconLayoutTest {
     }
 
     @Test
-    fun `le deplacement suit lordre metier `() {
+    fun `le deplacement suit lordre metier de la référence`() {
         assertTrue(source.contains("KanbanStatus.TRIAGE -> KanbanStatus.TODO"))
         assertTrue(source.contains("KanbanStatus.TODO, KanbanStatus.BLOCKED -> KanbanStatus.READY"))
         assertTrue(source.contains("KanbanStatus.REVIEW -> KanbanStatus.DONE"))
@@ -49,8 +49,8 @@ class KanbanIconLayoutTest {
 
     @Test
     fun `la barre de Kanban porte la fleche de rafraichissement tant que le direct n ecoute pas`() {
-        //: `if available { Image(systemName: live.isLive ?
-        // "dot.radiowaves.left.and.right": "arrow.clockwise") }` — la flèche secondaire quand le
+        // `KanbanView` : `if available { Image(systemName: live.isLive ?
+        // "dot.radiowaves.left.and.right" : "arrow.clockwise") }` — la flèche secondaire quand le
         // direct n'écoute pas encore, la pastille verte quand il écoute, rien sans Dashboard.
         assertTrue(source.contains("else -> Symbols.ArrowClockwise"))
         assertTrue(source.contains("state.live -> Symbols.DotRadiowavesLeftAndRight"))
@@ -72,7 +72,7 @@ class KanbanIconLayoutTest {
     }
 
     @Test
-    fun `un tableau qui ne charge pas porte wifi exclamation comme `() {
+    fun `un tableau qui ne charge pas porte wifi exclamation comme la référence`() {
         // `ContentUnavailableView("Couldn't load the board", systemImage: "wifi.exclamationmark")`
         assertTrue(source.contains("OnyxIcon(Symbols.WifiExclamation, tint = theme.warning, size = 16.dp)"))
         assertFalse(source.contains("OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 16.dp)"))

@@ -1,5 +1,9 @@
 package com.onyx.app.ui.context
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,7 +40,7 @@ import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
-/** Comme: un fichier distant, édité et sauvegardé sur place. */
+/** Port de `ContextFileEditorView` : un fichier distant, édité et sauvegardé sur place. */
 @Composable
 fun ContextFileEditorScreen(
     viewModel: ContextFileEditorViewModel,
@@ -55,7 +59,7 @@ fun ContextFileEditorScreen(
     // Le retour du bord d'écran passe par la même protection que le bouton visible.
     BackHandler(enabled = state.dirty) { confirmDiscard = true }
 
-    Box(modifier = modifier.fillMaxSize().background(theme.pageColor)) {
+    Box(modifier = modifier.fillMaxSize().onyxPage(theme)) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.statusBarsPadding()) {
                 OnyxPageHeader(
@@ -91,7 +95,7 @@ fun ContextFileEditorScreen(
                             .weight(1f)
                             .heightIn(min = 380.dp)
                             .padding(horizontal = 16.dp)
-                            .background(theme.surfaceColor, RoundedCornerShape(12.dp)),
+                            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FormCorner)),
                     ) {
                         BasicTextField(
                             value = state.content,

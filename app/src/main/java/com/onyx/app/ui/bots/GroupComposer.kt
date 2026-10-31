@@ -1,65 +1,36 @@
 package com.onyx.app.ui.bots
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import com.onyx.app.ui.localization.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -70,17 +41,17 @@ import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.data.model.serve.DeliveredFile
 import com.onyx.app.ui.chat.DeliveredFiles
 import com.onyx.app.ui.chat.PendingAttachment
-import com.onyx.app.ui.chat.pendingAttachmentsFromUris
+import com.onyx.app.ui.chat.AttachmentLimits
+import com.onyx.app.ui.chat.admitAttachments
+import com.onyx.app.ui.chat.takeDurablePermissions
+import com.onyx.app.ui.chat.components.OnyxComposer
 import com.onyx.app.ui.chat.components.clipboardImages
+import com.onyx.app.ui.design.AttachmentAction
+import com.onyx.app.ui.design.AttachmentSheet
 import com.onyx.app.ui.design.BotLook
-import com.onyx.app.ui.design.ComposerCircleButton
 import com.onyx.app.ui.design.OnyxIcon
-import com.onyx.app.ui.design.OnyxMenu
 import com.onyx.app.ui.design.LiveMark
-import com.onyx.app.ui.design.MenuItem
-import com.onyx.app.ui.design.OnyxMotion
 import com.onyx.app.ui.design.Symbols
-import com.onyx.app.ui.design.glassSurface
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.voice.SpeechEngine
@@ -120,25 +91,15 @@ internal fun replaceTagToken(draft: String, handle: String): String {
 internal fun groupComposerHasDraft(draft: String, attachmentCount: Int): Boolean =
     draft.isNotBlank() || attachmentCount > 0
 
-/** Ce que le bouton rond du groupe propose: arrêter, parler, ou envoyer. */
-internal enum class GroupComposerAction { STOP, TALK, SEND }
-
 /**
- * Le rôle du bouton rond, exactement la cascade: « Stop » pendant un tour quand le
- * champ est vide, « Talk » quand le champ est vide et qu'une scène vocale est offerte, « Send »
- * sinon (désactivé tant que rien n'est écrit).
+ * Le **titre** que le compositeur de la maison reçoit pour une salle : c'est lui qui fait dire
+ * « Envoyer un message au salon » à l'invite du champ (`ComposerFieldInvite.GROUP`,
+ * `ComposerFieldLayers.kt`), et **rien d'autre** ne réécrit ce libellé. Une salle n'a pas de nom
+ * de bot à écrire dans le champ : ce titre est le repère du groupe, pas un texte de texte.
  */
-internal fun groupComposerAction(hasDraft: Boolean, isStreaming: Boolean, canTalk: Boolean): GroupComposerAction = when {
-    isStreaming && !hasDraft -> GroupComposerAction.STOP
-    !hasDraft && canTalk -> GroupComposerAction.TALK
-    else -> GroupComposerAction.SEND
-}
+internal const val GroupComposerTitle = "the group"
 
-/** Le texte d'invite du champ: « Listening… » pendant la dictée, sinon l'invite de la salle. */
-internal fun groupComposerPlaceholder(dictating: Boolean): String =
-    if (dictating) "Listening…" else "Message the group"
-
-/** Un fichier nommé par une note: récupération du serveur puis ouverture, avec échec rejouable. */
+/** Un fichier nommé par une note : récupération du serveur puis ouverture, avec échec rejouable. */
 @Composable
 fun GroupFileChip(path: String, server: ServerConfig, modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
@@ -172,13 +133,13 @@ fun GroupFileChip(path: String, server: ServerConfig, modifier: Modifier = Modif
         when {
             fetching -> LiveMark(color = theme.secondaryText)
             failed -> OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 13.dp)
-            else -> OnyxIcon(if (picture) Symbols.Photo else Symbols.Doc, tint = theme.accent, size = 13.dp)
+            else -> OnyxIcon(if (picture) Symbols.Photo else Symbols.Doc, tint = theme.textColor, size = 13.dp)
         }
         BasicText(
             text = name,
             localize = false,
             style = theme.footnote.copy(color = theme.textColor),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
@@ -200,20 +161,28 @@ fun PendingGroupFileChip(name: String, modifier: Modifier = Modifier) {
             text = name,
             localize = false,
             style = theme.footnote.copy(color = theme.secondaryText),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 /**
- * Le champ sous un chat de groupe (comme `GroupComposer`): les pièces jointes du message (Add,
- * avec Files, la photothèque et l'appareil photo; les images et fichiers en attente; la dictée;
- * Send et Stop), et les bots offerts pendant qu'une mention `@` est tapée. Une salle ne prend que
- * du texte: ce qui est joint monte au serveur et le message le nomme.
+ * Le champ sous un chat de groupe.
  *
- * L'état (brouillon, pièces jointes, dictée, pièces jointes) vit ici, comme les `@State`:
- * l'écran ne fournit que les bots, l'état du tour et les actions d'envoi, d'arrêt et de voix.
+ * **Il n'a plus de dessin à lui.** Tout ce qui se voit — le « + », le champ, le micro, le bouton
+ * vocal, l'arrêt, l'envoi (cercle à l'accent, flèche à l'encre **mesurée**) — vient du compositeur
+ * de la maison ([OnyxComposer]). Ce qui reste ici est ce qui est **légitimement** propre au groupe :
+ *
+ * - l'**invite** de la salle (le titre `the group` → « Envoyer un message au salon », par la source
+ *   unique `ComposerFieldInvite.GROUP`) ;
+ * - les **pièces jointes** (le menu Add, la photothèque, l'appareil photo, la lame) et leur examen
+ *   par `admitAttachments` — la salle ne prend que du texte, ce qui est joint monte au serveur ;
+ * - la **dictée** du champ (le texte rejoint le brouillon, rien n'est envoyé) ;
+ * - les **mentions** `@` : la liste des bots offerte pendant la frappe, dessinée au-dessus du champ.
+ *
+ * L'état (brouillon, pièces jointes, dictée) vit ici, comme les `@State` de la référence : l'écran ne
+ * fournit que les bots, l'état du tour et les actions d'envoi, d'arrêt et de voix.
  */
 @Composable
 fun GroupComposer(
@@ -222,17 +191,35 @@ fun GroupComposer(
     onSend: (String, List<PendingAttachment>) -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Le bouton Talk ouvre la scène vocale de la salle (`GroupVoice`), depuis le champ vide. */
+    /** Le bouton vocal ouvre la scène vocale de la salle (`GroupVoice`), depuis le champ vide. */
     onTalk: (() -> Unit)? = null,
-    /** L'erreur du fil (`feed.problem`), montrée quand le composer n'a pas la sienne. */
+    /** L'erreur du fil (`feed.problem`), montrée quand le compositeur n'a pas la sienne. */
     serverError: String? = null,
     /** La langue de la dictée du champ, distincte de la scène mains-libres. */
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
     /** Donné par l'écran qui doit rendre le focus au champ (`Switch to typing`). */
     focusRequester: FocusRequester? = null,
+    /**
+     * **Le compositeur est posé sur la plaque unique** d'un écran (la pile du bas) : il ne peint
+     * plus sa propre carte, la plaque s'en charge. Faux : la carte d'origine.
+     */
+    plate: Boolean = false,
+    /**
+     * La marge système du bas est-elle prise par le compositeur ? `false` quand l'écran la prend
+     * **lui-même, une seule fois**, pour toute la pile du bas (compositeur **et** barre d'onglets) —
+     * c'est ce qui empêche les deux marges (clavier et navigation) de s'additionner.
+     */
+    applyBottomInsets: Boolean = true,
+    /**
+     * Le sujet qu'un **« Discuter »** du flux a écrit : il rejoint le brouillon **une fois**, puis
+     * la salle dit qu'elle l'a pris (`onPrefillConsumed`) — ainsi un aller-retour d'onglet ne le
+     * réécrit pas par-dessus ce que la personne tape.
+     */
+    prefill: String? = null,
+    onPrefillConsumed: () -> Unit = {},
 ) {
-    val theme = LocalOnyxTheme.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var draft by remember { mutableStateOf("") }
     var attachments by remember { mutableStateOf<List<PendingAttachment>>(emptyList()) }
     var problem by remember { mutableStateOf<String?>(null) }
@@ -243,8 +230,18 @@ fun GroupComposer(
 
     fun addAttachments(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        attachments = attachments + pendingAttachmentsFromUris(context.contentResolver, uris)
-        problem = null
+        // Le même examen que le chat : un fichier au-dessus du plafond est refusé ici aussi, avec
+        // son poids et la limite, au lieu de partir entier vers le serveur.
+        scope.launch {
+            val admission = withContext(Dispatchers.IO) {
+                // L'autorisation persistable quand elle existe, **puis** la copie durable : seule
+                // la copie garantit qu'une pièce reste lisible après fermeture de l'app.
+                takeDurablePermissions(context, uris)
+                admitAttachments(context, attachments, uris)
+            }
+            attachments = attachments + admission.accepted
+            problem = admission.problem
+        }
     }
 
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -259,7 +256,7 @@ fun GroupComposer(
         cameraUri = null
     }
 
-    // Le micro du champ est une dictée indépendante: le texte rejoint le brouillon, rien n'est envoyé.
+    // Le micro du champ est une dictée indépendante : le texte rejoint le brouillon, rien n'est envoyé.
     val speechEngine = remember(speechLocale) { SpeechEngine(context, speechLocale) }
     val speechState by speechEngine.state.collectAsStateWithLifecycle()
     var dictating by remember { mutableStateOf(false) }
@@ -272,7 +269,7 @@ fun GroupComposer(
         dictationBase = draft
         dictationOpened = false
         dictating = true
-        speechEngine.start()
+        speechEngine.start(true)
     }
 
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -295,7 +292,7 @@ fun GroupComposer(
         }
     }
 
-    /** Finit la dictée où elle en est; ce qu'elle a entendu est déjà dans le brouillon. */
+    /** Finit la dictée où elle en est ; ce qu'elle a entendu est déjà dans le brouillon. */
     fun stopDictating() {
         dictating = false
         dictationOpened = false
@@ -320,6 +317,14 @@ fun GroupComposer(
         }
     }
 
+    // Le sujet d'un « Discuter » du flux : il rejoint le brouillon **une seule fois**.
+    LaunchedEffect(prefill) {
+        val subject = prefill ?: return@LaunchedEffect
+        draft = subject
+        onPrefillConsumed()
+        focusRequester?.requestFocus()
+    }
+
     /** Envoie le brouillon et ses pièces jointes, puis vide le champ (`GroupComposer.send`). */
     fun send() {
         stopDictating()
@@ -330,19 +335,9 @@ fun GroupComposer(
         attachments = emptyList()
     }
 
-    val action = groupComposerAction(hasDraft, isStreaming, onTalk != null)
-    val shownProblem = problem ?: serverError
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(theme.pageColor.copy(alpha = 0.94f))
-            .imePadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Les bots proposés pendant qu'on tape une mention `@`.
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Les bots proposés pendant qu'on tape une mention `@` — au-dessus du champ, comme la liste
+        // des mentions d'une conversation.
         if (suggestions.isNotEmpty()) {
             GroupTagSuggestions(
                 bots = suggestions,
@@ -350,103 +345,50 @@ fun GroupComposer(
                     draft = replaceTagToken(draft, bot.handle)
                     focusRequester?.requestFocus()
                 },
+                modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
             )
         }
 
-        // Les images et fichiers en attente de partir.
-        if (attachments.isNotEmpty()) {
-            GroupAttachmentStrip(
-                attachments = attachments,
-                onRemove = { id -> attachments = attachments.filterNot { it.id == id } },
-            )
-        }
-
-        if (shownProblem != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 13.dp)
-                BasicText(
-                    text = shownProblem,
-                    localize = problem != null,
-                    style = theme.footnote.copy(color = theme.warning),
-                )
-            }
-        }
-
-        Row(
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            GroupComposerField(
-                draft = draft,
-                onDraftChange = { draft = it },
-                dictating = dictating,
-                onToggleDictation = { toggleDictation() },
-                onAdd = { showAddMenu = true },
-                focusRequester = focusRequester,
-                modifier = Modifier.weight(1f),
-            )
-            AnimatedContent(
-                targetState = action,
-                transitionSpec = {
-                    (
-                        scaleIn(initialScale = 0.4f, animationSpec = OnyxMotion.Sites.MessageActions) +
-                            fadeIn(animationSpec = OnyxMotion.Sites.MessageActions)
-                        ).togetherWith(
-                        scaleOut(targetScale = 0.4f, animationSpec = OnyxMotion.Sites.MessageActions) +
-                            fadeOut(animationSpec = OnyxMotion.Sites.MessageActions),
-                    )
-                },
-                label = "groupComposerTrailingButton",
-            ) { current ->
-                when (current) {
-                    GroupComposerAction.STOP -> ComposerCircleButton(
-                        symbol = Symbols.Stop,
-                        label = "Stop",
-                        tint = theme.error,
-                        size = 44.dp,
-                    ) {
-                        stopDictating()
-                        onStop()
-                    }
-
-                    GroupComposerAction.TALK -> ComposerCircleButton(
-                        symbol = null,
-                        label = "Talk",
-                        tint = theme.accent,
-                        size = 44.dp,
-                        waveform = true,
-                    ) {
-                        stopDictating()
-                        onTalk?.invoke()
-                    }
-
-                    GroupComposerAction.SEND -> ComposerCircleButton(
-                        symbol = Symbols.ArrowUp,
-                        label = "Send",
-                        tint = theme.accent,
-                        size = 44.dp,
-                        enabled = hasDraft,
-                        onClick = { send() },
-                    )
-                }
-            }
-        }
+        // **Le compositeur de la maison — le seul dessin de la commande d'envoi.**
+        OnyxComposer(
+            draft = draft,
+            onDraftChange = { draft = it },
+            isStreaming = isStreaming,
+            title = GroupComposerTitle,
+            attachments = attachments,
+            onRemoveAttachment = { id -> attachments = attachments.filterNot { it.id == id } },
+            onPasteImages = { uris -> addAttachments(uris) },
+            onSend = { send() },
+            onStop = {
+                stopDictating()
+                onStop()
+            },
+            // Le vocal n'est dessiné que si une scène vocale est offerte : jamais une commande muette.
+            onTalk = { onTalk?.invoke() },
+            showTalk = onTalk != null,
+            dictating = dictating,
+            onDictate = { toggleDictation() },
+            problem = problem ?: serverError,
+            localizeProblem = problem == null,
+            onAddAttachment = { showAddMenu = true },
+            // L'éditeur de brouillon long demande un écran que la salle n'a pas : la commande
+            // n'apparaît donc pas, plutôt que d'ouvrir le vide (voir le rapport du lot).
+            allowExpand = false,
+            focusRequester = focusRequester,
+            plate = plate,
+            applyBottomInsets = applyBottomInsets,
+        )
     }
 
-    // Le menu « + »: Files, la photothèque, l'appareil photo, et le collage Android.
+    // La feuille qui monte du bas, la même que celle du chat : le titre, les **vraies** limites
+    // d'Onyx en sous-titre, et une ligne par entrée avec sa pastille d'icône. L'ordre est celui de
+    // la référence ; « Coller » s'y ajoute, la référence ne l'a pas.
     if (showAddMenu) {
-        OnyxMenu(
-            items = buildList {
-                add(MenuItem("Files", Symbols.Folder) {
-                    showAddMenu = false
-                    filePicker.launch(arrayOf("*/*"))
-                })
-                add(MenuItem("Photo Library", Symbols.PhotoOnRectangle) {
+        AttachmentSheet(
+            title = "Add to message",
+            subtitle = AttachmentLimits.subtitle(),
+            actions = buildList {
+                add(AttachmentAction("Photo Library", Symbols.PhotoOnRectangle) {
                     showAddMenu = false
                     photoPicker.launch(
                         androidx.activity.result.PickVisualMediaRequest(
@@ -455,7 +397,7 @@ fun GroupComposer(
                     )
                 })
                 if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
-                    add(MenuItem("Camera", Symbols.Camera) {
+                    add(AttachmentAction("Camera", Symbols.Camera) {
                         showAddMenu = false
                         val uri = groupCameraUri(context)
                         if (uri == null) {
@@ -466,7 +408,11 @@ fun GroupComposer(
                         }
                     })
                 }
-                add(MenuItem("Paste", Symbols.DocOnDoc) {
+                add(AttachmentAction("Files", Symbols.Paperclip) {
+                    showAddMenu = false
+                    filePicker.launch(arrayOf("*/*"))
+                })
+                add(AttachmentAction("Paste", Symbols.DocOnClipboard) {
                     showAddMenu = false
                     addAttachments(clipboardImages(context))
                 })
@@ -476,104 +422,19 @@ fun GroupComposer(
     }
 }
 
-/**
- * Le champ de la salle: Add, le texte, et le micro, sur le verre ou la surface du thème
- * (`GroupComposer.field`). Le rayon est fixe (22), comme le champ.
- */
-@Composable
-private fun GroupComposerField(
-    draft: String,
-    onDraftChange: (String) -> Unit,
-    dictating: Boolean,
-    onToggleDictation: () -> Unit,
-    onAdd: () -> Unit,
-    focusRequester: FocusRequester?,
-    modifier: Modifier = Modifier,
-) {
-    val theme = LocalOnyxTheme.current
-    val shape = RoundedCornerShape(22.dp)
-    Row(
-        modifier = modifier
-            .clip(shape)
-            .then(
-                if (theme.usesGlass) {
-                    Modifier.glassSurface(shape)
-                } else {
-                    Modifier.background(theme.surfaceColor, shape)
-                },
-            )
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .onyxClickable(pressedScale = 0.9f, onClick = onAdd),
-            contentAlignment = Alignment.Center,
-        ) {
-            OnyxIcon(
-                symbol = Symbols.Plus,
-                tint = theme.secondaryText,
-                size = 20.dp,
-                contentDescription = "Add",
-            )
-        }
-
-        Box(modifier = Modifier.weight(1f).defaultMinSize(minHeight = 38.dp)) {
-            if (draft.isEmpty()) {
-                BasicText(
-                    text = groupComposerPlaceholder(dictating),
-                    style = theme.body.copy(color = theme.tertiaryText),
-                    modifier = Modifier.padding(vertical = 9.dp),
-                )
-            }
-            BasicTextField(
-                value = draft,
-                onValueChange = onDraftChange,
-                textStyle = theme.userFont.copy(color = theme.textColor),
-                cursorBrush = SolidColor(theme.accent),
-                maxLines = 6,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Default,
-                ),
-                modifier = Modifier
-                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-                    .fillMaxWidth()
-                    .padding(vertical = 9.dp),
-            )
-        }
-
-        // Le micro: la dictée écrit le message, elle ne l'envoie pas (`DictateButton`).
-        Box(
-            modifier = Modifier
-                .size(width = 34.dp, height = 38.dp)
-                .onyxClickable(pressedScale = 0.9f, onClick = onToggleDictation),
-            contentAlignment = Alignment.Center,
-        ) {
-            OnyxIcon(
-                symbol = if (dictating) Symbols.Waveform else Symbols.MicOutline,
-                tint = if (dictating) theme.error else theme.secondaryText,
-                size = 17.dp,
-                contentDescription = if (dictating) "Stop dictating" else "Dictate",
-            )
-        }
-    }
-}
-
-/** Les bots offerts pendant une mention `@` (`GroupComposer.tags`): visage, poignée et nom. */
+/** Les bots offerts pendant une mention `@` (`GroupComposer.tags`) : visage, poignée et nom. */
 @Composable
 private fun GroupTagSuggestions(
     bots: List<BotProfile>,
     onPick: (BotProfile) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .background(theme.surfaceColor, RoundedCornerShape(14.dp))
-            .border(1.dp, theme.separator, RoundedCornerShape(14.dp)),
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
+            .border(1.dp, theme.separator, RoundedCornerShape(OnyxSpace.FieldCorner)),
     ) {
         bots.forEach { bot ->
             Row(
@@ -595,7 +456,7 @@ private fun GroupTagSuggestions(
                     text = bot.label(),
                     localize = false,
                     style = theme.caption.copy(color = theme.secondaryText),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.weight(1f))
@@ -605,132 +466,13 @@ private fun GroupTagSuggestions(
 }
 
 /**
- * La bande des pièces jointes du message (`AttachmentStrip`): une vignette par image, une
- * pastille par fichier, et la croix de retrait sur le coin haut-droit de chacune.
+ * Où l'appareil photo du groupe écrit sa prise : le **stockage privé durable**, jamais le cache.
+ *
+ * Même défaut que dans le chat simple : une prise dans `cacheDir` disparaît au nettoyage, et la
+ * bulle devient « Illisible ».
  */
-@Composable
-private fun GroupAttachmentStrip(
-    attachments: List<PendingAttachment>,
-    onRemove: (String) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(top = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        attachments.forEach { attachment ->
-            Box {
-                if (attachment.isImage) {
-                    GroupImageThumbnail(attachment)
-                } else {
-                    GroupFileTile(attachment)
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 6.dp, y = (-6).dp)
-                        .size(22.dp)
-                        .onyxClickable(pressedScale = 0.9f) { onRemove(attachment.id) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), CircleShape),
-                    )
-                    OnyxIcon(
-                        symbol = Symbols.Xmark,
-                        tint = Color.White,
-                        size = 10.dp,
-                        contentDescription = "Remove ${attachment.name}",
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** La vignette d'une image jointe, décodée à la taille où elle se montre (`AttachmentTile`). */
-@Composable
-private fun GroupImageThumbnail(attachment: PendingAttachment) {
-    val theme = LocalOnyxTheme.current
-    val context = LocalContext.current
-    val bitmap by produceState<ImageBitmap?>(initialValue = null, key1 = attachment.uri) {
-        value = withContext(Dispatchers.IO) { groupThumbnail(context, attachment.uri, GroupThumbnailPixels) }
-    }
-
-    Box(
-        modifier = Modifier
-            .size(GroupThumbnailSize)
-            .clip(RoundedCornerShape(12.dp))
-            .background(theme.fill),
-        contentAlignment = Alignment.Center,
-    ) {
-        val shown = bitmap
-        if (shown == null) {
-            OnyxIcon(symbol = Symbols.Photo, tint = theme.tertiaryText, size = 22.dp)
-        } else {
-            Image(
-                bitmap = shown,
-                contentDescription = attachment.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(GroupThumbnailSize),
-            )
-        }
-    }
-}
-
-/** La pastille d'un fichier joint: son symbole, son nom, sur la surface du thème. */
-@Composable
-private fun GroupFileTile(attachment: PendingAttachment) {
-    val theme = LocalOnyxTheme.current
-    Row(
-        modifier = Modifier
-            .height(45.dp)
-            .background(theme.surfaceColor, RoundedCornerShape(12.dp))
-            .padding(start = 10.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OnyxIcon(
-            symbol = if (attachment.mimeType.startsWith("audio/")) Symbols.Waveform else Symbols.Doc,
-            tint = theme.accent,
-            size = 16.dp,
-        )
-        BasicText(
-            text = attachment.name,
-            localize = false,
-            style = theme.caption.copy(color = theme.textColor),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/** Le côté d'une vignette de pièce jointe, et le repère de décodage qui va avec. */
-private val GroupThumbnailSize = 64.dp
-private const val GroupThumbnailPixels = 256
-
-/** La vignette d'une image jointe, décodée à la taille où elle se montre. */
-private fun groupThumbnail(context: Context, uri: Uri, maxPixels: Int): ImageBitmap? = runCatching {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use {
-        BitmapFactory.decodeStream(it, null, bounds)
-    }
-    val largest = maxOf(bounds.outWidth, bounds.outHeight)
-    var sample = 1
-    while (largest / sample > maxPixels * 2) sample *= 2
-    val options = BitmapFactory.Options().apply { inSampleSize = sample }
-    context.contentResolver.openInputStream(uri)?.use {
-        BitmapFactory.decodeStream(it, null, options)?.asImageBitmap()
-    }
-}.getOrNull()
-
-/** Le fichier temporaire partagé où l'appareil photo du groupe écrit sa prise. */
 private fun groupCameraUri(context: Context): Uri? = runCatching {
-    val folder = java.io.File(context.cacheDir, "photos").apply { mkdirs() }
+    val folder = java.io.File(context.filesDir, "photos").apply { mkdirs() }
     val file = java.io.File(folder, "group-${System.currentTimeMillis()}.jpg")
     androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
 }.getOrNull()

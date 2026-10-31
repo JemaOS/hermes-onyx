@@ -19,9 +19,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Ce qui survit à l'écran: ce qu'un tour écrit, même quand personne ne regarde.
+ * Ce qui survit à l'écran : ce qu'un tour écrit, même quand personne ne regarde.
  *
- * Sans écran, il n'y a plus personne pour appeler `persistCurrent`: c'est le magasin qui écrit
+ * Sans écran, il n'y a plus personne pour appeler `persistCurrent()` : c'est le magasin qui écrit
  * la réponse au fil de son avancement, sinon la réponse d'un tour fini sans écran serait perdue.
  */
 interface TurnJournal {
@@ -32,7 +32,7 @@ interface TurnJournal {
     fun turnEnded(conversationId: String, session: TurnSession)
 
     companion object {
-        /** Un magasin sans disque: les tests, et les fenêtres sans dépôt. */
+        /** Un magasin sans disque : les tests, et les fenêtres sans dépôt. */
         val NONE: TurnJournal = object : TurnJournal {
             override fun noteAssistant(conversationId: String, message: ChatMessage) = Unit
             override fun turnEnded(conversationId: String, session: TurnSession) = Unit
@@ -43,12 +43,12 @@ interface TurnJournal {
 /**
  * Les tours en cours du processus, par conversation.
  *
- * C'est **ici** que vit un tour, pas dans le ViewModel d'un écran: quitter la conversation,
+ * C'est **ici** que vit un tour, pas dans le ViewModel d'un écran : quitter la conversation,
  * changer de route, détruire l'activité ou éteindre l'écran ne l'interrompt donc pas — la
  * coroutine tourne dans la portée du processus, et la réponse s'accumule dans sa session.
  * Au retour, l'écran se rattache à la session et le fil reprend là où il en est.
  *
- * Comme le modèle: `Conversation` et son `TurnDeparture`, tenus par le magasin de
+ * Miroir de la référence : `Conversation` et son `TurnDeparture`, tenus par le magasin de
  * conversations (`ConversationStore`) et non par la vue. Comme là-bas, un tour **arrêté** est
  * arrêté chez l'hôte, et un tour dont l'app s'est seulement **détachée** y continue.
  */
@@ -73,7 +73,7 @@ class TurnStore(
             .flatMapLatest { session -> session?.live ?: flowOf(null) }
 
     /**
-     * Démarre un tour. [stream] construit le flux du transport pour ce tour: il reçoit son
+     * Démarre un tour. [stream] construit le flux du transport pour ce tour : il reçoit son
      * [com.onyx.app.data.net.TurnDeparture] pour savoir s'il faut interrompre l'hôte en partant.
      */
     fun start(
@@ -83,7 +83,7 @@ class TurnStore(
         serverSessionId: String? = null,
         stream: suspend (com.onyx.app.data.net.TurnDeparture) -> Flow<TurnEvent>,
     ): TurnSession {
-        // Un tour remplacé dans la même conversation est arrêté, pas abandonné: l'hôte est
+        // Un tour remplacé dans la même conversation est arrêté, pas abandonné : l'hôte est
         // prévenu qu'il ne sert plus à rien.
         stop(conversationId)
         val session = TurnSession(
@@ -99,7 +99,7 @@ class TurnStore(
                 stream(session.departure).collect { event -> note(session, event) }
                 session.succeed(clock())
             } catch (error: CancellationException) {
-                // Arrêté ou abandonné: la session le sait déjà (stop/leave sont passés avant).
+                // Arrêté ou abandonné : la session le sait déjà (stop/leave sont passés avant).
                 throw error
             } catch (error: TransportError) {
                 if (error is TransportError.Cancelled) session.succeed(clock()) else session.fail(error, clock())
@@ -112,7 +112,7 @@ class TurnStore(
         return session
     }
 
-    /** L'utilisateur arrête le tour: il est interrompu chez l'hôte. */
+    /** L'utilisateur arrête le tour : il est interrompu chez l'hôte. */
     fun stop(conversationId: String) {
         val session = _sessions.value[conversationId] ?: return
         session.stop(clock())
@@ -122,10 +122,10 @@ class TurnStore(
     }
 
     /**
-     * L'app se détache du tour: l'hôte le finit, et la réponse est là au retour.
+     * L'app se détache du tour : l'hôte le finit, et la réponse est là au retour.
      *
      * Utilisé là où le tour ne peut plus être suivi du tout (fin de processus, changement de
-     * serveur): on préfère une réponse finie côté hôte à un tour tué.
+     * serveur) : on préfère une réponse finie côté hôte à un tour tué.
      */
     fun leave(conversationId: String) {
         val session = _sessions.value[conversationId] ?: return
@@ -136,13 +136,13 @@ class TurnStore(
         _sessions.update { it - conversationId }
     }
 
-    /** La conversation est supprimée: son tour est arrêté, jamais laissé tourner. */
+    /** La conversation est supprimée : son tour est arrêté, jamais laissé tourner. */
     fun forget(conversationId: String) {
         stop(conversationId)
         _sessions.update { it - conversationId }
     }
 
-    /** Tout arrêter (changement de serveur, effacement): chaque tour est interrompu. */
+    /** Tout arrêter (changement de serveur, effacement) : chaque tour est interrompu. */
     fun stopAll() {
         _sessions.value.keys.toList().forEach { stop(it) }
     }
@@ -164,7 +164,7 @@ class TurnStore(
         return true
     }
 
-    /** Le modèle que ce tour emploie vraiment: la barre du haut le nomme. */
+    /** Le modèle que ce tour emploie vraiment : la barre du haut le nomme. */
     fun noteModel(conversationId: String, messageId: String, model: String): Boolean {
         val session = _sessions.value[conversationId] ?: return false
         if (session.assistantId != messageId) return false

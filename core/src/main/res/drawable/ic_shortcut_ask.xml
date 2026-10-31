@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  « Ask Onyx » : la tuile du menu d'appui long sur l'icône.
+
+  Forme : un carré à coins arrondis (rayon 22 % du côté), plein cadre ; le glyphe tient dans le
+  disque de sûreté — son point le plus éloigné du centre est à 37,6 sur 108, soit 70 % du rayon du
+  cercle inscrit (54). C'est ce qui le rend lisible **dans les deux cas** : le lanceur qui garde la
+  forme voit la tuile, celui qui impose un masque circulaire rogne la tuile au cercle sans jamais
+  toucher le glyphe.
+
+  Couleur : la famille de l'accent de l'app (`#2F6BF5`), un pas par rôle — ici le pas de base.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M24,0 H84 A24,24 0 0 1 108,24 V84 A24,24 0 0 1 84,108 H24 A24,24 0 0 1 0,84 V24 A24,24 0 0 1 24,0 Z"
+        android:fillColor="#FF2F6BF5" />
+    <path
+        android:pathData="M48,22 L52.5,41.5 L72,46 L52.5,50.5 L48,70 L43.5,50.5 L24,46 L43.5,41.5 Z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M74,59 L76.5,69.5 L87,72 L76.5,74.5 L74,85 L71.5,74.5 L61,72 L71.5,69.5 Z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

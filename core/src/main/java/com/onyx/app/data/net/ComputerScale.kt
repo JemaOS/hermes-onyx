@@ -1,17 +1,17 @@
 package com.onyx.app.data.net
 
 /**
- * Le doigt, l'image, l'écran du PC: la seule arithmétique qui compte.
+ * Le doigt, l'image, l'écran du PC : la seule arithmétique qui compte.
  *
  * L'image reçue ne fait pas la taille de l'écran du PC (1280 pixels de large pour un bureau de
  * 3840, ici) et la vue, elle, ne fait ni l'une ni l'autre. Trois échelles se superposent donc, et
  * une erreur d'un seul cran envoie le clic à côté — sur le bureau de quelqu'un. D'où deux règles
- * tenues ici, une fois pour toutes:
+ * tenues ici, une fois pour toutes :
  *
- * 1. l'image est **ajustée** dans la vue, jamais déformée (`fit`): les bandes laissées libres ne
- * sont pas de l'image, et un doigt posé dessus n'envoie rien (`null`);
+ * 1. l'image est **ajustée** dans la vue, jamais déformée (`fit`) : les bandes laissées libres ne
+ *    sont pas de l'image, et un doigt posé dessus n'envoie rien (`null`) ;
  * 2. le point de l'image est ramené aux pixels de l'écran du PC par proportion, arrondi, et borné
- * aux bords — un doigt au bord droit ne peut pas viser un pixel qui n'existe pas.
+ *    aux bords — un doigt au bord droit ne peut pas viser un pixel qui n'existe pas.
  */
 data class ComputerFit(
     val left: Float,
@@ -30,7 +30,7 @@ data class ComputerPoint(val x: Int, val y: Int)
 
 object ComputerScale {
 
-    /** L'image entière, aussi grande que possible, centrée dans la boîte: jamais étirée. */
+    /** L'image entière, aussi grande que possible, centrée dans la boîte : jamais étirée. */
     fun fit(boxWidth: Float, boxHeight: Float, imageWidth: Int, imageHeight: Int): ComputerFit {
         if (boxWidth <= 0f || boxHeight <= 0f || imageWidth <= 0 || imageHeight <= 0) {
             return ComputerFit(0f, 0f, 0f, 0f)
@@ -44,7 +44,7 @@ object ComputerScale {
     /**
      * Le point de l'écran du PC sous le doigt.
      *
-     * `null` quand le doigt est hors de l'image (une bande noire, la barre d'état): mieux vaut ne
+     * `null` quand le doigt est hors de l'image (une bande noire, la barre d'état) : mieux vaut ne
      * rien envoyer que cliquer au hasard.
      */
     fun toScreen(
@@ -75,7 +75,7 @@ object ComputerGestures {
      * Un geste du doigt, classé.
      *
      * Un **appui** est court et immobile — c'est un clic. Un **glisser** a bougé au-delà de la
-     * tolérance — c'est un glisser. Un appui **long et immobile** ne devient rien: l'utilisateur
+     * tolérance — c'est un glisser. Un appui **long et immobile** ne devient rien : l'utilisateur
      * tient son doigt posé pour lire l'écran, et cliquer là serait un clic qu'il n'a pas demandé.
      */
     fun classify(dx: Float, dy: Float, durationMs: Long, slopPx: Float, longPressMs: Long = 600L): ComputerGesture {

@@ -4,14 +4,17 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M4,9.5 h3.5 L12,5.5 v13 L7.5,14.5 H4 Z" android:fillColor="#FFFFFFFF" />
-    <path android:pathData="M14.5,9.5 a3.6,3.6 0 0 1 0,5"
+    <!-- Enceinte pleine (comme la reference) recentree : le corps et les ondes sont decales de
+         +0,45 en x pour que la boite d'encre tombe exactement sur (12, 12) et reste dans la
+         zone de 20 (2..22) comme les autres glyphes de la rangee d'actions. -->
+    <path android:pathData="M4.45,9.5 h3.5 L12.45,5.5 v13 L7.95,14.5 H4.45 Z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M14.95,9.5 a3.6,3.6 0 0 1 0,5"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent" />
-    <path android:pathData="M17,7 a7,7 0 0 1 0,10"
+    <path android:pathData="M17.45,7 a7,7 0 0 1 0,10"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"

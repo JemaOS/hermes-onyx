@@ -4,13 +4,14 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M4,8 h3 l2,-2.5 h6 L17,8 h3 a1,1 0 0 1 1,1 v9 a1,1 0 0 1 -1,1 H4 a1,1 0 0 1 -1,-1 V9 a1,1 0 0 1 1,-1 Z"
+    <!-- L'appareil photo : le corps, la bosse de viseur au milieu, et l'objectif au trait. -->
+    <path android:pathData="M8.4,8 V6 A1,1 0 0 1 9.4,5 H14.6 A1,1 0 0 1 15.6,6 V8 H18.8 A2.2,2.2 0 0 1 21,10.2 V16.8 A2.2,2.2 0 0 1 18.8,19 H5.2 A2.2,2.2 0 0 1 3,16.8 V10.2 A2.2,2.2 0 0 1 5.2,8 Z"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent" />
-    <path android:pathData="M12,10.5 a3.5,3.5 0 1 0 0,7 a3.5,3.5 0 1 0 0,-7 Z"
+    <path android:pathData="M9,13.5 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 Z"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"

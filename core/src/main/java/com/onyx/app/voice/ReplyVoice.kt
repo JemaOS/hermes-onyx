@@ -1,6 +1,6 @@
 package com.onyx.app.voice
 
-/** Qui lit les réponses, avec les mêmes identifiants persistés que `Settings.ReplyVoice`. */
+/** Qui lit les réponses, avec les mêmes identifiants persistés que `Settings.ReplyVoice` sur la référence. */
 enum class ReplyVoice(val id: String, val label: String) {
     ON_DEVICE("onDevice", "On-device"),
     KOKORO("kokoro", "Kokoro"),
@@ -20,7 +20,7 @@ data class KokoroVoiceGroup(
     val voices: List<String>,
 )
 
-/** Le nom lisible d'une voix: `af_heart` devient `Heart`, comme. */
+/** Le nom lisible d'une voix : `af_heart` devient `Heart`, comme sur la référence. */
 fun kokoroVoiceDisplayName(voice: String): String {
     val underscore = voice.indexOf('_')
     if (underscore < 0 || underscore == voice.lastIndex) return voice
@@ -28,7 +28,7 @@ fun kokoroVoiceDisplayName(voice: String): String {
     return name.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 }
 
-/** Regroupe les ids `<langue><genre>_<nom>`, triés par code comme le modèle. */
+/** Regroupe les ids `<langue><genre>_<nom>`, triés par code comme le modèle la référence. */
 fun groupKokoroVoices(voices: List<String>): List<KokoroVoiceGroup> {
     val languages = mapOf(
         "a" to "American English",

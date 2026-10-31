@@ -37,14 +37,14 @@ import kotlinx.coroutines.launch
 private const val HERMES_TEST_SENTENCE = "This is your Hermes, reading replies out with its own voice."
 
 /**
- * Les lignes Hermes de VoiceSettings: disponibilité du Dashboard, test, arrêt et provider.
+ * Les lignes Hermes de VoiceSettings : disponibilité du Dashboard, test, arrêt et provider.
  *
- * Le test ne met **jamais** l'erreur du serveur dans la rangée: celle-ci garde une valeur courte
+ * Le test ne met **jamais** l'erreur du serveur dans la rangée : celle-ci garde une valeur courte
  * (« En cours… », puis ✓ ou « Échec ») qui ne dépasse pas une ligne. Le détail part au pied de
- * section, remonté par [onOutcomeUpdate] à l'écran qui le rend sous la carte, comme un pied.
+ * section, remonté par [onOutcomeUpdate] à l'écran qui le rend sous la carte, comme un pied référence.
  *
  * Si le serveur ne peut pas parler (HTTP 400/403/5xx, délai dépassé, injoignable…), la phrase est
- * prononcée par la voix de l'appareil; si ce moteur est absent, le pied le dit au lieu de se taire.
+ * prononcée par la voix de l'appareil ; si ce moteur est absent, le pied le dit au lieu de se taire.
  */
 @Composable
 fun HermesVoiceRows(
@@ -90,7 +90,7 @@ fun HermesVoiceRows(
         }
     }
 
-    /** Le serveur a échoué: l'appareil parle s'il le peut, sinon l'écran l'annonce (pied rouge). */
+    /** Le serveur a échoué : l'appareil parle s'il le peut, sinon l'écran l'annonce (pied rouge). */
     fun fallBackToDevice(failure: Throwable) {
         val decided = voiceTrialOnFailure(failure, device.isAvailable)
         if (decided is VoiceTrialOutcome.Device) {
@@ -116,7 +116,7 @@ fun HermesVoiceRows(
                 if (!working) return@launch
                 player.play(
                     audio = said,
-                    onFinished = { /* Le ✓ et le provider restent affichés, comme . */ },
+                    onFinished = { /* Le ✓ et le provider restent affichés, comme sur la référence. */ },
                     onError = { failure -> fallBackToDevice(failure) },
                 )
                 working = false

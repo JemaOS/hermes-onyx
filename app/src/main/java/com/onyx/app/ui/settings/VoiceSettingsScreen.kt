@@ -1,5 +1,6 @@
 package com.onyx.app.ui.settings
 
+import com.onyx.app.localization.OnyxLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,11 +16,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.repo.SettingsRepository
+import com.onyx.app.ui.design.OnyxFieldRow
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.OnyxRow
@@ -39,7 +42,7 @@ import com.onyx.app.voice.VoiceTrialOutcome
 import com.onyx.app.voice.voiceTrialFootnote
 import com.onyx.app.voice.voiceTrialFootnoteIsError
 
-/** Réglages → Voix, avec les trois synthèses du modèle et leurs réglages propres. */
+/** Réglages → Voix, avec les trois synthèses du modèle la référence et leurs réglages propres. */
 @Composable
 fun VoiceSettingsScreen(
     viewModel: SettingsViewModel,
@@ -58,13 +61,15 @@ fun VoiceSettingsScreen(
     val speed by viewModel.voiceSpeed.collectAsStateWithLifecycle()
     val replyVoice by viewModel.replyVoice.collectAsStateWithLifecycle()
     val kokoroUrl by viewModel.kokoroUrl.collectAsStateWithLifecycle()
+    val kokoroToken by viewModel.kokoroToken.collectAsStateWithLifecycle()
     val kokoroVoice by viewModel.kokoroVoice.collectAsStateWithLifecycle()
     val handsFree by viewModel.handsFreeByDefault.collectAsStateWithLifecycle()
+    val offlineRecognition by viewModel.offlineRecognition.collectAsStateWithLifecycle()
     val talkOver by viewModel.talkOver.collectAsStateWithLifecycle()
     val earpieceAtEar by viewModel.earpieceAtEar.collectAsStateWithLifecycle()
 
-    // Le détail du test vocal Hermes: la rangée n'en garde qu'une valeur courte, ce texte-là va au
-    // pied de section, sous la carte, comme un pied de formulaire.
+    // Le détail du test vocal Hermes : la rangée n'en garde qu'une valeur courte, ce texte-là va au
+    // pied de section, sous la carte, comme un pied de formulaire référence.
     var hermesTrial by remember(replyVoice, server.configSignature) {
         mutableStateOf<VoiceTrialOutcome?>(null)
     }
@@ -126,20 +131,40 @@ fun VoiceSettingsScreen(
                         )
                     }
                     OnyxRowDivider()
+                    // Le jeton du service vocal protégé : masqué (`PasswordVisualTransformation`),
+                    // avec bouton copier — jamais relu en clair (la règle de la maison).
+                    OnyxFieldRow(
+                        label = "Voice token",
+                        value = kokoroToken,
+                        onValueChange = viewModel::setKokoroToken,
+                        placeholder = "",
+                        secret = true,
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    )
+                    OnyxRowDivider()
                     OnyxValueRow(
                         label = "Voice",
                         value = kokoroVoice,
                         localizeValue = false,
                         onClick = onOpenKokoroVoices,
                     )
+                    OnyxRowDivider()
+                    OnyxRow {
+                        BasicText(
+                            text = "Sent to the voice server as a bearer token. " +
+                                "Leave it empty when the server needs none.",
+                            style = theme.footnote.copy(color = theme.secondaryText),
+                        )
+                    }
                 }
-                // Hermes possède sa vitesse dans config.yaml: le curseur ne lui est pas envoyé.
+                // Hermes possède sa vitesse dans config.yaml : le curseur ne lui est pas envoyé.
                 if (replyVoice != ReplyVoice.HERMES) {
                     OnyxRowDivider()
                     OnyxRow {
                         BasicText("Voice speed", style = theme.body.copy(color = theme.primaryText), modifier = Modifier.weight(1f))
                         BasicText(
-                            text = "%.2f×".format(speed),
+                            text = String.format(OnyxLanguage.preferred, "%.2f×", speed),
                             localize = false,
                             style = theme.body.copy(color = theme.secondaryText),
                         )
@@ -157,7 +182,7 @@ fun VoiceSettingsScreen(
                 }
             }
 
-            // Le pied de section: le détail du test (échec serveur, voix de l'appareil), sous la
+            // Le pied de section : le détail du test (échec serveur, voix de l'appareil), sous la
             // carte et jamais dans la rangée. Rouge seulement quand rien n'a pu parler.
             if (replyVoice == ReplyVoice.HERMES) {
                 voiceTrialFootnote(hermesTrial)?.let { detail ->
@@ -180,7 +205,7 @@ fun VoiceSettingsScreen(
                 OnyxValueRow(
                     label = "Listening language",
                     value = speechLocale,
-                    symbol = Symbols.Mic,
+                    symbol = Symbols.MicOutline,
                     onClick = onOpenListeningLanguage,
                 )
                 OnyxRowDivider()
@@ -195,7 +220,7 @@ fun VoiceSettingsScreen(
                 OnyxValueRow(
                     label = "Stop phrases",
                     value = "",
-                    symbol = Symbols.Mic,
+                    symbol = Symbols.MicOutline,
                     onClick = onOpenStopPhrases,
                 )
                 OnyxRowDivider()
@@ -214,16 +239,25 @@ fun VoiceSettingsScreen(
                     onCheckedChange = viewModel::setHandsFreeByDefault,
                 )
                 OnyxRowDivider()
+                // « Reconnaître hors ligne » : **éteint par défaut**. C'est le seul chemin vers le
+                // moteur hors ligne ; s'il n'a pas la langue, l'écoute bascule en ligne d'elle-même
+                // (le code 13 `language-unavailable` ne ferme plus la session).
+                OnyxToggleRow(
+                    label = "Recognise offline",
+                    checked = offlineRecognition,
+                    onCheckedChange = viewModel::setOfflineRecognition,
+                )
+                OnyxRowDivider()
                 OnyxToggleRow(
                     label = "Talk over replies",
-                    // La rangée est un interrupteur: allumé pour « partout », éteint pour
+                    // La rangée est un interrupteur : allumé pour « partout », éteint pour
                     // « jamais ». Le choix exact (avec un casque seulement, le défaut) se règle
                     // dans le panneau vocal de l'écran Voix.
                     checked = talkOver != TalkOver.OFF,
                     onCheckedChange = viewModel::setTalkOver,
                 )
                 OnyxRowDivider()
-                //: le même libellé qu', mot pour mot.
+                // `SettingsSections:531` : le même libellé qu'référence, mot pour mot.
                 OnyxToggleRow(
                     label = "Earpiece when raised to your ear",
                     checked = earpieceAtEar,

@@ -4,18 +4,31 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Le trio de personnes, releve sur la reference.
+         Structure : trois tetes, la centrale plus grande et posee plus haut ; trois epaules en U
+         (deux parois et un dome aplati, le bas ferme), la centrale large et en avant, les deux
+         laterales plus etroites et en retrait, toutes sur la meme ligne de base.
+         Pourquoi un U et non un arc plein : au trait de 2 de la famille, un arc plein ne garde un
+         creux que si sa hauteur depasse 3,4 — il devient alors une cloche, pas une epaule. La
+         reference dessine elle-meme une epaule TRACEE (parois + dome plat), dont le creux est large.
+         Mesures tenues : ecart d'encre de 1,4 entre toutes les formes ; creux de l'epaule centrale
+         3,0 x 1,2, des laterales 1,0 x 0,75 ; creux des tetes 1,7 et 1,4.
+         Ecart a la reference, mesure et non masque : son trait vaut ~1 contre 2 dans la famille et
+         son dessin est 1,7 fois plus large que ses voisins (82 px contre 48), ce qui lui donne un
+         aspect d'encre de 2,05 ; le notre est 1,61. Les rapports entre les formes sont tenus —
+         tete centrale 1,06 fois une laterale, epaule centrale 1,4 fois une laterale. -->
     <path
-        android:pathData="M12,3.2 a3.1,3.1 0 1 0 0,6.2 a3.1,3.1 0 1 0 0,-6.2 Z M4.6,5.6 a2.5,2.5 0 1 0 0,5 a2.5,2.5 0 1 0 0,-5 Z M19.4,5.6 a2.5,2.5 0 1 0 0,5 a2.5,2.5 0 1 0 0,-5 Z"
+        android:pathData="M12,6.85 A1.85,1.85 0 1 0 12,10.55 A1.85,1.85 0 1 0 12,6.85 Z M5.05,7.6 A1.7,1.7 0 1 0 5.05,11.0 A1.7,1.7 0 1 0 5.05,7.6 Z M18.95,7.6 A1.7,1.7 0 1 0 18.95,11.0 A1.7,1.7 0 1 0 18.95,7.6 Z"
         android:fillColor="@android:color/transparent"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.45"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path
-        android:pathData="M6.3,20.5 V18.2 C6.3,14.4 8.5,12.4 12,12.4 C15.5,12.4 17.7,14.4 17.7,18.2 V20.5 Z M1.3,19.5 V17.8 C1.3,14.8 2.5,13.1 4.8,13.1 C6.2,13.1 7.2,13.6 8,14.6 M22.7,19.5 V17.8 C22.7,14.8 21.5,13.1 19.2,13.1 C17.8,13.1 16.8,13.6 16,14.6"
+        android:pathData="M9.5,17.15 V15.8 A2.5,1.85 0 0 1 14.5,15.8 V17.15 Z M3.1,17.15 V15.95 A1.5,1.55 0 0 1 6.1,15.95 V17.15 Z M17.9,17.15 V15.95 A1.5,1.55 0 0 1 20.9,15.95 V17.15 Z"
         android:fillColor="@android:color/transparent"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.45"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 </vector>

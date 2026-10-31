@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Un fichier venu d'une autre app: son adresse (`content://`), son type, et son nom si on l'a. */
+/** Un fichier venu d'une autre app : son adresse (`content://`), son type, et son nom si on l'a. */
 data class SharedFile(
     val uri: String,
     val mimeType: String,
@@ -12,7 +12,7 @@ data class SharedFile(
 )
 
 /**
- * Ce qui entre dans l'app de l'extérieur: un partage (`ACTION_SEND`, texte ou fichier), une
+ * Ce qui entre dans l'app de l'extérieur : un partage (`ACTION_SEND`, texte ou fichier), une
  * question posée par l'assistant du téléphone (`ACTION_ASSIST`) ou par une App Action de Gemini,
  * et un fichier ouvert depuis une autre app (`ACTION_VIEW`).
  *
@@ -34,9 +34,9 @@ object ShareInbox {
 
     private val _captureRequested = MutableStateFlow(false)
     /**
-     * Vrai quand l'entrée vient d'un raccourci « prendre une note »: l'app s'ouvre sur l'écran
+     * Vrai quand l'entrée vient d'un raccourci « prendre une note » : l'app s'ouvre sur l'écran
      * de la note, sans toucher à la conversation ouverte (c'est le `LaunchFlag.requestCapture`
-     * du modèle, par lequel un pilotage du téléphone demande la capture).
+     * de la référence, par lequel un pilotage du téléphone demande la capture).
      */
     val captureRequested: StateFlow<Boolean> = _captureRequested.asStateFlow()
 
@@ -46,7 +46,7 @@ object ShareInbox {
     }
 
     /**
-     * Un fichier partagé — ou ouvert — depuis une autre app. Un partage sans adresse ne dit rien:
+     * Un fichier partagé — ou ouvert — depuis une autre app. Un partage sans adresse ne dit rien :
      * il est ignoré plutôt que de joindre un fichier vide au message suivant.
      */
     fun offerFile(uri: String?, mimeType: String?, name: String = "") {
@@ -55,13 +55,13 @@ object ShareInbox {
         _pendingFile.value = SharedFile(uri = clean, mimeType = mimeType.orEmpty(), name = name)
     }
 
-    /** Le raccourci « parler à Onyx »: l'app s'ouvre en mode vocal. */
+    /** Le raccourci « parler à Onyx » : l'app s'ouvre en mode vocal. */
     fun requestVoice(question: String? = null) {
         _voiceRequested.value = true
         question?.let(::offer)
     }
 
-    /** Le raccourci « prendre une note »: l'app s'ouvre sur la capture rapide. */
+    /** Le raccourci « prendre une note » : l'app s'ouvre sur la capture rapide. */
     fun requestCapture() {
         _captureRequested.value = true
     }

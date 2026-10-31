@@ -16,9 +16,9 @@ import com.onyx.app.core.R
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * La notification d'approbation: l'agent attend une réponse, l'app n'est pas au premier plan.
+ * La notification d'approbation : l'agent attend une réponse, l'app n'est pas au premier plan.
  *
- * C'est l'comme la notification quand une approbation arrive: un tap ouvre
+ * C'est l'équivalent Android de la notification référence quand une approbation arrive : un tap ouvre
  * l'app sur la conversation, où les boutons attendent.
  */
 object ApprovalNotifier {
@@ -26,10 +26,10 @@ object ApprovalNotifier {
     const val CHANNEL_ID = "onyx.approvals"
     const val SILENT_CHANNEL_ID = "onyx.approvals.silent"
 
-    /** Les canaux Android gardent leur réglage de son: le choix se fait donc à la publication. */
+    /** Les canaux Android gardent leur réglage de son : le choix se fait donc à la publication. */
     fun channelForSound(sound: Boolean): String = if (sound) CHANNEL_ID else SILENT_CHANNEL_ID
 
-    /** Crée les canaux; sans effet sur les réglages que l'utilisateur a déjà personnalisés. */
+    /** Crée les canaux ; sans effet sur les réglages que l'utilisateur a déjà personnalisés. */
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -62,7 +62,7 @@ object ApprovalNotifier {
     }
 
     /**
-     * Publie la demande d'approbation, avec ses deux boutons quand le run est connu: approuver
+     * Publie la demande d'approbation, avec ses deux boutons quand le run est connu : approuver
      * ou refuser sans ouvrir l'app.
      */
     fun notifyApproval(
@@ -104,9 +104,9 @@ object ApprovalNotifier {
             builder.addAction(0, OnyxLocalization[NotificationCopy.DENY], approvalAction(context, id, runId, serverId, DENY, command, title))
         }
 
-        // Android 13+: sans POST_NOTIFICATIONS accordée, `notify` lève une SecurityException.
+        // Android 13+ : sans POST_NOTIFICATIONS accordée, `notify` lève une SecurityException.
         // On vérifie donc la permission (et l'état des notifications) au lieu de compter sur le
-        // `runCatching`: lint le refuse, et une notification silencieusement perdue serait pire.
+        // `runCatching` : lint le refuse, et une notification silencieusement perdue serait pire.
         val allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
@@ -116,11 +116,11 @@ object ApprovalNotifier {
     }
 
     /**
-     * Une alerte de démonstration: elle passe par le même canal et la même permission que les
+     * Une alerte de démonstration : elle passe par le même canal et la même permission que les
      * vraies, ce qui montre à l'utilisateur ce qu'il recevra et crée les canaux au passage.
      *
-     * C'est l'action du relais (`hermes onyx-push test`, « It should send a notification
-     * within a few seconds ») adaptée à Android: au lieu d'envoyer depuis le serveur, la
+     * C'est l'action du relais la référence (`hermes onyx-push test`, « It should send a notification
+     * within a few seconds ») adaptée à Android : au lieu d'envoyer depuis le serveur, la
      * notification est publiée ici, comme toutes les alertes Android de Onyx.
      */
     fun notifyTest(context: Context, sound: Boolean = true) {
@@ -171,7 +171,7 @@ object ApprovalNotifier {
             putExtra(ApprovalActionReceiver.EXTRA_CHOICE, choice)
             putExtra(ApprovalActionReceiver.EXTRA_SERVER_ID, serverId)
             putExtra(ApprovalActionReceiver.EXTRA_NOTIFICATION_ID, id)
-            // Le résultat remplace la demande: il lui faut de quoi la réécrire.
+            // Le résultat remplace la demande : il lui faut de quoi la réécrire.
             putExtra(ApprovalActionReceiver.EXTRA_COMMAND, command)
             putExtra(ApprovalActionReceiver.EXTRA_TITLE, title)
         }
@@ -190,7 +190,7 @@ object ApprovalNotifier {
     /**
      * Remplace la demande par son résultat, une fois la réponse envoyée.
      *
-     * Le choix part d'un `BroadcastReceiver`, qui n'a aucun écran pour le confirmer: c'est donc la
+     * Le choix part d'un `BroadcastReceiver`, qui n'a aucun écran pour le confirmer : c'est donc la
      * notification qui le fait — « Approved » / « Denied », sans boutons, ou « Couldn't answer »
      * avec le pas à suivre quand l'appel au gateway a échoué. Sans cette étape, appuyer sur
      * « Approve » ferait disparaître la demande sans qu'on sache si l'agent a été entendu.

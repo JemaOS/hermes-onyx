@@ -9,12 +9,12 @@ import kotlin.math.tan
 /**
  * La géométrie d'une carte statique bâtie sur des tuiles OpenStreetMap.
  *
- * pose la carte d'une réponse dans MapKit (`Map(initialPosition: .automatic, interactionModes: [])`).
- * Android n'a pas d'équivalent gratuit: la carte est donc **composée ici** — le cadre est calculé
+ * référence pose la carte d'une réponse dans MapKit (`Map(initialPosition: .automatic, interactionModes: [])`).
+ * Android n'a pas d'équivalent gratuit : la carte est donc **composée ici** — le cadre est calculé
  * sur la boîte englobante des points, les tuiles choisies à un zoom raisonnable, et les épingles
  * dessinées par-dessus. Aucune clé d'API, aucun SDK payant.
  *
- * Tout ce fichier est du calcul pur (pas d'Android, pas de réseau): c'est ce qui décide du zoom,
+ * Tout ce fichier est du calcul pur (pas d'Android, pas de réseau) : c'est ce qui décide du zoom,
  * des tuiles à demander et de la place d'un point dans l'image.
  */
 object OsmTiles {
@@ -32,14 +32,14 @@ object OsmTiles {
      */
     const val attribution: String = "© OpenStreetMap"
 
-    /** Le gabarit d'une tuile (la politique d'usage demande un agent identifiable: voir le client). */
+    /** Le gabarit d'une tuile (la politique d'usage demande un agent identifiable : voir le client). */
     fun url(zoom: Int, x: Int, y: Int): String = "https://tile.openstreetmap.org/$zoom/$x/$y.png"
 
     /** La latitude au-delà de laquelle la projection de Mercator n'a plus de sens. */
     const val maxLatitude: Double = 85.05112878
 
     /**
-     * Le cadre d'une carte: les points d'une carte de réponse, réunis. Une vue ne se calcule que
+     * Le cadre d'une carte : les points d'une carte de réponse, réunis. Une vue ne se calcule que
      * sur une boîte non vide.
      */
     data class Bounds(val south: Double, val west: Double, val north: Double, val east: Double) {
@@ -50,7 +50,7 @@ object OsmTiles {
         val centerLongitude: Double get() = (west + east) / 2.0
 
         companion object {
-            /** La boîte d'un ensemble de points; `null` s'il n'y en a aucun. */
+            /** La boîte d'un ensemble de points ; `null` s'il n'y en a aucun. */
             fun of(points: List<Pair<Double, Double>>): Bounds? {
                 if (points.isEmpty()) return null
                 val latitudes = points.map { it.first }.sorted()
@@ -65,7 +65,7 @@ object OsmTiles {
         }
     }
 
-    /** La carte à dessiner: son zoom, les tuiles à demander et où tombe chaque point. */
+    /** La carte à dessiner : son zoom, les tuiles à demander et où tombe chaque point. */
     data class View(
         val zoom: Int,
         val tiles: List<Tile>,
@@ -75,7 +75,7 @@ object OsmTiles {
         val widthPx: Double,
         val heightPx: Double,
     ) {
-        /** La position d'un point dans l'image, en pixels; le point peut tomber hors du cadre. */
+        /** La position d'un point dans l'image, en pixels ; le point peut tomber hors du cadre. */
         fun pixelOf(latitude: Double, longitude: Double): Pair<Float, Float> {
             val world = 256.0 * (1 shl zoom)
             val x = (longitude + 180.0) / 360.0 * world
@@ -91,7 +91,7 @@ object OsmTiles {
         }
     }
 
-    /** Une tuile à demander: `x`/`y` sont ceux du schéma OSM, `left`/`top` sa place dans l'image. */
+    /** Une tuile à demander : `x`/`y` sont ceux du schéma OSM, `left`/`top` sa place dans l'image. */
     data class Tile(val zoom: Int, val x: Int, val y: Int, val left: Float, val top: Float) {
         val key: String get() = "$zoom/$x/$y"
         val url: String get() = OsmTiles.url(zoom, x, y)
@@ -127,8 +127,8 @@ object OsmTiles {
     }
 
     /**
-     * La carte d'une boîte, dans une image de [widthPx] sur [heightPx]: le zoom choisi, les tuiles
-     * à demander (bornées: 24 au plus) et le coin de l'image.
+     * La carte d'une boîte, dans une image de [widthPx] sur [heightPx] : le zoom choisi, les tuiles
+     * à demander (bornées : 24 au plus) et le coin de l'image.
      */
     fun view(bounds: Bounds, widthPx: Int, heightPx: Int, paddingPx: Int = 28, maxTiles: Int = 24): View? {
         if (!bounds.isValid || widthPx <= 0 || heightPx <= 0) return null

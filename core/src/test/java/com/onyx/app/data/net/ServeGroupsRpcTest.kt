@@ -10,10 +10,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les salles de bots du serveur: ce que `groups.capabilities` autorise, ce que `groups.list`
+ * Les salles de bots du serveur : ce que `groups.capabilities` autorise, ce que `groups.list`
  * donne page après page, et la copie des salles qu'Hermes Desktop tient lui-même.
  *
- * Le modèle est (`groupSupport`, `groupRooms`, `desktopRooms`): les mêmes
+ * La référence est `ServerGroups` (`groupSupport`, `groupRooms`, `desktopRooms`) : les mêmes
  * méthodes, les mêmes champs, les mêmes replis.
  */
 class ServeGroupsRpcTest {
@@ -38,7 +38,7 @@ class ServeGroupsRpcTest {
         val partial = ServeGroupsRpc.supportFrom(json("""{"methods":["groups.list","groups.state"]}"""))
         assertFalse(partial.supported)
         assertFalse(partial.writable)
-        // Le worker tourne, mais il manque des méthodes: rien à ouvrir.
+        // Le worker tourne, mais il manque des méthodes : rien à ouvrir.
         val noDriver = ServeGroupsRpc.supportFrom(
             json("""{"methods":["groups.list","groups.create","groups.state","groups.send","groups.log"]}"""),
         )
@@ -107,7 +107,7 @@ class ServeGroupsRpcTest {
         assertEquals("Garage project", room.name)
         assertTrue(room.inDesktop)
         assertEquals("Fix-it", room.members.single().label)
-        // L'heure de la copie, en millisecondes: la marque d'activité d'une salle Desktop.
+        // L'heure de la copie, en millisecondes : la marque d'activité d'une salle Desktop.
         assertEquals(1761300060000L, room.updatedAtMillis)
         assertEquals(1761300060.0, room.activityMark!!, 0.0001)
     }
@@ -144,7 +144,7 @@ class ServeGroupsRpcTest {
         assertEquals("abc", room.name)
     }
 
-    // MARK: Le fil d'une salle — journal, état, envoi, arrêt (`GroupFeed` / ).
+    // MARK: Le fil d'une salle — journal, état, envoi, arrêt (`GroupFeed` / `ServerGroups`).
 
     @Test
     fun `le journal d une salle se lit page apres page depuis le curseur`() = runBlocking {
@@ -173,7 +173,7 @@ class ServeGroupsRpcTest {
         assertEquals(listOf(1, 2), events.map { it.seq })
         assertEquals("Une randonnée samedi ?", events.first().text)
         assertEquals("scout", events.last().actorID)
-        // `created_at` est en secondes Unix, comme `Date(timeIntervalSince1970:)`.
+        // `created_at` est en secondes Unix, comme `Date(timeIntervalSince1970:)` de la référence.
         assertEquals(1761300000000L, events.first().createdAtMillis)
     }
 
@@ -183,12 +183,12 @@ class ServeGroupsRpcTest {
             json("""{"events":[{"seq":1,"kind":"message.user","payload":{"text":"Déjà lu"}}],"cursor":1,"has_more":false}""")
         }
 
-        // Le journal est repris après le curseur: ce qui est avant lui ne revient pas.
+        // Le journal est repris après le curseur : ce qui est avant lui ne revient pas.
         assertTrue(ServeGroupsRpc(rpc).log("onyx-1", 1).isEmpty())
     }
 
     @Test
-    fun `groups send envoie le meme corps d appel que `() = runBlocking {
+    fun `groups send envoie le meme corps d appel que la référence`() = runBlocking {
         var method: String? = null
         var params: kotlinx.serialization.json.JsonObject? = null
         val rpc = RpcChannel { called, sent, _ ->
@@ -364,7 +364,7 @@ class ServeGroupsRpcTest {
         val failure = runCatching { ServeGroupsRpc(rpc).log("onyx-9", 0) }.exceptionOrNull()
 
         assertTrue(failure is TransportError)
-        // Le refus se lit tel quel dans l'application: jamais un fil qui se vide en silence.
+        // Le refus se lit tel quel dans l'application : jamais un fil qui se vide en silence.
         assertTrue((failure as TransportError).userMessage(java.util.Locale.US).contains("unknown room onyx-9"))
     }
 

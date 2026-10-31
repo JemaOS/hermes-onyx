@@ -6,10 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- La promotion en « Live Update » (pastille de barre d'état) sur Android 16 QPR1 et plus. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-    <!-- Outils téléphone: chaque famille n'est demandée qu'au moment où on l'autorise. -->
+    <!-- Outils téléphone : chaque famille n'est demandée qu'au moment où on l'autorise. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
@@ -17,6 +19,13 @@
 
     <!-- Verrouillage de l'app. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!--
+      L'appel entrant : une approbation ou une question qui sonne prend tout l'écran sur l'écran
+      verrouillé, comme un vrai appel. Android 14+ n'accorde l'intention plein écran qu'aux apps
+      qui la déclarent ; sans elle, le sonnerie tombe en notification ordinaire.
+    -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
@@ -32,7 +41,7 @@
 
     <!-- Les deux seuls habillages du compagnon Auto, lisibles par l'APK signé de la même clé. -->
     <permission
-        android:name="com.onyx.app.permission.AUTO_SETTINGS"
+        android:name="${onyxNamespace}.permission.AUTO_SETTINGS"
         android:protectionLevel="signature" />
 
     <application
@@ -48,12 +57,18 @@
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Onyx">
 
+        <!-- `smallestScreenSize` **doit** être déclaré : c'est la dimension que le pliage change (le
+             pliable replié fait ~411 dp de large, déplié ~862), et un changement de configuration
+             non déclaré fait **relancer** l'activité — l'app revenait donc au fil, la page ouverte
+             et sa position perdues (relevé : `handleRelaunchActivity` pendant le pliage, puis
+             « OnyxRoute: route=CHAT »). Déclaré, le format change **sur place** : la même route, le
+             même volet, la même position. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Onyx">
 
@@ -66,20 +81,29 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- App Actions: Gemini, et les raccourcis déclarés dans res/xml/shortcuts.xml. -->
+            <!-- App Actions : Gemini, et les raccourcis déclarés dans res/xml/shortcuts.xml. -->
             <intent-filter>
-                <action android:name="com.onyx.app.action.ASK" />
+                <action android:name="${onyxNamespace}.action.ASK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.onyx.app.action.VOICE" />
+                <action android:name="${onyxNamespace}.action.VOICE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- « Capture rapide »: une note à prendre, depuis un raccourci ou un pilotage du
+            <!-- « Capture rapide » : une note à prendre, depuis un raccourci ou un pilotage du
                  téléphone. L'app s'ouvre sur l'écran de la note. -->
             <intent-filter>
-                <action android:name="com.onyx.app.action.CAPTURE" />
+                <action android:name="${onyxNamespace}.action.CAPTURE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Un raccourci de **bot**, pris dans le menu qui s'ouvre sur un appui long sur
+                 l'icône (publié à l'exécution, une tuile par bot). L'app s'ouvre sur la
+                 conversation de ce bot : le nom de profil, son libellé et son chat nommé voyagent
+                 dans les extras. -->
+            <intent-filter>
+                <action android:name="${onyxNamespace}.action.BOT" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
@@ -90,7 +114,7 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- Une photo, un PDF, une vidéo ou un fichier partagé se joint au message: le PDF
+            <!-- Une photo, un PDF, une vidéo ou un fichier partagé se joint au message : le PDF
                  s'ouvre ensuite dans le lecteur de l'app, l'image en plein écran, la vidéo dans
                  son lecteur. -->
             <intent-filter>
@@ -125,10 +149,15 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- Un alias par illustration. Un seul est actif; AppIconController les bascule. -->
+        <!-- Un alias par illustration de la référence. Un seul est actif ; AppIconController les
+             bascule. **L'alias actif par défaut est GraphiteBlock** : le carré arrondi sombre, le
+             cercle et la rune — l'icône que le propriétaire a figée pour l'APK. Le nom est préfixé
+             par `${applicationId}` et non par le paquet du code : Android résout un alias contre
+             le paquet **réellement installé**, et le code refait ce nom à l'exécution avec
+             `context.packageName`. -->
         <activity-alias
-            android:name=".launcher.FaceMist"
-            android:enabled="true"
+            android:name="${applicationId}.launcher.FaceMist"
+            android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_face_mist"
             android:label="@string/app_name"
@@ -138,9 +167,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.Graphite"
+            android:name="${applicationId}.launcher.Graphite"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_graphite"
@@ -151,10 +187,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.GraphiteBlock"
-            android:enabled="false"
+            android:name="${applicationId}.launcher.GraphiteBlock"
+            android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_graphite_block"
             android:label="@string/app_name"
@@ -164,9 +207,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.SteelBlock"
+            android:name="${applicationId}.launcher.SteelBlock"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_steel_block"
@@ -177,9 +227,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.Mist"
+            android:name="${applicationId}.launcher.Mist"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_mist"
@@ -190,9 +247,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.GraphiteFlat"
+            android:name="${applicationId}.launcher.GraphiteFlat"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_graphite_flat"
@@ -203,9 +267,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.GraphiteBlockFlat"
+            android:name="${applicationId}.launcher.GraphiteBlockFlat"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_graphite_block_flat"
@@ -216,9 +287,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.SteelFlat"
+            android:name="${applicationId}.launcher.SteelFlat"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_steel_flat"
@@ -229,9 +307,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.MistFlat"
+            android:name="${applicationId}.launcher.MistFlat"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_mist_flat"
@@ -242,9 +327,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.NavyBlock"
+            android:name="${applicationId}.launcher.NavyBlock"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_navy_block"
@@ -255,9 +347,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.Ink"
+            android:name="${applicationId}.launcher.Ink"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_ink"
@@ -268,9 +367,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.PaperNavy"
+            android:name="${applicationId}.launcher.PaperNavy"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_paper_navy"
@@ -281,9 +387,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.Gold"
+            android:name="${applicationId}.launcher.Gold"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_gold"
@@ -294,9 +407,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".launcher.Classic"
+            android:name="${applicationId}.launcher.Classic"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_classic"
@@ -307,6 +427,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Les raccourcis vivent sur le composant LANCEUR : c'est l'alias actif qui les
+                 publie, et le meta-data doit donc être sur chacun d'eux (un seul est actif à la
+                 fois). Posé seulement sur MainActivity, la liste reste vide sans erreur. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity-alias>
 
 
@@ -316,14 +443,49 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!--
+          La veille d'appel : le service de premier plan qui garde Onyx joignable quand l'app
+          n'est pas au premier plan — c'est la seule façon dont Android laisse une app écouter hors
+          de vue (le `VoiceCallService` de la référence). Sans lui, un `phone_call_me` lancé alors
+          que l'écran est éteint ne sonnerait jamais.
+        -->
+        <service
+            android:name=".notifications.AgentCallService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Les boutons « Approve » / « Deny » d'une notification d'approbation. -->
         <receiver
             android:name=".notifications.ApprovalActionReceiver"
             android:exported="false" />
 
+        <!-- Le bouton « Arrêter » de la notification d'avancement d'un tour. -->
+        <receiver
+            android:name=".notifications.TurnStopReceiver"
+            android:exported="false" />
+
         <!-- L'action « Reply » d'une notification de question (RemoteInput). -->
         <receiver
             android:name=".notifications.QuestionActionReceiver"
+            android:exported="false" />
+
+        <!--
+          L'écran d'appel entrant : plein écran sur l'écran verrouillé, l'écran s'allume, on
+          décroche ou on refuse. `excludeFromRecents` : un appel n'est pas une tâche qu'on retrouve
+          dans le sélecteur. Il s'ouvre par-dessus le verrouillage (`showWhenLocked`).
+        -->
+        <activity
+            android:name=".notifications.IncomingCallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Onyx" />
+
+        <!-- Le bouton « Refuser » d'un appel entrant (sans ouvrir l'écran). -->
+        <receiver
+            android:name=".notifications.CallActionReceiver"
             android:exported="false" />
 
         <!-- Partager un fichier téléchargé du serveur (il n'a pas d'éditeur sur le téléphone). -->
@@ -339,10 +501,10 @@
 
         <provider
             android:name=".data.local.AutoSettingsProvider"
-            android:authorities="com.onyx.app.auto_settings"
+            android:authorities="${onyxNamespace}.auto_settings"
             android:exported="true"
             android:grantUriPermissions="false"
-            android:permission="com.onyx.app.permission.AUTO_SETTINGS" />
+            android:permission="${onyxNamespace}.permission.AUTO_SETTINGS" />
 
         <receiver
             android:name=".widget.OnyxWidgetReceiver"

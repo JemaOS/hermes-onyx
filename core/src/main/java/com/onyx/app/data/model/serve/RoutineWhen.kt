@@ -1,5 +1,6 @@
 package com.onyx.app.data.model.serve
 
+import com.onyx.app.localization.OnyxLanguage
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -53,7 +54,7 @@ data class RoutineWhen(
     }
 
     /** La phrase de la rangée, dans la langue et le fuseau du téléphone. */
-    fun summary(locale: Locale = Locale.getDefault(), zoneId: ZoneId = ZoneId.systemDefault()): String {
+    fun summary(locale: Locale = OnyxLanguage.preferred, zoneId: ZoneId = ZoneId.systemDefault()): String {
         val localTime = if (repeats == Repeat.ONCE) {
             LocalDateTime.ofInstant(once, zoneId).toLocalTime()
         } else {

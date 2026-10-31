@@ -1,21 +1,21 @@
 package com.onyx.app.ui.chat
 
 /**
- * Les raccourcis clavier du chat, portés depuis les `keyboardShortcut` de.
+ * Les raccourcis clavier du chat, portés depuis les `keyboardShortcut` de `ContentView:540`.
  *
- * les pose sur des boutons invisibles dans l'arbre; Android n'a pas ce mécanisme,
+ * référence les pose sur des boutons invisibles dans l'arbre la référence ; Android n'a pas ce mécanisme,
  * donc l'écran décide lui-même à partir de la touche et des modificateurs. Toute la décision
  * vit ici, sans dépendre de Compose, pour rester testable sur la JVM.
  *
- * Correspondance → Android:
- * - ⌘N « New conversation » → Ctrl+N
- * - ⌘F « Find in conversation » → Ctrl+F
- * - ⌘K (liste des conversations) → Ctrl+K: la barre de recherche du fil
- * - ⌘↩ « Send » → Ctrl+Entrée
- * - ⌘. « Stop reply » → Ctrl+.
- * - ⌘L « Focus composer » → Ctrl+L
- * - ⌘E « Export as Markdown » → Ctrl+E
- * - Échap ferme ce qui est ouvert (recherche, menus, brouillon de commande).
+ * Correspondance référence → Android :
+ *  - ⌘N  « New conversation »      → Ctrl+N
+ *  - ⌘F  « Find in conversation »  → Ctrl+F
+ *  - ⌘K  (liste des conversations) → Ctrl+K : la barre de recherche du fil
+ *  - ⌘↩  « Send »                  → Ctrl+Entrée
+ *  - ⌘.  « Stop reply »            → Ctrl+.
+ *  - ⌘L  « Focus composer »        → Ctrl+L
+ *  - ⌘E  « Export as Markdown »    → Ctrl+E
+ *  - Échap ferme ce qui est ouvert (recherche, menus, brouillon de commande).
  */
 enum class ChatShortcut {
     NEW_CONVERSATION,
@@ -33,7 +33,7 @@ enum class ChatKey { N, K, F, L, E, PERIOD, ENTER, ESCAPE, OTHER }
 /**
  * Le raccourci que déclenche cette touche, ou `null` si elle ne fait rien.
  *
- * `ctrl` couvre ⌘ et Ctrl sur Android; sans lui, seule Échap agit — , où
+ * `ctrl` couvre ⌘ sur la référence et Ctrl sur Android ; sans lui, seule Échap agit — comme référence, où
  * les autres raccourcis exigent la touche de commande.
  */
 fun chatShortcutFor(key: ChatKey, ctrl: Boolean): ChatShortcut? = when {
@@ -52,7 +52,7 @@ fun chatShortcutFor(key: ChatKey, ctrl: Boolean): ChatShortcut? = when {
 /**
  * L'action a-t-elle un sens dans cet état ?
  *
- * désactive ses boutons (`Send` pendant un tour, `Find` et `Export` sans message): le
+ * référence désactive ses boutons (`Send` pendant un tour, `Find` et `Export` sans message) : le
  * raccourci ne doit pas mieux faire que le bouton qu'il double. `Send` en particulier est
  * réservé hors streaming, où le composeur propose steer/file à la place.
  */

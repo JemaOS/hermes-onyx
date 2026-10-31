@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -71,11 +73,11 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.linkify.LinkifyPlugin
 
 /**
- * Le rendu Markdown des réponses.
+ * Le rendu Markdown des réponses (`MarkdownView`).
  *
- * La réponse est découpée à chaque révision, y compris pendant le streaming: les blocs déjà
+ * La réponse est découpée à chaque révision, y compris pendant le streaming : les blocs déjà
  * terminés gardent leur vrai rendu. Seul le dernier diagramme, formule ou code reste temporairement
- * dans une fenêtre de code monochrome, comme `MarkdownBlockView.trailing`. La prose passe
+ * dans une fenêtre de code monochrome, comme `MarkdownBlockView.trailing` sur la référence. La prose passe
  * par Markwon (titres, listes, cases, liens), le code par [CodeBlock], les citations et tableaux
  * par Compose, et les diagrammes/formules par [MermaidBlock] et [MathBlock].
  */
@@ -86,11 +88,11 @@ fun MarkdownText(
     modifier: Modifier = Modifier,
     /**
      * Couleur forcée de la prose. Les citations s'en servent pour rendre leur contenu en
-     * secondaire; partout ailleurs la couleur du thème s'applique.
+     * secondaire ; partout ailleurs la couleur du thème s'applique.
      */
     tint: Color? = null,
 ) {
-    // Un échec du découpage ne doit jamais laisser la réponse vide: on retombe sur le texte brut.
+    // Un échec du découpage ne doit jamais laisser la réponse vide : on retombe sur le texte brut.
     val blocks = remember(markdown) {
         runCatching { splitMarkdown(markdown) }
             .getOrElse { listOf(MarkdownBlock(prose = markdown)) }
@@ -128,8 +130,11 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
     val density = LocalDensity.current
     val bodyTypeface = remember(theme.id, theme.dark) { theme.bodyTypeface(context) }
     val textColor = (tint ?: theme.textColor).toArgb()
-    val codeText = theme.secondaryText.toArgb()
-    val codeBackground = theme.surfaceColor.toArgb()
+    // Le code **en ligne** et les blocs : une teinte **dérivée du thème** (surface surélevée) et une
+    // encre **mesurée** contre elle. Jamais un gris clair hérité, jamais une pastille claire sur un
+    // thème sombre (`InlineSurfaces`).
+    val codeText = com.onyx.app.ui.design.inlineCodeInk(theme).toArgb()
+    val codeBackground = com.onyx.app.ui.design.inlineCodeSurface(theme).toArgb()
     val linkColor = theme.linkColor.toArgb()
     val quoteColor = theme.quoteBarColor.toArgb()
     val checkboxChecked = theme.checkboxColor.toArgb()
@@ -145,7 +150,7 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
     val blockQuoteWidth = with(density) { 3.dp.roundToPx() }
     val baseTextSize = with(density) { theme.messageFont.fontSize.toPx() }
 
-    // `getOrNull`: si Markwon refuse de se construire, la prose repart en texte brut (voir plus bas).
+    // `getOrNull` : si Markwon refuse de se construire, la prose repart en texte brut (voir plus bas).
     val markwon = remember(
         textColor,
         codeText,
@@ -171,22 +176,22 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
                             .codeBackgroundColor(codeBackground)
                             .codeTypeface(Typeface.MONOSPACE)
                             .linkColor(linkColor)
-                            // Les liens sont soulignés, comme `underlineStyle = .single`.
+                            // Les liens sont soulignés, comme `underlineStyle = .single` côté référence.
                             .isLinkUnderlined(true)
                             .blockQuoteColor(quoteColor)
                             .blockQuoteWidth(blockQuoteWidth)
-                            // Pas de trait sous les titres: n'en dessine pas non plus.
+                            // Pas de trait sous les titres : la référence n'en dessine pas non plus.
                             .headingBreakHeight(0)
                             .headingTextSizeMultipliers(headingMultipliers)
                     }
 
                     override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
-                        // Un tap sur un lien ouvre le navigateur, comme le fait.
+                        // Un tap sur un lien ouvre le navigateur, comme le fait référence.
                         builder.linkResolver(LinkResolver { view, link -> openLink(view, link) })
                     }
 
                     override fun beforeSetText(textView: TextView, markdown: Spanned) {
-                        // `- [ ]` / `- [x]`: Markwon n'a pas d'extension de liste de tâches, on
+                        // `- [ ]` / `- [x]` : Markwon n'a pas d'extension de liste de tâches, on
                         // remplace les crochets qu'il laisse dans le texte par de vraies cases, et
                         // une tâche cochée prend le libellé barré en secondaire.
                         applyTaskCheckboxes(markdown, checkboxChecked, checkboxOutline, tickColor, secondaryColor)
@@ -204,12 +209,12 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
                 typeface = bodyTypeface
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, baseTextSize)
                 setLineSpacing(0f, 1.18f)
-                // La prose se prend au doigt comme n'importe quel texte Android: appui long → un
+                // La prose se prend au doigt comme n'importe quel texte Android : appui long → un
                 // mot, deux poignées pour étendre, barre du système (Couper / Copier / Coller /
-                // Tout sélectionner). L'ordre compte: `setTextIsSelectable` repose un
+                // Tout sélectionner). L'ordre compte : `setTextIsSelectable` repose un
                 // `MovementMethod` de clavier, on remet donc `LinkMovementMethod` après pour que
                 // les liens restent cliquables.
-                // Le texte prend le focus au toucher: c'est l'exigence du système pour montrer la
+                // Le texte prend le focus au toucher : c'est l'exigence du système pour montrer la
                 // sélection et sa barre sur un texte non modifiable. C'est aussi ce que fait la
                 // référence, où toucher un texte le rend premier répondant.
                 setTextIsSelectable(true)
@@ -224,15 +229,15 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
             view.setTextSize(TypedValue.COMPLEX_UNIT_PX, baseTextSize)
             val renderer = markwon
             if (renderer == null) {
-                // Repli: le texte brut plutôt que rien.
+                // Repli : le texte brut plutôt que rien.
                 view.text = markdown
             } else {
                 runCatching {
-                    // Une case remplace le marqueur de sa liste: Markwon n'a pas de liste de
-                    // tâches, et sa puce n'existe pas.
+                    // Une case remplace le marqueur de sa liste : Markwon n'a pas de liste de
+                    // tâches, et sa puce n'existe pas sur la référence.
                     renderer.setMarkdown(view, demoteTaskListMarkers(markdown))
                     if (streaming) {
-                        // Markwon garde le gras, les listes et les cases pendant l'arrivée; le
+                        // Markwon garde le gras, les listes et les cases pendant l'arrivée ; le
                         // point d'accent remplace le curseur de `streamingTail` sans afficher le
                         // Markdown brut à la place du contenu mis en forme.
                         val content = SpannableStringBuilder(view.text)
@@ -253,7 +258,7 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
 }
 
 /**
- * Les tailles relatives des titres: le rapport entre chaque taille de `headingFont` et celle du
+ * Les tailles relatives des titres : le rapport entre chaque taille de `headingFont` et celle du
  * corps. Markwon multiplie la taille du texte par ces nombres, si bien que les titres suivent le
  * thème au lieu des tailles HTML par défaut (2× pour un titre 1, ce qui était trop gros).
  */
@@ -262,7 +267,7 @@ private fun headingSizeMultipliers(theme: ResolvedTheme): FloatArray {
     return FloatArray(6) { index -> theme.headingFont(index + 1).fontSize.value / base }
 }
 
-/** Un tap sur un lien ouvre le navigateur: `Intent.ACTION_VIEW`, comme `OpenURL`. */
+/** Un tap sur un lien ouvre le navigateur : `Intent.ACTION_VIEW`, comme `OpenURL` côté référence. */
 private fun openLink(view: View, link: String) {
     runCatching {
         val uri = Uri.parse(link)
@@ -282,10 +287,10 @@ internal fun taskMarkerAt(text: String, index: Int): Boolean? {
 }
 
 /**
- * La fin de la ligne qui porte le marqueur à cet index: le saut de ligne, ou la fin du texte.
+ * La fin de la ligne qui porte le marqueur à cet index : le saut de ligne, ou la fin du texte.
  *
  * Sert à barrer le libellé d'une tâche cochée et à lui donner la couleur secondaire, comme
- * `MarkdownBlockView` le fait sur tout le texte de l'élément.
+ * `MarkdownBlockView` le fait côté référence sur tout le texte de l'élément.
  */
 internal fun taskLineEnd(text: String, index: Int): Int {
     val end = text.indexOf('\n', index + 1)
@@ -295,12 +300,12 @@ internal fun taskLineEnd(text: String, index: Int): Int {
 /**
  * Sort les éléments de liste de tâches de leur liste.
  *
- * Markwon dessine une puce devant chaque élément de liste et n'en a pas: `MarkdownBlockView`
- * montre la case *à la place* du marqueur. Une case reste donc un
+ * Markwon dessine une puce devant chaque élément de liste et référence n'en a pas : `MarkdownBlockView`
+ * montre la case *à la place* du marqueur (`MarkdownView:186`). Une case reste donc un
  * paragraphe dont le premier caractère est « [ ] » — la case la remplace —, terminé par une
  * coupure dure (deux espaces) pour que chaque tâche garde sa ligne.
  *
- * L'indentation éventuelle devient des espaces insécables: gardée en espaces ordinaires, quatre
+ * L'indentation éventuelle devient des espaces insécables : gardée en espaces ordinaires, quatre
  * d'entre eux feraient de l'élément imbriqué un bloc de code.
  */
 internal fun demoteTaskListMarkers(markdown: String): String =
@@ -314,18 +319,18 @@ internal fun demoteTaskListMarkers(markdown: String): String =
         }
     }
 
-/** Une coupure dure en Markdown: la ligne suivante reste une ligne, sans nouveau paragraphe. */
+/** Une coupure dure en Markdown : la ligne suivante reste une ligne, sans nouveau paragraphe. */
 private const val HARD_BREAK = "  "
 
-/** `- [x] …`, `* [ ] …`, `+ [X] …`: un élément de liste dont le contenu est une tâche. */
+/** `- [x] …`, `* [ ] …`, `+ [X] …` : un élément de liste dont le contenu est une tâche. */
 private val TASK_LIST_ITEM = Regex("""^([ \t]*)[-*+] +(\[[ xX]\](?:[ \t].*)?)$""")
 
 /**
  * Transforme les « [ ] » et « [x] » que laisse une liste de tâches en cases dessinées, dans la
- * couleur du thème. Elles ne se cochent pas: l'état vient du Markdown, comme.
+ * couleur du thème. Elles ne se cochent pas : l'état vient du Markdown, comme sur la référence.
  *
  * Une tâche cochée voit son libellé barré et mis en secondaire — `strikethrough(checked)` et
- * `foregroundStyle(.secondary)` de `MarkdownBlockView`.
+ * `foregroundStyle(.secondary)` de `MarkdownBlockView` (Echo/Views/MarkdownView:186).
  */
 private fun applyTaskCheckboxes(text: Spanned, checked: Int, outline: Int, tick: Int, secondary: Int) {
     if (text !is Spannable) return
@@ -358,7 +363,7 @@ private fun applyTaskCheckboxes(text: Spanned, checked: Int, outline: Int, tick:
 }
 
 /**
- * Une case de tâche dessinée à la main: vide et contourée, ou pleine dans la couleur du thème
+ * Une case de tâche dessinée à la main : vide et contourée, ou pleine dans la couleur du thème
  * avec un crochet. C'est un [ReplacementSpan], donc les caractères « [x] » ne sont pas dessinés —
  * la case prend leur place et l'alignement de la liste est conservé.
  */
@@ -419,7 +424,7 @@ private class TaskCheckboxSpan(
 }
 
 /**
- * Une citation: une barre de 3 dp à gauche dans `quoteBarColor`, le contenu en secondaire.
+ * Une citation : une barre de 3 dp à gauche dans `quoteBarColor`, le contenu en secondaire.
  * Le contenu est re-rendu par [MarkdownText], donc les citations imbriquées et les blocs de code
  * qu'elles contiennent suivent.
  */
@@ -447,8 +452,8 @@ private fun MarkdownQuote(markdown: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Un tableau GFM: en-tête teinté, bordures fines, cellules en monospace quand le thème le
- * demande, et défilement horizontal au-delà de quatre colonnes — comme `MarkdownTable`.
+ * Un tableau GFM : en-tête teinté, bordures fines, cellules en monospace quand le thème le
+ * demande, et défilement horizontal au-delà de quatre colonnes — comme `MarkdownTable` sur la référence.
  */
 @Composable
 private fun MarkdownTableBlock(table: MarkdownTable, modifier: Modifier = Modifier) {
@@ -456,7 +461,7 @@ private fun MarkdownTableBlock(table: MarkdownTable, modifier: Modifier = Modifi
     val columns = table.header.size
     if (columns <= 0) return
     val scrolls = columns > 4
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(OnyxSpace.ControlCorner)
     val scrollState = rememberScrollState()
 
     Box(
@@ -530,7 +535,7 @@ private fun MarkdownTableRow(
     }
 }
 
-/** Une cellule: elle partage la largeur, ou se fixe à 150 dp quand le tableau défile. */
+/** Une cellule : elle partage la largeur, ou se fixe à 150 dp quand le tableau défile. */
 @Composable
 private fun RowScope.MarkdownTableCell(
     text: String,
@@ -578,7 +583,7 @@ private fun TableAlignment.toTextAlign(): TextAlign = when (this) {
 }
 
 /**
- * Le texte d'une cellule, débarrassé de ses marques inline. stylise la cellule inline; ici
+ * Le texte d'une cellule, débarrassé de ses marques inline. la référence stylise la cellule inline ; ici
  * on l'allège — la cellule reste du texte, mais lisible (« **a** » devient « a »).
  */
 private fun inlinePlain(text: String): String = text

@@ -22,14 +22,58 @@ class VoiceAndAutoLocalizationTest {
             "Start fresh" to "Repartir de zéro",
             "Bars" to "Barres",
             "Lamps" to "Voyants",
-            // Mode vocal solo: le réglage de l'appel à l'oreille et le nom de l'orbe.
+            // Mode vocal solo : le réglage de l'appel à l'oreille et le nom de l'orbe.
             "Earpiece when raised to your ear" to "Écouteur quand on le lève à l’oreille",
             "Talk to %1\$s" to "Parler à %1\$s",
+            // Le diagnostic d'écoute : « on n'entend rien », et l'action qui ouvre les réglages.
+            "I can't hear anything — check your microphone." to "Je n'entends rien — vérifie le micro.",
+            // Les deux autres causes d'un silence : le moteur qui n'a jamais répondu, et celui qui
+            // tourne sans rendre un mot (le cas rapporté, où l'écran restait muet).
+            "The device's speech recogniser never answered. Tap the orb to listen again." to
+                "Le moteur de reconnaissance de l’appareil n’a pas répondu. Touchez l’orbe pour réécouter.",
+            "The recogniser is running but finding no words. Tap the orb and try again." to
+                "Le moteur de reconnaissance tourne mais ne trouve aucun mot. Touchez l’orbe et réessayez.",
+            "Open Android settings" to "Ouvrir les réglages Android",
+            // La phrase d'aide du mains libres se compose : le gabarit est traduit, et le mot de
+            // liaison entre les phrases aussi.
+            "Say %1\$s to end hands-free." to "Dites %1\$s pour quitter le mode mains libres.",
+            " or " to " ou ",
         )
         cases.forEach { (english, french) ->
             assertEquals(french, OnyxLocalization.translate(english, Locale.FRANCE))
             assertEquals(english, OnyxLocalization.translate(english, Locale.ENGLISH))
         }
+    }
+
+    @Test
+    fun `la phrase d aide du mains libres nomme les phrases vraiment ecoutees`() {
+        // Les phrases réglées par la personne prennent la place des mots anglais de base, et le
+        // gabarit se traduit sans traduire la liste (le nom des phrases reste tel quel).
+        assertEquals(
+            "Dites « arrête » ou « c'est tout » pour quitter le mode mains libres.",
+            OnyxLocalization.format(
+                "Say %1\$s to end hands-free.",
+                listOf("arrête", "c'est tout").joinToString(OnyxLocalization.translate(" or ", Locale.FRANCE)) { "« $it »" },
+                locale = Locale.FRANCE,
+            ),
+        )
+        // Sans phrase réglée, ce sont celles de base qui sont nommées, et la phrase reste française.
+        assertEquals(
+            "Dites « stop listening » ou « that's all » pour quitter le mode mains libres.",
+            OnyxLocalization.format(
+                "Say %1\$s to end hands-free.",
+                listOf("stop listening", "that's all").joinToString(OnyxLocalization.translate(" or ", Locale.FRANCE)) { "« $it »" },
+                locale = Locale.FRANCE,
+            ),
+        )
+        assertEquals(
+            "Say « stop listening » or « that's all » to end hands-free.",
+            OnyxLocalization.format(
+                "Say %1\$s to end hands-free.",
+                listOf("stop listening", "that's all").joinToString(OnyxLocalization.translate(" or ", Locale.ENGLISH)) { "« $it »" },
+                locale = Locale.ENGLISH,
+            ),
+        )
     }
 
     @Test

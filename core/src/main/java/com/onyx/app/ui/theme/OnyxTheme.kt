@@ -6,7 +6,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Comme.
+ * Port de `Echo/Models/Theme`.
  *
  * Un thème est une valeur [Palette] — chaque décision de couleur, de police et de forme au même
  * endroit — avec, à l'intérieur des couleurs, une variante claire et une variante sombre.
@@ -17,7 +17,7 @@ enum class OnyxTheme(
     val label: String,
     val blurb: String,
 ) {
-    // L'ordre de déclaration est celui de la liste dans les Réglages, comme.
+    // L'ordre de déclaration est celui de la liste dans les Réglages, comme sur la référence.
     GITHUB_DARK("githubDark", "Hermes", "Hermes gold on near-black, set in Inter; the docs-site look."),
     STANDARD("standard", "Messages", "Onyx blue on the system greys."),
     PAPER("paper", "Paper", "Warm paper and ink; dark ink and parchment after dark."),
@@ -48,7 +48,7 @@ enum class OnyxTheme(
     }
 }
 
-/** Une couleur qui a une valeur en clair et une autre en sombre (le `dyn(_:_:)` de ). */
+/** Une couleur qui a une valeur en clair et une autre en sombre (le `dyn(_:_:)` de Theme). */
 @Immutable
 data class DynColor(val light: Color, val dark: Color) {
     /** La couleur de l'apparence demandée. */
@@ -60,7 +60,7 @@ data class DynColor(val light: Color, val dark: Color) {
     fun alpha(value: Float): DynColor = DynColor(light.copy(alpha = light.alpha * value), dark.copy(alpha = dark.alpha * value))
 }
 
-/** `Font.Design`: la famille de repli quand le thème n'embarque pas de police. */
+/** `Font.Design` : la famille de repli quand le thème n'embarque pas de police. */
 enum class FontDesign { DEFAULT, SERIF, MONOSPACED }
 
 /** Les teintes de coloration syntaxique, portées de `SyntaxHighlighter.Palette`. */
@@ -146,6 +146,16 @@ data class SyntaxPalette(
 @Immutable
 data class Palette(
     val accent: DynColor,
+    /**
+     * L'accent **en encre** — celui d'un texte ou d'une icône, et non d'un aplat.
+     *
+     * La référence distingue les deux : `AccentColors.accent` remplit une bulle ou un bouton,
+     * `AccentColors.text` écrit l'accent. La raison est mesurable : sur un fond **sombre**, le bleu
+     * de remplissage (`#2F6BF5`) tombe à **2,85:1** en icône sur une vitre pleine — sous le plancher
+     * de 3:1 — et la référence le remplace alors par `#7AA5FF`, plus clair. `null` = l'accent
+     * lui-même (le cas des six thèmes qui n'ont qu'une couleur).
+     */
+    val accentText: DynColor? = null,
     /** Fond de page. `null` = fond système. */
     val background: DynColor? = null,
     /** Surface légèrement relevée (bulles de l'agent, lignes de feuilles). `null` = système. */
@@ -162,7 +172,7 @@ data class Palette(
     val checkboxColor: DynColor? = null,
     val quoteBarColor: DynColor? = null,
     val tableHeaderTint: DynColor? = null,
-    /** Saisie style shell: vos messages s'affichent `❯ texte` au lieu d'une bulle. */
+    /** Saisie style shell : vos messages s'affichent `❯ texte` au lieu d'une bulle. */
     val promptPrefix: String? = null,
     /** Toute la ligne de saisie — préfixe et vos mots. `null` = accent. */
     val promptColor: DynColor? = null,
@@ -172,9 +182,9 @@ data class Palette(
     val headingDesign: FontDesign = FontDesign.DEFAULT,
     /** Cellules de tableau en monospace. */
     val monoTables: Boolean = false,
-    /** Police monospace embarquée pour les réponses, tableaux et code; `null` = système. */
+    /** Police monospace embarquée pour les réponses, tableaux et code ; `null` = système. */
     val monoFontName: String? = null,
-    /** Police proportionnelle embarquée; les blocs de code gardent la monospace. */
+    /** Police proportionnelle embarquée ; les blocs de code gardent la monospace. */
     val bodyFontName: String? = null,
     /** Vos messages en sans système face à des réponses stylées (thème Code). */
     val sansUserFont: Boolean = false,
@@ -183,7 +193,7 @@ data class Palette(
     val usesGlass: Boolean = false,
     val bubbleRadius: Dp = 18.dp,
     val bubbleVerticalPadding: Dp = 10.dp,
-    /** Texte sur votre bulle quand sa couleur a été choisie; jamais rempli par une palette. */
+    /** Texte sur votre bulle quand sa couleur a été choisie ; jamais rempli par une palette. */
     val userBubbleTextColor: DynColor? = null,
 )
 
@@ -196,8 +206,21 @@ private fun dyn(light: Triple<Double, Double, Double>, dark: Triple<Double, Doub
         rgb(dark.first, dark.second, dark.third),
     )
 
+/** Le bleu de la référence (`AccentPalette.Blue`) : **la** couleur de l'app, lue dans sa source. */
+private val REFERENCE_ACCENT = DynColor(ReferencePalette.Accent)
+
+/**
+ * L'accent **en encre**, les deux variantes de la référence : `AccentColors.text`.
+ *
+ * `#1F56D6` en clair et `#7AA5FF` en sombre — la seconde est celle qui tient le plancher d'icône de
+ * 3:1 sur une vitre sombre, là où le bleu de remplissage mesure 2,85:1.
+ */
+private val REFERENCE_ACCENT_TEXT =
+    DynColor(light = ReferencePalette.AccentTextLight, dark = ReferencePalette.AccentTextDark)
+
 private val STANDARD_PALETTE = Palette(
-    accent = dyn(Triple(0.180, 0.545, 0.961), Triple(0.180, 0.545, 0.961)),
+    accent = REFERENCE_ACCENT,
+    accentText = REFERENCE_ACCENT_TEXT,
     flatReplies = true,
     usesGlass = true,
 )
@@ -221,7 +244,7 @@ private val SLATE_PALETTE = Palette(
     usesGlass = true,
 )
 
-/** Un vrai terminal : profil Homebrew, police monospace partout. */
+/** Un vrai terminal Mac : le profil Homebrew de la référence Terminal, SF Mono partout. */
 private val TERMINAL_PALETTE = Palette(
     accent = dyn(Triple(0.106, 0.541, 0.243), Triple(0.180, 0.830, 0.440)),
     background = dyn(Triple(0.933, 0.953, 0.933), Triple(0.113, 0.113, 0.113)),
@@ -295,9 +318,9 @@ private val CLAUDE_CODE_PALETTE = Palette(
 /**
  * Ce thème-ci avec les choix de couleurs du lecteur appliqués.
  *
- * Les choix remplacent les valeurs de la palette avant que quoi que ce soit en dérive: les liens,
+ * Les choix remplacent les valeurs de la palette avant que quoi que ce soit en dérive : les liens,
  * les cases à cocher et le reste suivent donc un accent personnalisé exactement comme ils suivent
- * celui du thème — la `resolved(with:)` de.
+ * celui du thème — la `resolved(with:)` de Theme.
  */
 fun Palette.withColors(colors: ThemeColors?): Palette {
     if (colors == null || colors.isEmpty) return this
@@ -310,7 +333,7 @@ fun Palette.withColors(colors: ThemeColors?): Palette {
     }
     colors.bubble?.let { pick ->
         palette = if (palette.promptPrefix != null) {
-            // Les thèmes à invite n'ont pas de bulle: toute votre ligne prend la couleur.
+            // Les thèmes à invite n'ont pas de bulle : toute votre ligne prend la couleur.
             palette.copy(promptColor = DynColor(pick.color))
         } else {
             palette.copy(
@@ -322,26 +345,52 @@ fun Palette.withColors(colors: ThemeColors?): Palette {
     return palette
 }
 
-/** Les couleurs système qu'un thème peut laisser à la place des siennes. */
+/**
+ * Les rôles neutres que **tous** les thèmes laissent à la place des leurs, et que les écrans lisent
+ * directement (formulaires, encres, séparateurs, signaux).
+ *
+ * **Le nom est historique, les valeurs ne le sont plus.** Ces rôles portaient les gris du système
+ * de la référence : page blanche pure, cartes `#F2F2F7`, encres secondaires translucides, séparateurs à 29 %
+ * et 60 % d'opacité. Ils portent maintenant, **1:1**, les valeurs relevées dans la source de la
+ * référence ([ReferencePalette]). Le nom reste pour ne pas toucher les 37 points d'appel, mais la
+ * table ci-dessous **est** celle du rapport — chaque ligne dit d'où elle vient.
+ *
+ * Ce qui change pour l'œil, rôle par rôle :
+ *
+ * | rôle | avant (référence) | après (référence) |
+ * |---|---|---|
+ * | page | `#FFFFFF` / `#000000` | `#F7F7F9` / `#0A0A0C` |
+ * | surface | `#F2F2F7` / `#1C1C1E` | `#FFFFFF` / `#16161A` |
+ * | creux | `#FFFFFF` / `#2C2C2E` | `#F1F1F5` / `#1C1C22` |
+ * | séparateur | `#3C3C43` 29 % / `#545458` 60 % | `#0A0A1E` 8 % / blanc 7 % |
+ * | encre secondaire | `#3C3C43` 60 % / `#EBEBF5` 60 % | `#27272A` / `#D4D4D8` |
+ * | danger | `#FF3B30` / `#FF453A` | `#CF222E` / `#F85149` |
+ * | avertissement | `#FF9500` / `#FF9F0A` | `#B76E00` / `#F5A524` |
+ * | succès | `#34C759` / `#30D158` | `#1A7F37` / `#3FB950` |
+ *
+ * **Trois couleurs saturées ont disparu** — `yellow`, `teal`, `indigo`. Aucun écran ne les lisait
+ * (vérifié sur tout l'arbre) : elles ne servaient qu'à pouvoir en peindre un jour. La règle de la
+ * maison n'en admet plus que **cinq** en dehors du neutre : l'accent, le danger, le succès,
+ * l'avertissement et le direct.
+ */
 object OnyxSystem {
-    val background = DynColor(Color.White, Color.Black)
-    val secondaryBackground = DynColor(Color(0xFFF2F2F7), Color(0xFF1C1C1E))
-    val tertiaryBackground = DynColor(Color(0xFFFFFFFF), Color(0xFF2C2C2E))
-    /** Form dans une sheet: les fonds groupés du trait `elevated` d'UIKit. */
-    val elevatedGroupedBackground = DynColor(Color(0xFFF2F2F7), Color(0xFF1C1C1E))
-    val elevatedSecondaryGroupedBackground = DynColor(Color.White, Color(0xFF2C2C2E))
-    val label = DynColor(Color.Black, Color.White)
-    val secondaryLabel = DynColor(Color(0x993C3C43), Color(0x99EBEBF5))
-    val tertiaryLabel = DynColor(Color(0x4D3C3C43), Color(0x4DEBEBF5))
-    val quaternaryLabel = DynColor(Color(0x2E3C3C43), Color(0x29EBEBF5))
-    val separator = DynColor(Color(0x4A3C3C43), Color(0x99545458))
-    val fill = DynColor(Color(0x1F767680), Color(0x2E767680))
+    val background = DynColor(ReferencePalette.LightPage, ReferencePalette.DarkPage)
+    val secondaryBackground = DynColor(ReferencePalette.LightSurface, ReferencePalette.DarkSurface)
+    val tertiaryBackground = DynColor(ReferencePalette.LightSurface2, ReferencePalette.DarkSurface2)
+    /** Form dans une sheet : la page de la référence, puis sa surface. */
+    val elevatedGroupedBackground = DynColor(ReferencePalette.LightPage, ReferencePalette.DarkPage)
+    val elevatedSecondaryGroupedBackground = DynColor(ReferencePalette.LightSurface, ReferencePalette.DarkSurface)
+    val label = DynColor(ReferencePalette.LightText, ReferencePalette.DarkText)
+    val secondaryLabel = DynColor(ReferencePalette.LightText2, ReferencePalette.DarkText2)
+    val tertiaryLabel = DynColor(ReferencePalette.LightText4, ReferencePalette.DarkText4)
+    val quaternaryLabel = DynColor(ReferencePalette.LightText5, ReferencePalette.DarkText5)
+    val separator = DynColor(ReferencePalette.LightLine, ReferencePalette.DarkLine)
+    /** Le fond d'un contrôle : le **deuxième** barreau de la référence, opaque. */
+    val fill = DynColor(ReferencePalette.LightSurface2, ReferencePalette.DarkSurface2)
 
-    // Les couleurs de signalisation: un thème ne les redéfinit jamais.
-    val red = DynColor(Color(0xFFFF3B30), Color(0xFFFF453A))
-    val orange = DynColor(Color(0xFFFF9500), Color(0xFFFF9F0A))
-    val green = DynColor(Color(0xFF34C759), Color(0xFF30D158))
-    val yellow = DynColor(Color(0xFFFFCC00), Color(0xFFFFD60A))
-    val teal = DynColor(Color(0xFF30B0C7), Color(0xFF40C8E0))
-    val indigo = DynColor(Color(0xFF5856D6), Color(0xFF5E5CE6))
+    // Les couleurs de signalisation : un thème ne les redéfinit jamais — et elles sont
+    // maintenant celles de la référence, pas celles de la référence.
+    val red = ReferencePalette.Danger
+    val orange = ReferencePalette.Warning
+    val green = ReferencePalette.Success
 }

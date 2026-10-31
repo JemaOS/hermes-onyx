@@ -39,14 +39,14 @@ class SetupCodeOfferTest {
     @Test
     fun `le lien universel lit le fragment et non la requete envoyee au site`() {
         val offer = SetupCodeOffer.fromText(
-            "https://onyx.goosehouse.org/connect?ignored=yes#api=https%3A%2F%2Fgateway.example&key=a%2Bb&use=api",
+            "https://onyx.example.org/connect?ignored=yes#api=https%3A%2F%2Fgateway.example&key=a%2Bb&use=api",
         )
 
         assertEquals(SetupCodeParseError.NONE, offer?.error)
         assertEquals("https://gateway.example", offer?.code?.apiURL)
         assertEquals("a+b", offer?.code?.apiKey)
         assertEquals(Transport.HERMES_SESSIONS, offer?.code?.transport)
-        assertNull(SetupCodeOffer.fromText("https://onyx.goosehouse.org/connect"))
+        assertNull(SetupCodeOffer.fromText("https://onyx.example.org/connect"))
     }
 
     @Test
@@ -83,6 +83,26 @@ class SetupCodeOfferTest {
         assertEquals(original.name, offer?.code?.name)
         assertEquals(original.apiKey, offer?.code?.apiKey)
         assertEquals(Transport.HERMES_SESSIONS, offer?.code?.transport)
+    }
+
+    @Test
+    fun `un lien diffuse sous le premier nom de l app reste accepte`() {
+        val app = SetupCodeOffer.fromText(
+            "${SetupCode.LEGACY_SCHEME}://connect?dashboard=https%3A%2F%2Fhermes.example&use=dashboard&v=1",
+        )
+        assertEquals(SetupCodeParseError.NONE, app?.error)
+        assertEquals("https://hermes.example", app?.code?.dashboardURL)
+
+        val web = SetupCodeOffer.fromText(
+            "https://${SetupCode.LEGACY_WEB_HOST}/connect#api=https%3A%2F%2Fgateway.example&use=api&v=1",
+        )
+        assertEquals(SetupCodeParseError.NONE, web?.error)
+        assertEquals("https://gateway.example", web?.code?.apiURL)
+    }
+
+    @Test
+    fun `le lien partage porte le schema actuel`() {
+        assertTrue(SetupCode(apiURL = "https://gateway.example").link().startsWith("onyx://connect?"))
     }
 
     @Test

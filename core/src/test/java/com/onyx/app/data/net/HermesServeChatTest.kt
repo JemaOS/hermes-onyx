@@ -24,8 +24,8 @@ import org.junit.Test
 /**
  * Le chat du transport Dashboard (WebSocket).
  *
- * Un faux canal tient lieu de `ServeRpc`: il rejoue la session, le `prompt.submit` et les
- * notifications `method == "event"` — sans ouvrir de socket, mais sans tricher non plus: c'est
+ * Un faux canal tient lieu de `ServeRpc` : il rejoue la session, le `prompt.submit` et les
+ * notifications `method == "event"` — sans ouvrir de socket, mais sans tricher non plus : c'est
  * bien le vrai [HermesServeChat] qui tourne, avec sa machine à états d'événements.
  */
 class HermesServeChatTest {
@@ -78,6 +78,39 @@ class HermesServeChatTest {
         val create = channel.calls.first { it.first == "session.create" }.second
         assertEquals("desktop", create["source"].asString())
         assertEquals("hermes-kilo", create["model"].asString())
+    }
+
+    @Test
+    fun `le niveau de reflexion choisi part vraiment avec la session`() = runBlocking {
+        // « Réflexion » **agit** : le cran retenu dans la feuille de modèle est écrit sur la session
+        // que le serveur ouvre — c'est la valeur `reasoning_effort` que le tour emporte.
+        val channel = FakeChannel { method, _ ->
+            when (method) {
+                "session.create" -> Reply(buildJsonObject { put("session_id", "runtime-1") })
+                "prompt.submit" -> Reply(buildJsonObject { }, emit = listOf(complete("runtime-1")))
+                else -> Reply(buildJsonObject { })
+            }
+        }
+        val asked = request().copy(reasoningEffort = "xhigh")
+        withTimeout(5_000) { HermesServeChat(config, channel).stream(asked).toList() }
+
+        val create = channel.calls.first { it.first == "session.create" }.second
+        assertEquals("xhigh", create["reasoning_effort"].asString())
+    }
+
+    @Test
+    fun `sans cran choisi, le serveur decide et rien ne lui est demande`() = runBlocking {
+        val channel = FakeChannel { method, _ ->
+            when (method) {
+                "session.create" -> Reply(buildJsonObject { put("session_id", "runtime-1") })
+                "prompt.submit" -> Reply(buildJsonObject { }, emit = listOf(complete("runtime-1")))
+                else -> Reply(buildJsonObject { })
+            }
+        }
+        withTimeout(5_000) { HermesServeChat(config, channel).stream(request()).toList() }
+
+        val create = channel.calls.first { it.first == "session.create" }.second
+        assertFalse("aucun cran ne s'invente", create.containsKey("reasoning_effort"))
     }
 
     @Test
@@ -193,7 +226,7 @@ class HermesServeChatTest {
             }
         }
 
-        // Le tour ne se termine jamais: le `withTimeout` annule le flux, et le `finally` doit
+        // Le tour ne se termine jamais : le `withTimeout` annule le flux, et le `finally` doit
         // demander l'interruption du tour au serveur.
         runCatching {
             withTimeout(1_200) { HermesServeChat(config, channel).stream(request()).toList() }
@@ -217,7 +250,7 @@ class HermesServeChatTest {
         payload = buildJsonObject { put("status", "ok") },
     )
 
-    /** Ce qu'un appel rend: un résultat, des événements à pousser, ou un échec. */
+    /** Ce qu'un appel rend : un résultat, des événements à pousser, ou un échec. */
     private data class Reply(
         val result: JsonElement,
         val emit: List<ServeEvent> = emptyList(),
@@ -225,8 +258,8 @@ class HermesServeChatTest {
     )
 
     /**
-     * Ce qui a été décidé du tour décide de ce que l'hôte en sait: le bouton d'arrêt l'interrompt,
-     * un abandon le laisse finir (comme `LeavingATurnTests` du modèle).
+     * Ce qui a été décidé du tour décide de ce que l'hôte en sait : le bouton d'arrêt l'interrompt,
+     * un abandon le laisse finir (miroir de `LeavingATurnTests` de la référence).
      */
     @Test
     fun `un tour arrete interrompt l hote, un tour abandonne le laisse finir`() = runBlocking {
@@ -239,7 +272,7 @@ class HermesServeChatTest {
                     },
                 )
 
-                // Le tour ne finit jamais de lui-même: c'est l'annulation qui décide.
+                // Le tour ne finit jamais de lui-même : c'est l'annulation qui décide.
                 else -> Reply(buildJsonObject { }, emit = emptyList())
             }
         }

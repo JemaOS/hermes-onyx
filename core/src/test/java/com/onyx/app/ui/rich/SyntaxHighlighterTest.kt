@@ -7,8 +7,8 @@ import org.junit.Test
 
 class SyntaxHighlighterTest {
     @Test
-    fun `swift colore mots cles chaines commentaires et types`() {
-        val tokens = SyntaxHighlighter.tokenize("let x = \"hi\" // note\nstruct Foo {}", "swift")
+    fun `rust colore mots cles chaines commentaires et types`() {
+        val tokens = SyntaxHighlighter.tokenize("let x = \"hi\" // note\nstruct Foo {}", "rust")
 
         assertTrue(tokens.contains(CodeToken("let", TokenKind.KEYWORD)))
         assertTrue(tokens.contains(CodeToken("\"hi\"", TokenKind.STRING)))

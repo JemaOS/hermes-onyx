@@ -21,9 +21,9 @@ enum class LockDelay(val millis: Long, val label: String) {
 }
 
 /**
- * Le verrou de l'app: la biométrie, et un code en secours.
+ * Le verrou de l'app : la biométrie, et un code en secours.
  *
- * Comme: on demande le visage ou le doigt au retour dans l'app,
+ * Miroir de `AppLock` côté référence : on demande le visage ou le doigt au retour dans l'app,
  * après le délai choisi. Le code est le secours d'Android quand la biométrie n'est pas
  * disponible — il est salé et haché, jamais gardé en clair.
  */
@@ -45,7 +45,7 @@ class AppLock(context: Context) {
 
     val hasPin: Boolean get() = prefs.contains(KEY_HASH)
 
-    /** Enregistre un code de 4 à 12 chiffres; une valeur vide l'efface. */
+    /** Enregistre un code de 4 à 12 chiffres ; une valeur vide l'efface. */
     fun setPin(pin: String) {
         if (pin.isEmpty()) {
             prefs.edit().remove(KEY_HASH).remove(KEY_SALT).apply()
@@ -74,10 +74,10 @@ class AppLock(context: Context) {
     /**
      * Ce que la biométrie du téléphone sait faire, ou `null` si elle ne peut pas.
      *
-     * La vérification est faite **avant** d'offrir un bouton: un téléphone sans empreinte ni visage
+     * La vérification est faite **avant** d'offrir un bouton : un téléphone sans empreinte ni visage
      * enrôlés, ou dont le matériel ne peut pas répondre, laissait sinon un bouton sans effet. Le nom
      * suit ce que l'appareil a vraiment (`Fingerprint`, `Face unlock`), sans emprunter le vocabulaire
-     * , qui n'a pas cours ici.
+     * de la référence, qui n'a pas cours ici.
      */
     fun biometryLabel(context: Context): String? {
         if (!canAuthenticate(context)) return null
@@ -91,7 +91,7 @@ class AppLock(context: Context) {
         }
     }
 
-    /** Vrai si le téléphone a une biométrie utilisable: matériel présent **et** classe enrôlée. */
+    /** Vrai si le téléphone a une biométrie utilisable : matériel présent **et** classe enrôlée. */
     fun canAuthenticate(context: Context): Boolean =
         BiometricManager.from(context).canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
 
@@ -109,7 +109,7 @@ class AppLock(context: Context) {
 
     private companion object {
         /**
-         * Le fort **et** le faible: beaucoup d'appareils (Honor, Xiaomi) ne proposent que les
+         * Le fort **et** le faible : beaucoup d'appareils (Honor, Xiaomi) ne proposent que les
          * classes fortes, et le faible seul les laissait sans réponse.
          */
         val AUTHENTICATORS =

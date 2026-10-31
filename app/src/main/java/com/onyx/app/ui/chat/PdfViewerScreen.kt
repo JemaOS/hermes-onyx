@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.ui.design.onyxPage
+
 import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,9 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,20 +39,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.LiveMark
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
+import com.onyx.app.ui.design.navigationBarClearance
+import com.onyx.app.ui.design.statusBarClearance
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.Dispatchers
@@ -61,19 +67,19 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Le fichier à lire: son adresse (cache du téléphone, ou pièce jointe), et son nom. */
+/** Le fichier à lire : son adresse (cache du téléphone, ou pièce jointe), et son nom. */
 data class PdfSource(val uri: Uri, val name: String)
 
 /** Le zoom maximal d'une page, en multiple de la largeur de l'écran. */
 private const val MaxPdfZoom = 4f
 
-/** La largeur maximale d'une page rendue, en pixels: au-delà, le gain ne se voit plus. */
+/** La largeur maximale d'une page rendue, en pixels : au-delà, le gain ne se voit plus. */
 private const val MaxPagePixels = 2048
 
 /**
- * Un PDF ouvert: ses pages, rendues à la demande.
+ * Un PDF ouvert : ses pages, rendues à la demande.
  *
- * `PdfRenderer` ne rend qu'une page à la fois et n'est pas réentrant: un verrou sérialise les
+ * `PdfRenderer` ne rend qu'une page à la fois et n'est pas réentrant : un verrou sérialise les
  * rendus, et chaque page est refermée aussitôt dessinée. Le document se ferme avec l'écran.
  */
 private class PdfDocument(private val renderer: PdfRenderer) {
@@ -92,7 +98,7 @@ private class PdfDocument(private val renderer: PdfRenderer) {
                     val width = widthPx.coerceIn(64, MaxPagePixels)
                     val height = (width * ratio).toInt().coerceIn(1, MaxPagePixels * 2)
                     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                    // Le papier reste blanc: c'est la page, pas le thème, qui donne sa couleur.
+                    // Le papier reste blanc : c'est la page, pas le thème, qui donne sa couleur.
                     bitmap.eraseColor(android.graphics.Color.WHITE)
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     bitmap
@@ -108,7 +114,7 @@ private class PdfDocument(private val renderer: PdfRenderer) {
     }
 }
 
-/** Ouvre un PDF depuis son adresse: le cache de l'app, ou une pièce jointe reçue. */
+/** Ouvre un PDF depuis son adresse : le cache de l'app, ou une pièce jointe reçue. */
 private fun openDocument(context: Context, uri: Uri): PdfDocument? = runCatching {
     val descriptor: ParcelFileDescriptor? = when (uri.scheme) {
         ContentResolver.SCHEME_FILE -> ParcelFileDescriptor.open(
@@ -122,10 +128,10 @@ private fun openDocument(context: Context, uri: Uri): PdfDocument? = runCatching
 }.getOrNull()
 
 /**
- * Un PDF montré dans l'app: la première page tout de suite, puis les suivantes au glissement ou
+ * Un PDF montré dans l'app : la première page tout de suite, puis les suivantes au glissement ou
  * par les flèches, avec double tap et pincement pour zoomer.
  *
- * Le rendu est entièrement hors ligne (`PdfRenderer` du système): aucune police, aucune
+ * Le rendu est entièrement hors ligne (`PdfRenderer` du système) : aucune police, aucune
  * bibliothèque à télécharger, et rien ne sort du téléphone. Un fichier illisible est dit en mots —
  * jamais une page blanche qui ferait croire à un succès.
  */
@@ -156,7 +162,7 @@ fun PdfViewerScreen(
         }
     }
 
-    // Le document ne survit pas à l'écran: les descripteurs du système se referment avec lui.
+    // Le document ne survit pas à l'écran : les descripteurs du système se referment avec lui.
     DisposableEffect(source.uri) {
         onDispose { document?.close() }
     }
@@ -168,12 +174,13 @@ fun PdfViewerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
+                // La bande haute : le nom et la croix se posent sous la barre d'état.
+                .statusBarClearance()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -198,7 +205,7 @@ fun PdfViewerScreen(
                 .fillMaxWidth()
                 .weight(1f),
         ) {
-            // La page se rend à la largeur de l'écran, doublée: nette jusqu'à 2×, sans coûter
+            // La page se rend à la largeur de l'écran, doublée : nette jusqu'à 2×, sans coûter
             // une image par cran de zoom.
             val renderWidth = with(density) { (maxWidth * 2).toPx().toInt() }
             val problemText = problem
@@ -240,12 +247,14 @@ fun PdfViewerScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                // La bande basse : les flèches et le compte de pages remontent au-dessus de la
+                // zone de navigation, au lieu de tomber dessus.
+                .navigationBarClearance()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Les flèches doublent le glissement: utile quand le zoom occupe toute la largeur.
+            // Les flèches doublent le glissement : utile quand le zoom occupe toute la largeur.
             OnyxIcon(
                 symbol = Symbols.ChevronRight,
                 tint = if (PdfPaging.canStep(shown, pages, -1)) theme.accent else theme.quaternaryText,
@@ -290,7 +299,13 @@ fun PdfViewerScreen(
     }
 }
 
-/** Une page: son image rendue, et les gestes du zoom. */
+/**
+ * Une page : son image rendue, les gestes du zoom, et le **déplacement** quand la page est agrandie.
+ *
+ * À un doigt la page se déplace (tant qu'elle est zoomée) ; le carrousel garde la main quand elle
+ * ne l'est pas, pour que tourner les pages reste possible. Le déplacement revient à zéro dès qu'on
+ * repasse par « Fit », ou qu'on change de page : on ne garde jamais une page décalée sans le dire.
+ */
 @Composable
 private fun PdfPage(
     document: PdfDocument?,
@@ -304,11 +319,39 @@ private fun PdfPage(
         value = document?.render(page, renderWidth)
     }
 
+    // La fenêtre du lecteur, en pixels : elle seule dit jusqu'où la page peut se déplacer.
+    var viewport by remember(page) { mutableStateOf(IntSize.Zero) }
+    // Le déplacement courant ; au repos, la page est centrée.
+    var pan by remember(page) { mutableStateOf(Offset.Zero) }
+
+    // Une page qui se rétrécit (retour à « Fit ») ou qui change ramène le déplacement dans ses
+    // bornes — sinon la page resterait poussée hors de l'écran par un zoom qu'on vient d'annuler.
+    LaunchedEffect(zoom, viewport) {
+        pan = Offset(
+            PdfPan.clamp(pan.x, viewport.width, zoom),
+            PdfPan.clamp(pan.y, viewport.height, zoom),
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onSizeChanged { viewport = it }
+            .pointerInput(page, zoom) {
+                // Le glissement ne prend la main que sur une page agrandie : autrement, il doit
+                // rester au carrousel, sinon on ne pourrait plus tourner les pages.
+                if (zoom > 1f) {
+                    detectDragGestures { change, drag ->
+                        change.consume()
+                        pan = Offset(
+                            PdfPan.clamp(pan.x + drag.x, viewport.width, zoom),
+                            PdfPan.clamp(pan.y + drag.y, viewport.height, zoom),
+                        )
+                    }
+                }
+            }
             .pointerInput(page) {
-                // Le pincement est le seul geste pris ici: à un doigt, le carrousel garde la main
+                // Le pincement est le seul geste pris ici : à un doigt, le carrousel garde la main
                 // pour tourner les pages.
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -341,7 +384,13 @@ private fun PdfPage(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { scaleX = zoom; scaleY = zoom },
+                    .graphicsLayer {
+                        scaleX = zoom
+                        scaleY = zoom
+                        // Le déplacement lu ici, dans le calque : la page glisse sans recomposer le fil.
+                        translationX = pan.x
+                        translationY = pan.y
+                    },
             )
         }
     }

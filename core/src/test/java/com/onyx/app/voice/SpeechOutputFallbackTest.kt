@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La lecture des réponses retombait déjà sur la voix de l'appareil: ce test fixe ce comportement
+ * La lecture des réponses retombait déjà sur la voix de l'appareil : ce test fixe ce comportement
  * pour qu'une évolution du repli ne laisse pas un serveur muet sans secours.
  */
 class SpeechOutputFallbackTest {

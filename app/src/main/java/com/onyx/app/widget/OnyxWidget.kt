@@ -34,22 +34,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Le widget d'écran d'accueil: la dernière réponse, ou l'attente de la suivante.
+ * Le widget d'écran d'accueil : la dernière réponse, ou l'attente de la suivante.
  *
- * Comme la Live Activity / du widget: le même thème que l'app, la question
+ * Équivalent Android de la Live Activity / du widget référence : le même thème que l'app, la question
  * et la réponse en cours, et un tap qui ouvre la conversation. Glance ne sait pas charger nos
  * polices embarquées, donc le widget garde la police système.
  */
 class OnyxWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Le travail suspendu se fait avant le rendu: la composition Glance reste synchrone.
+        // Le travail suspendu se fait avant le rendu : la composition Glance reste synchrone.
         val snapshot = widgetSnapshot(context)
         provideContent { WidgetContent(snapshot) }
     }
 }
 
-/** Ce que le widget montre: soit la dernière réponse, soit une attente. */
+/** Ce que le widget montre : soit la dernière réponse, soit une attente. */
 private data class WidgetSnapshot(
     val question: String,
     val answer: String?,
@@ -95,7 +95,7 @@ private suspend fun widgetSnapshot(context: Context): WidgetSnapshot {
 }
 
 /**
- * La conversation la plus récente. Le dépôt est lu au démarrage depuis le disque: on lui laisse
+ * La conversation la plus récente. Le dépôt est lu au démarrage depuis le disque : on lui laisse
  * un court instant, sans quoi un widget ouvert à froid après un redémarrage ne montrerait rien.
  */
 private suspend fun currentConversation(): Conversation? {
@@ -110,7 +110,7 @@ private suspend fun currentConversation(): Conversation? {
 
 @Composable
 private fun WidgetContent(snapshot: WidgetSnapshot) {
-    // Le widget est toujours sombre: il vit sur un fond d'écran d'accueil.
+    // Le widget est toujours sombre : il vit sur un fond d'écran d'accueil.
     val dark = true
     val palette = snapshot.theme.palette
     val background = palette.background?.resolve(dark) ?: OnyxSystem.background.resolve(dark)
@@ -144,7 +144,7 @@ private fun WidgetContent(snapshot: WidgetSnapshot) {
         if (snapshot.agentNote.isNotBlank()) {
             Text(
                 text = snapshot.agentNote,
-                style = TextStyle(color = ColorProvider(accent), fontSize = 13.sp),
+                style = TextStyle(color = ColorProvider(accent), fontSize = 12.sp),
                 maxLines = 4,
             )
             Spacer(modifier = GlanceModifier.height(8.dp))
@@ -153,19 +153,19 @@ private fun WidgetContent(snapshot: WidgetSnapshot) {
         when {
             snapshot.question.isEmpty() -> Text(
                 text = OnyxLocalization["Nothing asked yet."],
-                style = TextStyle(color = ColorProvider(secondary), fontSize = 13.sp),
+                style = TextStyle(color = ColorProvider(secondary), fontSize = 12.sp),
             )
 
             snapshot.answer != null -> {
                 Text(
                     text = snapshot.question,
-                    style = TextStyle(color = ColorProvider(secondary), fontSize = 13.sp),
+                    style = TextStyle(color = ColorProvider(secondary), fontSize = 12.sp),
                     maxLines = 2,
                 )
                 Spacer(modifier = GlanceModifier.height(6.dp))
                 Text(
                     text = snapshot.answer,
-                    style = TextStyle(color = ColorProvider(textColor), fontSize = 14.sp),
+                    style = TextStyle(color = ColorProvider(textColor), fontSize = 15.sp),
                     maxLines = 7,
                 )
             }
@@ -173,7 +173,7 @@ private fun WidgetContent(snapshot: WidgetSnapshot) {
             else -> {
                 Text(
                     text = snapshot.question,
-                    style = TextStyle(color = ColorProvider(secondary), fontSize = 13.sp),
+                    style = TextStyle(color = ColorProvider(secondary), fontSize = 12.sp),
                     maxLines = 2,
                 )
                 Spacer(modifier = GlanceModifier.height(6.dp))
@@ -185,7 +185,7 @@ private fun WidgetContent(snapshot: WidgetSnapshot) {
                 ) {
                     Text(
                         text = OnyxLocalization["Waiting for an answer…"],
-                        style = TextStyle(color = ColorProvider(accent), fontSize = 13.sp),
+                        style = TextStyle(color = ColorProvider(accent), fontSize = 12.sp),
                     )
                 }
             }

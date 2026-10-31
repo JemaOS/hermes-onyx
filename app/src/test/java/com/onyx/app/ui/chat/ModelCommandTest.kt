@@ -6,10 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * « /model »: la commande slash qui ouvre le sélecteur de modèle.
+ * « /model » : la commande slash qui ouvre le sélecteur de modèle.
  *
- * Comme `ComposerView.send`: un `/model` nu change de modèle (même écran que par
- * l'en-tête); avec un argument, la ligne reste une commande du serveur.
+ * Comme `ComposerView.send` côté référence : un `/model` nu change de modèle (même écran que par
+ * l'en-tête) ; avec un argument, la ligne reste une commande du serveur.
  */
 class ModelCommandTest {
 

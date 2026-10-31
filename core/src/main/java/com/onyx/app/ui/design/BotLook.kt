@@ -20,12 +20,12 @@ fun BotLook(
     modifier: Modifier = Modifier,
     mood: BotMood = BotMood.IDLE,
     showsInitial: Boolean = true,
-    /** La barre du haut veut un visage **à plat et immobile**: `false` fige le clignement. */
+    /** La barre du haut veut un visage **à plat et immobile** : `false` fige le clignement. */
     blinks: Boolean = true,
-    /** Un instant du visage qui bouge (la scène vocale); `null`: le visage ordinaire. */
+    /** Un instant du visage qui bouge (la scène vocale) ; `null` : le visage ordinaire. */
     pose: BotPose? = null,
 ) {
-    // Comme `BotAvatar(face:)`: sans visage enregistré, le nom du bot
+    // Comme `BotAvatar(face:)` sur la référence : sans visage enregistré, le nom du bot
     // détermine une créature dessinée. Seules les anciennes valeurs purement
     // numériques conservent le fallback d'orbe historique.
     if (faceCode?.toIntOrNull() != null) {
@@ -45,10 +45,10 @@ fun BotLook(
 }
 
 /**
- * La couleur d'un bot, telle qu'elle se voit: la plus profonde de son dégradé.
+ * La couleur d'un bot, telle qu'elle se voit : la plus profonde de son dégradé.
  *
  * C'est l'aura de la scène vocale — la lumière autour du grand visage qui parle — et elle est
- * **celle du bot**, comme sur le modèle, et non celle de la phase.
+ * **celle du bot**, comme sur la référence, et non celle de la phase.
  */
 fun botFaceColour(name: String, faceCode: String?, theme: ResolvedTheme): Color {
     val face = botFace(name, faceCode)
@@ -58,11 +58,11 @@ fun botFaceColour(name: String, faceCode: String?, theme: ResolvedTheme): Color 
 /**
  * La couleur de l'**aura** d'un bot, pour la page où elle se pose.
  *
- * L'aura est une lumière ajoutée à la page: c'est le **clair** du dégradé qui éclaire une page
+ * L'aura est une lumière ajoutée à la page : c'est le **clair** du dégradé qui éclaire une page
  * sombre (une couleur profonde n'y fait qu'un halo éteint, à peine plus clair que le noir), et le
  * **profond** qui tient sur une page claire, où le clair se délaie en blanc bleuté. Une seule
  * teinte pour les deux pages donne donc, dans l'un des deux thèmes, l'orbe délavé que le
- * propriétaire signale; la teinte suit la page, jamais le bot.
+ * propriétaire signale ; la teinte suit la page, jamais le bot.
  */
 fun botFaceAuraColour(name: String, faceCode: String?, theme: ResolvedTheme): Color {
     val face = botFace(name, faceCode)
@@ -70,6 +70,22 @@ fun botFaceAuraColour(name: String, faceCode: String?, theme: ResolvedTheme): Co
     return if (theme.dark) light else deep
 }
 
-/** Le visage qu'un nom (ou le code enregistré) donne: ce que dessine [BotLook]. */
-fun botFace(name: String, faceCode: String?): BotFace =
-    BotFace.parse(faceCode) ?: BotFace.forName(name)
+/**
+ * **Le seul point de résolution du visage d'un bot** : (nom de son profil, code enregistré).
+ *
+ * Toutes les surfaces doivent l'appeler avec le **nom de profil** du bot (`BotProfile.name`), jamais
+ * avec le libellé affiché : pour Onyx, le profil s'appelle `default` et le libellé `Onyx` — deux
+ * clés, donc deux créatures (`BotFace.forName("default")` est la bulle bleue, `forName("Onyx")` un
+ * soleil ambre). Un libellé passé ici était exactement le défaut « le même bot a deux visages » :
+ * la barre du haut le décrivait par son profil, le Flux par son libellé.
+ *
+ * L'ordre est celui d'[BotFace.parse] : un code enregistré (le choix de la personne, où qu'il vive)
+ * l'emporte ; sinon le **nom du profil** décide, par le même calcul à chaque fois. Un nom **vide**
+ * (un auteur que l'on ne connaît pas : la personne, un outil, le système) reçoit le visage
+ * **neutre** [BotFace.unknown] — jamais une créature colorée qui se lirait comme un bot.
+ */
+fun botFace(name: String, faceCode: String?): BotFace {
+    BotFace.parse(faceCode)?.let { return it }
+    val profile = name.trim()
+    return if (profile.isEmpty()) BotFace.unknown else BotFace.forName(profile)
+}

@@ -8,7 +8,7 @@ import org.junit.Test
  * L'écran de verrouillage en français.
  *
  * Le bouton et la ligne « Exiger … » s'écrivent à partir du nom que le téléphone donne à sa
- * biométrie: « Unlock with Face or fingerprint » restait en anglais parce que seule la partie fixe
+ * biométrie : « Unlock with Face or fingerprint » restait en anglais parce que seule la partie fixe
  * était connue du catalogue.
  */
 class LockScreenLocalizationTest {
@@ -58,7 +58,7 @@ class LockScreenLocalizationTest {
                 "Le déverrouillage n’a pas fonctionné. Réessayez, ou utilisez le code.",
             "Biometric unlock isn't available on this screen. Use the passcode." to
                 "Le déverrouillage biométrique n’est pas disponible sur cet écran. Utilisez le code.",
-            // « Utiliser le code » de la feuille: on guide, on n'annonce pas un échec.
+            // « Utiliser le code » de la feuille : on guide, on n'annonce pas un échec.
             "Enter your passcode." to "Saisissez votre code.",
         ).forEach { (key, expected) ->
             assertEquals("Français de « $key »", expected, OnyxLocalization.translate(key, fr))

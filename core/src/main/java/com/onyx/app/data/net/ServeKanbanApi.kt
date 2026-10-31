@@ -6,13 +6,13 @@ import com.onyx.app.data.model.serve.KanbanStatus
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** Le tableau tel que le plugin le rend: ses cartes, ses assignés et son curseur d'événements. */
+/** Le tableau tel que le plugin le rend : ses cartes, ses assignés et son curseur d'événements. */
 data class KanbanBoard(
     val cards: List<KanbanCard>,
     val assignees: List<String> = emptyList(),
     /**
-     * `latest_event_id`: de là que le socket d'événements reprend (`since=`), comme le `Board`
-     * de `KanbanClient`.
+     * `latest_event_id` : de là que le socket d'événements reprend (`since=`), comme le `Board`
+     * de `KanbanClient` côté référence.
      */
     val latestEventId: Int = 0,
 )
@@ -20,7 +20,7 @@ data class KanbanBoard(
 /**
  * Le tableau kanban du Dashboard.
  *
- * Comme `KanbanClient`: même base
+ * Miroir de `KanbanClient` côté référence (Echo/Services/HermesAutomation:381) : même base
  * (`api/plugins/kanban`), mêmes colonnes, mêmes routes, et les mêmes champs facultatifs.
  */
 class ServeKanbanApi(private val client: ServeClient) {
@@ -32,7 +32,7 @@ class ServeKanbanApi(private val client: ServeClient) {
         val assignees = root.asObject()?.array("assignees")
             .orEmpty()
             .mapNotNull { it.asString() ?: it.asObject()?.firstString("name", "profile") }
-        // Le plugin kanban de Hermes répond `columns: [{name, tasks: [...]}]`: le statut d'une
+        // Le plugin kanban de Hermes répond `columns: [{name, tasks: [...]}]` : le statut d'une
         // carte est le **nom de sa colonne**, et les tâches imbriquées ne portent pas toujours
         // `status`. Sans ce cas, le tableau s'affichait vide (« Nothing in Triage ») alors que
         // le serveur répondait 200 avec les colonnes.
@@ -100,7 +100,7 @@ class ServeKanbanApi(private val client: ServeClient) {
     }
 
     /**
-     * `PATCH api/plugins/kanban/tasks/{id}` — le déplacement porte la raison demandée
+     * `PATCH api/plugins/kanban/tasks/{id}` — le déplacement porte la raison qu'référence demande
      * (`block_reason` ou `summary` selon la colonne).
      */
     suspend fun update(
@@ -133,7 +133,7 @@ class ServeKanbanApi(private val client: ServeClient) {
         client.request("$BASE/tasks/$id", method = "DELETE", body = client.emptyBody())
     }
 
-    /** `POST api/plugins/kanban/tasks/{id}/comments`, signé `onyx` comme. */
+    /** `POST api/plugins/kanban/tasks/{id}/comments`, signé `onyx` comme sur la référence. */
     suspend fun comment(id: String, body: String) {
         client.request(
             path = "$BASE/tasks/$id/comments",
@@ -160,13 +160,13 @@ class ServeKanbanApi(private val client: ServeClient) {
         title = obj.firstString("title", "name").orEmpty(),
         status = KanbanStatus.fromId(obj.firstString("status", "column")).id,
         priority = obj.int("priority") ?: 0,
-        // `latest_summary` d'abord: la dernière chose que le worker a dite de la carte, comme
-        // `task.latestSummary ?? task.body` sur la rangée.
+        // `latest_summary` d'abord : la dernière chose que le worker a dite de la carte, comme
+        // `task.latestSummary ?? task.body` sur la rangée de la référence.
         summary = obj.strOrNull("latest_summary") ?: obj.strOrNull("summary"),
         body = obj.strOrNull("body"),
         assignee = obj.strOrNull("assignee"),
         createdAt = obj.firstString("created_at", "created"),
-        // `created_at` arrive en secondes d'époque (`Date(timeIntervalSince1970:)` ):
+        // `created_at` arrive en secondes d'époque (`Date(timeIntervalSince1970:)` côté référence) :
         // la rangée en montre l'âge (« 1 hr. ago »), pas le nombre.
         createdAtMillis = obj.long("created_at")?.let { if (it < MILLIS_FLOOR) it * 1000 else it },
         completedAt = obj.firstString("completed_at", "completed"),

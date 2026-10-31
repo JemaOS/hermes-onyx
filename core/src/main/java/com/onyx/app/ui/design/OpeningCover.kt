@@ -36,7 +36,7 @@ import kotlinx.coroutines.delay
 fun OpeningCover(
     source: Rect?,
     title: String,
-    /** Ce qui est découvert sous la surface; `null`: rien à échanger (`OpeningCover.run`). */
+    /** Ce qui est découvert sous la surface ; `null` : rien à échanger (`OpeningCover.run`). */
     onSwapped: (() -> Unit)? = null,
     onFinished: () -> Unit = {},
     modifier: Modifier = Modifier,

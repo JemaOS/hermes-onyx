@@ -21,12 +21,12 @@ import org.junit.Test
 /**
  * Un tour vit dans le magasin, pas dans l'écran.
  *
- * Le propriétaire: « si j'ai le malheur de faire retour, il ne continue pas à travailler en
+ * Le propriétaire : « si j'ai le malheur de faire retour, il ne continue pas à travailler en
  * arrière-plan ». Ici, on quitte la conversation (l'écran se détache, puis il est détruit) et le
  * tour doit continuer, finir sa réponse, l'écrire sur disque, et la rendre au retour.
  *
  * Ce qui est vérifié ici porte sur la **portée du travail** (le magasin) et sur ce qui arrive à la
- * réponse quand plus personne ne regarde; l'écran lui-même est vérifié par capture.
+ * réponse quand plus personne ne regarde ; l'écran lui-même est vérifié par capture.
  */
 class TurnStoreTest {
 
@@ -44,7 +44,7 @@ class TurnStoreTest {
         }
     }
 
-    /** Un flux qui ne dit rien tant qu'on ne lui demande pas: un serveur lent, ou en file. */
+    /** Un flux qui ne dit rien tant qu'on ne lui demande pas : un serveur lent, ou en file. */
     private class SlowStream {
         private val events = Channel<TurnEvent>(Channel.UNLIMITED)
         val departures = CopyOnWriteArrayList<com.onyx.app.data.net.TurnDeparture>()
@@ -81,7 +81,7 @@ class TurnStoreTest {
         val stream = SlowStream()
 
         val session = turns.start("fil", "answer", "Compte les routes.", null) { stream.flow() }
-        // L'écran s'en va: plus personne n'observe la session.
+        // L'écran s'en va : plus personne n'observe la session.
         assertTrue(session.phase.isStreaming)
 
         // Le serveur travaille et répond pendant ce temps.
@@ -116,7 +116,7 @@ class TurnStoreTest {
 
         val session = turns.start("fil-a", "answer-a", "Question longue et précise.", null) { stream.flow() }
 
-        // On ouvre une autre conversation: le magasin garde le tour, il continue d'écrire.
+        // On ouvre une autre conversation : le magasin garde le tour, il continue d'écrire.
         stream.say(TurnEvent.TextDelta("Réponse du premier fil."))
         withTimeout(5_000) {
             while (session.message.text.isEmpty()) kotlinx.coroutines.delay(10)

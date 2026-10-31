@@ -8,11 +8,19 @@ import kotlinx.serialization.json.put
 /**
  * Les fichiers du serveur, par le Dashboard.
  *
- * Comme: les mêmes routes (`api/files`, `api/fs/read-text`,
+ * Miroir de `Echo/Services/ServerFiles` : les mêmes routes (`api/files`, `api/fs/read-text`,
  * `api/fs/write-text`), la même lecture souple des entrées, et les noms qui commencent par un
  * point cachés par défaut.
  */
 class ServeFilesApi(private val client: ServeClient) {
+
+    /**
+     * Le **registre des sessions** (`GET api/sessions`), sur la même adresse que les fichiers.
+     *
+     * Il sert au volet : c'est lui qui dit quelles conversations existent, pour que le groupe par
+     * défaut porte celles qu'aucun projet ne réclame (voir `withHomeGroup`).
+     */
+    internal fun sessions(): ServeSessionsApi = ServeSessionsApi(client)
 
     /** Le dossier résolu par `GET api/files`, notamment la racine pour un nouveau projet. */
     suspend fun folderPath(path: String?): String {
@@ -57,7 +65,7 @@ class ServeFilesApi(private val client: ServeClient) {
         }.sortedWith(compareBy({ if (it.isDirectory) 0 else 1 }, { it.name.lowercase() }))
     }
 
-    /** Les noms commençant par un point sont cachés, comme. */
+    /** Les noms commençant par un point sont cachés, comme sur la référence. */
     fun visible(entries: List<FileEntry>, showHidden: Boolean): List<FileEntry> =
         if (showHidden) entries else entries.filterNot { it.name.startsWith(".") }
 
@@ -71,7 +79,7 @@ class ServeFilesApi(private val client: ServeClient) {
         )
     }
 
-    /** Comme , seul un 404 devient `null`; les autres erreurs restent visibles. */
+    /** Comme référence, seul un 404 devient `null` ; les autres erreurs restent visibles. */
     suspend fun readTextOrNull(path: String): String? = try {
         readText(path).text
     } catch (error: TransportError.Http) {
@@ -114,16 +122,32 @@ class ServeFilesApi(private val client: ServeClient) {
     /** `GET api/files/download?path=` — les octets d'un fichier. */
     suspend fun bytes(path: String): ByteArray = client.bytes("api/files/download", mapOf("path" to path))
 
-    /** `POST api/files/upload-stream`, un fichier à la fois, avec l'autorisation d'écraser. */
-    suspend fun upload(destinationFolder: String, name: String, bytes: ByteArray, overwrite: Boolean = false) {
+    /**
+     * `POST api/files/upload-stream`, un fichier à la fois, avec l'autorisation d'écraser.
+     *
+     * La route traite le champ `path` comme le **fichier cible**, jamais comme le dossier :
+     * `_managed_write_target(path)` résout un chemin de fichier, et le client web du Dashboard
+     * envoie lui aussi le chemin complet (`joinPath(dossier, nom)`), comme `ServerFiles.upload`
+     * de la référence (`join(folder, name)`). Envoyer le dossier faisait répondre
+     * `409 A directory already exists at that path` — la pièce jointe n'arrivait jamais sur le
+     * serveur, et le fil montrait une pastille vers un fichier qui n'existe pas.
+     */
+    suspend fun upload(
+        destinationFolder: String,
+        name: String,
+        bytes: ByteArray,
+        overwrite: Boolean = false,
+        contentType: String = "application/octet-stream",
+    ) {
         client.multipart(
             path = "api/files/upload-stream",
             fields = mapOf(
-                "path" to destinationFolder,
+                "path" to serverPathJoin(destinationFolder, name),
                 "overwrite" to overwrite.toString(),
             ),
             fileName = name,
             bytes = bytes,
+            contentType = contentType,
         )
     }
 
@@ -157,7 +181,7 @@ class ServeFilesApi(private val client: ServeClient) {
         val TEXT_EXTENSIONS = setOf(
             "md", "markdown", "txt", "json", "yaml", "yml", "toml", "ini", "conf", "cfg",
             "sh", "bash", "zsh", "py", "js", "ts", "tsx", "jsx", "kt", "kts", "java", "go",
-            "rs", "c", "h", "cpp", "hpp", "swift", "rb", "php", "sql", "csv", "html", "css",
+            "rs", "c", "h", "cpp", "hpp", "référence", "rb", "php", "sql", "csv", "html", "css",
             "xml", "env", "gitignore", "log",
         )
     }

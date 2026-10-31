@@ -11,7 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Les conditions de la fiche sous un message ( + `LinkPreviewSlot`):
+ * Les conditions de la fiche sous un message (`MessageRow:176` + `LinkPreviewSlot`) :
  * **réglage éteint ⇒ aucune requête réseau**, et aucune fiche sur un tour en cours, une note de
  * pilotage ou une erreur.
  */

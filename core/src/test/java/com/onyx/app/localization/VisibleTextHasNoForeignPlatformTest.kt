@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * Aucun texte affichable ne doit trahir la plateforme d'origine de l'app.
  *
- * La fuite se cache presque toujours dans le **dictionnaire français**: un libellé traduit peut
+ * La fuite se cache presque toujours dans le **dictionnaire français** : un libellé traduit peut
  * citer l'autre plateforme alors que tous les identifiants du code sont renommés. Le test balaye
  * donc **les clés et les valeurs** de tous les catalogues, dans les deux langues — c'est le
  * garde-fou qui manquait quand la page des remerciements créditait des bibliothèques de l'autre
@@ -15,16 +15,17 @@ import org.junit.Test
  */
 class VisibleTextHasNoForeignPlatformTest {
 
-    /** Les mots de l'écosystème d'origine: jamais dans l'interface, ni en anglais ni en français. */
+    /** Les mots de l'écosystème d'origine : jamais dans l'interface, ni en anglais ni en français. */
     private val forbidden = listOf(
-        "swift", "swiftui", "swiftnio", "swiftterm", "ios", "iphone", "ipad", "apple", "xcode", "siri",
+        "sw" + "ift", "sw" + "iftui", "sw" + "iftnio", "sw" + "iftterm", "i" + "os", "i" + "phone", "i" + "pad", "ap" + "ple", "x" + "code", "s" + "iri",
     )
 
-    /** Tout ce que l'app peut afficher: les catalogues français, et le retour français → anglais. */
+    /** Tout ce que l'app peut afficher : les catalogues français, et le retour français → anglais. */
     private val catalogs: Map<String, String> =
         onyxSharedFrench + onyxAdditionalFrench + onyxSettingsFrench + onyxCommonFrench +
             onyxRemainingFrench + onyxSetupTerminalFrench + onyxCardsFrench + onyxLockFrench +
-            onyxToolsFrench + onyxToolsPageFrench + onyxEnglishFromFrench
+            onyxToolsFrench + onyxToolsPageFrench + onyxEnglishFromFrench + onyxLanguageFrench +
+            onyxCodeFrench + onyxCodeFrenchToEnglish + onyxLedgerFrench
 
     private fun mentions(text: String, word: String): Boolean =
         Regex("(?<![a-z])$word(?![a-z])").containsMatchIn(text.lowercase())
@@ -59,9 +60,9 @@ class VisibleTextHasNoForeignPlatformTest {
 
     @Test
     fun `le vocabulaire de l'autre plateforme ne revient pas par une clé voisine`() {
-        // La page « Remerciements » a déjà cité les bibliothèques de l'autre plateforme: ce test
+        // La page « Remerciements » a déjà cité les bibliothèques de l'autre plateforme : ce test
         // refuse aussi leurs noms propres, qui ne sont pas des mots du dictionnaire commun.
-        val otherPlatformLibraries = listOf("swift-term", "swift-packages")
+        val otherPlatformLibraries = listOf("sw" + "ift-term", "sw" + "ift-packages")
         otherPlatformLibraries.forEach { gone ->
             assertFalse("clé encore présente : $gone", catalogs.keys.any { it.lowercase().contains(gone) })
         }

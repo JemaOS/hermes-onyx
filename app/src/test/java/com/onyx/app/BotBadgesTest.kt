@@ -16,10 +16,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les pastilles d'activité d'un bot et d'une salle, là où les prend: « au travail » et
+ * Les pastilles d'activité d'un bot et d'une salle, là où référence les prend : « au travail » et
  * « en attente de vous » viennent du serveur (`session.active_list`, en direct), le « pas encore
  * lu » de ce que ce téléphone a vu contre la date que le serveur donne — jamais d'une
- * conversation locale qui n'a rien à voir (`ChatActivity` ).
+ * conversation locale qui n'a rien à voir (`ChatActivity` de la référence).
  */
 class BotBadgesTest {
 

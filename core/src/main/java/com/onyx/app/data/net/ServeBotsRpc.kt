@@ -15,7 +15,7 @@ import kotlinx.serialization.json.put
 /**
  * Les écritures d'un bot, par le RPC du Dashboard.
  *
- * Comme `ServerBots.setFace` / `configure`: `profiles.configure` avec le `ui_meta`
+ * Miroir de `ServerBots.setFace` / `configure` de la référence : `profiles.configure` avec le `ui_meta`
  * du profil et la révision qu'on a lue — si quelqu'un l'a changé entre-temps, Hermes refuse et
  * l'app le dit.
  */
@@ -33,7 +33,7 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     /**
      * La photo qu'un bot a dans Hermes Desktop (`profiles.get_asset`, `avatar`), ou rien.
      *
-     * Comme `ServerBots.botPicture`: le serveur rend le fichier en `data:` base64.
+     * Miroir de `ServerBots.botPicture` côté référence : le serveur rend le fichier en `data:` base64.
      */
     suspend fun botPicture(profile: String): ByteArray? {
         if (profile.isBlank()) return null
@@ -55,8 +55,8 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
      * `profiles.describe` — les jeux d'outils du serveur, ceux que ce profil a, et s'il tient sa
      * propre liste.
      *
-     * Comme `HermesServeClient.toolsetsOffered` / `botDetails` (`BotDetails` de
-     * ): la liste vient de `profiles.describe`, jamais des routes REST.
+     * Miroir de `HermesServeClient.toolsetsOffered` / `botDetails` (`BotDetails` de
+     * BotManagement) : la liste vient de `profiles.describe`, jamais des routes REST.
      */
     suspend fun describeToolsets(profile: String): BotToolsets {
         val payload = rpc.call(
@@ -70,7 +70,7 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     /**
      * `profiles.configure { enabled_toolsets }` — les jeux d'outils qu'un bot a désormais.
      *
-     * Comme `BotChange.toolsets`: jamais une liste vide (chaque version du serveur
+     * Miroir de `BotChange.toolsets` de la référence : jamais une liste vide (chaque version du serveur
      * l'interprète autrement), et l'écriture est refusée quand le profil a disparu.
      */
     suspend fun setToolsets(profile: String, names: List<String>) {
@@ -79,11 +79,11 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     }
 
     /**
-     * « Let bots message each other »: le profil principal est installé comme un bot du serveur,
+     * « Let bots message each other » : le profil principal est installé comme un bot du serveur,
      * ce qui donne à chaque chat de bot l'outil pour écrire aux autres.
      *
-     * Comme `ServerBots.letBotsMessageEachOther`: c'est un
-     * `profiles.configure` sur le profil principal, avec la révision qu'on vient de lire; changé
+     * Miroir de `ServerBots.letBotsMessageEachOther` (ServerBots:492) : c'est un
+     * `profiles.configure` sur le profil principal, avec la révision qu'on vient de lire ; changé
      * entre-temps (Hermes Desktop), c'est refusé — et allumé de toute façon.
      */
     suspend fun letBotsMessageEachOther(mainProfile: String) {
@@ -103,7 +103,7 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
             timeoutMillis = 30_000,
         ).asObject()
         val applied = result?.obj("applied")
-        // Réglé entre-temps (Hermes Desktop): c'est allumé de toute façon.
+        // Réglé entre-temps (Hermes Desktop) : c'est allumé de toute façon.
         if (applied?.get("ui_meta_conflicts") != null) return
         if (applied?.get("ui_meta").asBool() != true) {
             throw TransportError.Malformed(OnyxLocalization["Hermes did not keep the bot setting."])
@@ -117,8 +117,74 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     }
 
     /**
-     * Change le modèle d'un bot; Hermes le lit sur le profil, pas dans son `ui_meta`.
-     * Le fournisseur accompagne le modèle: sans lui, un endpoint non standard est ambigu.
+     * Fait un bot neuf : `profiles.create`, puis son visage, son titre et sa visibilité.
+     *
+     * Miroir du « Create » de la référence : le profil naît sur le serveur en **copie de la
+     * configuration de l'agent principal** (`clone_from`, comme le pied de section de l'écran le
+     * promet — ses réglages, ses clés et ses connexions, ses chats et ses mémoires à lui), avec la
+     * personnalité du modèle choisi écrite dans son `SOUL.md`. Le `ui_meta` — visage, titre,
+     * visibilité — se pose dans le même geste, exactement comme pour un bot qui existe déjà.
+     *
+     * Rend le nom du profil créé.
+     */
+    suspend fun createBot(
+        profile: String,
+        title: String,
+        about: String,
+        soul: String,
+        faceCode: String?,
+        cloneFrom: String? = null,
+        hidden: Boolean = false,
+    ): String {
+        val created = rpc.call(
+            "profiles.create",
+            buildJsonObject {
+                put("name", profile)
+                if (about.isNotBlank()) put("description", about)
+                if (soul.isNotBlank()) put("soul", soul)
+                if (!cloneFrom.isNullOrBlank()) put("clone_from", cloneFrom)
+            },
+            CALL_TIMEOUT,
+        ).asObject()
+        if (created?.get("ok").asBool() != true) {
+            throw TransportError.Malformed(OnyxLocalization["Hermes did not make the bot."])
+        }
+        // Un profil tout neuf n'a rien à réviser : les deux clés du `ui_meta` partent ensemble,
+        // celles de `setFace`, `setAbout` et `setHidden` réunies.
+        val result = rpc.call(
+            "profiles.configure",
+            buildJsonObject {
+                put("name", profile)
+                put(
+                    "ui_meta",
+                    buildJsonObject {
+                        put(
+                            "hermes-bots",
+                            buildJsonObject {
+                                if (title.isNotBlank()) put("title", title)
+                                put("hidden", hidden)
+                            },
+                        )
+                        put("onyx", faceCode?.let { code -> buildJsonObject { put("face", code) } } ?: JsonNull)
+                    },
+                )
+                put("ui_meta_expected_revisions", buildJsonObject { put("hermes-bots", 0); put("onyx", 0) })
+            },
+            CALL_TIMEOUT,
+        ).asObject()
+        val applied = result?.obj("applied")
+        if (applied?.get("ui_meta_conflicts") != null) {
+            throw TransportError.Malformed(OnyxLocalization["This bot was just changed elsewhere. Review it and choose again."])
+        }
+        if (applied?.get("ui_meta").asBool() != true) {
+            throw TransportError.Malformed(OnyxLocalization["Hermes did not keep the bot setting."])
+        }
+        return profile
+    }
+
+    /**
+     * Change le modèle d'un bot ; Hermes le lit sur le profil, pas dans son `ui_meta`.
+     * Le fournisseur accompagne le modèle : sans lui, un endpoint non standard est ambigu.
      */
     suspend fun setModel(profile: String, model: String?, provider: String? = null) {
         val params = buildJsonObject {
@@ -130,9 +196,9 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     }
 
     /**
-     * Change ce qu'un bot affiche: son titre dans son `ui_meta`, sa phrase sur son profil.
+     * Change ce qu'un bot affiche : son titre dans son `ui_meta`, sa phrase sur son profil.
      *
-     * Le `ui_meta` d'Hermes ne porte que le titre et la visibilité; la description est un champ du
+     * Le `ui_meta` d'Hermes ne porte que le titre et la visibilité ; la description est un champ du
      * profil, et l'y mettre serait ignoré.
      */
     suspend fun setAbout(profile: String, title: String, about: String, revision: Int) {
@@ -159,9 +225,9 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     /**
      * Cache un bot dans Hermes Desktop (`ui_meta["hermes-bots"].hidden`), ou le remontre.
      *
-     * Comme `changeBot(_:BotChange(hidden:))`: c'est le réglage du Desktop, pas celui
+     * Miroir de `changeBot(_:BotChange(hidden:))` de la référence : c'est le réglage du Desktop, pas celui
      * de Onyx — un bot caché doit disparaître de la liste sur **tous** les appareils, comme la
-     * tuile « Hidden » le promet. La révision attendue accompagne l'écriture: Hermes refuse un
+     * tuile « Hidden » le promet. La révision attendue accompagne l'écriture : Hermes refuse un
      * `ui_meta` que quelqu'un d'autre a changé entre-temps.
      */
     suspend fun setHidden(profile: String, hidden: Boolean, revision: Int = 0) {
@@ -169,6 +235,22 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
             profile = profile,
             key = "hermes-bots",
             value = buildJsonObject { put("hidden", hidden) },
+            revision = revision,
+        )
+    }
+
+    /**
+     * Épingle un bot en haut de la liste (`ui_meta["hermes-bots"].pinned`), ou le détache.
+     *
+     * Miroir du `setPinned` de la référence (`BotsViewModel.setPinned` → `changeMeta(bot, "pinned", …)`)
+     * : c'est le même bloc `ui_meta` que la visibilité, donc le même geste, la même révision
+     * attendue, et Hermes Desktop le voit comme il voit `hidden`.
+     */
+    suspend fun setPinned(profile: String, pinned: Boolean, revision: Int = 0) {
+        configure(
+            profile = profile,
+            key = "hermes-bots",
+            value = buildJsonObject { put("pinned", pinned) },
             revision = revision,
         )
     }
@@ -198,7 +280,7 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
 }
 
 /**
- * Les jeux d'outils d'un profil, tels que `profiles.describe` les rend (`BotDetails` ).
+ * Les jeux d'outils d'un profil, tels que `profiles.describe` les rend (`BotDetails` côté référence).
  */
 data class BotToolsets(
     /** Tous les jeux que le serveur propose, chacun marqué s'il est dans la liste du profil. */
@@ -210,10 +292,10 @@ data class BotToolsets(
 )
 
 /**
- * `profiles.describe` lu comme `BotDetails.init`: `toolsets` avec leur
- * `enabled`, et `toolsets_pinned`. `enabledToolsets` est repris tel quel — sans liste propre
+ * `profiles.describe` lu comme `BotDetails.init` (BotManagement:53) : `toolsets` avec leur
+ * `enabled`, et `toolsets_pinned`. `enabledToolsets` de la référence est repris tel quel — sans liste propre
  * et sans aucun jeu coché, les versions 0.21.5 du serveur répondent une liste vide alors que le
- * profil a tout: on lit donc « tous ».
+ * profil a tout : on lit donc « tous ».
  */
 fun botToolsetsFrom(payload: JsonObject?): BotToolsets {
     val rows = payload?.array("toolsets").orEmpty().mapNotNull { it.asObject() }
@@ -253,12 +335,12 @@ fun letBotsMessageParams(profile: String, revision: Int): JsonObject =
         put("ui_meta_expected_revisions", buildJsonObject { put("hermes-bots", revision) })
     }
 
-/** Le titre qu'une personne lit pour un jeu d'outils, comme `BotToolset.title`. */
+/** Le titre qu'une personne lit pour un jeu d'outils, comme `BotToolset.title` de la référence. */
 fun toolsetTitleFor(name: String): String = TOOLSET_TITLES[name]
     ?: name.replace('_', ' ').split(' ')
         .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
 
-/** Les mots (`BotToolset.titles`): ce que Onyx dit d'un jeu d'outils. */
+/** Les mots de la référence (`BotToolset.titles`) : ce que Onyx dit d'un jeu d'outils. */
 private val TOOLSET_TITLES = mapOf(
     "web" to "Web search", "browser" to "Browser", "terminal" to "Terminal", "file" to "Files",
     "code_execution" to "Run code", "vision" to "Look at pictures", "image_gen" to "Make pictures",

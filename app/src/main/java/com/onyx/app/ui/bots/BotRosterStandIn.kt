@@ -3,16 +3,16 @@ package com.onyx.app.ui.bots
 import com.onyx.app.data.model.serve.BotProfile
 
 /**
- * La doublure de QA du roster: les bots d'exemple, pour un appareil qui n'a aucun Dashboard où
+ * La doublure de QA du roster : les bots d'exemple, pour un appareil qui n'a aucun Dashboard où
  * les lire.
  *
- * Le a exactement la même chose — `ConversationsView.demoBots`
- * , posé dans le `BotDirectory` quand
+ * Le la référence a exactement la même chose — `ConversationsView.demoBots`
+ * (Echo/Views/ConversationsView:2268), posé dans le `BotDirectory` quand
  * `-echo.demoBots` est passé au lancement. Ici c'est l'extra `onyx.demoBots` (`am start -e
- * onyx.demoBots true`) qui la pose. Rien ne la lit autrement: sans l'extra, le roster est
+ * onyx.demoBots true`) qui la pose. Rien ne la lit autrement : sans l'extra, le roster est
  * celui du serveur, ou vide.
  *
- * Les quatre bots sont ceux de la doublure , avec leurs mêmes noms et libellés:
+ * Les quatre bots sont ceux de la doublure de la référence, avec leurs mêmes noms et libellés :
  * le profil principal (`@hermes`, sans titre), `scout` (« Scout »), `writer` (« Quill ») et
  * `fixit` (« Fix-it ») — de quoi voir la liste des mentions `@` avec plusieurs bots, l'ordre du
  * roster (principal, puis le plus récemment parlé) et le filtrage par ce qui suit le « @ ».

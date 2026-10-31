@@ -27,7 +27,7 @@ data class ClarifyRequest(
 @Serializable
 data class SecretRequest(
     val id: String,
-    /** Consigne du serveur, affichée verbatim; une variable seule reçoit le libellé de repli. */
+    /** Consigne du serveur, affichée verbatim ; une variable seule reçoit le libellé de repli. */
     val prompt: String = "",
     val envVar: String = "",
     val runId: String? = null,
@@ -36,7 +36,7 @@ data class SecretRequest(
 )
 
 /**
- * Ce qui arrête l'agent et attend la personne (`Interrupt`): une approbation, une question, un
+ * Ce qui arrête l'agent et attend la personne (`Interrupt`) : une approbation, une question, un
  * mot de passe sudo, ou un secret.
  */
 sealed interface Interrupt {

@@ -15,7 +15,7 @@ import org.junit.Test
 /**
  * Ce qu'un tour en cours écrit, et ce qu'il dit de lui-même.
  *
- * Le propriétaire a signalé deux choses: un agent qui « travaille dans le vide » (une onde, et
+ * Le propriétaire a signalé deux choses : un agent qui « travaille dans le vide » (une onde, et
  * rien à lire) et son propre message réaffiché comme une réponse du bot. Le tour doit donc
  * toujours dire où il en est, et ne jamais peindre le message de l'utilisateur comme sa réponse.
  */
@@ -39,21 +39,21 @@ class TurnSessionTest {
         assertEquals(22.0, phase.elapsedSeconds(23_000L), 0.001)
         assertEquals(
             "En attente du serveur · 22,0 s",
-            TurnStatusCopy.line(phase, 23_000L, Locale.FRANCE),
+            TurnStatusCopy.line(phase, 23_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
     }
 
     @Test
     fun `un tour qui n'a rien produit depuis longtemps le dit au lieu de tourner en silence`() {
         val session = session()
-        // Le serveur a parlé une fois (à 10 s), puis plus rien: le tour tourne toujours.
+        // Le serveur a parlé une fois (à 10 s), puis plus rien : le tour tourne toujours.
         session.apply(TurnEvent.ReasoningDelta("je cherche"), 11_000L)
 
         assertFalse("vingt secondes de silence ne sont pas anormales", session.phase.stalled(31_000L))
         assertTrue("au-delà du délai, l'écran le dit", session.phase.stalled(71_000L))
         assertEquals(
             "Aucune nouvelle du serveur depuis 1m 00s · 1m 10s",
-            TurnStatusCopy.line(session.phase, 71_000L, Locale.FRANCE),
+            TurnStatusCopy.line(session.phase, 71_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
     }
 
@@ -65,7 +65,7 @@ class TurnSessionTest {
         assertEquals(TurnStep.THINKING, session.phase.step)
         assertEquals(
             "Réflexion · 2,0 s",
-            TurnStatusCopy.line(session.phase, 3_000L, Locale.FRANCE),
+            TurnStatusCopy.line(session.phase, 3_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
 
         session.apply(TurnEvent.ToolStarted(name = "terminal", preview = null), 4_000L)
@@ -73,7 +73,7 @@ class TurnSessionTest {
         assertEquals("terminal", session.phase.toolName)
         assertEquals(
             "Exécution de terminal · 4,0 s",
-            TurnStatusCopy.line(session.phase, 5_000L, Locale.FRANCE),
+            TurnStatusCopy.line(session.phase, 5_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
 
         session.apply(TurnEvent.ToolFinished(name = "terminal", failed = false), 6_000L)
@@ -84,7 +84,7 @@ class TurnSessionTest {
         assertEquals("Voici les routes.", session.message.text)
         assertEquals(
             "Rédaction de la réponse · 7,0 s",
-            TurnStatusCopy.line(session.phase, 8_000L, Locale.FRANCE),
+            TurnStatusCopy.line(session.phase, 8_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
     }
 
@@ -93,14 +93,14 @@ class TurnSessionTest {
         val question = "J'ai besoin de toi tu vas repasser toutes les routes possible de l'App dans un émulateur Android."
         val session = session(question)
 
-        // Le serveur renvoie le message tel quel: c'est un écho du tour, pas une réponse.
+        // Le serveur renvoie le message tel quel : c'est un écho du tour, pas une réponse.
         session.apply(TurnEvent.TextDelta(question), 2_000L)
 
         assertEquals("la réponse reste vide", "", session.message.text)
         assertTrue("le fil le dit", session.phase.echoedPrompt)
         assertEquals(
             "Le serveur a renvoyé votre message — en attente de la réponse · 2,0 s",
-            TurnStatusCopy.line(session.phase, 3_000L, Locale.FRANCE),
+            TurnStatusCopy.line(session.phase, 3_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
 
         // La vraie réponse, elle, s'écrit.
@@ -121,7 +121,7 @@ class TurnSessionTest {
 
     @Test
     fun `une reponse courte reste une reponse, meme si elle ressemble au message`() {
-        // « oui » est une vraie réponse: on ne jette que l'écho d'un message long.
+        // « oui » est une vraie réponse : on ne jette que l'écho d'un message long.
         val session = session("oui")
         session.apply(TurnEvent.TextDelta("oui"), 2_000L)
         assertEquals("oui", session.message.text)

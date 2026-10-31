@@ -9,7 +9,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Le routage des préfixes parlés décide ce qui part au modèle: un mot mal reconnu ne doit pas
+ * Le routage des préfixes parlés décide ce qui part au modèle : un mot mal reconnu ne doit pas
  * avaler la question, et une phrase de politesse ne doit pas changer le sens.
  */
 class SpokenPrefixTest {

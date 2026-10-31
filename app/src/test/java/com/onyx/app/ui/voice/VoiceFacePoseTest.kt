@@ -8,10 +8,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * L'instant d'un visage qui parle: `OnyxVoiceFace.pose`.
+ * L'instant d'un visage qui parle : `OnyxVoiceFace.pose` (VoiceView:759-788).
  *
- * Ce qui se voit dans la scène: les yeux clignent même pendant la parole, le regard suit la phase,
- * et **la bouche s'ouvre avec la voix** — c'est exactement ce que le modèle montre et ce qui
+ * Ce qui se voit dans la scène : les yeux clignent même pendant la parole, le regard suit la phase,
+ * et **la bouche s'ouvre avec la voix** — c'est exactement ce que la référence montre et ce qui
  * manquait (le visage d'avant était figé, une humeur « au travail » aux yeux grands et à la bouche
  * en trait).
  */
@@ -19,7 +19,7 @@ class VoiceFacePoseTest {
 
     @Test
     fun `les yeux clignent, meme pendant la parole`() {
-        // Le clignement dure 0,16 s, en sinus: fermé au milieu.
+        // Le clignement dure 0,16 s, en sinus : fermé au milieu.
         assertEquals(1f, voicePose(0.08f, VoicePhase.SPEAKING, level = 0.5f).blink, 0.0001f)
         assertEquals(
             "sin(0,35 π) : l'œil se referme",
@@ -46,16 +46,16 @@ class VoiceFacePoseTest {
 
     @Test
     fun `le regard suit la phase`() {
-        // À l'écoute: vers vous, un rien sous le milieu.
+        // À l'écoute : vers vous, un rien sous le milieu.
         val listening = voicePose(0f, VoicePhase.LISTENING, 0f).look!!
         assertEquals(0f, listening.x, 0.0001f)
         assertEquals(0.3f, listening.y, 0.0001f)
-        // En réflexion: en haut et de côté.
+        // En réflexion : en haut et de côté.
         assertTrue(voicePose(0f, VoicePhase.THINKING, 0f).look!!.y < -0.6f)
-        // Pendant la lecture: devant, un léger balancement.
+        // Pendant la lecture : devant, un léger balancement.
         val speaking = voicePose(0f, VoicePhase.SPEAKING, 0f).look!!
         assertEquals(0.2f, speaking.y, 0.0001f)
-        // Au repos: un regard tenu, puis un passage au suivant.
+        // Au repos : un regard tenu, puis un passage au suivant.
         assertEquals(0f, voicePose(0f, VoicePhase.IDLE, 0f).look!!.x, 0.0001f)
         assertTrue("et il change de place deux secondes et demie plus tard", voicePose(2.5f, VoicePhase.IDLE, 0f).look!! != voicePose(0f, VoicePhase.IDLE, 0f).look)
     }
@@ -68,14 +68,14 @@ class VoiceFacePoseTest {
 
     @Test
     fun `un visage fige n a ni clignement ni bouche qui bat`() {
-        // C'est ce qu'oppose Reduce Motion: `BotPose` garde le regard, les yeux et la bouche du
+        // C'est ce qu'oppose Reduce Motion : `BotPose()` garde le regard, les yeux et la bouche du
         // visage, et rien ne bouge.
         val still = com.onyx.app.ui.design.BotPose()
         assertEquals(0f, still.blink, 0.0001f)
         assertNull(still.look)
         assertNull(still.mouth)
         assertNull(still.tilt)
-        // Et le visage du bot, lui, reste celui qu'il a: la pose ne le remplace pas.
+        // Et le visage du bot, lui, reste celui qu'il a : la pose ne le remplace pas.
         assertNotNull(com.onyx.app.ui.design.botFace("quill", "1:blob:happy:smile:blush:4:0:0"))
     }
 }

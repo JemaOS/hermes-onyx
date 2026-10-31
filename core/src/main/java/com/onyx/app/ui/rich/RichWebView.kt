@@ -1,5 +1,7 @@
 package com.onyx.app.ui.rich
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.annotation.SuppressLint
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceError
@@ -46,40 +48,44 @@ enum class RichKind(val id: String) {
 /**
  * L'état d'une page rendue, tel que `AgentPageBlock` s'en sert pour ses replis.
  *
- * connaît les mêmes cas dans: une page qui n'a rien à montrer, une page
+ * référence connaît les mêmes cas dans `AgentPages` : une page qui n'a rien à montrer, une page
  * qui a échoué, et une page qui se rend normalement.
  */
 enum class RichPageState {
-    /** La page se rend: on la montre, avec ses commandes. */
+    /** La page se rend : on la montre, avec ses commandes. */
     READY,
 
-    /** La page a chargé mais ne rend rien: on retombe sur son code source. */
+    /** La page a chargé mais ne rend rien : on retombe sur son code source. */
     EMPTY,
 
-    /** La page n'a pas chargé: on le dit, et on laisse la relancer. */
+    /** La page n'a pas chargé : on le dit, et on laisse la relancer. */
     FAILED,
 }
 
-/** Les bornes de hauteur d'une page, comme `PageChrome`. */
+/** Les bornes de hauteur d'une page, comme `PageChrome` côté référence. */
 private val PageMinHeight = 120.dp
 private val PageMaxHeight = 1200.dp
 
 /**
- * Une réponse riche: un diagramme Mermaid, ou une formule.
+ * Une réponse riche : un diagramme Mermaid, ou une formule.
  *
- * rend les deux hors ligne (avec Mermaid et KaTeX embarqués). Ici, une
- * `WebView` locale charge les mêmes bibliothèques depuis `assets/rich/`, avec le réseau coupé:
+ * référence rend les deux hors ligne (`WebBlocks`, avec Mermaid et KaTeX embarqués). Ici, une
+ * `WebView` locale charge les mêmes bibliothèques depuis `assets/rich/`, avec le réseau coupé :
  * rien ne sort du téléphone, et rien ne dépend d'une connexion.
  *
- * La hauteur vient du contenu lui-même: la page mesure son corps et la renvoie par le pont JS.
+ * La hauteur vient du contenu lui-même : la page mesure son corps et la renvoie par le pont JS.
  *
- * Une page produite par l'agent (`RichKind.HTML`) est portée plus loin, comme `AgentPage`:
- * elle est chargée comme un document à elle — ses scripts tournent, ses styles s'appliquent —, elle
- * prend la couleur de surface du thème si elle ne définit pas la sienne (variable CSS
- * `--onyx-surface`), elle choisit sa largeur (mesurée, bornée à l'écran) et elle peut parler à
- * l'app en postant `{"type":"send","text":"…"}` par l'interface JS `Onyx.postMessage`. Sa taille de
- * base vient de `--onyx-zoom` sur le `body`; son titre (`<title>`) et son état de chargement
- * remontent aussi par le pont. Au-delà de 1200 dp, elle est bornée et défile en elle-même.
+ * Une page produite par l'agent (`RichKind.HTML`) est portée plus loin, comme `AgentPage` sur la référence :
+ * elle est chargée comme un document à elle — ses styles s'appliquent — mais **tout ce qui peut
+ * s'exécuter en est retiré avant** ([AgentHtml] : scripts, cadres, gestionnaires d'événements,
+ * adresses actives), et une politique de contenu `default-src 'none'` interdit toute ressource
+ * distante : aucun script de la page ne tourne, et rien ne sort du téléphone. Elle prend la couleur
+ * de surface du thème si elle ne définit pas la sienne (variable CSS `--onyx-surface`), elle choisit
+ * sa largeur (mesurée, bornée à l'écran) et elle peut parler à l'app en postant
+ * `{"type":"send","text":"…"}` par l'interface JS `Onyx.postMessage` — par le pont de l'app, jamais
+ * par un script à elle. Sa taille de base vient de `--onyx-zoom` sur le `body` ; son titre (`<title>`)
+ * et son état de chargement remontent aussi par le pont. Au-delà de 1200 dp, elle est bornée et
+ * défile en elle-même.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -89,7 +95,7 @@ fun RichWebView(
     modifier: Modifier = Modifier,
     /** Une réponse à remettre à la page (`window.Onyx.receive`), quand elle en attend une. */
     incoming: String? = null,
-    /** Une clé stable pour se souvenir de la hauteur; `null` la mesure à chaque fois. */
+    /** Une clé stable pour se souvenir de la hauteur ; `null` la mesure à chaque fois. */
     heightKey: String? = null,
     /** Ce qu'une page renvoie à l'app quand elle poste `{"type":"send","text":"…"}`. */
     onSend: ((String) -> Unit)? = null,
@@ -107,7 +113,7 @@ fun RichWebView(
     onTap: (() -> Unit)? = null,
     /** Un appui long sur le dessin (la formule propose alors « Copy LaTeX »). */
     onLongPress: (() -> Unit)? = null,
-    /** Lecteur plein écran: remplit la surface, défile et laisse pincer pour zoomer. */
+    /** Lecteur plein écran : remplit la surface, défile et laisse pincer pour zoomer. */
     zoomable: Boolean = false,
 ) {
     val theme = LocalOnyxTheme.current
@@ -116,26 +122,26 @@ fun RichWebView(
     val isPage = kind == RichKind.HTML
 
     // La hauteur connue évite que le bloc saute quand il se redessine. L'état est gardé stable
-    // (sans clé): la fabrique de l'`AndroidView` ne tourne qu'une fois et c'est lui que le pont JS
+    // (sans clé) : la fabrique de l'`AndroidView` ne tourne qu'une fois et c'est lui que le pont JS
     // met à jour, si bien qu'un état recréé à chaque redessin serait écrit dans le vide.
     val rememberedDp = remember(heightKey) { heightKey?.let { WebBlockHeights.height(it) } }
     var heightPx by remember {
         mutableIntStateOf(rememberedDp?.let { dp -> with(density) { dp.dp.roundToPx() } } ?: 0)
     }
-    // La largeur naturelle d'une page; nulle tant qu'elle ne l'a pas dit.
+    // La largeur naturelle d'une page ; nulle tant qu'elle ne l'a pas dit.
     var widthPx by remember { mutableIntStateOf(0) }
-    // La page a fini de charger: ses mesures veulent alors dire quelque chose. Avant, le corps est
+    // La page a fini de charger : ses mesures veulent alors dire quelque chose. Avant, le corps est
     // encore vide et « rien à montrer » serait un verdict trop tôt.
     val loaded = remember { mutableStateOf(false) }
-    // Le zoom déjà posé dans la page: il ne se réapplique pas à chaque redessin. `NaN` dit « rien
+    // Le zoom déjà posé dans la page : il ne se réapplique pas à chaque redessin. `NaN` dit « rien
     // encore », ce qui force l'application au premier passage et après chaque rechargement. Un
-    // tableau, et non un état: sa valeur n'a rien à redessiner.
+    // tableau, et non un état : sa valeur n'a rien à redessiner.
     val appliedZoom = remember { floatArrayOf(Float.NaN) }
 
-    // Les deux rappels, toujours à jour: la fabrique les a saisis une fois pour toutes.
+    // Les deux rappels, toujours à jour : la fabrique les a saisis une fois pour toutes.
     val latestSend = rememberUpdatedState(onSend)
     val latestState = rememberUpdatedState(onPageState)
-    // Le titre, l'état de chargement et le zoom changent souvent: la fabrique lit leur valeur
+    // Le titre, l'état de chargement et le zoom changent souvent : la fabrique lit leur valeur
     // courante, jamais celle de sa création.
     val latestTitle = rememberUpdatedState(onPageTitle)
     val latestLoading = rememberUpdatedState(onLoading)
@@ -143,8 +149,8 @@ fun RichWebView(
     val latestTap = rememberUpdatedState(onTap)
     val latestLongPress = rememberUpdatedState(onLongPress)
 
-    // Le modèle des diagrammes est dans les assets: lu une fois, rempli pour ce bloc. Une page ne
-    // passe pas par lui: elle est son propre document.
+    // Le modèle des diagrammes est dans les assets : lu une fois, rempli pour ce bloc. Une page ne
+    // passe pas par lui : elle est son propre document.
     val template = remember(isPage) {
         if (isPage) "" else runCatching {
             context.assets.open("rich/render.html").bufferedReader().use { it.readText() }
@@ -171,15 +177,15 @@ fun RichWebView(
         }
     }
 
-    // Ce que la `WebView` porte: elle recharge quand le contenu ou la demande de rechargement bouge.
+    // Ce que la `WebView` porte : elle recharge quand le contenu ou la demande de rechargement bouge.
     val reloadKey = "$reloadToken\u0000$html"
 
-    // La hauteur mesurée, avant la borne. Une page plus haute que `PageMaxHeight` n'est pas coupée:
+    // La hauteur mesurée, avant la borne. Une page plus haute que `PageMaxHeight` n'est pas coupée :
     // elle est bornée, et c'est elle qui défile ensuite.
     val measuredHeight: Dp = with(density) { heightPx.toFloat().toDp() }
     val pageScrolls = isPage && measuredHeight > PageMaxHeight
     val height: Dp = when {
-        // Une page est bornée comme: jamais plus haute que 1200, jamais moins que 120.
+        // Une page est bornée comme sur la référence : jamais plus haute que 1200, jamais moins que 120.
         isPage -> measuredHeight.coerceIn(PageMinHeight, PageMaxHeight)
         heightPx > 0 -> measuredHeight.coerceAtLeast(24.dp)
         else -> 120.dp
@@ -188,18 +194,25 @@ fun RichWebView(
     BoxWithConstraints(modifier = modifier) {
         val maxWidth = maxWidth
         // La page garde la largeur qu'elle s'est choisie, jamais plus large que ce que le bloc peut
-        // occuper: la borne à l'écran.
+        // occuper : la borne à l'écran.
         val naturalWidth = with(density) { widthPx.toFloat().toDp() }
+        // La largeur naturelle d'une page n'est suivie que si elle occupe **vraiment** la place.
+        // Une mesure minuscule n'est pas un choix de largeur : c'est un aller-retour — la page se
+        // remet à la largeur mesurée, le texte se replie, la mesure rétrécit encore — qui finissait
+        // par réduire le bloc à une colonne d'une centaine de pixels (vu sur l'appareil). En
+        // dessous de 60 % du bloc, on garde donc la largeur du bloc, qui est ce que la référence
+        // fait de toute page qui ne déclare pas la sienne.
+        val naturalIsUsable = widthPx > 0 && naturalWidth < maxWidth && naturalWidth >= maxWidth * 0.6f
         val blockWidth = when {
             zoomable -> maxWidth
-            isPage && widthPx > 0 && naturalWidth < maxWidth -> naturalWidth
+            isPage && naturalIsUsable -> naturalWidth
             else -> maxWidth
         }
         val blockHeight = if (zoomable) maxHeight else height
         val chrome = if (zoomable) {
             Modifier
         } else {
-            Modifier.background(theme.surfaceColor.copy(alpha = 0.4f), RoundedCornerShape(10.dp)).padding(vertical = 4.dp)
+            Modifier.background(theme.surfaceColor.copy(alpha = 0.4f), RoundedCornerShape(OnyxSpace.ControlCorner)).padding(vertical = 4.dp)
         }
 
         AndroidView(
@@ -213,7 +226,7 @@ fun RichWebView(
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = false
                     settings.allowFileAccess = true
-                    // Le rendu est hors ligne: aucune requête ne doit partir.
+                    // Le rendu est hors ligne : aucune requête ne doit partir.
                     settings.blockNetworkLoads = true
                     // Le contenu plus large que le bloc (une formule longue, un diagramme) est
                     // ramené à la largeur du bloc plutôt que coupé.
@@ -233,14 +246,14 @@ fun RichWebView(
                     }
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String?) {
-                            // La page a fini: à partir d'ici, ses mesures sont fiables, et
+                            // La page a fini : à partir d'ici, ses mesures sont fiables, et
                             // l'indicateur de chargement n'a plus lieu d'être.
                             loaded.value = true
                             latestLoading.value?.invoke(false)
-                            // Un dessin plus large que le bloc commence à gauche, comme 
+                            // Un dessin plus large que le bloc commence à gauche, comme sur la référence
                             // (un glissement l'emmène ensuite à droite).
                             if (!zoomable) view.scrollTo(0, 0)
-                            // Le corps existe désormais: le zoom choisi s'y pose, et la mesure
+                            // Le corps existe désormais : le zoom choisi s'y pose, et la mesure
                             // se refait une fois la mise en page stabilisée.
                             val chosen = latestZoom.value
                             appliedZoom[0] = chosen
@@ -259,14 +272,14 @@ fun RichWebView(
                             }
                         }
                     }
-                    // Le pont des pages: une page poste ici ce qu'elle veut dire à l'app.
+                    // Le pont des pages : une page poste ici ce qu'elle veut dire à l'app.
                     addJavascriptInterface(
                         object {
                             @JavascriptInterface
                             fun postMessage(json: String) {
                                 val body = runCatching { Json.parseToJsonElement(json).jsonObject }.getOrNull()
                                     ?: return
-                                // Un champ simple, sans jamais faire tomber le pont: une page qui
+                                // Un champ simple, sans jamais faire tomber le pont : une page qui
                                 // envoie autre chose qu'un objet plat n'a rien à dire à l'app.
                                 fun field(name: String): String? =
                                     runCatching { body[name]?.jsonPrimitive?.contentOrNull }.getOrNull()
@@ -280,7 +293,7 @@ fun RichWebView(
                                         val measured = field("height")?.toFloatOrNull()?.toInt() ?: 0
                                         val wide = field("width")?.toFloatOrNull()?.toInt() ?: 0
                                         val empty = field("empty")?.toBoolean() ?: false
-                                        // Le titre vient de `<title>`: la barre du bloc le montre.
+                                        // Le titre vient de `<title>` : la barre du bloc le montre.
                                         val pageTitle = field("title").orEmpty()
                                         post {
                                             if (measured > 0) {
@@ -306,7 +319,7 @@ fun RichWebView(
                         },
                         "Onyx",
                     )
-                    // Le pont historique des diagrammes et des formules: le modèle `render.html`
+                    // Le pont historique des diagrammes et des formules : le modèle `render.html`
                     // l'appelle pour sa hauteur.
                     addJavascriptInterface(
                         object {
@@ -346,10 +359,10 @@ fun RichWebView(
             if (incoming != null && isPage) {
                 view.evaluateJavascript("window.Onyx&&window.Onyx.receive&&window.Onyx.receive(${quoteJs(incoming)})", null)
             }
-                // Une nouvelle source, une demande de rechargement, ou un autre thème: on recharge.
+                // Une nouvelle source, une demande de rechargement, ou un autre thème : on recharge.
                 if (view.tag != reloadKey) {
                     view.tag = reloadKey
-                    // La page repart de zéro: sa largeur est à remesurer, et ses mesures sont
+                    // La page repart de zéro : sa largeur est à remesurer, et ses mesures sont
                     // muettes jusqu'à ce qu'elle ait fini de charger.
                     loaded.value = false
                     widthPx = 0
@@ -362,10 +375,10 @@ fun RichWebView(
                 view.isVerticalScrollBarEnabled = zoomable || pageScrolls
                 view.isHorizontalScrollBarEnabled = zoomable
                 view.overScrollMode = android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS
-                // Le défilement interne passe d'abord par la WebView; le chat reprend la main
+                // Le défilement interne passe d'abord par la WebView ; le chat reprend la main
                 // quand elle est au bout. Un diagramme plus large que le bloc se fait glisser.
                 view.isNestedScrollingEnabled = true
-                // Le zoom ne recharge pas la page: la variable change, et la mesure se refait.
+                // Le zoom ne recharge pas la page : la variable change, et la mesure se refait.
                 if (isPage && appliedZoom[0] != zoom) {
                     appliedZoom[0] = zoom
                     view.evaluateJavascript("window.__onyxZoom && window.__onyxZoom($zoom)", null)
@@ -375,7 +388,7 @@ fun RichWebView(
     }
 }
 
-/** La page à charger: le modèle de `assets/rich/render.html`, rempli pour ce bloc. */
+/** La page à charger : le modèle de `assets/rich/render.html`, rempli pour ce bloc. */
 private fun renderHtml(
     template: String,
     kind: RichKind,
@@ -390,8 +403,8 @@ private fun renderHtml(
         "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=6, user-scalable=yes"
     } else {
         // Un dessin ou une formule plus large que le bloc est ramené à sa largeur par le mode
-        // « aperçu » de la WebView (`loadWithOverviewMode`): rien ne doit être coupé, comme sur
-        // où la formule de coût tient sur une ligne.
+        // « aperçu » de la WebView (`loadWithOverviewMode`) : rien ne doit être coupé, comme sur
+        // référence où la formule de coût tient sur une ligne.
         "width=device-width, initial-scale=1.0"
     }
     val outLayout = if (zoomable) {
@@ -401,6 +414,7 @@ private fun renderHtml(
         ""
     }
     return template
+        .replace("__LANG__", com.onyx.app.localization.OnyxLanguage.preferred.language)
         .replace("__KIND__", JsonPrimitive(kind.id).toString())
         .replace("__SOURCE__", JsonPrimitive(source).toString())
         .replace("__MERMAID_THEME__", JsonPrimitive(if (dark) "dark" else "default").toString())
@@ -423,13 +437,17 @@ private val ViewportTag = Regex("""<meta[^>]+name\s*=\s*["']?viewport""", RegexO
 /**
  * La page que l'agent a écrite, habillée par l'app.
  *
- * Comme `PageChrome.framed`: le prelude se place après le doctype, si bien que la page
+ * Comme `PageChrome.framed` sur la référence : le prelude se place après le doctype, si bien que la page
  * garde le mode standards qu'elle a demandé, et une page qui ne dit pas sa largeur est dessinée pour
  * celle du téléphone. Le prelude porte les couleurs de l'app en variables CSS — dont
- * `--onyx-surface`, que la page prend pour fond si elle ne définit pas le sien: ses propres styles
+ * `--onyx-surface`, que la page prend pour fond si elle ne définit pas le sien : ses propres styles
  * viennent après, donc gagnent.
  */
 private fun pageDocument(source: String, theme: ResolvedTheme): String {
+    // La page vient d'une réponse : elle est **assainie avant d'entrer dans la vue**. Tout ce qui
+    // peut s'exécuter ou appeler le réseau en est retiré (voir [AgentHtml]), si bien que le seul
+    // script du document est le pont de l'app, ci-dessous.
+    val safe = AgentHtml.sanitize(source)
     val vars = listOf(
         "--onyx-surface" to cssColour(theme.surfaceColor.toArgb()),
         "--foreground" to cssColour(theme.textColor.toArgb()),
@@ -439,22 +457,42 @@ private fun pageDocument(source: String, theme: ResolvedTheme): String {
         "--card" to cssColour(theme.surfaceColor.toArgb()),
     )
     val tokens = vars.joinToString(";") { "${it.first}:${it.second}" }
-    val prelude = "<style>:root{color-scheme:${if (theme.dark) "dark" else "light"};$tokens}" +
+    val prelude = PAGE_CSP +
+        "<style>:root{color-scheme:${if (theme.dark) "dark" else "light"};$tokens}" +
         "html,body{margin:0;padding:0;background:var(--onyx-surface);color:var(--foreground,inherit);" +
         "-webkit-text-size-adjust:100%}" +
-        // La taille de base choisie par « A− » / « A+ »: la variable est posée sur le body (par le
+        // La taille de base choisie par « A− » / « A+ » : la variable est posée sur le body (par le
         // script de zoom), et le body s'y conforme. La page peut la lire pour s'accorder.
         "body{--onyx-zoom:1;zoom:var(--onyx-zoom)}</style>" +
-        // Une page qui attend une réponse de l'agent la reçoit ici: elle écoute
+        // Une page qui attend une réponse de l'agent la reçoit ici : elle écoute
         // `onyx-reply`, ou pose son propre `window.Onyx.receive` avant.
         "<script>window.Onyx=window.Onyx||{};window.Onyx.receive=window.Onyx.receive||function(t){" +
         "window.dispatchEvent(new CustomEvent('onyx-reply',{detail:String(t||'')}))};</script>" +
-        PAGE_BRIDGE
-    // La mesure vient à la fin: elle lit la page une fois que ses propres scripts ont tourné.
-    return framed(source, prelude) + PAGE_MEASURE
+        // Le pont de la page : du JavaScript nu, donc **enveloppé** (voir la note plus bas).
+        "<script>" + PAGE_BRIDGE + "</script>"
+    // La mesure vient à la fin : elle lit la page une fois que ses propres scripts ont tourné.
+    //
+    // **Attrape** : les deux morceaux ci-dessous sont du JavaScript **nu**, sans balise. Les
+    // concaténer tels quels — ce que faisait la version d'avant — les faisait *afficher* dans la
+    // page (le pont de l'app apparaissait en clair, à la place du contenu) sans qu'aucun script ne
+    // tourne : ni titre, ni hauteur, ni mesure. Ils sont donc enveloppés ici, une fois pour toutes.
+    return framed(safe, prelude) + "<script>" + PAGE_MEASURE + "</script>"
 }
 
-/** Le prelude après le doctype, avec un viewport s'il en manque un (comme `PageChrome.framed`). */
+/**
+ * La politique de contenu du widget : **rien ne sort du rendu**.
+ *
+ * `default-src 'none'` ferme tout ce qui n'est pas nommé — donc aucune requête, aucune feuille de
+ * style distante, aucune image distante, aucune police distante. Ce qui est autorisé est ce qui ne
+ * quitte pas le téléphone : les styles en ligne (la page en a, et ils font sa mise en page), les
+ * images et polices en `data:`, et le pont de l'app. Le réseau est **aussi** coupé par la vue
+ * (`blockNetworkLoads`), mais la politique le dit dans le document : deux serrures, pas une.
+ */
+private const val PAGE_CSP =
+    "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data:; " +
+        "font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'\">"
+
+/** Le prelude après le doctype, avec un viewport s'il en manque un (miroir de `PageChrome.framed`). */
 private fun framed(doc: String, head: String): String {
     var full = head
     if (!ViewportTag.containsMatchIn(doc)) {
@@ -470,9 +508,9 @@ private fun framed(doc: String, head: String): String {
 }
 
 /**
- * Ce que la page peut appeler dans son propre monde (`PageChrome.bridge` ).
+ * Ce que la page peut appeler dans son propre monde (`PageChrome.bridge` côté référence).
  *
- * `onyx.send('…')` poste `{"type":"send","text":"…"}` par l'interface `Onyx.postMessage`; tout
+ * `onyx.send('…')` poste `{"type":"send","text":"…"}` par l'interface `Onyx.postMessage` ; tout
  * élément qui peut être touché et qui porte `data-onyx-send` (ou `data-hermes-send`) envoie aussi.
  */
 private const val PAGE_BRIDGE = """
@@ -492,8 +530,8 @@ private const val PAGE_BRIDGE = """
 """
 
 /**
- * La largeur et la hauteur du corps de la page (`PageChrome.measure` ), renvoyées par la
- * même interface JS. La hauteur est celle du contenu, pas de l'écran qu'il remplit; la largeur est
+ * La largeur et la hauteur du corps de la page (`PageChrome.measure` côté référence), renvoyées par la
+ * même interface JS. La hauteur est celle du contenu, pas de l'écran qu'il remplit ; la largeur est
  * l'étendue de ce que le corps tient. `empty` dit que rien n'a été rendu.
  */
 private const val PAGE_MEASURE = """
@@ -520,9 +558,9 @@ private const val PAGE_MEASURE = """
       try { Onyx.postMessage(JSON.stringify({ type: 'size', height: h, width: w, empty: empty, title: t })); } catch (e) {}
     }
   }
-  // La mesure forcée: elle repart de zéro, pour que le nouveau résultat soit toujours renvoyé.
+  // La mesure forcée : elle repart de zéro, pour que le nouveau résultat soit toujours renvoyé.
   window.__onyxMeasure = function(){ lastH = 0; lastW = 0; lastEmpty = null; lastTitle = null; post(); };
-  // La taille de base: la variable est posée sur le body, que le prelude redimensionne. La mesure
+  // La taille de base : la variable est posée sur le body, que le prelude redimensionne. La mesure
   // attend deux images, le temps que la nouvelle mise en page soit en place.
   window.__onyxZoom = function(z){
     try {

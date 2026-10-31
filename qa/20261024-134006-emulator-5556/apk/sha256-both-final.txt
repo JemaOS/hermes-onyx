@@ -1,2 +1,0 @@
-f9c7d8a9b1eb8893cd28cba778d38ec9edcb468c449c8400b5d43a8def30c042  /home/john/r132/onyx-android/releases/app-v1.0.0_134-20261024-1332.apk
-f9c7d8a9b1eb8893cd28cba778d38ec9edcb468c449c8400b5d43a8def30c042  /home/john/r132/onyx-android/qa/20261024-134006-emulator-5556/apk/installed-base.apk

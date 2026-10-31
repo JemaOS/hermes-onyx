@@ -1,12 +1,12 @@
 package com.onyx.app.data.net
 
-/** Ce qu'une action se lit sous l'aperçu: un verbe, puis son détail. */
+/** Ce qu'une action se lit sous l'aperçu : un verbe, puis son détail. */
 data class ComputerActionText(val verb: String, val detail: String)
 
 /**
  * Comment la dernière action se raconte à l'écran.
  *
- * Le verbe reste une clé courte (« click », « typing »…) que l'écran traduit; le détail garde ce
+ * Le verbe reste une clé courte (« click », « typing »…) que l'écran traduit ; le détail garde ce
  * qui vient du pont tel quel — des coordonnées, un texte, une commande — parce qu'un détail
  * traduit ne serait plus la vérité de ce qui s'est passé.
  */

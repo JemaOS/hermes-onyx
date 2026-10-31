@@ -10,7 +10,7 @@ import com.onyx.app.car.AutoVoiceLook
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.model.Transport
 
-/** Lit le téléphone quand les deux apps sont installées; sinon garde les défauts et le réglage local. */
+/** Lit le téléphone quand les deux apps sont installées ; sinon garde les défauts et le réglage local. */
 class AutoSettingsBridge(context: Context) {
     private val resolver = context.applicationContext.contentResolver
     private var cached: Bundle? = null

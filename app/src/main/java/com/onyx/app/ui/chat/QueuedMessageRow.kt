@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.Canvas
@@ -125,7 +127,7 @@ fun QueuedMessageRow(
                     text = "Send now",
                     style = theme.caption.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
                     modifier = Modifier
-                        .background(theme.fill, RoundedCornerShape(7.dp))
+                        .background(theme.fill, RoundedCornerShape(OnyxSpace.ControlCorner))
                         .onyxClickable(onClick = onSend)
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                 )

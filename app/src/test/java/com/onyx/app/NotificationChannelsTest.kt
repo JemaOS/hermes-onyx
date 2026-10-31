@@ -1,6 +1,8 @@
 package com.onyx.app
 
 import com.onyx.app.notifications.ApprovalNotifier
+import com.onyx.app.notifications.AgentCallService
+import com.onyx.app.notifications.CallRinger
 import com.onyx.app.notifications.NotificationChannels
 import com.onyx.app.notifications.TurnService
 import org.junit.Assert.assertEquals
@@ -8,14 +10,20 @@ import org.junit.Test
 
 /**
  * Les canaux listés à Réglages → Notifications sont ceux que Onyx publie réellement, et leur état
- * suit ce qu'Android rapporte: absent avant la première alerte, éteint sur « aucun », allumé sinon.
+ * suit ce qu'Android rapporte : absent avant la première alerte, éteint sur « aucun », allumé sinon.
  */
 class NotificationChannelsTest {
 
     @Test
     fun `les canaux listes sont ceux que Onyx enregistre`() {
         assertEquals(
-            listOf(ApprovalNotifier.CHANNEL_ID, ApprovalNotifier.SILENT_CHANNEL_ID, TurnService.CHANNEL_ID),
+            listOf(
+                ApprovalNotifier.CHANNEL_ID,
+                ApprovalNotifier.SILENT_CHANNEL_ID,
+                TurnService.CHANNEL_ID,
+                CallRinger.CHANNEL_ID,
+                AgentCallService.CHANNEL_ID,
+            ),
             NotificationChannels.all.map { it.id },
         )
     }
@@ -45,7 +53,7 @@ class NotificationChannelsTest {
     @Test
     fun `chaque canal porte son libelle localisable`() {
         assertEquals(
-            listOf("Approvals", "Silent approvals", "Answers"),
+            listOf("Approvals", "Silent approvals", "Answers", "Calls", "Reachable"),
             NotificationChannels.all.map { it.label },
         )
     }

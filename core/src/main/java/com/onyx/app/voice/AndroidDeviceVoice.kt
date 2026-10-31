@@ -8,10 +8,10 @@ import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
 /**
- * Le `TextToSpeech` d'Android: la voix de l'appareil, prête à relayer un serveur muet.
+ * Le `TextToSpeech` d'Android : la voix de l'appareil, prête à relayer un serveur muet.
  *
  * Le moteur se construit sans bloquer (son callback arrive ensuite). Tant que son état n'est pas
- * connu, [isAvailable] reste optimiste et une phrase demandée est mise en attente: elle part dès
+ * connu, [isAvailable] reste optimiste et une phrase demandée est mise en attente : elle part dès
  * l'initialisation. Un moteur réellement absent ou hostile le dit alors par `onDone(false)`, et
  * l'écran l'annonce au lieu de se taire.
  */
@@ -87,7 +87,7 @@ class AndroidDeviceVoice(context: Context) : DeviceVoice {
     }
 
     override fun stop() {
-        // On invalide d'abord: la phrase coupée ne doit pas rappeler `onDone` après un Stop.
+        // On invalide d'abord : la phrase coupée ne doit pas rappeler `onDone` après un Stop.
         active = null
         queued = null
         engine?.stop()

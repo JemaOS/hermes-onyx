@@ -6,10 +6,11 @@ import com.onyx.app.data.model.SubagentUpdate
 import com.onyx.app.data.model.TokenUsage
 
 /**
- * Événements d'un tour de conversation, comme `TurnEvent`
+ * Événements d'un tour de conversation, miroir de `TurnEvent`
+ * (Echo/Services/Transport/HermesTransport:5).
  *
  * Tous les transports (chat-completions OpenAI, sessions Hermes, runs) produisent ce même
- * vocabulaire: l'UI ne dépend donc pas du serveur choisi.
+ * vocabulaire : l'UI ne dépend donc pas du serveur choisi.
  */
 sealed interface TurnEvent {
     /** Fragment de texte de la réponse, à concaténer. */
@@ -38,7 +39,7 @@ sealed interface TurnEvent {
      *
      * Transporté par le socket du Dashboard (`hermes serve`), qui émet les trames `subagent.*`
      * **sur la session du parent** — l'enfant est nommé par `subagent_id`. L'API de conversation
-     * (`/v1`) ne les transmet pas: là, seuls les buts d'un `delegate_task` se lisent dans ses
+     * (`/v1`) ne les transmet pas : là, seuls les buts d'un `delegate_task` se lisent dans ses
      * arguments, et la ligne reste [com.onyx.app.data.model.SubagentStatus.DISPATCHED].
      */
     data class Subagent(val update: SubagentUpdate) : TurnEvent
@@ -55,7 +56,7 @@ sealed interface TurnEvent {
     /**
      * Le modèle que la session sert vraiment, quand le serveur le dit.
      *
-     * `session.info` du Dashboard porte `model`: un alias peut cacher le vrai modèle (l'app envoie
+     * `session.info` du Dashboard porte `model` : un alias peut cacher le vrai modèle (l'app envoie
      * `hermes-agent`, le serveur sert autre chose), et c'est le **vrai** que la barre du haut doit
      * nommer — il change donc dynamiquement.
      */

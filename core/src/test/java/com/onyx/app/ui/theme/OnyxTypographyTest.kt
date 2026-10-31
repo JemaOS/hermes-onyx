@@ -3,13 +3,15 @@ package com.onyx.app.ui.theme
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.onyx.app.ui.design.OnyxSocle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OnyxTypographyTest {
     @Test
-    fun `les familles systeme et embarquees gardent les roles de Theme swift`() {
+    fun `les familles systeme et embarquees gardent les roles de Theme référence`() {
         val fonts = distinctBundledFonts()
 
         assertEquals(FontFamily.SansSerif, fonts.familyFor(FontDesign.DEFAULT))
@@ -41,9 +43,23 @@ class OnyxTypographyTest {
         assertSame(fonts.inter, hermes.tableFont.fontFamily)
         assertSame(fonts.sourceCode, terminal.tableFont.fontFamily)
 
-        assertEquals(17.sp, standard.messageFont.fontSize)
-        assertEquals(13.sp, standard.codeFont.fontSize)
-        assertEquals(13.sp, standard.tableFont.fontSize)
+        // **Les six corps du socle, et rien d'autre** : le corps de texte est 15 (`.mtx2`), le corps
+        // des données (bloc de code, tableau, identifiant) est 12 (`.mt`). C'étaient 17, 13 et 13 —
+        // trois corps de l'échelle la référence qui n'existaient nulle part ailleurs dans l'app.
+        assertEquals(15.sp, standard.messageFont.fontSize)
+        assertEquals(12.sp, standard.codeFont.fontSize)
+        assertEquals(12.sp, standard.tableFont.fontSize)
+        // Et les styles nommés tombent tous sur l'échelle : 30 / 26 / 16 / 15 / 12 / 11.
+        listOf(
+            standard.largeTitle, standard.title, standard.title2, standard.title3,
+            standard.headline, standard.body, standard.callout, standard.subheadline,
+            standard.footnote, standard.caption, standard.caption2,
+        ).forEach { style ->
+            assertTrue(
+                "le style porte " + style.fontSize.value + " sp, hors échelle",
+                OnyxSocle.isOnScale(style.fontSize),
+            )
+        }
     }
 
     private fun distinctBundledFonts(): OnyxFonts {

@@ -1,6 +1,6 @@
 package com.onyx.app.ui.terminal
 
-/** Une cellule de l'écran: son caractère et son style. */
+/** Une cellule de l'écran : son caractère et son style. */
 data class TerminalCell(val char: Char = ' ', val style: TerminalStyle = TerminalStyle())
 
 /** Le peu de style qu'un terminal utilise au quotidien. */
@@ -13,10 +13,10 @@ data class TerminalStyle(
 )
 
 /**
- * Un écran de terminal: une grille de cellules que les séquences ANSI déplacent.
+ * Un écran de terminal : une grille de cellules que les séquences ANSI déplacent.
  *
- * en implémente bien davantage (souris, presse-papiers, sixel, modes privés). Ce tampon
- * couvre ce qui se voit à l'usage: retour chariot, saut de ligne, effacement, déplacement du
+ * SwiftTerm en implémente bien davantage (souris, presse-papiers, sixel, modes privés). Ce tampon
+ * couvre ce qui se voit à l'usage : retour chariot, saut de ligne, effacement, déplacement du
  * curseur, et les couleurs SGR que `git`, `ls` et `systemctl` emploient.
  */
 class TerminalBuffer(
@@ -34,7 +34,7 @@ class TerminalBuffer(
     private var savedRow = 0
     private var savedColumn = 0
 
-    /** L'état du parseur: texte ordinaire, ou séquence en cours. */
+    /** L'état du parseur : texte ordinaire, ou séquence en cours. */
     private val pending = StringBuilder()
     private var inEscape = false
 
@@ -53,7 +53,7 @@ class TerminalBuffer(
     fun text(): String = lines().joinToString("\n").trimEnd()
 
     /**
-     * Ajoute la sortie reçue. Les octets arrivent en morceaux au milieu d'une séquence: on garde
+     * Ajoute la sortie reçue. Les octets arrivent en morceaux au milieu d'une séquence : on garde
      * l'état d'un appel à l'autre.
      */
     fun write(chunk: String) {
@@ -63,7 +63,7 @@ class TerminalBuffer(
             when {
                 inEscape -> {
                     pending.append(char)
-                    // Une séquence CSI finit par une lettre; les autres par n'importe quoi.
+                    // Une séquence CSI finit par une lettre ; les autres par n'importe quoi.
                     if (pending.length >= 2 && char.isLetter()) {
                         applySequence(pending.toString())
                         pending.setLength(0)
@@ -107,7 +107,7 @@ class TerminalBuffer(
 
     private fun lineFeed() {
         if (cursorRow == rows - 1) {
-            // Une ligne de plus: on remonte tout d'un cran, comme un terminal qui défile.
+            // Une ligne de plus : on remonte tout d'un cran, comme un terminal qui défile.
             for (row in 1 until rows) grid[row - 1] = grid[row]
             grid[rows - 1] = Array(columns) { TerminalCell() }
         } else {
@@ -116,7 +116,7 @@ class TerminalBuffer(
     }
 
     private fun applySequence(sequence: String) {
-        // `ESC[`: contrôle; `ESC]`: chaîne du système d'exploitation (titre), ignorée.
+        // `ESC[` : contrôle ; `ESC]` : chaîne du système d'exploitation (titre), ignorée.
         if (!sequence.startsWith("\u001B[")) return
         val body = sequence.removePrefix("\u001B[").dropLast(1)
         val final = sequence.last()
@@ -194,7 +194,7 @@ class TerminalBuffer(
                 49 -> style = style.copy(background = -1)
                 90 -> style = style.copy(foreground = 8)
                 38, 48 -> {
-                    // `38;5;n` et `38;2;r;g;b`: on garde le premier indice, sans le décoder.
+                    // `38;5;n` et `38;2;r;g;b` : on garde le premier indice, sans le décoder.
                     val target = if (code == 38) "foreground" else "background"
                     val kind = numbers.getOrNull(index + 1)
                     val value = when (kind) {

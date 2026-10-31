@@ -20,7 +20,7 @@ class TerminalSupportTest {
 
     @Test
     fun `l alerte du terminal nomme l hote quand rien n est rempli`() {
-        // Comme le modèle: rien n'est prérempli tant qu'aucun compte n'a été enregistré. Le
+        // Comme la référence : rien n'est prérempli tant qu'aucun compte n'a été enregistré. Le
         // champ Host s'affiche vide, l'hôte que le serveur suggère n'est que son exemple en gris,
         // et la première alerte nomme donc le **nom d'hôte** — jamais l'utilisateur.
         val screen = File("src/main/java/com/onyx/app/ui/terminal/TerminalScreen.kt").readText()

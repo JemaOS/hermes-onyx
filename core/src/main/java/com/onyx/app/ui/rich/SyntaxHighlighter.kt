@@ -11,8 +11,8 @@ data class CodeToken(val text: String, val kind: TokenKind)
 /**
  * Le surligneur de syntaxe des blocs de code.
  *
- * Comme: mêmes familles de langages, mêmes couleurs —
- * celles que le thème porte déjà (`SyntaxPalette`). Assez simple pour rester juste: commentaires,
+ * Équivalent Android de `SyntaxHighlighter` : mêmes familles de langages, mêmes couleurs —
+ * celles que le thème porte déjà (`SyntaxPalette`). Assez simple pour rester juste : commentaires,
  * chaînes, nombres, mots-clés, types.
  */
 object SyntaxHighlighter {
@@ -23,11 +23,6 @@ object SyntaxHighlighter {
         "throw", "is", "in", "as", "null", "true", "false", "this", "super", "override", "private",
         "public", "internal", "protected", "data", "sealed", "enum", "companion", "suspend", "lateinit",
         "const", "typealias", "by", "where", "init", "constructor", "operator", "inline", "reified",
-    )
-
-    private val swiftKeywords = kotlinKeywords + setOf(
-        "func", "let", "struct", "enum", "protocol", "extension", "guard", "defer", "some", "any",
-        "nonisolated", "async", "await", "throws", "mutating", "weak", "unowned", "indirect",
     )
 
     private val pythonKeywords = setOf(
@@ -75,7 +70,6 @@ object SyntaxHighlighter {
 
     private fun keywordsFor(language: String?): Set<String>? = when (language?.lowercase()) {
         "kotlin", "kt", "kts" -> kotlinKeywords
-        "swift" -> swiftKeywords
         "python", "py" -> pythonKeywords
         "javascript", "js", "typescript", "ts", "tsx", "jsx" -> jsKeywords
         "json", "jsonc" -> jsonKeywords
@@ -101,7 +95,7 @@ object SyntaxHighlighter {
         TokenKind.PLAIN -> plain
     }
 
-    /** Découpe un texte en morceaux colorés; un langage inconnu reste d'une seule couleur. */
+    /** Découpe un texte en morceaux colorés ; un langage inconnu reste d'une seule couleur. */
     fun tokenize(code: String, language: String?): List<CodeToken> {
         val keywords = keywordsFor(language) ?: return listOf(CodeToken(code, TokenKind.PLAIN))
         val tokens = mutableListOf<CodeToken>()

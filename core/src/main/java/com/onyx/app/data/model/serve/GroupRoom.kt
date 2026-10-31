@@ -15,12 +15,12 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Les discussions de groupe du serveur — les salles de bots d'Hermes (`groups.*`).
+ * Les salons du serveur — les salles de bots d'Hermes (`groups.*`).
  *
- * Comme `GroupMember` / `GroupRoom` (et:45).
- * Deux sources, comme: les salles qu'Hermes héberge lui-même (`groups.list`) et celles
+ * Miroir de `GroupMember` / `GroupRoom` (Echo/Services/Transport/ServerGroups:13 et :45).
+ * Deux sources, comme la référence : les salles qu'Hermes héberge lui-même (`groups.list`) et celles
  * qu'Hermes Desktop tient de son côté (sa copie dans `ui_meta["hermes-bots-groups"]` du profil
- * principal, version 3: « so mobile can show the same messages »).
+ * principal, version 3 : « so mobile can show the same messages »).
  */
 
 /** Un bot dans une salle (`GroupMember`). Son id dans la salle est son profil. */
@@ -30,11 +30,11 @@ data class GroupMember(
     val handle: String,
     val displayName: String? = null,
 ) {
-    /** Ce qu'on écrit pour lui: son nom de salle, sinon sa poignée. */
+    /** Ce qu'on écrit pour lui : son nom de salle, sinon sa poignée. */
     val label: String get() = displayName?.takeIf { it.isNotBlank() } ?: handle
 
     /**
-     * Le membre tel que `groups.create` le prend (`GroupMember.wire` du modèle): son
+     * Le membre tel que `groups.create` le prend (`GroupMember.wire` de la référence) : son
      * identifiant dans la salle, son profil, sa poignée, et son nom de salle quand il en a un.
      */
     fun wire(): JsonObject = buildJsonObject {
@@ -66,25 +66,25 @@ data class GroupRoom(
     val updatedAtMillis: Long? = null,
     val latestSeq: Int? = null,
     /**
-     * Une salle qu'Hermes Desktop tient lui-même, montrée depuis sa copie: lecture seule.
-     * Son id porte le préfixe `desktop:` (`liveRooms` la nomme `desktop:id:<salle>`).
+     * Une salle qu'Hermes Desktop tient lui-même, montrée depuis sa copie : lecture seule.
+     * Son id porte le préfixe `desktop:` (`liveRooms` de la référence la nomme `desktop:id:<salle>`).
      */
     val inDesktop: Boolean = false,
     /**
      * Les messages de sa copie, les seize derniers au plus, du plus ancien au plus récent
-     * (`GroupRoom.desktopMessages` ): une salle Desktop se lit ici et se parle dans Desktop.
+     * (`GroupRoom.desktopMessages` de la référence) : une salle Desktop se lit ici et se parle dans Desktop.
      */
     val desktopMessages: List<DesktopMessage> = emptyList(),
     /** Combien de messages antérieurs la copie laisse de côté (`omitted`). */
     val omitted: Int = 0,
     /**
-     * Une salle que ce téléphone garde lui-même, faute de Dashboard pour la tenir: elle vit dans
+     * Une salle que ce téléphone garde lui-même, faute de Dashboard pour la tenir : elle vit dans
      * le magasin des salles gardées ici, avec ses membres, et se retrouve après une relance.
      */
     val local: Boolean = false,
 ) {
     /**
-     * Où la salle en est, pour dire ce qui est nouveau depuis qu'on l'a vue (`ChatActivity`):
+     * Où la salle en est, pour dire ce qui est nouveau depuis qu'on l'a vue (`ChatActivity`) :
      * le numéro du dernier événement d'une salle hébergée, l'heure de la copie d'une salle Desktop.
      */
     val activityMark: Double?
@@ -94,7 +94,7 @@ data class GroupRoom(
 
     /**
      * Les bots de la salle appelés comme le roster les appelle, là où la copie ne donne pas de nom
-     * (le profil principal, en règle générale: le nom que Onyx lui donne).
+     * (le profil principal, en règle générale : le nom que Onyx lui donne).
      */
     fun naming(roster: List<BotProfile>?, mainName: String): GroupRoom {
         if (roster == null) return this
@@ -110,13 +110,13 @@ data class GroupRoom(
     }
 
     companion object {
-        /** Deux bots suffisent, six au plus: au-delà, Hermes refuse la salle. */
+        /** Deux bots suffisent, six au plus : au-delà, Hermes refuse la salle. */
         const val MIN_MEMBERS = 2
         const val MAX_MEMBERS = 6
 
         /**
-         * La salle du même nom, s'il y en a déjà une: redemander le même nom n'en ouvre pas une
-         * seconde (l'idempotence que le modèle laisse au serveur, ici tenue aussi côté client).
+         * La salle du même nom, s'il y en a déjà une : redemander le même nom n'en ouvre pas une
+         * seconde (l'idempotence que la référence laisse au serveur, ici tenue aussi côté client).
          */
         fun named(rooms: List<GroupRoom>, name: String): GroupRoom? {
             val wanted = name.trim()
@@ -138,7 +138,7 @@ data class GroupRoom(
 
         /**
          * Les salles qu'Hermes Desktop tient lui-même, depuis sa copie (version 3 et plus), les
-         * salles terminées laissées de côté (`deleted`: un numéro de révision par clé).
+         * salles terminées laissées de côté (`deleted` : un numéro de révision par clé).
          */
         fun desktopRooms(copy: JsonElement?): List<GroupRoom> {
             val root = copy.asObject() ?: return emptyList()
@@ -204,18 +204,18 @@ data class GroupRoom(
             val atMillis: Long,
             val fromPerson: Boolean,
             val profile: String?,
-            /** Ce qui a été dit (`text`), tel quel: jamais traduit. */
+            /** Ce qui a été dit (`text`), tel quel : jamais traduit. */
             val text: String = "",
         )
 
-        /** `updated_at` est en secondes Unix (`Date(timeIntervalSince1970:)`). */
+        /** `updated_at` est en secondes Unix côté la référence (`Date(timeIntervalSince1970:)`). */
         internal fun secondsToMillis(seconds: Long): Long =
             if (seconds < 100_000_000_000L) seconds * 1000 else seconds
     }
 }
 
 /**
- * Une salle à ouvrir: son identifiant neuf, son nom et ses membres.
+ * Une salle à ouvrir : son identifiant neuf, son nom et ses membres.
  *
  * C'est ce que `groups.create` demande au Dashboard (`createGroup(named:bots:mainName:)` de la
  * référence), et ce qu'un téléphone **sans Dashboard** garde chez lui — la salle réapparaît alors
@@ -225,18 +225,18 @@ data class GroupRoomDraft(
     val id: String,
     val name: String,
     val members: List<GroupMember>,
-    /** Quand la salle a été demandée: l'heure que la liste montre en attendant son premier mot. */
+    /** Quand la salle a été demandée : l'heure que la liste montre en attendant son premier mot. */
     val createdAtMillis: Long,
 ) {
     companion object {
         /**
-         * L'identifiant de la salle sur le serveur, tiré comme celui du modèle
-         * (`"onyx-" + UUID`): un identifiant opaque pour Hermes, unique par salle neuve.
+         * L'identifiant de la salle sur le serveur, tiré comme celui de la référence
+         * (`"onyx-" + UUID`) : un identifiant opaque pour Hermes, unique par salle neuve.
          */
         fun newID(): String = "onyx-" + java.util.UUID.randomUUID().toString().lowercase()
 
         /**
-         * La salle demandée pour ces bots: chacun devient un membre de la salle, nommé comme le
+         * La salle demandée pour ces bots : chacun devient un membre de la salle, nommé comme le
          * roster le nomme (le profil principal prend le nom de Onyx), exactement le `wire` que
          * `groups.create` prend.
          */

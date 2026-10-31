@@ -17,9 +17,9 @@ import org.junit.Test
 /**
  * Ce que l'écran raconte quand la session n'est pas ouverte.
  *
- * Le défaut d'origine: une seule phrase, et le texte interne de la bibliothèque réseau à la
- * place de la cause — « Impossible de joindre le pont: sent ping but didn't receive pong within
- * 20000ms (after 0 successful ping/pongs) ». Ces tests tiennent les deux bouts: chaque cause
+ * Le défaut d'origine : une seule phrase, et le texte interne de la bibliothèque réseau à la
+ * place de la cause — « Impossible de joindre le pont : sent ping but didn't receive pong within
+ * 20000ms (after 0 successful ping/pongs) ». Ces tests tiennent les deux bouts : chaque cause
  * connue a **son** texte, et aucun texte ne contient de jargon ni le jeton. Ils couvrent les deux
  * entrées de la même cause — la réponse HTTP de la poignée de main (`401`) et le code de fermeture
  * du pont (`4401`, `4404`, `4429`).
@@ -40,7 +40,7 @@ class ComputerBridgeErrorTest {
             ComputerBridgeError.TokenMissing,
             ComputerBridgeError.fromClose(4401, "bad-token:missing"),
         )
-        // Motif de la version précédente du pont: le jeton ne correspondait pas.
+        // Motif de la version précédente du pont : le jeton ne correspondait pas.
         assertEquals(
             ComputerBridgeError.TokenRefused,
             ComputerBridgeError.fromClose(4401, "bad token"),
@@ -78,7 +78,7 @@ class ComputerBridgeErrorTest {
             ComputerBridgeError.Unreachable,
             ComputerBridgeClient.classify(ConnectException("Connection refused"), null),
         )
-        // Le texte exact que l'app affichait: il doit être reconnu comme un silence du pont.
+        // Le texte exact que l'app affichait : il doit être reconnu comme un silence du pont.
         assertEquals(
             ComputerBridgeError.Silent(0),
             ComputerBridgeClient.classify(
@@ -214,12 +214,12 @@ class ComputerBridgeErrorTest {
 
     @Test
     fun `un jeton refuse se dit, quel que soit le chemin du refus`() {
-        // Pendant la poignée de main: la réponse HTTP porte le 401.
+        // Pendant la poignée de main : la réponse HTTP porte le 401.
         assertEquals(
             "Le pont a refusé le jeton. Recopiez-le depuis l’ordinateur.",
             ComputerBridgeError.fromFailure(ProtocolExceptionLike(), 401, fr),
         )
-        // Après la poignée de main: le pont ferme avec son code.
+        // Après la poignée de main : le pont ferme avec son code.
         assertEquals("Le pont a refusé le jeton. Recopiez-le depuis l’ordinateur.", ComputerBridgeError.fromCloseCode(4401, fr))
         assertEquals("The bridge refused the token.", ComputerBridgeError.fromCloseCode(4401, en))
     }

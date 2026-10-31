@@ -1,5 +1,9 @@
 package com.onyx.app.ui.lock
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -46,18 +50,18 @@ private const val TAG = "OnyxLock"
 /**
  * L'écran de verrouillage.
  *
- * Comme: le cadenas au trait, « Onyx est verrouillé », et le bouton qui
+ * Miroir de `LockScreenView` : le cadenas au trait, « Onyx est verrouillé », et le bouton qui
  * demande la biométrie du téléphone. Le code est le secours d'Android quand le doigt ou le visage ne
  * répond pas — c'est le chemin qui marche toujours, il n'est jamais retiré.
  *
- * Trois règles, apprises à l'usage:
- * - le bouton de biométrie n'apparaît que si le téléphone peut réellement l'évaluer
- * (`BiometricManager.canAuthenticate`); sinon on dit à l'écran pourquoi, plutôt que d'offrir un
- * bouton muet;
- * - toute erreur de la feuille biométrique s'écrit à l'écran, lisible, et une empreinte qui ne
- * correspond pas laisse réessayer;
- * - le contenu défile et se cale au-dessus de l'inset du clavier: le champ « Code » et son bouton
- * restent visibles.
+ * Trois règles, apprises à l'usage :
+ *  - le bouton de biométrie n'apparaît que si le téléphone peut réellement l'évaluer
+ *    (`BiometricManager.canAuthenticate`) ; sinon on dit à l'écran pourquoi, plutôt que d'offrir un
+ *    bouton muet ;
+ *  - toute erreur de la feuille biométrique s'écrit à l'écran, lisible, et une empreinte qui ne
+ *    correspond pas laisse réessayer ;
+ *  - le contenu défile et se cale au-dessus de l'inset du clavier : le champ « Code » et son bouton
+ *    restent visibles.
  */
 @Composable
 fun LockScreen(
@@ -69,12 +73,12 @@ fun LockScreen(
     val context = LocalContext.current
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    // `null` veut dire « ce téléphone ne peut pas »: rien à proposer, donc pas de bouton — et la
-    // raison est dite plus bas. La question est posée une fois, résout `biometryName`.
+    // `null` veut dire « ce téléphone ne peut pas » : rien à proposer, donc pas de bouton — et la
+    // raison est dite plus bas. La question est posée une fois, comme référence résout `biometryName`.
     val biometry = remember(context, lock) { lock.biometryLabel(context) }
 
     fun promptBiometry() {
-        // Un hôte qui n'est pas une `FragmentActivity` ne peut pas porter `BiometricPrompt`: sans
+        // Un hôte qui n'est pas une `FragmentActivity` ne peut pas porter `BiometricPrompt` : sans
         // prompt il ne se passerait rien du tout, donc on le journalise **et** on le dit à l'écran.
         val activity = context as? FragmentActivity
         if (activity == null) {
@@ -91,16 +95,16 @@ fun LockScreen(
                     onUnlocked()
                 }
 
-                /** Un doigt qui glisse n'interrompt pas la demande: on le dit et on laisse réessayer. */
+                /** Un doigt qui glisse n'interrompt pas la demande : on le dit et on laisse réessayer. */
                 override fun onAuthenticationFailed() {
                     error = OnyxLocalization["That didn't match. Try again, or use the passcode."]
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     Log.w(TAG, "BiometricPrompt error $errorCode: $errString")
-                    // Le bouton négatif n'est pas une panne: c'est l'utilisateur qui demande le code,
+                    // Le bouton négatif n'est pas une panne : c'est l'utilisateur qui demande le code,
                     // et la feuille se ferme d'elle-même. On le guide au lieu de lui dire que ça a raté.
-                    // Un balayage de côté est un abandon: rien à dire non plus.
+                    // Un balayage de côté est un abandon : rien à dire non plus.
                     error = when (errorCode) {
                         BiometricPrompt.ERROR_NEGATIVE_BUTTON -> OnyxLocalization["Enter your passcode."]
                         BiometricPrompt.ERROR_USER_CANCELED -> null
@@ -112,7 +116,7 @@ fun LockScreen(
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(OnyxLocalization["Onyx is locked"])
             .setSubtitle(OnyxLocalization["Unlock to see your conversations"])
-            // Les classes **fortes et faibles**: sur beaucoup d'appareils (Honor, Xiaomi), seules
+            // Les classes **fortes et faibles** : sur beaucoup d'appareils (Honor, Xiaomi), seules
             // les fortes sont proposées, et l'ancienne demande (faible seule) restait sans réponse.
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -135,10 +139,10 @@ fun LockScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor)
+            .onyxPage(theme)
             .statusBarsPadding(),
     ) {
-        // Centré quand il y a la place, défilant quand il n'y en a pas: la colonne fait au moins la
+        // Centré quand il y a la place, défilant quand il n'y en a pas : la colonne fait au moins la
         // hauteur visible, donc le champ « Code » et son bouton restent au-dessus du clavier au lieu
         // de passer dessous.
         val viewport: Dp = maxHeight
@@ -155,7 +159,7 @@ fun LockScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                OnyxIcon(Symbols.LockOutline, tint = theme.accent, size = 30.dp)
+                OnyxIcon(Symbols.LockOutline, tint = theme.secondaryText, size = 30.dp)
 
                 BasicText(
                     text = "Onyx is locked",
@@ -175,7 +179,7 @@ fun LockScreen(
                         )
                     }
                 } else {
-                    // Pas de bouton muet: on explique ce qui manque, et où le régler.
+                    // Pas de bouton muet : on explique ce qui manque, et où le régler.
                     BasicText(
                         text = if (lock.hasPin) {
                             "Face or fingerprint isn't set up on this phone. Use the passcode."
@@ -190,7 +194,7 @@ fun LockScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(theme.surfaceColor, RoundedCornerShape(12.dp))
+                            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FormCorner))
                             .padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),

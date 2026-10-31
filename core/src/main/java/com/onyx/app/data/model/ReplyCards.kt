@@ -1,5 +1,6 @@
 package com.onyx.app.data.model
 
+import com.onyx.app.localization.OnyxLanguage
 import java.util.Locale
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -12,35 +13,35 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 
 /**
- * Les cartes qu'une réponse montre à côté de ses mots (`onyx_show`): une carte, une liste de
+ * Les cartes qu'une réponse montre à côté de ses mots (`onyx_show`) : une carte, une liste de
  * lieux, la météo, l'heure.
  *
- * Comme `ReplyCard`. L'agent demande ces cartes avec l'outil
- * `onyx_show` du plugin Hermes, dont les arguments sont `{"cards": [...]}`; l'app les lit dans
- * l'appel lui-même — en direct et quand une conversation est relue. Le format est le nôtre:
+ * Miroir de `ReplyCard` (Echo/Models/ReplyCards:14). L'agent demande ces cartes avec l'outil
+ * `onyx_show` du plugin Hermes, dont les arguments sont `{"cards": [...]}` ; l'app les lit dans
+ * l'appel lui-même — en direct et quand une conversation est relue. Le format est le nôtre :
  * [ReplyCards.parse] est tolérant (un nombre en texte, un champ facultatif absent, une clé
  * inconnue) et écarte une carte ou un lieu inutilisable plutôt que l'appel entier.
  *
- * Une carte météo ou d'heure ne nomme que son lieu: le plugin (côté Hermes) cherche la prévision
- * et le fuseau et répond avec les cartes remplies, que l'app lit dans sa réponse quand elle y est;
+ * Une carte météo ou d'heure ne nomme que son lieu : le plugin (côté Hermes) cherche la prévision
+ * et le fuseau et répond avec les cartes remplies, que l'app lit dans sa réponse quand elle y est ;
  * sinon la carte n'a que son lieu et n'est pas dessinée tant qu'elle n'a pas de relevé.
  */
 @Serializable
 sealed interface ReplyCard {
 
     /**
-     * L'heure quelque part, dessinée en direct par le téléphone: celle d'un lieu, ou sans lieu
+     * L'heure quelque part, dessinée en direct par le téléphone : celle d'un lieu, ou sans lieu
      * celle du téléphone lui-même.
      */
     @Serializable
     @SerialName("time")
     data class Clock(
         val place: String? = null,
-        /** Un fuseau IANA (« Europe/Lisbon »): donné, ou déduit du lieu. */
+        /** Un fuseau IANA (« Europe/Lisbon ») : donné, ou déduit du lieu. */
         val timeZone: String? = null,
     ) : ReplyCard {
         companion object {
-            /** « Same time », « 4 hr behind », « 5½ hr ahead »: par rapport à ici. */
+            /** « Same time », « 4 hr behind », « 5½ hr ahead » : par rapport à ici. */
             fun difference(seconds: Int): String {
                 if (seconds == 0) return "Same time"
                 val hours = kotlin.math.abs(seconds).toDouble() / 3600.0
@@ -68,7 +69,7 @@ sealed interface ReplyCard {
         val route: Route? = null,
     ) : ReplyCard
 
-    /** Une liste de lieux: ce qui est proche, ce qui a été trouvé. */
+    /** Une liste de lieux : ce qui est proche, ce qui a été trouvé. */
     @Serializable
     @SerialName("places")
     data class Places(
@@ -80,14 +81,14 @@ sealed interface ReplyCard {
     @SerialName("weather")
     data class Weather(
         val place: String,
-        /** « C » ou « F »: l'unité des nombres. */
+        /** « C » ou « F » : l'unité des nombres. */
         val units: String = "C",
         val now: Now? = null,
         val hours: List<Hour> = emptyList(),
         val days: List<Day> = emptyList(),
         val source: String? = null,
     ) : ReplyCard {
-        /** Y a-t-il quelque chose à dessiner: une carte avec son seul lieu attend sa prévision. */
+        /** Y a-t-il quelque chose à dessiner : une carte avec son seul lieu attend sa prévision. */
         val hasReading: Boolean get() = now != null || hours.isNotEmpty() || days.isNotEmpty()
 
         @Serializable
@@ -101,7 +102,7 @@ sealed interface ReplyCard {
             val humidity: Int? = null,
             val precipitation: Int? = null,
             val summary: String? = null,
-            /** Après la nuit là-bas: un ciel clair se dessine avec la lune. */
+            /** Après la nuit là-bas : un ciel clair se dessine avec la lune. */
             val night: Boolean? = null,
         )
 
@@ -149,7 +150,7 @@ sealed interface ReplyCard {
 
     @Serializable
     data class Route(
-        /** `null`: depuis là où la personne est. */
+        /** `null` : depuis là où la personne est. */
         val from: Place? = null,
         val to: Place,
         val mode: Mode = Mode.DRIVING,
@@ -170,7 +171,7 @@ sealed interface ReplyCard {
             ;
 
             companion object {
-                /** Lu sans tenir compte de la casse; une valeur inconnue vaut « driving ». */
+                /** Lu sans tenir compte de la casse ; une valeur inconnue vaut « driving ». */
                 fun fromLenient(text: String?): Mode =
                     entries.firstOrNull { it.name.equals(text?.trim(), ignoreCase = true) } ?: DRIVING
             }
@@ -222,8 +223,8 @@ sealed interface ReplyCard {
 
         companion object {
             /**
-             * Lu avec indulgence: « Partly cloudy », « partly-cloudy », « PARTLY_CLOUDY »,
-             * « sunny », « storm ». Comme `Condition(lenient:)`.
+             * Lu avec indulgence : « Partly cloudy », « partly-cloudy », « PARTLY_CLOUDY »,
+             * « sunny », « storm ». Miroir de `Condition(lenient:)`.
              */
             fun fromLenient(text: String?): Condition {
                 val key = (text ?: "").lowercase().replace('-', '_').replace(' ', '_')
@@ -248,7 +249,7 @@ sealed interface ReplyCard {
 /**
  * Les cartes d'une réponse, lues de l'appel (`onyx_show`).
  *
- * Comme `ReplyCards`: [tool], les bornes, [parse] tolérant,
+ * Miroir de `ReplyCards` (Echo/Models/ReplyCards:135) : [tool], les bornes, [parse] tolérant,
  * [cards] depuis un appel ou depuis une étape d'outil, et [resolve] pour une conversation relue.
  */
 object ReplyCards {
@@ -261,7 +262,7 @@ object ReplyCards {
     const val lookedUpSource: String = "Open-Meteo.com"
 
     /**
-     * Les cartes qu'un appel demande: `null` quand ce n'est pas l'appel de l'outil, une liste vide
+     * Les cartes qu'un appel demande : `null` quand ce n'est pas l'appel de l'outil, une liste vide
      * quand aucune de ses cartes n'est utilisable.
      */
     fun cards(fromCall: String, args: JsonElement?): List<ReplyCard>? {
@@ -284,7 +285,7 @@ object ReplyCards {
     }
 
     /**
-     * Les cartes de chaque réponse qui n'en a pas encore, depuis ses étapes: une conversation relue
+     * Les cartes de chaque réponse qui n'en a pas encore, depuis ses étapes : une conversation relue
      * (l'appel d'outil s'y trouve, la carte n'y était pas forcément enregistrée).
      */
     fun resolve(messages: List<ChatMessage>): List<ChatMessage> {
@@ -310,13 +311,13 @@ object ReplyCards {
         return runCatching { kotlinx.serialization.json.Json.parseToJsonElement(trimmed) }.getOrNull()
     }
 
-    /** Les unités de température que lit la personne de ce téléphone: « F » ou « C ». */
-    fun preferredUnits(locale: Locale = Locale.getDefault()): String =
+    /** Les unités de température que lit la personne de ce téléphone : « F » ou « C ». */
+    fun preferredUnits(locale: Locale = OnyxLanguage.preferred): String =
         if (fahrenheitCountries.contains(locale.country.uppercase(Locale.US))) "F" else "C"
 
     /**
-     * Les pays dont le système de mesure est l'impérial (le `measurementSystem == .us` , que
-     * `UnitTemperature(forLocale:usage:.weather)` suit): la température s'y écrit en Fahrenheit.
+     * Les pays dont le système de mesure est l'impérial (le `measurementSystem == .us` de la référence, que
+     * `UnitTemperature(forLocale:usage:.weather)` suit) : la température s'y écrit en Fahrenheit.
      */
     private val fahrenheitCountries = setOf(
         "US", "LR", "MM", "BS", "BZ", "KY", "PW", "FM", "MH", "GU", "PR", "VI", "AS", "MP",
@@ -352,7 +353,7 @@ object ReplyCards {
 
             "time", "clock" -> {
                 // Un fuseau qui n'en est pas un est laissé de côté plutôt que d'être remplacé en
-                // silence par GMT (java.util.TimeZone le fait): la carte montrerait la mauvaise heure.
+                // silence par GMT (java.util.TimeZone le fait) : la carte montrerait la mauvaise heure.
                 val asked = text(body["timezone"] ?: body["time_zone"] ?: body["timeZone"])
                 val zone = asked?.let { runCatching { java.time.ZoneId.of(it) }.getOrNull() }?.id
                 val place = text(body["place"] ?: body["location"])?.take(80)
@@ -368,7 +369,7 @@ object ReplyCards {
 
     fun place(value: JsonElement?): ReplyCard.Place? {
         if (value == null || value is JsonNull) return null
-        // Un lieu qui n'est que son nom: « Tram 28 Café ».
+        // Un lieu qui n'est que son nom : « Tram 28 Café ».
         (value as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }?.let {
             return ReplyCard.Place(name = it.take(120))
         }
@@ -388,7 +389,7 @@ object ReplyCards {
             url = text(body["url"] ?: body["website"])
                 ?.takeIf { it.startsWith("http", ignoreCase = true) },
         )
-        // Une coordonnée hors du globe est laissée de côté: la carte n'a plus que son nom.
+        // Une coordonnée hors du globe est laissée de côté : la carte n'a plus que son nom.
         return if (place.hasCoordinate) place else place.copy(latitude = null, longitude = null)
     }
 
@@ -405,8 +406,8 @@ object ReplyCards {
         val units = text(value["units"])?.let { if (it.uppercase(Locale.US).startsWith("F")) "F" else "C" }
             ?: preferredUnits()
         var now: ReplyCard.Weather.Now? = null
-        // Un relevé nomme sa condition: une température sans condition est un espace réservé (l'agent
-        // a déjà envoyé 0 et une condition vide alors que sa réponse disait 85 °F et ciel clair), jamais dessiné.
+        // Un relevé nomme sa condition : une température sans condition est un espace réservé (l'agent
+        // a déjà envoyé 0 et « » alors que sa réponse disait 85 °F et ciel clair), jamais dessiné.
         val reading = (value["now"] ?: value["current"]) as? JsonObject
         if (reading != null) {
             val temperature = number(reading["temperature"] ?: reading["temp"])
@@ -454,7 +455,7 @@ object ReplyCards {
                 precipitation = number(day["precipitation"])?.let { Math.round(it).toInt() },
             )
         }.take(10)
-        // Exactement 0 et rien d'autre lu avec lui, sur une carte qui n'a rien de plus: un espace
+        // Exactement 0 et rien d'autre lu avec lui, sur une carte qui n'a rien de plus : un espace
         // réservé lui aussi (l'agent a envoyé 0 et « clear » sans avoir cherché la météo). Un vrai 0
         // vient avec ses autres nombres.
         if (now != null && now.temperature == 0.0 && now.high == null && now.low == null && now.feelsLike == null &&
@@ -463,7 +464,7 @@ object ReplyCards {
         ) {
             now = null
         }
-        // Ce qui n'a rien pu être lu est gardé tout de même: le lieu suffit à une carte pour être
+        // Ce qui n'a rien pu être lu est gardé tout de même : le lieu suffit à une carte pour être
         // cherchée. Elle n'est dessinée qu'une fois qu'elle a un relevé (`hasReading`).
         return ReplyCard.Weather(
             place = place.take(80),
@@ -475,7 +476,7 @@ object ReplyCards {
         )
     }
 
-    /** Une valeur lue comme du texte: une chaîne non vide, ou un nombre écrit comme tel. */
+    /** Une valeur lue comme du texte : une chaîne non vide, ou un nombre écrit comme tel. */
     fun text(value: JsonElement?): String? {
         if (value == null || value is JsonNull) return null
         val primitive = value as? JsonPrimitive ?: return null

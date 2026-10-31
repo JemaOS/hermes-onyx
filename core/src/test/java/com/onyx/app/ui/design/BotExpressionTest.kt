@@ -7,11 +7,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * L'expressivité des bots: les cinq états de conversation, leurs micro-expressions (sourcils,
+ * L'expressivité des bots : les cinq états de conversation, leurs micro-expressions (sourcils,
  * paupières, regard), le fondu d'un état à l'autre, et la vie minuscule des listes.
  *
  * Ces vérifications portent sur la **règle** (l'humeur pose quelles micro-expressions) et sur le
- * **câblage du dessin**; c'est la capture d'émulateur qui juge le rendu.
+ * **câblage du dessin** ; c'est la capture d'émulateur qui juge le rendu.
  */
 class BotExpressionTest {
 
@@ -19,15 +19,15 @@ class BotExpressionTest {
 
     @Test
     fun `les cinq etats de conversation, et l attente reste neutre`() {
-        // Écoute: sourcils hauts, regard vers vous.
+        // Écoute : sourcils hauts, regard vers vous.
         assertTrue("écoute : sourcils hauts", BotMood.LISTENING.expression.brow > 0.2f)
-        // Réflexion: sourcils rapprochés.
+        // Réflexion : sourcils rapprochés.
         assertTrue("réflexion : sourcils rapprochés", BotMood.THINKING.expression.brow < -0.2f)
-        // Succès: sourcils levés.
+        // Succès : sourcils levés.
         assertEquals(0.30f, BotMood.PLEASED.expression.brow, 0.0001f)
-        // Erreur: sourcils froncés.
+        // Erreur : sourcils froncés.
         assertTrue("erreur : sourcils froncés", BotMood.ERROR.expression.brow < -0.5f)
-        // Attente: le repos, un rien de doute — jamais une expression marquée.
+        // Attente : le repos, un rien de doute — jamais une expression marquée.
         assertEquals(0f, BotMood.IDLE.expression.brow, 0f)
         assertEquals(0f, BotMood.IDLE.expression.squint, 0f)
         assertNull(BotMood.IDLE.expression.look)
@@ -45,7 +45,7 @@ class BotExpressionTest {
 
     @Test
     fun `un visage au repos ne porte aucun sourcil`() {
-        // Près de zéro, rien n'est tracé: la créature ordinaire reste exactement celle d'avant.
+        // Près de zéro, rien n'est tracé : la créature ordinaire reste exactement celle d'avant.
         assertTrue(source.contains("if (Math.abs(b) < 0.02f) return"))
     }
 
@@ -75,7 +75,7 @@ class BotExpressionTest {
 
     @Test
     fun `les listes ont une vie minuscule a elles`() {
-        // Le clignement seul, tiré au sort à chaque fois: plusieurs visages ne clignent pas
+        // Le clignement seul, tiré au sort à chaque fois : plusieurs visages ne clignent pas
         // ensemble, et une liste de vingt bots ne re-dessine qu'un visage de temps en temps.
         assertTrue(source.contains("delay(Random.nextLong(4_000L, 7_001L))"))
         assertTrue(source.contains("val blinking = rememberBlink(pose == null && blinks && mood != BotMood.WORKING)"))

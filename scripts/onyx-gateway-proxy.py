@@ -50,7 +50,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         headers = {k: v for k, v in self.headers.items() if k.lower() not in HOP_BY_HOP}
         headers["Host"] = f"{host}:{port}"
         # Sans terminateur TLS devant cette connexion, le client parle réellement HTTP.
-        # Cloudflared fournit X-Forwarded-Proto=https: le conserver pour que les cookies
+        # Cloudflared fournit X-Forwarded-Proto=https : le conserver pour que les cookies
         # Secure restent limités à HTTPS, sans en fabriquer pour le HTTP local.
         headers.setdefault("X-Forwarded-Proto", "http")
 
@@ -64,7 +64,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if key.lower() in HOP_BY_HOP or key.lower() == "content-length":
                     continue
                 self.send_header(key, value)
-            # Réponses en flux (SSE du chat): on relaie en chunked, sans bufferiser.
+            # Réponses en flux (SSE du chat) : on relaie en chunked, sans bufferiser.
             streaming = upstream.getheader("Transfer-Encoding", "").lower() == "chunked" or \
                 upstream.getheader("Content-Type", "").startswith("text/event-stream")
             if streaming:

@@ -7,10 +7,10 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Réduit l'image d'une page au format gardé: un JPEG dont le plus grand côté tient dans
- * [maxSide] points, qualité 0,8 (`LinkPreviews.thumbnail`, ).
+ * Réduit l'image d'une page au format qu'référence garde : un JPEG dont le plus grand côté tient dans
+ * [maxSide] points, qualité 0,8 (`LinkPreviews.thumbnail`, LinkPreviews:115).
  *
- * Isolé dans son fichier parce qu'il touche `android.graphics`: les tests de lecture d'une page
+ * Isolé dans son fichier parce qu'il touche `android.graphics` : les tests de lecture d'une page
  * tournent sur la JVM et ne descendent jamais ici.
  */
 object AndroidImageThumbnail {

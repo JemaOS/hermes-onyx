@@ -9,10 +9,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les 14 contrôles et rappels morts trouvés par l'audit statique (`ROUTES-PARITY-AUDIT.md` §7):
+ * Les 14 contrôles et rappels morts trouvés par l'audit statique (`ROUTES-PARITY-AUDIT.md` §7) :
  * chacun doit soit agir, soit être refusé avec un message — jamais rester muet.
  *
- * L'écran est vérifié sur ses sources, comme les autres passes de cohérence: ce qui compte est que
+ * L'écran est vérifié sur ses sources, comme les autres passes de parité : ce qui compte est que
  * le rappel soit **fourni** au site d'appel, relié à une écriture, et que rien d'inerte ne
  * subsiste.
  */
@@ -43,7 +43,7 @@ class DeadHandlersWiringTest {
             "effacer le visage ne remplace pas une suppression",
             branch.contains("setFace(it, null)"),
         )
-        // Le modèle de l'éditeur remonte l'échec, comme le `Label(problem, …)`.
+        // Le modèle de l'éditeur remonte l'échec, comme le `Label(problem, …)` de la référence.
         assertTrue(botEditor.contains("problem: String? = null"))
         assertTrue(botEditor.contains("problem?.let { message ->"))
         // Et l'écriture est bien un DELETE du profil.
@@ -70,13 +70,13 @@ class DeadHandlersWiringTest {
 
     @Test
     fun `chaque geste part au serveur, et un refus remet l'etat d'avant`() {
-        // Allumer/éteindre: `PUT api/skills/toggle` ( `toggleSkill`).
+        // Allumer/éteindre : `PUT api/skills/toggle` (référence `toggleSkill`).
         assertTrue(botEditorViewModel.contains("skills.toggle(skill.name, enabled, bot)"))
-        // Épingler: toute la liste `auto_load` est écrite ( `setAlwaysLoadedSkills`).
+        // Épingler : toute la liste `auto_load` est écrite (référence `setAlwaysLoadedSkills`).
         assertTrue(botEditorViewModel.contains("skills.setAlwaysLoaded(names.sorted(), bot)"))
-        // Jeux d'outils: `profiles.configure { enabled_toolsets }` ( `BotChange.toolsets`).
+        // Jeux d'outils : `profiles.configure { enabled_toolsets }` (référence `BotChange.toolsets`).
         assertTrue(botEditorViewModel.contains("ServeBotsRpc(rpc).setToolsets(bot, names)"))
-        // Un refus est montré, et l'état revient comme il était: rien n'est dit fait sans l'être.
+        // Un refus est montré, et l'état revient comme il était : rien n'est dit fait sans l'être.
         assertTrue(botEditorViewModel.contains("alwaysLoaded = before.alwaysLoaded"))
         assertTrue(botEditorViewModel.contains("toolsSelection = before"))
         assertTrue(botEditorViewModel.contains("Couldn't switch %1\\\$s on: %2\\\$s"))
@@ -87,10 +87,18 @@ class DeadHandlersWiringTest {
 
     @Test
     fun `le bouton Try again relit vraiment la liste`() {
-        val pane = onyxApp.substringAfter("val conversationsPane").substringBefore("val cronPane")
-        assertTrue(pane.contains("onRetry = {"))
-        assertTrue("la liste des bots est relue", pane.contains("botsViewModel.refresh()"))
-        assertTrue("et celle des conversations", pane.contains("scope.launch { conversationRepo.load() }"))
+        // La carte de problème de l'écran retiré vit maintenant dans la **ligne d'état** du volet :
+        // c'est elle qui relit les deux listes, et elle n'apparaît que si la passerelle n'a pas
+        // répondu. Le rond de réessai de la tête a été retiré — deux chemins pour le même geste
+        // auraient été un doublon —, donc c'est la ligne qui doit porter le rappel.
+        val volet = File(root, "sidebar/ChatSidebar.kt").readText()
+        assertTrue("la ligne d'état n'existe plus", volet.contains("SidebarStatusLine("))
+        assertTrue("elle n'apparaît que si la passerelle n'a pas répondu", volet.contains("if (reachable == false) {"))
+        assertTrue("le rappel est passé à la ligne d'état", volet.contains("onRetry = onRetry,"))
+        assertTrue("le libellé du bouton n'est plus celui de la ligne d'état", volet.contains("text = SAVED_COPY_RETRY_LABEL,"))
+        assertTrue("il est branché", onyxApp.contains("onRetry = {"))
+        assertTrue("la liste des bots est relue", onyxApp.contains("botsViewModel.refresh()"))
+        assertTrue("et celle des conversations", onyxApp.contains("scope.launch { conversationRepo.load() }"))
     }
 
     // MARK: - 6. « Let bots message each other » installe le réglage
@@ -100,21 +108,21 @@ class DeadHandlersWiringTest {
         val bots = onyxApp.substringAfter("val botsPane").substringBefore("val cronPane")
         assertTrue(bots.contains("onLetBotsMessage = { askingLetBotsMessage = true }"))
         assertFalse("plus de détour vers Réglages", bots.contains("onLetBotsMessage = { navTo(Route.SETTINGS.name) }"))
-        // La question et l'écriture, comme le confirmationDialog.
+        // La question et l'écriture, comme le confirmationDialog de la référence.
         assertTrue(onyxApp.contains("title = \"Let bots message each other?\""))
         assertTrue(onyxApp.contains("AlertAction(\"Let Them\")"))
-        // Le résultat n'est plus jeté: il est montré (succès ou échec) — l'appui restait muet.
+        // Le résultat n'est plus jeté : il est montré (succès ou échec) — l'appui restait muet.
         assertTrue(onyxApp.contains("val failure = botsViewModel.letBotsMessage()"))
         assertTrue(botsViewModel.contains("ServeBotsRpc(rpc).letBotsMessageEachOther(main.name)"))
     }
 
-    // MARK: - 7 et 8. La recherche du chat suit 
+    // MARK: - 7 et 8. La recherche du chat suit référence
 
     @Test
     fun `la recherche du chat n'annonce plus une liste de resultats qui n'existe pas`() {
         assertFalse("TranscriptView n'a pas de liste de résultats", chatScreen.contains("searchMatches:"))
         assertFalse("ni d'ouverture d'un résultat", chatScreen.contains("onOpenSearchResult:"))
-        // Le pas-à-pas , lui, reste: le champ, le compte et les flèches.
+        // Le pas-à-pas de la référence, lui, reste : le champ, le compte et les flèches.
         assertTrue(chatScreen.contains("matches = state.searchHits.size"))
         assertTrue(chatScreen.contains("onStep = onStepSearch"))
     }
@@ -131,7 +139,7 @@ class DeadHandlersWiringTest {
         assertTrue("l'orbe porte une action", voiceScreen.contains(".onyxClickable(onClick = onClick)"))
     }
 
-    // MARK: - 10 et 11. Salle: mains-libres, et fin d'ouverture
+    // MARK: - 10 et 11. Salle : mains-libres, et fin d'ouverture
 
     @Test
     fun `la salle ne passe plus un rappel mains-libres qui ne fait rien`() {
@@ -172,7 +180,7 @@ class DeadHandlersWiringTest {
         assertFalse("plus de rappel mort", groupChat.contains("onOpenBotChat"))
         assertFalse("plus d'état jamais posé", groupChat.contains("menuBot"))
         assertFalse(groupChat.contains("OnyxMenu"))
-        // Un bot de la salle se choisit d'un tap, sans appui long ( `GroupChatView`).
+        // Un bot de la salle se choisit d'un tap, sans appui long (référence `GroupChatView`).
         assertTrue(groupChat.contains(".onyxClickable { onToggle(bot) }"))
     }
 

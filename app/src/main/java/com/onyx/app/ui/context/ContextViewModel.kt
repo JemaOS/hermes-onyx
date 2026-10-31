@@ -14,9 +14,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Les quatre fichiers qui font l'agent: qui il est, son monde, sa mémoire, et vous.
+ * Les quatre fichiers qui font l'agent : qui il est, son monde, sa mémoire, et vous.
  *
- * Comme `AgentSettings`: `SOUL.md` et `ENVIRONMENT.md` d'un côté, `MEMORY.md` et
+ * Miroir de `AgentSettings` côté référence : `SOUL.md` et `ENVIRONMENT.md` d'un côté, `MEMORY.md` et
  * `USER.md` de l'autre, édités sur place à travers le Dashboard.
  */
 enum class ContextFile(val label: String, val purpose: String, val relative: String) {
@@ -50,7 +50,7 @@ data class ContextUiState(
     /** Le chemin absolu d'un des quatre fichiers, dès que le dossier de l'agent est connu. */
     fun pathFor(file: ContextFile): String? =
         home?.trimEnd('/')?.let { base ->
-            // L'API renvoie déjà HERMES_HOME, même lorsqu'il vaut `/opt/data`: le préfixe
+            // L'API renvoie déjà HERMES_HOME, même lorsqu'il vaut `/opt/data` : le préfixe
             // `.hermes/` du modèle ne doit donc jamais être ajouté une seconde fois.
             val relative = file.relative.removePrefix(".hermes/")
             "$base/$relative"

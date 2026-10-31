@@ -17,7 +17,7 @@ data class GatewayToolset(
 /**
  * Les jeux d'outils du gateway.
  *
- * Comme `HermesServeClient.toolsets`: `GET api/tools/toolsets`, et
+ * Miroir de `HermesServeClient.toolsets()` : `GET api/tools/toolsets`, et
  * `PUT api/tools/toolsets/{name}` pour la bascule.
  */
 class ServeToolsetsApi(private val client: ServeClient) {

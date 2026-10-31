@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ce que Onyx peut partager depuis son cache: un fichier téléchargé du serveur. -->
+<!--
+  Ce que Onyx peut partager :
+  * `files` : le **stockage privé durable** (pièces jointes, fichiers reçus du serveur) — c'est
+    désormais là que vivent les pièces, et sans cette racine `getUriForFile` échouerait
+    (« Failed to find configured root that contains … ») et aucun lecteur ne pourrait les ouvrir ;
+  * `cache` : l'ancien emplacement, gardé pour ce qui est réellement temporaire (exports, audio).
+-->
 <paths>
+    <files-path name="files" path="." />
     <cache-path name="cache" path="." />
 </paths>

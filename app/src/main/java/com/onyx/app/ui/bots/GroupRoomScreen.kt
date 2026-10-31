@@ -1,6 +1,11 @@
 package com.onyx.app.ui.bots
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +14,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -66,23 +75,48 @@ import com.onyx.app.ui.design.OnyxMenu
 import com.onyx.app.ui.design.OnyxPrompt
 import com.onyx.app.ui.design.LiveMark
 import com.onyx.app.ui.design.MenuItem
+import com.onyx.app.ui.design.SafeBarSpacing
 import com.onyx.app.ui.design.SelectableText
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.voice.SpeechEngine
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import com.onyx.app.data.local.ChatPanelStore
+import com.onyx.app.ui.chat.ChatFeed
+import com.onyx.app.ui.chat.ChatFiles
+import com.onyx.app.ui.chat.ChatFilesPane
+import com.onyx.app.ui.chat.ChatFeedPane
+import com.onyx.app.ui.chat.FileViewers
+import com.onyx.app.ui.design.ChatTab
+import com.onyx.app.ui.design.ChatTabBar
+import com.onyx.app.ui.design.chatTabCount
+import com.onyx.app.ui.design.chatTabIndexOf
+import com.onyx.app.ui.design.GlassSurface
+import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxSurfaces
+import com.onyx.app.ui.design.composerBottomInsets
+import com.onyx.app.ui.design.liquidGlass
+import com.onyx.app.ui.design.socleShadow
+import kotlinx.coroutines.launch
 
 /**
  * Le fil d'une salle de bots du serveur.
  *
- * Comme `GroupChatView`: l'en-tête (Conversations, les
+ * Port de `GroupChatView` (Echo/Views/GroupChatView:8) : l'en-tête (Conversations, les
  * visages des membres, le nom, le menu de la salle), ce qui a été dit lu du journal de la salle
  * (chaque réponse sous le visage et le nom de son bot), les messages de la personne, les réponses
  * que les bots écrivent à cet instant, l'état de la salle (« The bots are talking… », ce qui attend
  * la personne), et le composer — celui d'une salle Desktop remplacé par la note qui dit où elle se
  * parle.
  *
- * Rien ici ne touche au fil local de l'application (`GroupChatViewModel`): ce qui est écrit part
+ * Rien ici ne touche au fil local de l'application (`GroupChatViewModel`) : ce qui est écrit part
  * dans la salle (`groups.send`), et ce qui s'affiche vient de son journal.
  */
 @Composable
@@ -91,17 +125,34 @@ fun GroupRoomScreen(
     server: ServerConfig,
     onBack: () -> Unit,
     /**
-     * Le bouton Talk du composer ouvre la scène vocale de la salle: c'est ce fil
-     * (`GroupRoomFeed`) qu'elle lit, donc les réponses du serveur et celui qui parle; la question
+     * Le crayon de la salle : une **nouvelle conversation de cette salle** (ses membres, son nom).
+     * Fourni, le bouton est dessiné ; sans lui, l'en-tête n'en porte aucun.
+     */
+    onNewConversation: (() -> Unit)? = null,
+    /**
+     * Le bouton Talk du composer ouvre la scène vocale de la salle : c'est ce fil
+     * (`GroupRoomFeed`) qu'elle lit, donc les réponses du serveur et celui qui parle ; la question
      * reconnue part par `groups.send` et le Stop rouge par `groups.stop`. Sans cette lambda, aucun
      * bouton Talk n'est dessiné.
      */
     onOpenVoice: (() -> Unit)? = null,
-    /** La salle a été terminée ici: la liste la laisse partir. */
+    /** La salle a été terminée ici : la liste la laisse partir. */
     onEnded: () -> Unit,
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
     focusComposer: Boolean = false,
     onComposerFocused: () -> Unit = {},
+    /**
+     * Le visage des membres, résolu par la **même** fonction que la liste ([BotFaceResolver]) :
+     * l'en-tête, les grands visages de la salle, les réponses, les brouillons et les mentions `@`
+     * la lisent, donc un membre montre ici exactement le visage de son profil. Absent, les noms
+     * décident seuls — jamais un tirage : le même visage à chaque ouverture.
+     */
+    faceResolver: BotFaceResolver = BotFaceResolver.none,
+    /**
+     * Ouvre un fichier échangé **dans ce salon** (l'onglet Fichiers), avec le lecteur de sa famille :
+     * la route est celle d'une conversation, donc un fichier de salle s'ouvre comme un fichier de bot.
+     */
+    onOpenFile: (android.net.Uri, String, String) -> Unit,
     modifier: Modifier = Modifier,
     chatTextScale: Float = 1f,
 ) {
@@ -113,8 +164,33 @@ fun GroupRoomScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
     val mutes = remember(context) { Mutes(context) }
-    val faceStore = remember(context) { BotFaceStore(context) }
-    val face: (String) -> String? = remember(faceStore) { { name -> faceStore.faceOf(name) } }
+    // Le visage des membres : la **même** résolution que la liste (`BotFaceResolver`), jamais une
+    // lecture à part du choix local — c'est ce qui faisait diverger la salle de la liste.
+    val face: (String) -> String? = faceResolver::codeOf
+
+    // ---- Les onglets du bas : la même barre qu'une conversation à un bot. ----
+    // L'onglet choisi est gardé **par salle** (`ChatPanelStore`) : chaque salon rouvre le sien.
+    val panels = remember(context) { ChatPanelStore(context) }
+    val panelKey = "room:" + room.id
+    val pagerState = rememberPagerState(
+        initialPage = chatTabIndexOf(panels.selectedTab(panelKey)),
+        pageCount = { chatTabCount },
+    )
+    val scope = rememberCoroutineScope()
+    val tabAccent = theme.accent
+    val nowMillis = remember(panelKey) { System.currentTimeMillis() }
+    var feedFeedback by remember(panelKey) { mutableStateOf(panels.feedbackFor(panelKey)) }
+    // Le sujet qu'un « Discuter » du flux écrit dans le champ : le brouillon vit dans le
+    // compositeur, la salle ne fait que lui passer le sujet **une fois**.
+    var pendingDraft by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pagerState, panelKey) {
+        val saved = chatTabIndexOf(panels.selectedTab(panelKey))
+        if (pagerState.settledPage != saved) pagerState.scrollToPage(saved)
+        snapshotFlow { pagerState.settledPage }.collect { tabPage ->
+            panels.setSelectedTab(panelKey, ChatTab.entries[tabPage.coerceIn(0, chatTabCount - 1)].key)
+        }
+    }
 
     var showingMenu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
@@ -123,7 +199,7 @@ fun GroupRoomScreen(
     var findOpen by remember { mutableStateOf(false) }
     var findText by remember { mutableStateOf("") }
     var findIndex by remember { mutableStateOf(0) }
-    /** Le premier message montré, par son numéro dans le journal (`shownFrom` ). */
+    /** Le premier message montré, par son numéro dans le journal (`shownFrom` de la référence). */
     var shownFrom by remember { mutableStateOf<Int?>(null) }
 
     val rows = state.rows
@@ -131,8 +207,16 @@ fun GroupRoomScreen(
     val matches = remember(rows, findText, findOpen) { roomMatches(rows, findOpen, findText) }
     val current = matches.getOrNull(findIndex.coerceIn(0, (matches.size - 1).coerceAtLeast(0)))
 
+    // Le journal de la salle, lu comme des messages : le flux et l'onglet Fichiers lisent le
+    // **même** journal que le fil — donc chaque salon garde SES fichiers.
+    val roomMessages = remember(rows) { roomThreadMessages(rows) }
+    val feedCards = remember(roomMessages, room.name) {
+        ChatFeed.cards(roomMessages.map { it.copy(text = AttachedFileNote.strip(it.text)) }, room.name)
+    }
+    val roomFiles = remember(roomMessages) { ChatFiles.conversationFiles(roomMessages) }
+
     // Le fil est suivi tant que l'écran est ouvert et que l'application est devant, comme le
-    // `task(id: scenePhase == .active)`: le journal et les réponses en cours sont relus
+    // `task(id: scenePhase == .active)` de la référence : le journal et les réponses en cours sont relus
     // une fois par seconde pendant que les bots parlent, et toutes les cinq secondes sinon.
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner, room.id) {
@@ -152,7 +236,7 @@ fun GroupRoomScreen(
         if (shownFrom == null && rows.isNotEmpty()) shownFrom = rows[(rows.size - PAGE).coerceAtLeast(0)].seq
     }
 
-    // Une nouveauté est suivie depuis le bas seulement: relire plus haut n'est pas tiré en arrière.
+    // Une nouveauté est suivie depuis le bas seulement : relire plus haut n'est pas tiré en arrière.
     val itemCount = roomItemCount(state, page, rows)
     var previousCount by remember { mutableStateOf(itemCount) }
     LaunchedEffect(itemCount) {
@@ -177,13 +261,19 @@ fun GroupRoomScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme)
+            // La zone du système d'abord, puis l'espace visuel de la maison : la barre
+            // d'écriture de la salle ne peut plus être enterrée sous la barre de navigation,
+            // ni paraître collée au bord.
+            .navigationBarsPadding()
+            .padding(bottom = SafeBarSpacing.GapDp.dp),
     ) {
         RoomHeader(
             room = room,
             face = face,
             onBack = onBack,
             onMenu = { showingMenu = true },
+            onNewConversation = onNewConversation,
         )
 
         if (findOpen) {
@@ -203,10 +293,18 @@ fun GroupRoomScreen(
         }
 
         Box(modifier = Modifier.weight(1f)) {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { tabPage ->
+            when (tabPage) {
+            // ---- Chat : le journal de la salle, inchangé. ----
+            0 -> {
             if (rows.isEmpty() && state.sending.isEmpty() && state.shownDrafts.isEmpty() && !state.loaded) {
                 RoomOpening(room = room, face = face)
             } else {
-                CompositionLocalProvider(LocalOnyxTheme provides theme.withFontScale(chatTextScale)) {
+                // L'échelle de texte des Réglages est posée à la **racine** — l'activité la lit
+                // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
+                // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
+                // une seconde fois (1,23 × 1,23 = 1,51).
+                CompositionLocalProvider(LocalOnyxTheme provides theme) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -261,7 +359,9 @@ fun GroupRoomScreen(
                                 paths = AttachedFileNote.split(pending.text).paths,
                                 files = pending.files,
                                 server = server,
-                                waiting = true,
+                                // Un envoi définitif n'est plus « en attente » : il est là, marqué,
+                                // et la raison se lit dans le bandeau des problèmes.
+                                waiting = !pending.failed,
                             )
                         }
                         // Les réponses en train d'être écrites, sous leur bot, jusqu'à ce que la salle les ait.
@@ -323,21 +423,130 @@ fun GroupRoomScreen(
                     }
                 }
             }
+            }
+            // ---- Flux : les réponses de la salle, en cartes datées (le même journal). ----
+            1 -> ChatFeedPane(
+                cards = feedCards,
+                feedback = feedFeedback,
+                botName = room.name,
+                faceName = room.name,
+                faceCode = face(room.name),
+                accent = tabAccent,
+                nowMillis = nowMillis,
+                onFeedback = { cardId, value ->
+                    feedFeedback = panels.setFeedback(panelKey, cardId, value)
+                },
+                onDiscuss = { card -> pendingDraft = card.title },
+                onCompose = { scope.launch { pagerState.animateScrollToPage(0) } },
+                modifier = Modifier.fillMaxSize(),
+            )
+            // ---- Fichiers : ce qui a été échangé DANS ce salon — mêmes filtres, même tri. ----
+            else -> ChatFilesPane(
+                files = roomFiles,
+                accent = tabAccent,
+                config = server,
+                onOpen = { file, local ->
+                    onOpenFile(
+                        android.net.Uri.fromFile(local),
+                        file.name,
+                        file.mime.ifBlank { FileViewers.mimeFor(file.name) },
+                    )
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+            }
+        }
         }
 
         if (room.inDesktop) {
             DesktopNote()
         } else {
-            GroupComposer(
-                bots = room.composerBots(face),
-                isStreaming = state.busy,
-                onSend = { text, files -> viewModel.send(text, files) },
-                onStop = { viewModel.stop() },
-                onTalk = onOpenVoice,
-                serverError = state.problem,
-                speechLocale = speechLocale,
-                focusRequester = composerFocusRequester,
-            )
+            // **La même pile du bas qu'une conversation à un bot** : le compositeur de la maison,
+            // puis la barre d'onglets, dans **une seule** plaque et avec **une seule** marge
+            // système (`composerBottomInsets`) — les deux ne s'additionnent jamais.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .composerBottomInsets()
+                    .padding(
+                        start = PlaqueGeometry.SideMargin,
+                        end = PlaqueGeometry.SideMargin,
+                        bottom = OnyxSpace.Half,
+                    )
+                    .socleShadow(OnyxSocle.ShadowFar, PlaqueGeometry.Radius, theme.dark)
+                    .clip(RoundedCornerShape(PlaqueGeometry.Radius))
+                    .border(
+                        PlaqueGeometry.Outline,
+                        OnyxSurfaces.hairline(theme),
+                        RoundedCornerShape(PlaqueGeometry.Radius),
+                    )
+                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlaqueGeometry.Radius), masking = true),
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    GroupComposer(
+                        bots = room.composerBots(face),
+                        isStreaming = state.busy,
+                        onSend = { text, files -> viewModel.send(text, files) },
+                        onStop = { viewModel.stop() },
+                        onTalk = onOpenVoice,
+                        serverError = state.problem,
+                        speechLocale = speechLocale,
+                        focusRequester = composerFocusRequester,
+                        plate = true,
+                        // La plaque prend la marge système **une seule fois** (voir plus haut) : le
+                        // champ ne la reprend pas, les deux ne s'additionnent plus.
+                        applyBottomInsets = false,
+                        prefill = pendingDraft,
+                        onPrefillConsumed = { pendingDraft = null },
+                    )
+                }
+                // Le filet interne de la plaque : la frontière entre le champ et la rangée d'onglets
+                // (`.ask{border-bottom}` de la planche), peint et non mesuré.
+                val separatorColour = OnyxSurfaces.hairline(theme)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(PlaqueGeometry.TabRowHeight)
+                        .drawBehind {
+                            drawRect(
+                                color = separatorColour,
+                                topLeft = Offset.Zero,
+                                size = Size(size.width, PlaqueGeometry.Separator.toPx()),
+                            )
+                        },
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    // **La barre est celle de la maison**, avec ses quatre repères : Chat, Flux,
+                    // Fichiers, puis le repère-visage — ici les visages des membres de la salle.
+                    val faceIndex = ChatTab.drawn.lastIndex
+                    ChatTabBar(
+                        selectedIndex = pagerState.currentPage,
+                        tabs = ChatTab.drawn,
+                        accent = tabAccent,
+                        badges = List(chatTabCount) { 0 },
+                        plate = true,
+                        faceIndex = faceIndex,
+                        faceLabel = room.name,
+                        face = {
+                            RoomFaceStack(
+                                members = room.members,
+                                face = face,
+                                size = PlaqueGeometry.TabCell,
+                            )
+                        },
+                        onSelect = { index ->
+                            when {
+                                // Le repère-visage de la salle ouvre son menu (son identité).
+                                index == faceIndex -> showingMenu = true
+                                index in 0 until chatTabCount -> scope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                                else -> Unit
+                            }
+                        },
+                    )
+                }
+            }
         }
     }
 
@@ -402,7 +611,7 @@ fun GroupRoomScreen(
 /** Combien de messages une page tient (`GroupChatView.pageSize`). */
 private const val PAGE = 30
 
-/** Une page du journal: les lignes montrées, combien sont avant, et où la page commence. */
+/** Une page du journal : les lignes montrées, combien sont avant, et où la page commence. */
 internal data class RoomPage(val shown: List<GroupEvent>, val hidden: Int, val start: Int)
 
 /** Les lignes du journal à partir de `from`, ou les plus récentes tant qu'il n'est pas posé. */
@@ -420,7 +629,7 @@ internal fun roomMatches(rows: List<GroupEvent>, open: Boolean, query: String): 
 }
 
 /**
- * Combien de lignes la liste de la salle dessine: ce que l'écran empile, dans l'ordre — les lignes
+ * Combien de lignes la liste de la salle dessine : ce que l'écran empile, dans l'ordre — les lignes
  * du journal montrées, les messages en route, les réponses qui s'écrivent, la ligne de la salle, les
  * cartes à répondre, et ce que le serveur a refusé.
  */
@@ -440,13 +649,26 @@ internal fun roomItemCount(
     return count
 }
 
-/** Va à un message trouvé: quand il est avant la page montrée, la page s'ouvre sur lui. */
+/** Va à un message trouvé : quand il est avant la page montrée, la page s'ouvre sur lui. */
 internal fun findGoTo(seq: Int, page: RoomPage, shownFrom: Int?): Int? =
     if (page.shown.any { it.seq == seq }) null else seq
 
-/** L'en-tête: Conversations, les visages des membres, le nom de la salle, et le menu « … ». */
+/**
+ * Vrai quand une salle a de quoi ouvrir une **autre** conversation : son journal porte quelque
+ * chose. Une salle encore vierge rend faux et se reprend telle quelle — le crayon n'empile pas
+ * deux conversations vides.
+ */
+internal fun roomStartsAnotherConversation(rows: List<GroupEvent>): Boolean = rows.isNotEmpty()
+
+/** L'en-tête : Conversations, les visages des membres, le nom de la salle, le crayon, et le menu « … ». */
 @Composable
-private fun RoomHeader(room: GroupRoom, face: (String) -> String?, onBack: () -> Unit, onMenu: () -> Unit) {
+private fun RoomHeader(
+    room: GroupRoom,
+    face: (String) -> String?,
+    onBack: () -> Unit,
+    onMenu: () -> Unit,
+    onNewConversation: (() -> Unit)? = null,
+) {
     val theme = LocalOnyxTheme.current
     Row(
         modifier = Modifier
@@ -469,7 +691,7 @@ private fun RoomHeader(room: GroupRoom, face: (String) -> String?, onBack: () ->
             text = room.name,
             localize = false,
             style = theme.headline.copy(color = theme.textColor),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -481,6 +703,18 @@ private fun RoomHeader(room: GroupRoom, face: (String) -> String?, onBack: () ->
             tint = theme.secondaryText,
             onClick = onMenu,
         )
+        if (onNewConversation != null) {
+            // Le crayon, à droite du menu : la même chose que dans un fil de bot — une
+            // conversation de **cette** salle, avec ses membres et son nom.
+            GlassCircleButton(
+                symbol = Symbols.SquareAndPencil,
+                label = "New conversation",
+                size = 36.dp,
+                iconSize = 18.dp,
+                tint = theme.accent,
+                onClick = onNewConversation,
+            )
+        }
     }
 }
 
@@ -502,7 +736,7 @@ private fun RoomFaceStack(members: List<GroupMember>, face: (String) -> String?,
     }
 }
 
-/** L'état vide: les visages des membres, leurs noms joints, et la phrase d'aide. */
+/** L'état vide : les visages des membres, leurs noms joints, et la phrase d'aide de la référence. */
 @Composable
 private fun RoomOpening(room: GroupRoom, face: (String) -> String?, inline: Boolean = false) {
     val theme = LocalOnyxTheme.current
@@ -539,13 +773,13 @@ internal fun roomMembersLabel(labels: List<String>): String {
         0 -> ""
         1 -> labels[0]
         2 -> "${labels[0]} ${OnyxLocalization["and"]} ${labels[1]}"
-        // Trois et plus: la queue dit la langue — « , and » en anglais (la virgule d'Oxford),
+        // Trois et plus : la queue dit la langue — « , and » en anglais (la virgule d'Oxford),
         // « et » en français, où la virgule ne la précède pas.
         else -> labels.dropLast(1).joinToString(", ") + OnyxLocalization[", and"] + " " + labels.last()
     }
 }
 
-/** Un événement du journal: ce que la personne a dit, la réponse d'un bot, ou une note de tour. */
+/** Un événement du journal : ce que la personne a dit, la réponse d'un bot, ou une note de tour. */
 @Composable
 private fun RoomEventRow(
     event: GroupEvent,
@@ -590,9 +824,9 @@ private fun RoomEventRow(
 }
 
 /**
- * Une réponse d'un bot: son visage, son nom, puis ce qu'il a dit — **à plat**, sous le visage,
- * comme le `MessageRow` quand le thème imprime les réponses sur la page
- * (`palette.flatReplies`): le texte est au bord du fil, pas en retrait sous le nom, et la ligne
+ * Une réponse d'un bot : son visage, son nom, puis ce qu'il a dit — **à plat**, sous le visage,
+ * comme le `MessageRow` de la référence quand le thème imprime les réponses sur la page
+ * (`palette.flatReplies`) : le texte est au bord du fil, pas en retrait sous le nom, et la ligne
  * du nom est à 8 pt de ce qu'elle annonce.
  */
 @Composable
@@ -604,20 +838,23 @@ internal fun RoomMemberRow(
     live: Boolean,
     whenMillis: Long? = null,
     highlighted: Boolean = false,
-    /** La voix de ce bot sort à cet instant: sa ligne se distingue des autres. */
+    /** La voix de ce bot sort à cet instant : sa ligne se distingue des autres. */
     speaking: Boolean = false,
 ) {
     val theme = LocalOnyxTheme.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             BotLook(
-                name = profile.ifEmpty { "bot" },
+                // Le **nom de profil** du bot. Vide (un auteur que la salle ne connaît pas), le
+                // visage est le **neutre** de `botFace` — jamais la créature de la chaîne « bot »,
+                // qui se lisait comme un bot expressif.
+                name = profile,
                 faceCode = faceCode,
                 size = 20.dp,
                 mood = if (live) BotMood.THINKING else BotMood.PLEASED,
             )
             if (live) LiveMark(color = theme.accent)
-            // Ce qui est lu maintenant: un haut-parleur de la couleur de l'accent, et le nom
+            // Ce qui est lu maintenant : un haut-parleur de la couleur de l'accent, et le nom
             // dans cette couleur — la réponse dont la voix sort se voit dans le fil.
             if (speaking && !live) OnyxIcon(symbol = Symbols.SpeakerWave, tint = theme.accent, size = 13.dp)
             BasicText(
@@ -697,7 +934,7 @@ internal fun MineRow(
     }
 }
 
-/** Ce que la salle attend: les bots parlent, elle attend la personne, elle s'arrête, ou se remet. */
+/** Ce que la salle attend : les bots parlent, elle attend la personne, elle s'arrête, ou se remet. */
 @Composable
 private fun TalkingLine(status: GroupState) {
     val theme = LocalOnyxTheme.current
@@ -718,14 +955,14 @@ private fun TalkingLine(status: GroupState) {
     }
 }
 
-/** Une réponse arrêtée à mi-chemin: Hermes ne sait pas jusqu'où elle est allée, on la relance si on veut. */
+/** Une réponse arrêtée à mi-chemin : Hermes ne sait pas jusqu'où elle est allée, on la relance si on veut. */
 @Composable
 private fun RetryCard(task: String, who: String, onRetry: () -> Unit) {
     val theme = LocalOnyxTheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(theme.warning.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+            .background(theme.warning.copy(alpha = 0.12f), RoundedCornerShape(OnyxSpace.FieldCorner))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -753,7 +990,7 @@ private fun RetryCard(task: String, who: String, onRetry: () -> Unit) {
 }
 
 /**
- * En place du composer, pour une salle qu'Hermes Desktop tient: c'est Desktop qui répond à ses
+ * En place du composer, pour une salle qu'Hermes Desktop tient : c'est Desktop qui répond à ses
  * messages, et il n'en partage qu'une copie des derniers, alors elle se lit ici et se parle là-bas.
  */
 @Composable
@@ -774,7 +1011,7 @@ private fun DesktopNote() {
     }
 }
 
-/** La recherche dans la salle (`Find in Chat`): les mots, le compte, et les flèches. */
+/** La recherche dans la salle (`Find in Chat`) : les mots, le compte, et les flèches. */
 @Composable
 private fun RoomFindBar(
     text: String,

@@ -1,0 +1,254 @@
+[
+  {
+    "tag": "clair-bots",
+    "sections": [
+      {
+        "ecran": "Volet · Bots",
+        "section": "BOTS",
+        "bouton_px": [
+          953,
+          621,
+          1069,
+          737
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "Onyx, Le profil",
+        "contenu_top_px": 758,
+        "ecart_px": 21,
+        "ecart_dp": 8.0,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.0,
+        "bord_droit_marge_dp": 4.2,
+        "trait_dp": 1.1,
+        "remplissage": 0.15,
+        "coin_sonde": 1.9,
+        "forme": "cercle"
+      },
+      {
+        "ecran": "Volet · Bots",
+        "section": "SALONS",
+        "bouton_px": [
+          953,
+          1245,
+          1069,
+          1361
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "ff, Onyx, coder",
+        "contenu_top_px": 1382,
+        "ecart_px": 21,
+        "ecart_dp": 8.0,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.0,
+        "bord_droit_marge_dp": 4.2,
+        "trait_dp": 1.1,
+        "remplissage": 0.14,
+        "coin_sonde": 2.4,
+        "forme": "cercle"
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "RACCOURCIS",
+        "absent": true
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "TOUS LES PROJETS",
+        "absent": true
+      }
+    ]
+  },
+  {
+    "tag": "clair-chats",
+    "sections": [
+      {
+        "ecran": "Volet · Bots",
+        "section": "BOTS",
+        "absent": true
+      },
+      {
+        "ecran": "Volet · Bots",
+        "section": "SALONS",
+        "absent": true
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "RACCOURCIS",
+        "bouton_px": [
+          932,
+          610,
+          1048,
+          726
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "Planifiés",
+        "contenu_top_px": 779,
+        "ecart_px": 53,
+        "ecart_dp": 20.19,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.4,
+        "bord_droit_marge_dp": 12.2,
+        "trait_dp": 2.7,
+        "remplissage": 0.345,
+        "coin_sonde": 5.2,
+        "forme": "cercle"
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "TOUS LES PROJETS",
+        "bouton_px": [
+          948,
+          1222,
+          1064,
+          1338
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "Tout, 3",
+        "contenu_top_px": 1365,
+        "ecart_px": 27,
+        "ecart_dp": 10.29,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.2,
+        "bord_droit_marge_dp": 6.1,
+        "trait_dp": 2.3,
+        "remplissage": 0.191,
+        "coin_sonde": 1.7,
+        "forme": "cercle"
+      }
+    ]
+  },
+  {
+    "tag": "sombre-bots",
+    "sections": [
+      {
+        "ecran": "Volet · Bots",
+        "section": "BOTS",
+        "bouton_px": [
+          953,
+          621,
+          1069,
+          737
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "Onyx, Le profil",
+        "contenu_top_px": 758,
+        "ecart_px": 21,
+        "ecart_dp": 8.0,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.0,
+        "bord_droit_marge_dp": 4.2,
+        "trait_dp": 1.1,
+        "remplissage": 0.913,
+        "coin_sonde": 4.1,
+        "forme": "cercle"
+      },
+      {
+        "ecran": "Volet · Bots",
+        "section": "SALONS",
+        "bouton_px": [
+          953,
+          1245,
+          1069,
+          1361
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "ff, Onyx, coder",
+        "contenu_top_px": 1382,
+        "ecart_px": 21,
+        "ecart_dp": 8.0,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.0,
+        "bord_droit_marge_dp": 4.2,
+        "trait_dp": 1.1,
+        "remplissage": 0.842,
+        "coin_sonde": 2.2,
+        "forme": "cercle"
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "RACCOURCIS",
+        "absent": true
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "TOUS LES PROJETS",
+        "absent": true
+      }
+    ]
+  },
+  {
+    "tag": "sombre-chats",
+    "sections": [
+      {
+        "ecran": "Volet · Bots",
+        "section": "BOTS",
+        "absent": true
+      },
+      {
+        "ecran": "Volet · Bots",
+        "section": "SALONS",
+        "absent": true
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "RACCOURCIS",
+        "bouton_px": [
+          932,
+          610,
+          1048,
+          726
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "Planifiés",
+        "contenu_top_px": 779,
+        "ecart_px": 53,
+        "ecart_dp": 20.19,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.4,
+        "bord_droit_marge_dp": 12.2,
+        "trait_dp": 2.7,
+        "remplissage": 0.963,
+        "coin_sonde": 6.6,
+        "forme": "cercle"
+      },
+      {
+        "ecran": "Volet · Discussions",
+        "section": "TOUS LES PROJETS",
+        "bouton_px": [
+          948,
+          1222,
+          1064,
+          1338
+        ],
+        "cote_px": 116,
+        "cote_dp": 44.2,
+        "contenu": "Tout, 3",
+        "contenu_top_px": 1365,
+        "ecart_px": 27,
+        "ecart_dp": 10.29,
+        "recouvrement_dp": 0.0,
+        "recouvrement_px2": 0,
+        "alignement_dp": 0.2,
+        "bord_droit_marge_dp": 6.1,
+        "trait_dp": 2.3,
+        "remplissage": 0.833,
+        "coin_sonde": 2.7,
+        "forme": "cercle"
+      }
+    ]
+  }
+]

@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="onyx_background">#FF0E0E11</color>
-    <color name="ic_launcher_background">#FF1B1B22</color>
-    <!-- L'accent de l'app (`STANDARD_PALETTE.accent`): les vues natives s'en servent pour la
-         sélection d'un texte — poignées, surlignage, barre — au lieu de l'accent vert par défaut
+    <color name="onyx_background">#FF0A0A0C</color>
+    <!-- Le FOND de l'icône adaptative du lanceur : la couleur pleine du carré sombre de
+         l'illustration de référence (`ic_launcher_graphite_block`) — mesure de l'illustration
+         192 px, luminance 31 : #1A202A. La couche de premier plan
+         (`drawable/ic_launcher_adaptive_foreground.xml`) porte le cercle et la rune. -->
+    <color name="ic_launcher_background">#FF1A202A</color>
+    <!-- L'accent de l'app (`ReferencePalette.Accent`, `#2F6BF5`) : les vues natives s'en servent pour
+         la sélection d'un texte — poignées, surlignage, barre — au lieu de l'accent vert par défaut
          du thème système, qui jurait avec le reste. -->
-    <color name="onyx_accent">#FF2E8BF5</color>
+    <color name="onyx_accent">#FF2F6BF5</color>
 </resources>

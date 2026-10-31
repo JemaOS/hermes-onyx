@@ -1,5 +1,9 @@
 package com.onyx.app.ui.bots
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -37,6 +41,7 @@ import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.OnyxRow
 import com.onyx.app.ui.design.OnyxRowDivider
+import com.onyx.app.ui.design.OnyxEdge
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.localization.BasicText
@@ -47,7 +52,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
  *
  * Sa forme, ses yeux, sa bouche, sa marque et sa couleur — chaque choix dessiné comme le bot avec
  * cette partie changée — puis « Surprise Me » et « Its Own Face ». La bulle et les deux couleurs de
- * Onyx ne sont proposées qu'au profil principal, comme.
+ * Onyx ne sont proposées qu'au profil principal, comme sur la référence.
  */
 @Composable
 fun BotFacePickerScreen(
@@ -71,7 +76,7 @@ fun BotFacePickerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
@@ -158,7 +163,10 @@ fun BotFacePickerScreen(
                                         .background(Brush.linearGradient(listOf(light, deep)), CircleShape)
                                         .then(
                                             if (index >= BotFace.seededColors) {
-                                                Modifier.border(1.dp, theme.tertiaryText.copy(alpha = 0.35f), CircleShape)
+                                                // Un visage **généré** (hors des teintes pré-semées) :
+                                                // le filet de la maquette le dit, à 12 % — jamais un
+                                                // gris de texte pris pour une bordure.
+                                                Modifier.border(OnyxSpace.Stroke, OnyxEdge.fil(theme), CircleShape)
                                             } else {
                                                 Modifier
                                             }
@@ -201,7 +209,7 @@ fun BotFacePickerScreen(
     }
 }
 
-/** La rangée d'une partie: chaque option est le visage entier avec cette partie changée. */
+/** La rangée d'une partie : chaque option est le visage entier avec cette partie changée. */
 @Composable
 private fun PartRow(
     options: List<String>,
@@ -227,12 +235,12 @@ private fun PartRow(
                     .widthIn(min = 64.dp)
                     .background(
                         if (picked) theme.accent.copy(alpha = 0.14f) else Color.Transparent,
-                        RoundedCornerShape(14.dp),
+                        RoundedCornerShape(OnyxSpace.FieldCorner),
                     )
                     .border(
                         2.dp,
                         if (picked) theme.accent else Color.Transparent,
-                        RoundedCornerShape(14.dp),
+                        RoundedCornerShape(OnyxSpace.FieldCorner),
                     )
                     .onyxClickable { onSelect(index) }
                     .padding(5.dp),

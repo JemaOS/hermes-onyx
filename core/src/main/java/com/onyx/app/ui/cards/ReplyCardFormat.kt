@@ -1,5 +1,6 @@
 package com.onyx.app.ui.cards
 
+import com.onyx.app.localization.OnyxLanguage
 import com.onyx.app.data.model.ReplyCard
 import com.onyx.app.localization.OnyxLocalization
 import java.time.LocalDate
@@ -8,30 +9,30 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Les mots et les chiffres des cartes d'une réponse: les mêmes que ceux 
- * , écrits selon la langue et l'heure du téléphone.
+ * Les mots et les chiffres des cartes d'une réponse : les mêmes que ceux de la référence
+ * (`ReplyCardViews`), écrits selon la langue et l'heure du téléphone.
  *
- * Tout est pur (pas de Compose, pas d'Android hors du format d'heure localisé): c'est éprouvable
+ * Tout est pur (pas de Compose, pas d'Android hors du format d'heure localisé) : c'est éprouvable
  * et cela garantit qu'aucune chaîne n'est écrite en dur dans une vue.
  */
 object ReplyCardFormat {
 
-    /** « 19° »: un degré entier, comme `Int(value.rounded)°`. */
+    /** « 19° » : un degré entier, comme `Int(value.rounded())°` côté référence. */
     fun degrees(value: Double): String {
-        // `Int(value.rounded)` arrondit loin de zéro: -11,5 donne -12, là où `Math.round`
+        // `Int(value.rounded())` de la référence arrondit loin de zéro : -11,5 donne -12, là où `Math.round`
         // de Java donnerait -11.
         val rounded = Math.round(Math.abs(value))
         return if (value < 0 && rounded != 0L) "-$rounded°" else "$rounded°"
     }
 
     /**
-     * « 14:00 », « 2026-10-22T14:00 » ou « 2 PM » écrit comme le téléphone écrit une heure; le
+     * « 14:00 », « 2026-10-22T14:00 » ou « 2 PM » écrit comme le téléphone écrit une heure ; le
      * texte est rendu tel quel s'il n'est pas une heure.
      *
      * Le gabarit vient de la locale (`java.text.DateFormat`, la même lecture que le système), sans
-     * la minute: écrit `date.formatted(.dateTime.hour)` — « 2 PM », pas « 2:00 PM ».
+     * la minute : référence écrit `date.formatted(.dateTime.hour())` — « 2 PM », pas « 2:00 PM ».
      */
-    fun hourLabel(text: String, locale: Locale = Locale.getDefault()): String {
+    fun hourLabel(text: String, locale: Locale = OnyxLanguage.preferred): String {
         val clock = text.substringAfterLast('T')
         val parts = clock.split(':')
         val hour = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: return text
@@ -42,9 +43,9 @@ object ReplyCardFormat {
         }.getOrDefault(text)
     }
 
-    /** « h a » (États-Unis), « HH 'h' » (France): l'heure seule, comme `dateTime.hour`. */
+    /** « h a » (États-Unis), « HH 'h' » (France) : l'heure seule, comme `dateTime.hour()`. */
     private fun hourPattern(locale: Locale): String {
-        // Sur Android, le gabarit d'ICU pour le squelette « j » est exactement celui.
+        // Sur Android, le gabarit d'ICU pour le squelette « j » est exactement celui de la référence.
         runCatching { android.text.format.DateFormat.getBestDateTimePattern(locale, "j") }
             .getOrNull()
             ?.takeIf { it.isNotBlank() && it.any { c -> c == 'H' || c == 'h' || c == 'K' || c == 'k' } }
@@ -57,20 +58,20 @@ object ReplyCardFormat {
     }
 
     /**
-     * « 2026-10-23 » écrit en jour de la semaine (« ven. »), aujourd'hui écrit « Aujourd'hui »;
+     * « 2026-10-23 » écrit en jour de la semaine (« ven. »), aujourd'hui écrit « Aujourd'hui » ;
      * le texte est rendu tel quel s'il n'est pas une date. La date est lue comme ce jour-là, sur le
      * calendrier du téléphone (lue comme un instant, minuit UTC, elle tombait la veille).
      */
-    fun dayLabel(text: String, today: LocalDate = LocalDate.now(), locale: Locale = Locale.getDefault()): String {
+    fun dayLabel(text: String, today: LocalDate = LocalDate.now(), locale: Locale = OnyxLanguage.preferred): String {
         val date = date(text) ?: return text
         if (date == today) return OnyxLocalization.translate("Today", locale)
-        // Le jour abrégé, comme `weekday(.abbreviated)` (« Fri », « ven. »).
+        // Le jour abrégé, comme `weekday(.abbreviated)` de la référence (« Fri », « ven. »).
         return runCatching {
             date.format(DateTimeFormatter.ofPattern("EEE", locale))
         }.getOrDefault(text)
     }
 
-    /** « EEEE, MMMM d » / « EEEE d MMMM »: le jour long, son quantième et son mois, sans l'année. */
+    /** « EEEE, MMMM d » / « EEEE d MMMM » : le jour long, son quantième et son mois, sans l'année. */
     private fun weekdayDayMonthPattern(locale: Locale): String {
         val full = (java.text.DateFormat.getDateInstance(java.text.DateFormat.FULL, locale) as? java.text.SimpleDateFormat)
             ?.toPattern()
@@ -86,7 +87,7 @@ object ReplyCardFormat {
     }
 
     /** La date écrite en toutes lettres (« vendredi 23 octobre »), dans sa zone et sa langue. */
-    fun longDate(date: LocalDate, locale: Locale = Locale.getDefault()): String =
+    fun longDate(date: LocalDate, locale: Locale = OnyxLanguage.preferred): String =
         runCatching {
             date.format(DateTimeFormatter.ofPattern(weekdayDayMonthPattern(locale), locale))
         }.getOrDefault(date.toString())
@@ -101,9 +102,9 @@ object ReplyCardFormat {
         return runCatching { LocalDate.of(year, month, day) }.getOrNull()
     }
 
-    /** Le nom d'un temps, tel que l'app le nomme (la traduction se fait au rendu). */
+    /** Le nom d'un temps, tel qu'référence le nomme (la traduction se fait au rendu). */
     fun conditionName(condition: ReplyCard.Condition): String = when (condition) {
-        // « Clear skies » et non « Clear »: ce dernier est déjà un libellé d'écran (« Clear »,
+        // « Clear skies » et non « Clear » : ce dernier est déjà un libellé d'écran (« Clear »,
         // effacer les outils du téléphone) et une clé partagée se traduirait pour les deux.
         ReplyCard.Condition.CLEAR -> "Clear skies"
         ReplyCard.Condition.PARTLY_CLOUDY -> "Partly cloudy"
@@ -142,7 +143,7 @@ object ReplyCardFormat {
     }
 
     /** Une distance à la route (« 600 m », « 1,2 km »), comme `Measurement(.road)`. */
-    fun distance(meters: Double, locale: Locale = Locale.getDefault()): String =
+    fun distance(meters: Double, locale: Locale = OnyxLanguage.preferred): String =
         if (meters < 1000) {
             String.format(locale, "%.0f m", meters)
         } else {
@@ -162,7 +163,7 @@ object ReplyCardFormat {
     }
 
     /**
-     * Où ouvrir l'app de cartes du téléphone: un `geo:` sur le lieu quand il n'y en a qu'un, et le
+     * Où ouvrir l'app de cartes du téléphone : un `geo:` sur le lieu quand il n'y en a qu'un, et le
      * site d'OpenStreetMap (la boîte, ou le point) quand il y en a plusieurs — Android n'ouvre
      * qu'une épingle à la fois.
      */
@@ -178,7 +179,7 @@ object ReplyCardFormat {
         return "https://www.openstreetmap.org/?mlat=${box.centerLatitude}&mlon=${box.centerLongitude}#map=14"
     }
 
-    /** Le `geo:` d'un chemin: l'arrivée, ouverte dans l'app de cartes. */
+    /** Le `geo:` d'un chemin : l'arrivée, ouverte dans l'app de cartes. */
     fun routeUri(route: ReplyCard.Route): String? {
         val to = route.to
         if (!to.hasCoordinate) return null

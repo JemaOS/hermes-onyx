@@ -8,8 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Une salle que l'on demande: son identifiant, son nom et ses membres, exactement le `wire` que
- * `groups.create` prend (`GroupMember.wire` du modèle), et la règle qui empêche deux fois le
+ * Une salle que l'on demande : son identifiant, son nom et ses membres, exactement le `wire` que
+ * `groups.create` prend (`GroupMember.wire` de la référence), et la règle qui empêche deux fois le
  * même nom de faire deux salles.
  */
 class GroupRoomDraftTest {
@@ -27,7 +27,7 @@ class GroupRoomDraftTest {
         assertEquals("Weekend hike", draft.name)
         assertEquals(42L, draft.createdAtMillis)
         assertEquals(listOf("default", "scout"), draft.members.map { it.profile })
-        // Le membre: son id dans la salle, son profil, sa poignée, son nom de salle.
+        // Le membre : son id dans la salle, son profil, sa poignée, son nom de salle.
         assertEquals(setOf("member_id", "profile", "handle", "display_name"), draft.members.first().wire().keys)
         assertEquals("default", draft.members.first().wire().str("member_id"))
         assertEquals("hermes", draft.members.first().wire().str("handle"))

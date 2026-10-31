@@ -32,7 +32,7 @@ data class CronUiState(
     val targets: List<DeliveryTarget> = emptyList(),
     val loading: Boolean = true,
     val problem: String? = null,
-    /** « No gateway configured »: les tâches vivent sur le gateway, pas sur la seule API de chat. */
+    /** « No gateway configured » : les tâches vivent sur le gateway, pas sur la seule API de chat. */
     val needsDashboard: Boolean = false,
     val working: String? = null,
     val busy: Set<String> = emptySet(),
@@ -45,12 +45,12 @@ data class CronUiState(
 /**
  * Les tâches planifiées du gateway, toutes sections ou celles d'un seul bot.
  *
- * Le même état alimente `CronView` et `BotSchedulesView`: dans le second cas, seules les routines
+ * Le même état alimente `CronView` et `BotSchedulesView` : dans le second cas, seules les routines
  * `bot-chat` du profil sont retenues et chaque mutation reste dans le store de ce profil.
  */
 class CronViewModel(
     private val config: ServerConfig,
-    /** Un profil, quand on regarde les horaires d'un bot; `null` montre tous les profils. */
+    /** Un profil, quand on regarde les horaires d'un bot ; `null` montre tous les profils. */
     private val profile: String? = null,
     /** Le nom affiché dans l'erreur de lecture d'un bot, pas son identifiant de profil. */
     private val botLabel: String? = null,
@@ -66,12 +66,12 @@ class CronViewModel(
     }
 
     fun refresh() {
-        // Aucune connexion Dashboard: le gateway ne peut pas être interrogé du tout.
+        // Aucune connexion Dashboard : le gateway ne peut pas être interrogé du tout.
         if (profile == null && !config.canAdminister) {
             _state.update { it.copy(jobs = emptyList(), loading = false, problem = null, needsDashboard = true) }
             return
         }
-        // Une routine de bot n'existe que dans le Dashboard; ne pas afficher une erreur réseau
+        // Une routine de bot n'existe que dans le Dashboard ; ne pas afficher une erreur réseau
         // par-dessus l'état « Needs the Hermes Dashboard » de la vue.
         if (profile != null && !config.canAdminister) {
             _state.update { it.copy(jobs = emptyList(), loading = false, problem = null) }
@@ -80,7 +80,7 @@ class CronViewModel(
         viewModelScope.launch { load() }
     }
 
-    /** Recharge dans la coroutine appelante: une action garde son état occupé jusqu'à la fin. */
+    /** Recharge dans la coroutine appelante : une action garde son état occupé jusqu'à la fin. */
     private suspend fun load() {
         _state.update { it.copy(loading = true, problem = null) }
         try {

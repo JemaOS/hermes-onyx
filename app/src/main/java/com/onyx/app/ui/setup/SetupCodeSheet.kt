@@ -9,9 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -22,11 +21,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -57,7 +58,9 @@ import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.onyx.app.ui.design.IdentifierText
 
 sealed interface SetupCodeFinish {
     data object Cancelled : SetupCodeFinish
@@ -76,7 +79,7 @@ private sealed interface SetupCodeStage {
 }
 
 /**
- * La confirmation de: le contenu non secret, ce qui changera, puis
+ * La confirmation de `SetupCodeSheet` : le contenu non secret, ce qui changera, puis
  * installation, vraie sonde, nouvel essai, édition et retrait du serveur ajouté en cas d'échec.
  */
 @Composable
@@ -91,6 +94,8 @@ fun SetupCodeSheet(
     onRemoveAdded: suspend (String, String) -> Unit,
     onEditConnection: (ServerConfig) -> Unit,
     onFinish: (SetupCodeFinish) -> Unit,
+    /** Ce que le lien applique **au-delà** du serveur : voix, pont « Ordinateur », langue. */
+    onApplyExtras: suspend (SetupCode) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
@@ -102,6 +107,8 @@ fun SetupCodeSheet(
     var stage by remember(offer) { mutableStateOf<SetupCodeStage>(SetupCodeStage.Review) }
     var installed by remember(offer) { mutableStateOf<ServerConfig?>(null) }
     var receipt by remember(offer) { mutableStateOf<SetupCodeReceipt?>(null) }
+    /** Le défilement du contenu : le résultat du test doit pouvoir amener son pied de page à l'écran. */
+    val contentScroll = rememberScrollState()
 
     fun close(finish: SetupCodeFinish) = onFinish(finish)
 
@@ -145,6 +152,9 @@ fun SetupCodeSheet(
                 return@launch
             }
             installed = target
+            // Le reste du lien « tout en un » — voix, pont, langue — s'applique **après** le
+            // serveur, et ne l'empêche jamais : l'un d'eux peut manquer sans que rien ne casse.
+            runCatching { onApplyExtras(currentCode) }
             receipt = if (currentPlan.server == SetupServerAction.ADD) {
                 SetupCodeReceipt(target.id, activeServer.id)
             } else {
@@ -157,6 +167,17 @@ fun SetupCodeSheet(
     BackHandler {
         if (stage == SetupCodeStage.Review) close(SetupCodeFinish.Cancelled)
         // Pendant le test et après son résultat, seul le bouton visible ferme la feuille.
+    }
+
+    // Le pied de page du test (« Le code est enregistré. Si l'adresse n'est accessible que sur votre
+    // réseau domestique ou VPN… ») arrive **sous** la dernière rangée : quand le résultat tombe, on
+    // amène le bas de la feuille à l'écran, pour qu'il soit lu en entier au lieu de rester coupé par
+    // le bord. `snapshotFlow` attend que la mise en page ait posé la nouvelle hauteur (le pied de
+    // page vient d'être ajouté) avant de défiler.
+    LaunchedEffect(stage) {
+        if (stage !is SetupCodeStage.Tested) return@LaunchedEffect
+        snapshotFlow { contentScroll.maxValue }.first { it > 0 }
+        contentScroll.animateScrollTo(contentScroll.maxValue)
     }
 
     Column(
@@ -186,7 +207,7 @@ fun SetupCodeSheet(
                 .fillMaxWidth()
                 .weight(1f)
                 .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(contentScroll)
                 .padding(bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -280,6 +301,34 @@ fun SetupCodeSheet(
                     }
                 }
 
+                // Ce qu'un lien « tout en un » ajoute au serveur : le récapitulatif le montre,
+                // sans jamais afficher un secret.
+                if (code.hasExtras) {
+                    OnyxFormSection(header = "Also set up") {
+                        if (code.voicesURL.isNotEmpty()) {
+                            SetupAddressRow(
+                                title = "Voice server",
+                                address = code.voicesURL,
+                                notes = listOf("Kokoro-compatible"),
+                                used = true,
+                            )
+                        }
+                        if (code.bridgeURL.isNotEmpty()) {
+                            if (code.voicesURL.isNotEmpty()) OnyxRowDivider()
+                            SetupAddressRow(
+                                title = "Computer bridge",
+                                address = code.bridgeURL,
+                                notes = listOf(if (code.bridgeToken.isEmpty()) "no token" else "token included"),
+                                used = true,
+                            )
+                        }
+                        if (code.language.isNotEmpty()) {
+                            if (code.voicesURL.isNotEmpty() || code.bridgeURL.isNotEmpty()) OnyxRowDivider()
+                            SetupLabeledRow("Language", code.language)
+                        }
+                    }
+                }
+
                 OnyxFormSection(
                     footer = (stage as? SetupCodeStage.Tested)?.let { result ->
                         if (!result.outcome.ok && result.saved) {
@@ -312,13 +361,13 @@ fun SetupCodeSheet(
                             OnyxRow {
                                 OnyxIcon(
                                     if (current.outcome.ok) Symbols.CheckmarkCircle else Symbols.XmarkOctagonFill,
-                                    tint = if (current.outcome.ok) Color(0xFF34C759) else theme.error,
+                                    tint = if (current.outcome.ok) theme.success else theme.error,
                                     size = 19.dp,
                                 )
                                 BasicText(
                                     text = current.outcome.message,
                                     style = theme.footnote.copy(
-                                        color = if (current.outcome.ok) Color(0xFF34C759) else theme.error,
+                                        color = if (current.outcome.ok) theme.success else theme.error,
                                     ),
                                 )
                             }
@@ -380,6 +429,15 @@ private fun SetupLabeledRow(label: String, value: String, localizeValue: Boolean
     }
 }
 
+/**
+ * L'écart horizontal entre un titre de rangée et son badge « Onyx utilisera cette connexion ».
+ * C'est une **marge de séparation nette** : le badge ne touche jamais le titre.
+ */
+private val UsedBadgeGap = 12.dp
+
+/** L'écart vertical quand le badge n'a pas la place sur la ligne du titre et passe dessous. */
+private val UsedBadgeStackGap = 3.dp
+
 @Composable
 private fun SetupAddressRow(
     title: String,
@@ -389,22 +447,45 @@ private fun SetupAddressRow(
 ) {
     val theme = LocalOnyxTheme.current
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            BasicText(text = title, style = theme.body.copy(color = theme.primaryText))
-            Box(Modifier.weight(1f))
+        // Le badge bleu suit **une seule règle, la même dans toutes les rangées** : il se pose à la
+        // droite du titre, sur **une seule ligne**, à [UsedBadgeGap] de lui. Quand la place manque
+        // (un écran de 320 dp à police 1,3×, où « Onyx utilisera cette connexion » mesure ~225 dp
+        // pour ~256 dp de rangée), il **passe entier à la ligne suivante**, aligné sous le titre —
+        // il ne se replie jamais sur deux lignes, ne se pose jamais sur le titre, et garde le même
+        // écart d'une rangée à l'autre. `FlowRow` est exactement cette règle : la ligne se remplit,
+        // et ce qui ne tient pas descend d'un bloc. Le `padding(end)` du titre (et non un
+        // `padding(start)` du badge) fait la marge : quand le badge passe dessous, il reste aligné
+        // sur le titre au lieu d'être rentré de douze points.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(UsedBadgeStackGap),
+            // Titre et badge sont de tailles différentes (corps et note) : centrés l'un sur
+            // l'autre, comme la rangée d'origine, plutôt qu'alignés par le haut.
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicText(
+                text = title,
+                style = theme.body.copy(color = theme.primaryText),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = UsedBadgeGap),
+            )
             if (used) {
                 BasicText(
                     text = "Onyx will use this",
                     style = theme.footnote.copy(color = theme.accent),
+                    // **Une ligne, et jamais deux** : la règle du badge (mesurée) est « entier sur
+                    // une ligne, sinon rejeté *entier* à la ligne suivante » par le `FlowRow` de la
+                    // rangée. Le replier le ferait remonter sur le titre — le défaut d'origine.
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        BasicText(
+        IdentifierText(
             text = address,
-            localize = false,
             style = theme.subheadline.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 3.dp),
         )
         if (notes.isNotEmpty()) {

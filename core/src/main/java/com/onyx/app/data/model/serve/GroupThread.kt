@@ -16,11 +16,11 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Le fil d'une salle de bots: ce qui y a été dit, ce qu'elle attend, et la réponse qu'un bot est
+ * Le fil d'une salle de bots : ce qui y a été dit, ce qu'elle attend, et la réponse qu'un bot est
  * en train d'écrire.
  *
- * Comme `GroupEvent` / `GroupState` / `GroupApproval` / `GroupDraft`
- * (198,:279 et:237).
+ * Miroir de `GroupEvent` / `GroupState` / `GroupApproval` / `GroupDraft`
+ * (Echo/Services/Transport/ServerGroups:143, :198, :279 et :237).
  */
 
 /** Une entrée du journal d'une salle (`groups.log`). */
@@ -30,7 +30,7 @@ data class GroupEvent(
     /** `user`, `member` (ou `system`, `gateway`). */
     val actorKind: String,
     /**
-     * Le membre dont il s'agit: celui qui a parlé, ou celui dont c'était le tour (Hermes écrit la
+     * Le membre dont il s'agit : celui qui a parlé, ou celui dont c'était le tour (Hermes écrit la
      * fin d'un tour en son nom propre, la passerelle, avec le membre dans la charge utile).
      */
     val actorID: String?,
@@ -39,10 +39,10 @@ data class GroupEvent(
 ) {
     val text: String get() = payload.str("text")
 
-    /** Quelque chose que quelqu'un a dit: la personne, ou un bot. */
+    /** Quelque chose que quelqu'un a dit : la personne, ou un bot. */
     val isMessage: Boolean get() = kind == "message.user" || kind == "message.member"
 
-    /** La discussion est finie: elle a fait son cours, touché sa limite, ou a été arrêtée. */
+    /** La discussion est finie : elle a fait son cours, touché sa limite, ou a été arrêtée. */
     val endsDiscussion: Boolean get() = kind == "room.activity" || kind == "room.stop_requested"
 
     /** Une ligne sur la salle plutôt que quelque chose de dit, ou `null` quand elle ne vaut rien. */
@@ -69,7 +69,7 @@ data class GroupEvent(
     }
 
     companion object {
-        /** Une ligne de `groups.log`; `null` quand il lui manque son numéro ou son genre. */
+        /** Une ligne de `groups.log` ; `null` quand il lui manque son numéro ou son genre. */
         fun from(json: JsonObject): GroupEvent? {
             val seq = json.int("seq") ?: return null
             val kind = json.strOrNull("kind") ?: return null
@@ -94,7 +94,7 @@ data class GroupEvent(
 data class GroupState(
     val working: Boolean = false,
     /**
-     * Un arrêt en cours, ou une réponse qu'Hermes a perdue de vue et remet en ordre: pas une
+     * Un arrêt en cours, ou une réponse qu'Hermes a perdue de vue et remet en ordre : pas une
      * question pour la personne (celles-là sont les `approvals` et les `retries`).
      */
     val blocked: Boolean = false,
@@ -102,12 +102,12 @@ data class GroupState(
     val stopping: Boolean = false,
     val approvals: List<GroupApproval> = emptyList(),
     /**
-     * Les réponses arrêtées à mi-chemin, Hermes ne sachant pas jusqu'où elles sont allées: leurs
+     * Les réponses arrêtées à mi-chemin, Hermes ne sachant pas jusqu'où elles sont allées : leurs
      * tâches, chacune relancée seulement si la personne le demande (`groups.retry`).
      */
     val retries: List<String> = emptyList(),
 ) {
-    /** Quelque chose que seule la personne peut régler: une commande à approuver, ou une réponse à relancer. */
+    /** Quelque chose que seule la personne peut régler : une commande à approuver, ou une réponse à relancer. */
     val waitsOnPerson: Boolean get() = approvals.isNotEmpty() || retries.isNotEmpty()
 
     companion object {
@@ -140,7 +140,7 @@ data class GroupApproval(
     companion object {
         /**
          * Une ligne de `pending_actions` (`kind` = « approval »). Une salle ne prend que « once »
-         * ou « deny »: les autres choix sont retirés, comme.
+         * ou « deny » : les autres choix sont retirés, comme la référence.
          */
         fun from(json: JsonObject): GroupApproval? {
             if (json.strOrNull("kind") != "approval") return null
@@ -171,7 +171,7 @@ data class GroupApproval(
 
 /**
  * La réponse d'un bot dans une salle, telle qu'elle s'écrit. Hermes n'écrit une réponse dans la
- * salle qu'une fois finie; entre-temps elle est dans la session propre du bot pour cette salle,
+ * salle qu'une fois finie ; entre-temps elle est dans la session propre du bot pour cette salle,
  * une session cachée de son profil titrée « Group: <salle> », dont Hermes garde les derniers
  * événements pour un client qui se reconnecte (`session.events.since`). C'est de là qu'elle est lue.
  */
@@ -181,17 +181,17 @@ data class GroupDraft(
     /** Le bot qui l'écrit, une fois sa session retrouvée sur son profil. */
     val memberID: String? = null,
     val text: String = "",
-    /** Quand la session du bot a fini la réponse: elle s'affiche jusqu'à ce que la salle l'ait. */
+    /** Quand la session du bot a fini la réponse : elle s'affiche jusqu'à ce que la salle l'ait. */
     val finishedAtMillis: Long? = null,
     /** Le dernier événement du journal de la salle quand elle a commencé. */
     val after: Int,
     val beganMillis: Long = System.currentTimeMillis(),
 ) {
-    /** Le résultat d'une lecture: le brouillon à jour, et si un début de réponse y était. */
+    /** Le résultat d'une lecture : le brouillon à jour, et si un début de réponse y était. */
     data class Read(val draft: GroupDraft, val started: Boolean)
 
     /**
-     * `events` (de `session.events.since`, du plus ancien au plus récent) lus sur le brouillon:
+     * `events` (de `session.events.since`, du plus ancien au plus récent) lus sur le brouillon :
      * une réponse recommence à chaque `message.start`, et à chaque `message.interim` (ce qu'un bot
      * a écrit à côté d'un appel d'outil, que la réponse dans la salle laisse de côté), grandit à
      * chaque `message.delta`, et est entière à `message.complete`. `started` est vrai quand un
@@ -244,5 +244,5 @@ data class GroupSessionSlice(
     val truncated: Boolean = false,
 )
 
-/** Ce que `groups.state` répond pour une salle: la salle telle qu'Hermes la voit, et son état. */
+/** Ce que `groups.state` répond pour une salle : la salle telle qu'Hermes la voit, et son état. */
 data class GroupRoomStatus(val room: GroupRoom?, val state: GroupState)

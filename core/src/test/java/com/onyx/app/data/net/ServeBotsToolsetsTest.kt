@@ -8,9 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les jeux d'outils d'un bot: ce que `profiles.describe` en dit, et ce qu'un choix écrit.
+ * Les jeux d'outils d'un bot : ce que `profiles.describe` en dit, et ce qu'un choix écrit.
  *
- * Comme `BotDetails` / `BotChange.toolsets` ( et `:215`): la
+ * Miroir de `BotDetails` / `BotChange.toolsets` de la référence (`BotManagement:53` et `:215`) : la
  * liste vient du socket, l'écriture passe par `profiles.configure { enabled_toolsets }`, et un
  * profil sans liste propre qui n'a coché personne les a tous.
  */
@@ -38,7 +38,7 @@ class ServeBotsToolsetsTest {
 
     @Test
     fun `sans liste propre et sans rien de coche, le profil a tout`() {
-        // 0.21.5 répond une liste vide pour un profil qui a tout: on lit « tous », .
+        // 0.21.5 répond une liste vide pour un profil qui a tout : on lit « tous », comme référence.
         val read = botToolsetsFrom(json("""{"toolsets":[{"name":"web"},{"name":"terminal"}],"toolsets_pinned":false}"""))
 
         assertEquals(setOf("web", "terminal"), read.enabled)
@@ -72,7 +72,7 @@ class ServeBotsToolsetsTest {
     }
 
     @Test
-    fun `le titre d'un jeu suit les mots `() {
+    fun `le titre d'un jeu suit les mots de la référence`() {
         assertEquals("To-do list", toolsetTitleFor("todo"))
         assertEquals("Home Assistant", toolsetTitleFor("homeassistant"))
         // Un jeu que ce build ne connaît pas garde son nom, mis en mots.

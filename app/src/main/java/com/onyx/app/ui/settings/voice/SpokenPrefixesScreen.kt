@@ -37,12 +37,13 @@ import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.theme.LocalOnyxTheme
+import com.onyx.app.ui.design.IdentifierText
 
 /**
  * Réglages → Voix → Spoken prefixes (`SpokenPrefixesView`).
  *
  * Un mot qui ouvre un message dicté devient un préfixe de texte, et peut envoyer vers un bot ou
- * un modèle. Les règles s'essaient dans l'ordre; la première qui correspond l'emporte.
+ * un modèle. Les règles s'essaient dans l'ordre ; la première qui correspond l'emporte.
  */
 @Composable
 fun SpokenPrefixesScreen(
@@ -99,7 +100,7 @@ fun SpokenPrefixesScreen(
                             text = rule.summary { profile -> bots.firstOrNull { it.name == profile }?.label() },
                             localize = false,
                             style = theme.callout.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                         OnyxIcon(
@@ -146,7 +147,7 @@ fun SpokenPrefixesScreen(
 }
 
 /**
- * L'éditeur d'une règle (`SpokenPrefixEditor`): le mot et ses alias, le préfixe, le bot, le
+ * L'éditeur d'une règle (`SpokenPrefixEditor`) : le mot et ses alias, le préfixe, le bot, le
  * modèle, et l'aperçu de ce qu'une phrase devient.
  */
 @Composable
@@ -163,7 +164,7 @@ fun SpokenPrefixEditorScreen(
     var showBots by remember { mutableStateOf(false) }
     var showModels by remember { mutableStateOf(false) }
 
-    // L'exemple suit la langue: seule la phrase d'exemple est de Onyx, le mot reste celui de l'utilisateur.
+    // L'exemple suit la langue : seule la phrase d'exemple est de Onyx, le mot reste celui de l'utilisateur.
     val example = (rule.word.trim().ifEmpty { "Claude" }) + OnyxLocalization[", what's using port 8880?"]
     val routed = routeVoiceText(example, listOf(rule))
     val unchanged = routed.text == example && routed.bot == null && routed.model == null
@@ -298,12 +299,9 @@ fun SpokenPrefixEditorScreen(
                                 tint = if (rule.model == model) theme.accent else theme.tertiaryText,
                                 size = 18.dp,
                             )
-                            BasicText(
+                            IdentifierText(
                                 text = model,
-                                localize = false,
                                 style = theme.body.copy(color = theme.primaryText),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
                             )
                         }

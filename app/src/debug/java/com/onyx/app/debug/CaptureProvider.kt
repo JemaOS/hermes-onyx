@@ -13,13 +13,13 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Capture l'écran de l'app dans un fichier PNG, pour comparer l'UI à celle de l'app.
+ * Capture l'écran de l'app dans un fichier PNG, pour comparer l'UI à celle de l'app de référence.
  *
- * Uniquement dans la variante debug: la capture système (`screencap`) passe par le compositeur,
+ * Uniquement dans la variante debug : la capture système (`screencap`) passe par le compositeur,
  * que l'émulateur de cette machine ne sait pas servir (assertion DMA). Ici on dessine
  * directement la vue de la fenêtre dans un Bitmap — même pixels, autre chemin.
  *
- * Usage: adb shell content call --uri content://com.onyx.app.capture --method capture
+ * Usage : adb shell content call --uri content://com.onyx.app.capture --method capture
  */
 class CaptureProvider : ContentProvider() {
 

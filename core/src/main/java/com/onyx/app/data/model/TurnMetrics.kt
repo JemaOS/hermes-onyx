@@ -1,12 +1,12 @@
 package com.onyx.app.data.model
 
-import java.util.Locale
+import com.onyx.app.localization.OnyxLanguage
 import kotlinx.serialization.Serializable
 
 /**
  * Le temps qu'a mis une réponse, et à quelle vitesse elle est venue.
  *
- * Comme `TurnMetrics`: la ligne « 2.2 s · 84 tok/s » sous une
+ * Miroir de `TurnMetrics` (Echo/Models/Message) : la ligne « 2.2 s · 84 tok/s » sous une
  * réponse terminée. Le temps jusqu'au premier token est celui qui compte pour un modèle qui
  * réfléchit d'abord.
  */
@@ -48,7 +48,7 @@ data class TurnMetrics(
         val parts = mutableListOf<String>()
         timeToFirstToken?.let { parts += "premier token ${format(it)}" }
         total?.let { parts += "total ${format(it)}" }
-        tokensPerSecond?.let { parts += "${"%.1f".format(it)} tok/s" }
+        tokensPerSecond?.let { parts += "${String.format(OnyxLanguage.preferred, "%.1f", it)} tok/s" }
         return parts.joinToString(" · ").ifEmpty { "—" }
     }
 
@@ -65,14 +65,11 @@ data class TurnMetrics(
     }
 
     companion object {
-        /**
-         * « 12.3 s » sous la minute, « 3m 12s » au-delà, dans la langue demandée : le séparateur
-         * décimal suit [locale] (12,3 s en français) au lieu de la langue de la machine.
-         */
-        fun format(seconds: Double, locale: Locale = Locale.getDefault()): String {
-            if (seconds < 60) return String.format(locale, "%.1f s", seconds)
+        /** « 12.3 s » sous la minute, « 3m 12s » au-delà. */
+        fun format(seconds: Double): String {
+            if (seconds < 60) return String.format(OnyxLanguage.preferred, "%.1f s", seconds)
             val whole = seconds.toInt()
-            return String.format(locale, "%dm %02ds", whole / 60, whole % 60)
+            return "${whole / 60}m %02ds".format(whole % 60)
         }
     }
 }

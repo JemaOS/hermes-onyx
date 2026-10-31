@@ -31,12 +31,12 @@ import com.onyx.app.ui.voice.VoiceFace
  * Elle dessine, côte à côte et en grand, le même visage dans chacun des cinq états qu'un bot prend
  * pendant une conversation — ÉCOUTE, RÉFLEXION, PAROLE, SUCCÈS, ERREUR — pour que la recette
  * visuelle porte sur le **dessin** de chaque état, pas sur un parcours serveur qu'un émulateur nu ne
- * peut pas jouer. C'est un **état injecté**, et le rapport le dit: « PAROLE » passe par la vraie
+ * peut pas jouer. C'est un **état injecté**, et le rapport le dit : « PAROLE » passe par la vraie
  * [`VoiceFace`] (celle de la scène vocale, bouche ouverte par la pose), les quatre autres par
  * l'humeur ([BotMood]) que les écrans — la liste des bots, le fil d'une salle, la scène vocale —
  * passent réellement à `BotLook`.
  *
- * Rien de ceci n'existe dans l'APK signé: l'activité vit dans le jeu de sources `debug`.
+ * Rien de ceci n'existe dans l'APK signé : l'activité vit dans le jeu de sources `debug`.
  */
 class BotExpressionsActivity : FragmentActivity() {
 
@@ -78,7 +78,7 @@ class BotExpressionsActivity : FragmentActivity() {
         }
     }
 
-    /** Un état: le visage du bot dans cet état, et son nom dessous. */
+    /** Un état : le visage du bot dans cet état, et son nom dessous. */
     @Composable
     private fun StateFace(label: String, mood: BotMood = BotMood.IDLE, speaking: Boolean = false) {
         val theme = LocalOnyxTheme.current
@@ -88,7 +88,7 @@ class BotExpressionsActivity : FragmentActivity() {
         ) {
             Box(modifier = Modifier.size(132.dp), contentAlignment = Alignment.Center) {
                 if (speaking) {
-                    // La vraie scène vocale: son visage, sa pose de parole (bouche ouverte, un
+                    // La vraie scène vocale : son visage, sa pose de parole (bouche ouverte, un
                     // soupçon de sourcils et de respiration), au repos de phase.
                     VoiceFace(
                         name = QUILL,
@@ -115,7 +115,7 @@ class BotExpressionsActivity : FragmentActivity() {
         const val QUILL = "quill"
 
         /**
-         * Un visage **neutre** pour la planche (yeux ronds, sourire, sans marque): les cinq états
+         * Un visage **neutre** pour la planche (yeux ronds, sourire, sans marque) : les cinq états
          * se distinguent alors par ce que l'humeur y ajoute, et non par les traits déjà présents.
          */
         const val QUILL_FACE = "1:blob:round:smile:none:4:0:0"

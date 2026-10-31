@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le tampon VT décide de ce qu'on lit dans le terminal: une séquence mal digérée et la sortie
+ * Le tampon VT décide de ce qu'on lit dans le terminal : une séquence mal digérée et la sortie
  * d'une commande devient illisible. Ces cas couvrent ce que `ls`, `git` et `systemctl` envoient.
  */
 class TerminalBufferTest {
@@ -34,7 +34,7 @@ class TerminalBufferTest {
         val buffer = TerminalBuffer(rows = 3, columns = 20)
         buffer.write("un\ndeux")
 
-        // C'est la règle du VT: LF descend, CR revient au début. Les coquilles envoient « \r\n ».
+        // C'est la règle du VT : LF descend, CR revient au début. Les coquilles envoient « \r\n ».
         assertEquals("un", buffer.lines()[0])
         assertEquals("  deux", buffer.lines()[1])
         assertEquals(1, buffer.cursorRow)

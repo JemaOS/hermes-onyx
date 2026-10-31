@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hermes Onyx</string>
+    <!-- Le nom au lanceur : « Onyx », un seul mot, décidé par le propriétaire. Il remplace la
+         convention antérieure (« Hermes Onyx » au lanceur), et vaut pour **toutes** les surfaces
+         où Android lit un nom d'application : l'application, ses activités, ses quatorze alias de
+         lanceur, le libellé de l'annonce du widget. Le verrou le fige :
+         `NomEtIconeDuLanceurTest`. -->
+    <string name="app_name">Onyx</string>
     <string name="widget_description">The last answer, or the one on its way.</string>
     <string name="shortcut_ask_short">Ask Onyx</string>
     <string name="shortcut_ask_long">Ask Onyx a question</string>

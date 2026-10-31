@@ -1,5 +1,6 @@
 package com.onyx.app.data.capture
 
+import com.onyx.app.localization.OnyxLanguage
 import android.content.Context
 import com.onyx.app.data.model.ChatRequest
 import com.onyx.app.data.model.ChatTurn
@@ -28,11 +29,11 @@ import java.util.Locale
  *
  * Les notes sont écrites **au moment où elles sont prises** (elles ne dépendent ni du réseau ni
  * d'un écran ouvert) et remises dès que le serveur répond. La remise elle-même vit dans
- * [CaptureFiler]; ici, seulement la boîte et son disque.
+ * [CaptureFiler] ; ici, seulement la boîte et son disque.
  */
 object QuickCapture {
 
-    /** La plus vieille tentative: une note qui n'arrive pas reste et repart plus tard. */
+    /** La plus vieille tentative : une note qui n'arrive pas reste et repart plus tard. */
     private val retryDelaysMillis = listOf(15_000L, 60_000L, 180_000L, 600_000L)
 
     private const val PreferencesName = "onyx_capture"
@@ -50,7 +51,7 @@ object QuickCapture {
     /** Les notes pas encore classées, la plus ancienne d'abord. */
     val waiting: StateFlow<List<CaptureNote>> = _waiting.asStateFlow()
 
-    /** Vrai quand une remise est en cours: l'écran le dit au lieu de rester muet. */
+    /** Vrai quand une remise est en cours : l'écran le dit au lieu de rester muet. */
     private val _filing = MutableStateFlow(false)
     val filing: StateFlow<Boolean> = _filing.asStateFlow()
 
@@ -73,9 +74,9 @@ object QuickCapture {
     }
 
     /**
-     * Prend une note. Faux pour un texte vide: rien n'est gardé pour rien.
+     * Prend une note. Faux pour un texte vide : rien n'est gardé pour rien.
      *
-     * La remise part tout de suite; si le serveur ne répond pas, la note reste dans la boîte et
+     * La remise part tout de suite ; si le serveur ne répond pas, la note reste dans la boîte et
      * une nouvelle tentative est programmée.
      */
     fun add(text: String): Boolean {
@@ -87,7 +88,7 @@ object QuickCapture {
         return true
     }
 
-    /** Efface une note à la main: elle n'est jamais remise. */
+    /** Efface une note à la main : elle n'est jamais remise. */
     fun remove(id: String) {
         val box = inbox ?: return
         box.remove(id)
@@ -108,7 +109,7 @@ object QuickCapture {
 
     private suspend fun file(box: CaptureInbox, server: ServerConfig?, profile: String?) {
         if (server == null) {
-            // Rien n'est configuré: la note attend un serveur, elle n'est pas perdue.
+            // Rien n'est configuré : la note attend un serveur, elle n'est pas perdue.
             _outcome.value = CaptureOutcome.WAITING
             return
         }
@@ -153,9 +154,9 @@ object QuickCapture {
     private fun activeProfile(): String? =
         if (AppContainer.isInstalled) AppContainer.servers.activeServer.value.hermesProfile.ifEmpty { null } else null
 
-    /** La date d'une note, comme le modèle l'écrit dans le message: « lundi 26 octobre à 09:12 ». */
+    /** La date d'une note, comme la référence l'écrit dans le message : « lundi 26 octobre à 09:12 ». */
     fun whenLabel(at: Long): String =
-        SimpleDateFormat("EEEE d MMMM 'à' HH:mm", Locale.getDefault()).format(Date(at))
+        SimpleDateFormat("EEEE d MMMM 'à' HH:mm", OnyxLanguage.preferred).format(Date(at))
 
     private fun read(preferences: android.content.SharedPreferences): List<CaptureNote> {
         val raw = preferences.getString(WaitingKey, null) ?: return emptyList()
@@ -192,9 +193,9 @@ object QuickCapture {
 }
 
 /**
- * La remise: les notes partent **en un seul message** dans un tour que personne ne regarde.
+ * La remise : les notes partent **en un seul message** dans un tour que personne ne regarde.
  *
- * C'est le `CaptureFiler` du modèle: l'agent range la note avec ce qu'il a (sa mémoire, une
+ * C'est le `CaptureFiler` de la référence : l'agent range la note avec ce qu'il a (sa mémoire, une
  * liste, un rappel, le calendrier), répond en quelques mots, et **rien n'est lu à voix haute** —
  * la réponse n'est simplement pas affichée dans la conversation ouverte.
  */
@@ -214,7 +215,7 @@ object CaptureFiler {
             provider = server.effectiveProvider,
         )
         when (server.transport) {
-            // Le Dashboard: un canal à nous, refermé en sortant, comme le tour d'un intent.
+            // Le Dashboard : un canal à nous, refermé en sortant, comme le tour d'un intent.
             Transport.HERMES_SERVE -> HermesServeChat(server).stream(request).collect { }
             else -> ChatCompletionsClient(server).stream(request).collect { }
         }

@@ -12,7 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Ce qui fait qu'une question devient une notification: une question ouverte, un sudo en attente,
+ * Ce qui fait qu'une question devient une notification : une question ouverte, un sudo en attente,
  * un secret sans valeur. Une interruption déjà répondue n'y figure pas.
  */
 class PendingQuestionsTest {
@@ -60,7 +60,7 @@ class PendingQuestionsTest {
         assertEquals(1, pending.size)
         assertEquals("q1", pending[0].questionId)
         assertEquals(2, pending[0].questionCount)
-        // Trop de questions pour un seul champ: la notification ouvre l'app.
+        // Trop de questions pour un seul champ : la notification ouvre l'app.
         assertTrue(!NotificationCopy.canAnswerInline(pending[0].kind, hasSession = true, questionCount = pending[0].questionCount))
     }
 

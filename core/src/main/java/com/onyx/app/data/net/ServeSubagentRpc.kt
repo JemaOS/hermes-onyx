@@ -10,18 +10,18 @@ import kotlinx.serialization.json.put
 /**
  * Les sous-agents d'une session, par le RPC du Dashboard (`hermes serve`).
  *
- * Comme `subagentSteer` / `subagentInterrupt` de `HermesServeClient` , **plus** les
+ * Miroir de `subagentSteer` / `subagentInterrupt` de `HermesServeClient` côté référence, **plus** les
  * deux routes que le gateway expose par ailleurs (`subagent.list`, `subagent.tail`) et qui sont la
- * seule façon de voir et de lire un enfant **sans tour en cours**:
+ * seule façon de voir et de lire un enfant **sans tour en cours** :
  *
- * - `subagent.list { session_id }` → le roster des enfants vivants (`subagent_id`, but, profondeur,
- * modèle, date de départ, état, nombre d'outils, dernier outil, `accepting_steer`);
- * - `subagent.tail { session_id, subagent_id }` → les derniers ko de la transcription vivante de
- * l'enfant (`available`, `text`, `truncated`), ou « rien » quand il n'en a pas;
- * - `subagent.steer { subagent_id, text }` → « queued » / « rejected »;
- * - `subagent.interrupt { subagent_id }` → « found » (faux quand l'enfant a déjà fini).
+ *  - `subagent.list { session_id }` → le roster des enfants vivants (`subagent_id`, but, profondeur,
+ *    modèle, date de départ, état, nombre d'outils, dernier outil, `accepting_steer`) ;
+ *  - `subagent.tail { session_id, subagent_id }` → les derniers ko de la transcription vivante de
+ *    l'enfant (`available`, `text`, `truncated`), ou « rien » quand il n'en a pas ;
+ *  - `subagent.steer { subagent_id, text }` → « queued » / « rejected » ;
+ *  - `subagent.interrupt { subagent_id }` → « found » (faux quand l'enfant a déjà fini).
  *
- * L'autorité de pilotage vient du **transport** attaché à la session, pas du seul identifiant:
+ * L'autorité de pilotage vient du **transport** attaché à la session, pas du seul identifiant :
  * une session inconnue du socket répond `4001` et rien n'est piloté en silence.
  */
 class ServeSubagentRpc(
@@ -47,7 +47,7 @@ class ServeSubagentRpc(
     /**
      * La transcription vivante d'un enfant, ou `null` quand le gateway n'a rien à en dire.
      *
-     * `available: false` est une réponse normale (l'enfant démarre, ou il n'a rien écrit): la
+     * `available: false` est une réponse normale (l'enfant démarre, ou il n'a rien écrit) : la
      * transcription reste vide et l'écran le dit, au lieu de tourner en boucle sur un chargement.
      */
     suspend fun tail(sessionId: String, subagentId: String): SubagentTail? {
@@ -68,9 +68,9 @@ class ServeSubagentRpc(
     }
 
     /**
-     * Envoie une consigne au sous-agent; `false` s'il ne l'accepte pas pour le moment.
+     * Envoie une consigne au sous-agent ; `false` s'il ne l'accepte pas pour le moment.
      *
-     * [sessionId] est l'identifiant **runtime** du parent: sans lui le gateway refuse (`4001`),
+     * [sessionId] est l'identifiant **runtime** du parent : sans lui le gateway refuse (`4001`),
      * l'autorité de pilotage n'étant pas déduite du seul `subagent_id`.
      */
     suspend fun steer(sessionId: String, id: String, text: String): Boolean {
@@ -86,7 +86,7 @@ class ServeSubagentRpc(
         return result?.firstString("status") == "queued"
     }
 
-    /** Interrompt le sous-agent; `false` s'il avait déjà fini. */
+    /** Interrompt le sous-agent ; `false` s'il avait déjà fini. */
     suspend fun interrupt(sessionId: String, id: String): Boolean {
         val result = rpc.call(
             "subagent.interrupt",
@@ -104,7 +104,7 @@ class ServeSubagentRpc(
     }
 }
 
-/** Ce que `subagent.tail` a rendu: la fin de la transcription vivante de l'enfant. */
+/** Ce que `subagent.tail` a rendu : la fin de la transcription vivante de l'enfant. */
 data class SubagentTail(
     val text: String,
     val available: Boolean,

@@ -1,5 +1,9 @@
 package com.onyx.app.ui.rich
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import android.content.ClipData
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -41,8 +45,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Un fence `mermaid: le dessin hors ligne, sa source, la copie et le lecteur plein écran.
- * Comme `MermaidBlock` et `DiagramViewer` dans.
+ * Un fence ```mermaid : le dessin hors ligne, sa source, la copie et le lecteur plein écran.
+ * Port de `MermaidBlock` et `DiagramViewer` dans `WebBlocks`.
  */
 @Composable
 fun MermaidBlock(
@@ -67,7 +71,7 @@ fun MermaidBlock(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(theme.surfaceColor, RoundedCornerShape(10.dp))
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.ControlCorner))
             .semantics { contentDescription = "Mermaid diagram" },
     ) {
         Row(
@@ -136,7 +140,7 @@ fun MermaidBlock(
     }
 }
 
-/** Le lecteur d'un diagramme: pincement jusqu'à 6×, déplacement et copie de la source. */
+/** Le lecteur d'un diagramme : pincement jusqu'à 6×, déplacement et copie de la source. */
 @Composable
 private fun DiagramViewer(
     source: String,
@@ -153,7 +157,7 @@ private fun DiagramViewer(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(theme.pageColor),
+                .onyxPage(theme),
         ) {
             Row(
                 modifier = Modifier
@@ -199,7 +203,7 @@ private fun DiagramViewer(
     }
 }
 
-/** Une formule KaTeX; l'appui long ouvre « Copy LaTeX », comme le menu contextuel. */
+/** Une formule KaTeX ; l'appui long ouvre « Copy LaTeX », comme le menu contextuel référence. */
 @Composable
 fun MathBlock(
     source: String,

@@ -7,9 +7,9 @@ import java.io.File
 /**
  * Le mode mains libres ne doit pas se réentendre indéfiniment.
  *
- * Le moteur de reconnaissance peut rejouer une finale déjà livrée; chaque rejeu relançait un tour,
+ * Le moteur de reconnaissance peut rejouer une finale déjà livrée ; chaque rejeu relançait un tour,
  * et la conversation ne s'arrêtait plus (« ça s'auto-écoute en boucle… ça s'arrête jamais »).
- * La garde est double: une phrase déjà posée dans les 60 s est ignorée, et trois reprises
+ * La garde est double : une phrase déjà posée dans les 60 s est ignorée, et trois reprises
  * d'affilée arrêtent le mode mains libres au lieu de boucler.
  */
 class ReplayGuardTest {

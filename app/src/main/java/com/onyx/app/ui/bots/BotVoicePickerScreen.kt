@@ -55,13 +55,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * La voix d'un bot (`BotVoicePicker`): celle dont il lit ses répliques, réglée pour lui seul.
+ * La voix d'un bot (`BotVoicePicker`) : celle dont il lit ses répliques, réglée pour lui seul.
  *
  * « Automatique » (une voix de son cru, `BotVoices`), « Identique à <nom> », ou une des voix dont
  * Onyx lit maintenant — celles installées sur le téléphone, ou celles du serveur Kokoro —, chacune
- * avec **son écoute** avant de choisir. Sa vitesse aussi: la sienne, ou celle d'Onyx.
+ * avec **son écoute** avant de choisir. Sa vitesse aussi : la sienne, ou celle d'Onyx.
  *
- * Le réglage part par [onPick] (`SettingsRepository.setBotVoice`): rien n'est gardé ici, la
+ * Le réglage part par [onPick] (`SettingsRepository.setBotVoice`) : rien n'est gardé ici, la
  * feuille relit ce que l'app a écrit — un choix se vérifie donc après un redémarrage.
  */
 @Composable
@@ -72,7 +72,7 @@ fun BotVoicePickerScreen(
     displayName: String,
     /** Le nom de l'agent principal (« Hermes »), celui de « Identique à … ». */
     mainName: String,
-    /** `Settings.botVoicesHere`: ce qui est réglé pour les bots de ce serveur. */
+    /** `Settings.botVoicesHere` : ce qui est réglé pour les bots de ce serveur. */
     picked: Map<String, BotVoice>,
     /** La synthèse choisie (Réglages → Voix → Reply voice). */
     replyVoice: ReplyVoice,
@@ -80,13 +80,15 @@ fun BotVoicePickerScreen(
     kokoroVoice: String,
     /** L'adresse du serveur Kokoro, pour lui demander sa liste de voix. */
     kokoroUrl: String,
+    /** Le jeton du service vocal, quand il est protégé (Réglages → Voix → Jeton de la voix). */
+    kokoroToken: String,
     /** La vitesse d'Onyx (Réglages → Voix → Voice speed). */
     voiceSpeed: Float,
-    /** La langue de lecture (« fr-FR »): les voix d'un bot y sont prises. */
+    /** La langue de lecture (« fr-FR ») : les voix d'un bot y sont prises. */
     speechLocale: String,
-    /** Les noms des bots du serveur: la répartition n'en donne pas deux pareilles. */
+    /** Les noms des bots du serveur : la répartition n'en donne pas deux pareilles. */
     botNames: List<String>,
-    /** Règle la voix du bot; `null` efface son réglage (il reprend une voix de son cru). */
+    /** Règle la voix du bot ; `null` efface son réglage (il reprend une voix de son cru). */
     onPick: (BotVoice?) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,10 +97,10 @@ fun BotVoicePickerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // L'échantillon à part, comme le `SpeechOutput` du modèle: écouter ne touche pas à la
+    // L'échantillon à part, comme le `SpeechOutput()` du modèle : écouter ne touche pas à la
     // lecture en cours, et se tait quand la feuille se ferme.
     val sample = remember { SpeechOutput(context) }
-    val kokoro = remember { KokoroSpeechClient() }
+    val kokoro = remember(kokoroToken) { KokoroSpeechClient(token = kokoroToken) }
 
     var installed by remember { mutableStateOf<List<SpokenVoice>>(emptyList()) }
     var deviceMain by remember { mutableStateOf<String?>(null) }
@@ -107,7 +109,7 @@ fun BotVoicePickerScreen(
     var playing by remember { mutableStateOf<String?>(null) }
     var speedJob by remember { mutableStateOf<Job?>(null) }
 
-    // Le bot qui se règle: ce que la feuille montre est ce que l'app a écrit, relu ici.
+    // Le bot qui se règle : ce que la feuille montre est ce que l'app a écrit, relu ici.
     val current = picked[botName]
     val others = remember(picked, botName) { picked - botName }
     val listening = remember(speechLocale) {
@@ -124,7 +126,7 @@ fun BotVoicePickerScreen(
         }
     }
 
-    // Les voix installées: le moteur se construit sans bloquer, donc on attend qu'il soit prêt.
+    // Les voix installées : le moteur se construit sans bloquer, donc on attend qu'il soit prêt.
     LaunchedEffect(sample, replyVoice) {
         if (replyVoice != ReplyVoice.ON_DEVICE) return@LaunchedEffect
         var tries = 0
@@ -136,7 +138,7 @@ fun BotVoicePickerScreen(
         deviceMain = sample.defaultVoiceId()
     }
 
-    // Les voix du serveur Kokoro: sa liste, comme Réglages → Voix → Kokoro.
+    // Les voix du serveur Kokoro : sa liste, comme Réglages → Voix → Kokoro.
     LaunchedEffect(replyVoice, kokoroUrl) {
         if (replyVoice != ReplyVoice.KOKORO) return@LaunchedEffect
         loading = true
@@ -144,7 +146,7 @@ fun BotVoicePickerScreen(
         loading = false
     }
 
-    /** Un échantillon dans [voice]; `null`: la voix que « Automatique » lui donne maintenant. */
+    /** Un échantillon dans [voice] ; `null` : la voix que « Automatique » lui donne maintenant. */
     fun preview(voice: BotVoice?) {
         val key = voice?.let { it.kokoro ?: it.onDevice ?: "same" } ?: "automatic"
         if (playing == key) {
@@ -155,13 +157,14 @@ fun BotVoicePickerScreen(
         sample.stop()
         sample.setRate(voiceSpeed)
         sample.setLanguage(speechLocale)
-        // La même résolution que la lecture: la fiche essayée prend la place du réglage, et rien
+        // La même résolution que la lecture : la fiche essayée prend la place du réglage, et rien
         // d'autre ne change. « Automatique » se demande sans elle, comme le `set(nil)` du modèle
         // qui efface d'abord le réglage puis lit.
         sample.configure(
             voice = replyVoice,
             kokoroUrl = kokoroUrl,
             kokoroVoice = kokoroVoice,
+            kokoroToken = kokoroToken,
             hermesServer = null,
             botVoices = if (voice == null) others else others + (botName to voice),
             kokoroVoices = kokoroVoices,
@@ -179,7 +182,7 @@ fun BotVoicePickerScreen(
         onPick(BotVoicePicker.withSpeed(speed?.let { snapSpeed(it) }, current))
     }
 
-    /** Le curseur relâché: l'échantillon se dit à la vitesse réglée, comme `onEditingChanged`. */
+    /** Le curseur relâché : l'échantillon se dit à la vitesse réglée, comme `onEditingChanged`. */
     fun playAtSpeed() {
         speedJob?.cancel()
         speedJob = scope.launch {
@@ -199,7 +202,7 @@ fun BotVoicePickerScreen(
         )
     }
 
-    // Ce que « Automatique » lui donne maintenant, dit en clair: la voix de son cru, ou la voix
+    // Ce que « Automatique » lui donne maintenant, dit en clair : la voix de son cru, ou la voix
     // d'Onyx quand il n'y a rien à répartir.
     val automaticDetail = remember(replyVoice, others, mainName, kokoroVoice, kokoroVoices, installed, listening, deviceMain, botNames) {
         val id = BotVoicePicker.automaticVoice(
@@ -233,7 +236,7 @@ fun BotVoicePickerScreen(
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             // Le titre et l'unique action de la feuille, comme le `navigationTitle` et le bouton
-            // « Done » du modèle: il n'y a pas de retour en arrière, seulement une sortie.
+            // « Done » du modèle : il n'y a pas de retour en arrière, seulement une sortie.
             OnyxPageHeader(
                 title = "$displayName's Voice",
                 onBack = null,
@@ -250,7 +253,7 @@ fun BotVoicePickerScreen(
                 .padding(bottom = 40.dp),
         ) {
             if (replyVoice == ReplyVoice.HERMES) {
-                // La voix d'Hermes est celle du serveur, une pour tous: rien à régler par bot.
+                // La voix d'Hermes est celle du serveur, une pour tous : rien à régler par bot.
                 OnyxFormSection {
                     OnyxRow {
                         BasicText(
@@ -260,7 +263,7 @@ fun BotVoicePickerScreen(
                     }
                 }
             } else {
-                // Sa vitesse: celle d'Onyx, ou la sienne.
+                // Sa vitesse : celle d'Onyx, ou la sienne.
                 OnyxFormSection(
                     header = "Speed",
                     footer = current?.speed?.let {
@@ -377,7 +380,7 @@ fun BotVoicePickerScreen(
 }
 
 /**
- * Une voix offerte: son nom (et son détail), la coche quand c'est la sienne, et l'écoute de
+ * Une voix offerte : son nom (et son détail), la coche quand c'est la sienne, et l'écoute de
  * l'échantillon — `row(_:detail:chosen:voice:choose:)` du modèle, avec le même
  * `Button("Hear it", systemImage: "play.circle")`.
  */
@@ -389,7 +392,7 @@ private fun VoiceChoiceRow(
     playing: Boolean,
     onChoose: () -> Unit,
     onHear: () -> Unit,
-    /** Faux pour un nom de voix: c'est un nom, il se montre tel quel. */
+    /** Faux pour un nom de voix : c'est un nom, il se montre tel quel. */
     localizeTitle: Boolean = true,
 ) {
     val theme = LocalOnyxTheme.current
@@ -434,9 +437,9 @@ private fun VoiceChoiceRow(
     }
 }
 
-/** « 1.40× », le chiffre au format du `.monospacedDigit` du modèle. */
+/** « 1.40× », le chiffre au format du `.monospacedDigit()` du modèle. */
 private fun speedText(speed: Float): String = String.format(Locale.ROOT, "%.2f×", speed)
 
-/** Un cran de 0,05 sur 0,5…2,0: le pas du `Slider` du modèle. */
+/** Un cran de 0,05 sur 0,5…2,0 : le pas du `Slider` du modèle. */
 private fun snapSpeed(value: Float): Float =
     (Math.round(value / 0.05f) * 0.05f).coerceIn(0.5f, 2.0f)

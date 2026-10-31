@@ -7,14 +7,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les raccourcis clavier du chat ( pour ).
+ * Les raccourcis clavier du chat (`ContentView:540` pour référence).
  *
- * La table est une fonction pure, donc la vérifier ne demande ni clavier ni émulateur: seule
+ * La table est une fonction pure, donc la vérifier ne demande ni clavier ni émulateur : seule
  * la traduction `Key` → [ChatKey] vit dans l'écran.
  */
 class ChatShortcutsTest {
     @Test
-    fun `les raccourcis de commande couvrent ceux d `() {
+    fun `les raccourcis de commande couvrent ceux d référence`() {
         assertEquals(ChatShortcut.NEW_CONVERSATION, chatShortcutFor(ChatKey.N, ctrl = true))
         assertEquals(ChatShortcut.FIND, chatShortcutFor(ChatKey.K, ctrl = true))
         assertEquals(ChatShortcut.FIND, chatShortcutFor(ChatKey.F, ctrl = true))

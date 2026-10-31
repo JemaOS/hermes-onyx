@@ -11,9 +11,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Les secrets (clés API) chiffrés par le Keystore Android — l'équivalent du Keychain.
+ * Les secrets (clés API) chiffrés par le Keystore Android — l'équivalent du Keychain référence.
  *
- * Une clé AES-256 vit dans le Keystore matériel et ne le quitte jamais; seuls le vecteur
+ * Une clé AES-256 vit dans le Keystore matériel et ne le quitte jamais ; seuls le vecteur
  * d'initialisation et le chiffré sont écrits dans les préférences. Le fichier est exclu des
  * sauvegardes (`backup_rules.xml`), comme les entrées du Keychain peuvent l'être.
  */
@@ -21,7 +21,7 @@ class SecretStore(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    /** Enregistre un secret; une valeur vide efface l'entrée. */
+    /** Enregistre un secret ; une valeur vide efface l'entrée. */
     fun put(id: String, secret: String) {
         if (secret.isEmpty()) {
             remove(id)
@@ -31,12 +31,12 @@ class SecretStore(context: Context) {
         prefs.edit().putString(key(id), encrypted).apply()
     }
 
-    /** Relit un secret; renvoie `""` si l'entrée a disparu ou ne se déchiffre plus. */
+    /** Relit un secret ; renvoie `""` si l'entrée a disparu ou ne se déchiffre plus. */
     fun get(id: String): String {
         val stored = prefs.getString(key(id), null) ?: return ""
         val plain = runCatching { decrypt(stored) }.getOrNull()
         if (plain == null) {
-            // La clé du Keystore a changé (désinstallation, restauration): l'entrée est morte.
+            // La clé du Keystore a changé (désinstallation, restauration) : l'entrée est morte.
             remove(id)
             return ""
         }

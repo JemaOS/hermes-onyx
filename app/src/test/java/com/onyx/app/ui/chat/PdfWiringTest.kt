@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le lecteur de PDF et le partage entrant sont vraiment branchés: une route qui dessine le
+ * Le lecteur de PDF et le partage entrant sont vraiment branchés : une route qui dessine le
  * lecteur, un chemin de retour, l'entrée depuis une autre app, et le rendu hors ligne.
  *
  * Un écran sans route, ou un filtre d'intent sans code derrière, serait une fonction factice.

@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les quatre retours d'usage sur l'écran de verrouillage: un bouton de biométrie qui ne fait rien,
+ * Les quatre retours d'usage sur l'écran de verrouillage : un bouton de biométrie qui ne fait rien,
  * un cadenas plein, une phrase restée en anglais, et un champ de code caché par le clavier.
  */
 class LockScreenLockTest {
@@ -20,7 +20,7 @@ class LockScreenLockTest {
 
     @Test
     fun `le cadenas de l ecran de verrouillage est un contour`() {
-        assertTrue(screen.contains("OnyxIcon(Symbols.LockOutline, tint = theme.accent, size = 30.dp)"))
+        assertTrue(screen.contains("OnyxIcon(Symbols.LockOutline, tint = theme.secondaryText, size = 30.dp)"))
         assertFalse("le cadenas plein ne doit plus servir ici", screen.contains("Symbols.Lock,"))
         assertTrue(
             File("../core/src/main/java/com/onyx/app/ui/design/Symbols.kt")
@@ -41,7 +41,7 @@ class LockScreenLockTest {
         assertTrue(lock.contains("canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS"))
         assertTrue(lock.contains("PackageManager.FEATURE_FACE"))
         assertTrue(lock.contains("PackageManager.FEATURE_FINGERPRINT"))
-        assertFalse("pas de vocabulaire téléphone ici", lock.contains("Touch ID"))
+        assertFalse("pas de vocabulaire le téléphone de référence ici", lock.contains("Touch ID"))
     }
 
     @Test
@@ -65,7 +65,7 @@ class LockScreenLockTest {
         assertTrue("un prompt qui refuse de démarrer se voit", screen.contains("runCatching { prompt.authenticate(info) }"))
         assertTrue("les messages passent par la couche de traduction", screen.contains("error = OnyxLocalization["))
         assertTrue("l'erreur se lit au corps de texte", screen.contains("theme.subheadline.copy(color = theme.error"))
-        // « Utiliser le code » n'est pas une panne: la feuille se ferme, on guide vers le champ.
+        // « Utiliser le code » n'est pas une panne : la feuille se ferme, on guide vers le champ.
         assertTrue(screen.contains("BiometricPrompt.ERROR_NEGATIVE_BUTTON -> OnyxLocalization[\"Enter your passcode.\"]"))
         assertTrue(screen.contains("BiometricPrompt.ERROR_USER_CANCELED -> null"))
     }
@@ -90,7 +90,7 @@ class LockScreenLockTest {
         val literals = listOf(screen, settings)
             .flatMap { source -> Regex("\"([^\"\\n]*)\"").findAll(source).map { it.groupValues[1] }.toList() }
             // Les gabarits (« Unlock with $biometry ») et les fragments de gabarit ne sont pas des
-            // phrases; leurs formes composées sont vérifiées par LockScreenLocalizationTest.
+            // phrases ; leurs formes composées sont vérifiées par LockScreenLocalizationTest.
             .filter { it.isNotBlank() && it.first().isLetter() && !it.contains('$') }
             .distinct()
         val untranslated = literals.filter { literal ->
@@ -103,9 +103,9 @@ class LockScreenLockTest {
     fun `la ligne Exiger des reglages nomme la biometrie du telephone`() {
         assertTrue(settings.contains("lock.biometryLabel(context)"))
         // Sans nom de biométrie (appareil sans visage ni empreinte), le libellé reste le
-        // **générique du modèle**, « Face or fingerprint » — jamais « Require a passcode ».
+        // **générique de la référence**, « Face or fingerprint » — jamais « Require a passcode ».
         assertTrue(settings.contains("lock.biometryLabel(context) ?: \"Face or fingerprint\""))
-        // Supprimer le code doit se voir tout de suite: l'écran tient son propre état.
+        // Supprimer le code doit se voir tout de suite : l'écran tient son propre état.
         assertTrue(settings.contains("var hasPin by remember { mutableStateOf(lock.hasPin) }"))
         assertTrue(settings.contains("hasPin = lock.hasPin"))
         assertEquals("Exiger l’empreinte", OnyxLocalization.translate("Require Fingerprint", Locale.FRANCE))

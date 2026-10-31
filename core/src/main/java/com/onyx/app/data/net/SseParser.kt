@@ -3,7 +3,7 @@ package com.onyx.app.data.net
 /**
  * Un événement Server-Sent Events décodé.
  *
- * Comme `SSEEvent`.
+ * Miroir de `SSEEvent` (Echo/Services/Transport/SSEParser:4).
  */
 data class SseEvent(
     val event: String?,
@@ -14,14 +14,14 @@ data class SseEvent(
 /**
  * Parseur SSE incrémental, ligne par ligne.
  *
- * Règles respectées (spec SSE + comportement ):
- * - une ligne vide déclenche l'événement en attente;
- * - les lignes commençant par `:` sont des commentaires (souvent des *heartbeats*);
- * - `champ: valeur` coupe au premier `:` et retire au plus un espace de tête;
- * - seuls `event`, `data` et `id` sont reconnus; `retry` et l'inconnu sont ignorés;
+ * Règles respectées (spec SSE + comportement référence) :
+ * - une ligne vide déclenche l'événement en attente ;
+ * - les lignes commençant par `:` sont des commentaires (souvent des *heartbeats*) ;
+ * - `champ: valeur` coupe au premier `:` et retire au plus un espace de tête ;
+ * - seuls `event`, `data` et `id` sont reconnus ; `retry` et l'inconnu sont ignorés ;
  * - plusieurs lignes `data:` sont concaténées avec `\n`.
  *
- * Comme `SSEParser`.
+ * Miroir de `SSEParser` (Echo/Services/Transport/SSEParser:15).
  */
 class SseParser {
     private val dataLines = mutableListOf<String>()
@@ -31,7 +31,7 @@ class SseParser {
     /** Injecte une ligne (sans le `\n`) et renvoie l'événement dispatché, le cas échéant. */
     fun feed(line: String): SseEvent? = consume(line)
 
-    /** Termine le flux: dispatch un éventuel événement en attente non terminé par une ligne vide. */
+    /** Termine le flux : dispatch un éventuel événement en attente non terminé par une ligne vide. */
     fun finish(): SseEvent? = dispatch()
 
     private fun consume(line: String): SseEvent? {

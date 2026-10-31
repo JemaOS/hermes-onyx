@@ -7,8 +7,8 @@ import okhttp3.HttpUrl
 /**
  * Le bocal à cookies du Dashboard Hermes, gardé en mémoire pour tout le processus.
  *
- * Le Dashboard ouvre une session avec un cookie; il doit survivre d'un écran à l'autre — sans
- * quoi chaque page se reconnecterait. La clé est l'hôte et le port, comme , où deux
+ * Le Dashboard ouvre une session avec un cookie ; il doit survivre d'un écran à l'autre — sans
+ * quoi chaque page se reconnecterait. La clé est l'hôte et le port, comme côté référence, où deux
  * serveurs d'une même machine ne partagent pas leur session.
  */
 object ServeCookieJar : CookieJar {
@@ -35,7 +35,7 @@ object ServeCookieJar : CookieJar {
         }
     }
 
-    /** Oublie la session d'un serveur: à appeler quand son adresse ou son mot de passe change. */
+    /** Oublie la session d'un serveur : à appeler quand son adresse ou son mot de passe change. */
     fun forget(url: HttpUrl) {
         synchronized(lock) { jars.remove(key(url)) }
     }

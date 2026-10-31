@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- La montre n'a pas de barre système: un fond noir, rien d'autre. -->
+    <!-- La montre n'a pas de barre système : un fond noir, rien d'autre. -->
     <style name="Theme.OnyxWear" parent="android:Theme.DeviceDefault">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

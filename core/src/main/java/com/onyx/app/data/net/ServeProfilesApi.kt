@@ -5,9 +5,9 @@ import com.onyx.app.localization.OnyxLocalization
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Les bots du serveur: les profils Hermes, avec leur `ui_meta`.
+ * Les bots du serveur : les profils Hermes, avec leur `ui_meta`.
  *
- * Comme `BotRoster`: la même route
+ * Miroir de `BotRoster` côté référence (Echo/Services/Transport/ServerBots:101) : la même route
  * (`GET api/profiles`), les mêmes champs facultatifs, et les profils cachés laissés de côté.
  */
 class ServeProfilesApi(private val client: ServeClient) {
@@ -19,23 +19,23 @@ class ServeProfilesApi(private val client: ServeClient) {
         return rows.mapNotNull { element -> element.asObject()?.let(::botProfileFromRow) }
     }
 
-    /** Les bots montrables: les profils cachés ne le sont pas, comme. */
+    /** Les bots montrables : les profils cachés ne le sont pas, comme sur la référence. */
     suspend fun visible(mainName: String = "Onyx"): List<BotProfile> = profiles().visibleBotProfiles(mainName)
 
     /**
      * `DELETE api/profiles/{name}` — supprime le profil, et avec lui ses chats, ses mémoires et
      * ses réglages.
      *
-     * Comme `HermesServeClient.deleteProfile`: c'est une
+     * Miroir de `HermesServeClient.deleteProfile` de la référence (BotManagement:244) : c'est une
      * route REST, Hermes n'ayant **aucun** appel socket pour supprimer un profil. Le profil
-     * principal est refusé ici: c'est l'agent de la personne, pas un bot.
+     * principal est refusé ici : c'est l'agent de la personne, pas un bot.
      */
     suspend fun deleteProfile(name: String) {
         if (name.isBlank() || name.equals("default", ignoreCase = true)) {
             throw TransportError.Malformed(OnyxLocalization["The main profile can't be deleted."])
         }
-        // Le nom est passé tel quel: OkHttp encode le segment de chemin lui-même (un espace
-        // devient `%20`, comme le `addingPercentEncoding(.urlPathAllowed)` ). L'encoder
+        // Le nom est passé tel quel : OkHttp encode le segment de chemin lui-même (un espace
+        // devient `%20`, comme le `addingPercentEncoding(.urlPathAllowed)` de la référence). L'encoder
         // avant le donnerait `%2520`.
         client.delete("api/profiles/$name", timeoutSeconds = 45)
     }
@@ -55,6 +55,8 @@ internal fun botProfileFromRow(row: JsonObject): BotProfile? {
         isDefault = row["is_default"].asBool() ?: (name == "default"),
         model = row.strOrNull("model"),
         isHidden = meta?.get("hidden").asBool() ?: false,
+        // « Pin to top » de la référence : le même `ui_meta` que la visibilité, la même lecture.
+        pinned = meta?.get("pinned").asBool() ?: false,
         setUpRevision = row.obj("ui_meta_revisions")?.int("hermes-bots") ?: 0,
         setUp = meta != null,
         chatId = chat?.firstString("resolved_id", "id"),

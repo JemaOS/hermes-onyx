@@ -55,11 +55,13 @@ import kotlinx.coroutines.launch
 
 /**
  * Réglages → Voix → Kokoro → Voice.
- * La liste vient du serveur; les mélanges restent saisissables et chaque voix a son écoute.
+ * La liste vient du serveur ; les mélanges restent saisissables et chaque voix a son écoute.
  */
 @Composable
 fun KokoroVoicesView(
     baseUrl: String,
+    /** Le jeton du service vocal, quand il est protégé (Réglages → Voix → Jeton de la voix). */
+    token: String,
     currentVoice: String,
     onVoiceChange: (String) -> Unit,
     onBack: () -> Unit,
@@ -68,7 +70,7 @@ fun KokoroVoicesView(
     val theme = LocalOnyxTheme.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
-    val client = remember { KokoroSpeechClient() }
+    val client = remember(token) { KokoroSpeechClient(token = token) }
     val player = remember { SpeechAudioPlayer(context) }
 
     var voices by remember(baseUrl) { mutableStateOf<List<String>>(emptyList()) }

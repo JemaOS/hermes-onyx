@@ -3,17 +3,17 @@ package com.onyx.app.ui.design
 /**
  * Le défilement horizontal d'un champ à une seule rangée.
  *
- * Une valeur plus longue que le champ se cale à droite au repos — c'est le regard du modèle —
+ * Une valeur plus longue que le champ se cale à droite au repos — c'est le regard de la référence —
  * mais dès qu'on l'édite, le texte doit défiler pour que le curseur reste dans la fenêtre visible.
- * Le calcul vit ici, hors du dessin: les pixels d'une rangée étroite, une police agrandie et un
+ * Le calcul vit ici, hors du dessin : les pixels d'une rangée étroite, une police agrandie et un
  * collage en fin de texte se mesurent sans monter un écran.
  */
 object OnyxFieldScroll {
 
     /**
-     * L'origine du texte au repos, en pixels: sa fin est visible.
+     * L'origine du texte au repos, en pixels : sa fin est visible.
      *
-     * Une valeur alignée à droite montre sa fin, son début se coupe à gauche; une valeur alignée à
+     * Une valeur alignée à droite montre sa fin, son début se coupe à gauche ; une valeur alignée à
      * gauche part de zéro, comme le champ ordinaire.
      */
     fun rest(viewport: Int, content: Int, alignEnd: Boolean): Int =
@@ -22,7 +22,7 @@ object OnyxFieldScroll {
     /**
      * L'origine du texte (bord gauche, en pixels) qui garde le curseur visible.
      *
-     * [previous] est l'origine courante: on ne bouge que si le curseur sort de la fenêtre, et on ne
+     * [previous] est l'origine courante : on ne bouge que si le curseur sort de la fenêtre, et on ne
      * dépasse jamais le début ni la fin de la valeur — c'est ce qui permet de lire toute la valeur en
      * déplaçant le curseur d'un bout à l'autre.
      */

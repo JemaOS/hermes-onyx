@@ -57,7 +57,7 @@ fun TypedTitle(
 
     LaunchedEffect(conversationKey, title, isPlaceholder) {
         // `guard old.id == new.id, old.placeholder, !new.placeholder, !reduceMotion else { … }`
-        //: sous Reduce Motion le titre paraît d'un coup, sans écriture.
+        // (`TypedTitle:51`) : sous Reduce Motion le titre paraît d'un coup, sans écriture.
         val shouldType = wasPlaceholder && !isPlaceholder && title.isNotEmpty() && !reduceMotion
         wasPlaceholder = isPlaceholder
 
@@ -68,7 +68,7 @@ fun TypedTitle(
             return@LaunchedEffect
         }
 
-        // `TypedTitle.type(_:over:)`: le libellé d'attente part, puis 240 ms plus tard le
+        // `TypedTitle.type(_:over:)` : le libellé d'attente part, puis 240 ms plus tard le
         // curseur paraît et le titre s'écrit derrière lui, à 28 ms le caractère.
         typed = ""
         leaving = PLACEHOLDER
@@ -97,7 +97,7 @@ fun TypedTitle(
             BasicText(
                 text = leaving ?: PLACEHOLDER,
                 style = style.copy(color = theme.textColor),
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -106,7 +106,7 @@ fun TypedTitle(
                 text = typed ?: title,
                 localize = isPlaceholder,
                 style = style.copy(color = theme.textColor),
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (caret) {
@@ -116,7 +116,7 @@ fun TypedTitle(
     }
 }
 
-/** Le curseur d'écriture: un trait d'accent qui clignote (`Caret`, `easeInOut` 0,4 s). */
+/** Le curseur d'écriture : un trait d'accent qui clignote (`Caret`, `easeInOut` 0,4 s). */
 @Composable
 private fun BlinkingCaret(color: androidx.compose.ui.graphics.Color) {
     val transition = rememberInfiniteTransition(label = "caret")
@@ -139,5 +139,5 @@ private fun BlinkingCaret(color: androidx.compose.ui.graphics.Color) {
 
 private const val PLACEHOLDER = "New conversation"
 
-/** Un en-tête montre à peu près ceci; le reste d'un long titre arrive d'un coup. */
+/** Un en-tête montre à peu près ceci ; le reste d'un long titre arrive d'un coup. */
 private const val TYPED_CHARACTERS = 26

@@ -14,8 +14,8 @@ import kotlinx.serialization.json.longOrNull
  * Petites lectures sur le JSON du Dashboard.
  *
  * Les routes de `hermes serve` rendent des formes très diverses (et parfois incomplètes selon la
- * version du serveur): on les lit donc à la demande, sans exiger un schéma rigide — comme le
- * `JSONValue` , qui laisse chaque appelant prendre ce qu'il comprend.
+ * version du serveur) : on les lit donc à la demande, sans exiger un schéma rigide — comme le
+ * `JSONValue` de la référence, qui laisse chaque appelant prendre ce qu'il comprend.
  */
 fun JsonElement?.asObject(): JsonObject? = this as? JsonObject
 
@@ -44,7 +44,7 @@ fun JsonObject.obj(key: String): JsonObject? = this[key].asObject()
 
 fun JsonObject.array(key: String): List<JsonElement> = this[key].asArray().orEmpty()
 
-/** La première clé dont la valeur est une chaîne non vide: les serveurs changent de nom. */
+/** La première clé dont la valeur est une chaîne non vide : les serveurs changent de nom. */
 fun JsonObject.firstString(vararg keys: String): String? =
     keys.firstNotNullOfOrNull { this[it]?.asString()?.takeIf { value -> value.isNotEmpty() } }
 

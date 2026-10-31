@@ -13,13 +13,13 @@ import org.junit.Test
 
 /**
  * La fiche d'usage d'une session (`SessionUsageView`) tire ses chiffres du registre du gateway
- * (`GET api/sessions`), et ses formats sont ceux: 999, 8.2k, 1.20M, « — », « $0 », et
+ * (`GET api/sessions`), et ses formats sont ceux de la référence : 999, 8.2k, 1.20M, « — », « $0 », et
  * quatre décimales au-delà.
  */
 class SessionUsageTest {
 
     @Test
-    fun `les nombres se replient comme le compact d `() {
+    fun `les nombres se replient comme le compact d référence`() {
         assertEquals("0", SessionUsage.compact(0))
         assertEquals("999", SessionUsage.compact(999))
         assertEquals("8.2k", SessionUsage.compact(8_200))
@@ -27,7 +27,7 @@ class SessionUsageTest {
     }
 
     @Test
-    fun `le prix suit money `() {
+    fun `le prix suit money de la référence`() {
         assertNull(null as Double?)
         assertEquals("—", SessionUsage.money(null))
         assertEquals("$0", SessionUsage.money(0.0))
@@ -35,9 +35,27 @@ class SessionUsageTest {
     }
 
     @Test
-    fun `un compteur absent se lit zero`() {
-        assertEquals("0", SessionUsage.count(null))
+    fun `un compteur absent se lit en tiret, jamais en zero`() {
+        // `(value ?: 0)` fabriquait un zéro : la fiche affichait « Entrée 0, Sortie 0, Total 0 »
+        // alors que le registre n'avait rien dit de cette session, et ce zéro se lisait comme une
+        // mesure. Un compteur absent se lit « — » ; un zéro **rendu par le serveur** reste « 0 ».
+        assertEquals("—", SessionUsage.count(null))
+        assertEquals("0", SessionUsage.count(0))
         assertEquals("12", SessionUsage.count(12))
+    }
+
+    @Test
+    fun `un total sans entree ni sortie n est pas un zero`() {
+        val row = Json.parseToJsonElement("""{"id":"s3"}""") as JsonObject
+        val summary = sessionSummaryFromRow(row)!!
+        assertNull("deux absences ne font pas un zéro", summary.totalTokensOrNull)
+        assertEquals(0, summary.totalTokens)
+
+        // Une seule des deux connue : le total est cette valeur, pas zéro.
+        val half = sessionSummaryFromRow(
+            Json.parseToJsonElement("""{"id":"s4","input_tokens":13977}""") as JsonObject,
+        )!!
+        assertEquals(13977, half.totalTokensOrNull)
     }
 
     @Test
@@ -68,7 +86,7 @@ class SessionUsageTest {
 
     @Test
     fun `un compteur rendu en flottant reste lisible`() {
-        // `intOrNull` refuse « 12.0 »: sans la lecture tolérante, le compte disparaîtrait.
+        // `intOrNull` refuse « 12.0 » : sans la lecture tolérante, le compte disparaîtrait.
         val row = Json.parseToJsonElement("""{"id":"s2","message_count":12.0,"input_tokens":3.0}""") as JsonObject
         val summary = sessionSummaryFromRow(row)!!
         assertEquals(12, summary.messageCount)
@@ -106,9 +124,9 @@ class SessionUsageTest {
         assertEquals(20, summary.outputTokens)
         assertEquals(120, summary.totalTokens)
         assertEquals(2, summary.messageCount)
-        // Aucun outil dans ce fil: le compte est zéro, pas absent.
+        // Aucun outil dans ce fil : le compte est zéro, pas absent.
         assertEquals(0, summary.toolCallCount)
-        // Le flux ne remonte ni le raisonnement ni le coût: ils restent absents, et la ligne
+        // Le flux ne remonte ni le raisonnement ni le coût : ils restent absents, et la ligne
         // d'usage s'arrête alors aux jetons.
         assertNull(summary.reasoningTokens)
         assertNull(summary.cost)
@@ -124,7 +142,7 @@ class SessionUsageTest {
     }
 
     @Test
-    fun `un projet et ses voies se lisent comme `() {
+    fun `un projet et ses voies se lisent comme sur la référence`() {
         val row = Json.parseToJsonElement(
             """
             {"id":"/home/onyx/echo","label":"Echo","path":"/home/onyx/echo","is_home":false,"is_no_project":false,

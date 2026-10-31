@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * Un symbole, comme `Image(systemName:)`: le vector drawable teinté à la couleur demandée.
+ * Un symbole, comme `Image(systemName:)` : le vector drawable teinté à la couleur demandée.
  *
  * Les drawables de [Symbols] sont dessinés en blanc, donc la teinte les recolore entièrement.
  */

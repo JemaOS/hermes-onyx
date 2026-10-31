@@ -1,5 +1,9 @@
 package com.onyx.app.ui.common
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,7 +47,7 @@ fun WhatsNewScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor)
+            .onyxPage(theme)
             .statusBarsPadding(),
     ) {
         Column(
@@ -68,7 +72,7 @@ fun WhatsNewScreen(
             items.forEach { item ->
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Box(modifier = Modifier.padding(top = 2.dp)) {
-                        OnyxIcon(symbol = item.symbol, tint = theme.accent, size = 22.dp)
+                        OnyxIcon(symbol = item.symbol, tint = theme.textColor, size = 22.dp)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         BasicText(item.title, style = theme.headline.copy(color = theme.textColor))
@@ -87,7 +91,7 @@ fun WhatsNewScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(theme.accent, RoundedCornerShape(12.dp))
+                    .background(theme.accent, RoundedCornerShape(OnyxSpace.FormCorner))
                     .onyxClickable(onClick = onContinue)
                     .padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center,

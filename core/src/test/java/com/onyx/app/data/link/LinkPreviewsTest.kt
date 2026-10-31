@@ -12,7 +12,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Le cache des fiches, comme `LinkPreviewTests`: une page lue
+ * Le cache des fiches, port de `LinkPreviewTests` (EchoTests/LinkPreviewTests) : une page lue
  * une fois et gardée, une page illisible laissée tranquille un moment, et les requêtes en cours
  * dédoublonnées.
  */
@@ -35,7 +35,7 @@ class LinkPreviewsTest {
             assertEquals("The trail", store.preview(url)?.title)
             assertEquals("lue une fois", 1, reads.get())
 
-            // Un autre démarrage: depuis le disque, sans relire la page.
+            // Un autre démarrage : depuis le disque, sans relire la page.
             val again = LinkPreviews(folder = folder, fetch = { reads.incrementAndGet(); null })
             again.request(url)
             assertEquals("The trail", again.preview(url)?.title)

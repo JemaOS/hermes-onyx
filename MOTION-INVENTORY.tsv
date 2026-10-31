@@ -1,0 +1,207 @@
+référence	line	view	code
+Views/AgentPages	61	Key	.animation(.easeOut(duration: 0.2), value: height)
+Views/Attachments	92	AudioBubble	TimelineView(.periodic(from: .now, by: isPlaying ? 0.1 : 3600)) { _ in
+Views/CarPlayVoiceSettings	41	CarPlayVoiceSettings	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/CarPlayVoiceSettings	47	CarPlayVoiceSettings	private var playing: CarPlayVoiceLook? { expanded && !reduceMotion ? settings.carPlayVoice : nil }
+Views/ChatDropTarget	24	ChatDropTarget	.animation(.easeOut(duration: 0.15), value: targeted)
+Views/ChatDropTarget	49	ChatDropTarget	.transition(.opacity)
+Views/Composer	92	WaveformPulse	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/Composer	95	WaveformPulse	Bars(color: UIColor(color), barCount: barCount, height: height, spacing: spacing, shape: shape, still: still || reduceMotion)
+Views/ComposerView	96	ComposerView	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/ComposerView	137	ComposerView	.animation(.snappy(duration: 0.3), value: pendingAttachments.count)
+Views/ComposerView	138	ComposerView	.animation(.snappy(duration: 0.3), value: editing?.id)
+Views/ComposerView	139	ComposerView	.animation(.snappy(duration: 0.3), value: contextSuggestions)
+Views/ComposerView	282	ComposerView	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/ComposerView	310	ComposerView	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/ComposerView	345	ComposerView	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/ComposerView	377	ComposerView	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/ComposerView	386	ComposerView	.animation(.snappy(duration: 0.3), value: attachedContext)
+Views/ComposerView	477	ComposerView	.transition(.opacity)
+Views/ComposerView	482	ComposerView	.animation(.easeOut(duration: 0.2), value: draftIsLong)
+Views/ComposerView	500	ComposerView	.animation(.easeOut(duration: 0.25), value: focused && hasDraft)
+Views/ComposerView	529	ComposerView	.transition(Self.buttonSwap)
+Views/ComposerView	534	ComposerView	.transition(Self.buttonSwap)
+Views/ComposerView	539	ComposerView	.transition(Self.buttonSwap)
+Views/ComposerView	545	ComposerView	.transition(Self.buttonSwap)
+Views/ComposerView	552	ComposerView	.transition(Self.buttonSwap)
+Views/ComposerView	555	ComposerView	.animation(.snappy(duration: 0.3, extraBounce: 0.15), value: trailingState)
+Views/ContentView	48	ContentView	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/ContentView	282	ContentView	.animation(.snappy(duration: 0.3), value: conversation.followUps)
+Views/ContentView	371	ContentView	Button("Find in conversation", systemImage: "magnifyingglass") { withAnimation { showSearch.toggle() } }
+Views/ContentView	526	ContentView	if showConversations, !reduceMotion, let tap = ConversationTap.take() {
+Views/ContentView	535	ContentView	withAnimation(.sidePanel) { showConversations = open }
+Views/ContentView	547	ContentView	Button("Find in conversation") { withAnimation { showSearch.toggle() } }.keyboardShortcut("f", modifiers: .command)
+Views/ConversationsView	347	ConversationsList	Button("Done") { withAnimation { arrangingBots = false } }
+Views/ConversationsView	533	ConversationsList	withAnimation {
+Views/ConversationsView	542	ConversationsList	Button("Reorder Bots", systemImage: "arrow.up.arrow.down") { withAnimation { arrangingBots = true } }
+Views/ConversationsView	545	ConversationsList	withAnimation { settings.botOrderHere = [] }
+Views/ConversationsView	579	ConversationsList	withAnimation { botsExpanded = true }
+Views/ConversationsView	595	ConversationsList	Button { withAnimation { botsExpanded = false } } label: {
+Views/ConversationsView	953	ConversationsList	withAnimation(.easeOut(duration: 0.2)) { isOpen.wrappedValue.toggle() }
+Views/FollowUpChips	8	FollowUpChips	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/FollowUpChips	29	FollowUpChips	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/FollowUpChips	43	FollowUpChips	if !reduceMotion { try? await Task.sleep(for: .milliseconds(i == 1 ? 40 : 90)) }
+Views/FollowUpChips	44	FollowUpChips	withAnimation(.snappy(duration: 0.35, extraBounce: 0.1)) { shown = i }
+Views/FollowUpChips	47	FollowUpChips	.transition(.opacity)
+Views/GroupChatView	112	GroupChatView	if atEnd { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom", anchor: .bottom) } }
+Views/GroupChatView	117	GroupChatView	.onChange(of: feed.state.approvals.count + feed.state.retries.count) { withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+Views/GroupChatView	248	GroupChatView	Button("Find in Chat", systemImage: "magnifyingglass") { withAnimation { finding = true } }
+Views/GroupChatView	282	GroupChatView	Task { withAnimation { proxy.scrollTo(seq, anchor: .center) } }
+Views/GroupChatView	305	GroupChatView	Button("Done") { withAnimation { finding = false } }
+Views/GroupChatView	311	GroupChatView	.transition(.move(edge: .top).combined(with: .opacity))
+Views/GroupComposer	46	GroupComposer	.transition(.scale(scale: 0.4).combined(with: .opacity))
+Views/GroupComposer	51	GroupComposer	.transition(.scale(scale: 0.4).combined(with: .opacity))
+Views/GroupComposer	55	GroupComposer	.transition(.scale(scale: 0.4).combined(with: .opacity))
+Views/GroupComposer	58	GroupComposer	.animation(.snappy(duration: 0.3, extraBounce: 0.15), value: feed.discussing || feed.state.working)
+Views/GroupComposer	59	GroupComposer	.animation(.snappy(duration: 0.3, extraBounce: 0.15), value: hasDraft)
+Views/MessageArrival	25	MessageArrival	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/MessageArrival	41	MessageArrival	let rising = kind == .sent && !landed && !reduceMotion
+Views/MessageArrival	51	MessageArrival	withAnimation(.easeOut(duration: 0.16)) { visible = true }
+Views/MessageArrival	52	MessageArrival	withAnimation(.spring(duration: 0.44, bounce: 0.2)) { landed = true }
+Views/MessageArrival	54	MessageArrival	withAnimation(.easeOut(duration: 0.25).delay(reduceMotion ? 0 : 0.24)) { visible = true }
+Views/MessageRow	166	MessageRow	.transition(.opacity)
+Views/MessageRow	170	MessageRow	.animation(.easeOut(duration: 0.3), value: isLive)
+Views/MessageRow	183	MessageRow	withAnimation(.snappy(duration: 0.2)) { copied = true }
+Views/MessageRow	186	MessageRow	withAnimation(.snappy(duration: 0.2)) { copied = false }
+Views/MessageRow	200	MessageRow	TimelineView(.periodic(from: message.createdAt, by: 1)) { context in
+Views/MessageRow	245	MessageRow	withAnimation(.snappy(duration: 0.3)) { showThinking = !open }
+Views/MessageRow	289	MessageRow	withAnimation(.snappy(duration: 0.3)) { showSteps = !open }
+Views/MessageRow	329	MessageRow	.transition(.move(edge: .leading).combined(with: .opacity))
+Views/MessageRow	335	MessageRow	.animation(.snappy(duration: 0.3), value: tools.count)
+Views/MessageRow	336	MessageRow	.animation(.snappy(duration: 0.3), value: open)
+Views/MessageRow	337	MessageRow	.animation(.snappy(duration: 0.3), value: openStep)
+Views/MessageRow	382	MessageRow	.transition(.opacity.combined(with: .move(edge: .top)))
+Views/MessageRow	435	MessageRow	Button { withAnimation(.easeOut(duration: 0.15)) { fullMetrics.toggle() } } label: {
+Views/MessageRow	538	ShimmerText	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/MessageRow	544	ShimmerText	if !reduceMotion {
+Views/MessageRow	557	ShimmerText	withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) { phase = 1.2 }
+Views/MessageRow	576	FoldBody	.transition(.opacity.combined(with: .move(edge: .top)))
+Views/MessageRow	599	StepMark	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/MessageRow	620	StepMark	if animated, !reduceMotion {
+Views/MessageRow	621	StepMark	withAnimation(.easeOut(duration: 0.4).delay(0.05)) { drawn = 1 }
+Views/MessageRow	694	DeliveredMessage	withAnimation(.snappy(duration: 0.25)) { open.toggle() }
+Views/MessageRow	729	DeliveredMessage	.transition(.opacity.combined(with: .move(edge: .top)))
+Views/MessageRow	764	InventedTurnNote	withAnimation(.snappy(duration: 0.25)) { open.toggle() }
+Views/MessageRow	785	InventedTurnNote	.transition(.opacity.combined(with: .move(edge: .top)))
+Views/ModelPickerView	115	ModelPickerView	withAnimation(.snappy) {
+Views/OpeningCover	80	Opening	withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.28 * slow)) {
+Views/OpeningCover	84	Opening	withAnimation(.easeOut(duration: 0.12 * slow)) { opening.wrappedValue?.swapped = true }
+Views/OpeningCover	88	Opening	withAnimation(.easeOut(duration: 0.24 * slow)) {
+Views/PhotoViewer	60	PhotoViewer	.animation(.easeOut(duration: 0.18), value: bare)
+Views/PhotoViewer	85	PhotoViewer	.transition(.opacity)
+Views/StartScreen	17	StartScreen	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/StartScreen	65	Card	let (openFromCard, reduceMotion) = (openFromCard, reduceMotion)
+Views/StartScreen	69	Card	if let openFromCard, !reduceMotion, frame != .zero {
+Views/StartScreen	109	Card	.transition(.opacity.combined(with: .offset(y: 10)))
+Views/StartScreen	112	Card	.animation(.easeOut(duration: 0.35), value: cards.map(\.id))
+Views/StartScreen	121	Card	if !reduceMotion { try? await Task.sleep(for: .milliseconds(count == 1 ? 60 : 90)) }
+Views/StartScreen	151	Card	guard !reduceMotion else { return }
+Views/StartScreen	152	Card	withAnimation(.easeOut(duration: 2.6).repeatForever(autoreverses: false)) { pulse = true }
+Views/StartScreen	262	Arriving	.animation(.easeOut(duration: 0.4), value: shown > index)
+Views/StreamingTail	94	StreamingTailModifier	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/StreamingTail	101	StreamingTailModifier	if active, !reduceMotion {
+Views/StreamingTail	106	StreamingTailModifier	withAnimation(.easeOut(duration: 0.25)) { settledAt = revision }
+Views/StreamingTail	119	LiveMark	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/StreamingTail	134	LiveMark	guard !reduceMotion else { return }
+Views/StreamingTail	135	LiveMark	withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { pulse = true }
+Views/SwipeToOpen	164	SidePanel	withAnimation(.sidePanel) { closeTick &+= 1 } completion: { park(generation) }
+Views/SwipeToOpen	204	SidePanel	animation = .interpolatingSpring(duration: 0.34, bounce: 0, initialVelocity: relative)
+Views/SwipeToOpen	214	SidePanel	withAnimation(animation) {
+Views/SwipeToOpen	236	SidePanel	static var sidePanel: Animation { .smooth(duration: 0.32) }
+Views/Toast	21	ToastModifier	.transition(.move(edge: .bottom).combined(with: .opacity))
+Views/Toast	25	ToastModifier	.animation(.easeOut(duration: 0.2), value: text)
+Views/TodoChecklist	44	TodoChecklist	Button("Show all \(items.count)") { withAnimation(.snappy(duration: 0.25)) { showAll = true } }
+Views/TranscriptView	109	TranscriptView	Task { withAnimation { proxy.scrollTo(id, anchor: .center) } }
+Views/TranscriptView	137	TranscriptView	withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom", anchor: .bottom) }
+Views/TranscriptView	199	TranscriptView	.transition(.asymmetric(insertion: Self.queuedArrival, removal: .opacity))
+Views/TranscriptView	263	TranscriptView	.animation(.easeOut(duration: 0.2), value: offersJump)
+Views/TranscriptView	281	TranscriptView	.animation(.easeOut(duration: 0.25), value: reconnectText)
+Views/TranscriptView	301	TranscriptView	.animation(.easeOut(duration: 0.2), value: conversation.outbox)
+Views/TranscriptView	309	TranscriptView	withAnimation(.easeOut(duration: duration)) { proxy.scrollTo("bottom", anchor: .bottom) }
+Views/TranscriptView	312	TranscriptView	withAnimation { scrollToBottom(proxy) }
+Views/TranscriptView	322	TranscriptView	.animation(.spring(duration: 0.44, bounce: 0.2))
+Views/TranscriptView	408	TranscriptView	.transition(.offset(y: 12).combined(with: .scale(scale: 0.9)).combined(with: .opacity))
+Views/TranscriptView	440	TranscriptView	.transition(.move(edge: .top).combined(with: .opacity))
+Views/TranscriptView	464	TranscriptView	.transition(.move(edge: .top).combined(with: .opacity))
+Views/TranscriptView	520	NewBelowDot	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/TranscriptView	528	NewBelowDot	guard live, !reduceMotion else { dim = false; return }
+Views/TranscriptView	529	NewBelowDot	withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) { dim = true }
+Views/TypedTitle	22	TypedTitle	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/TypedTitle	38	Key	.transition(.asymmetric(insertion: .identity, removal: .move(edge: .top).combined(with: .opacity)))
+Views/TypedTitle	51	Key	guard old.id == new.id, old.placeholder, !new.placeholder, !reduceMotion else {
+Views/TypedTitle	66	Key	withAnimation(.easeIn(duration: 0.22)) { leaving = nil }
+Views/TypedTitle	95	Caret	withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) { on = false }
+Views/VoiceView	48	VoiceView	.transition(.push(from: .bottom).combined(with: .opacity))
+Views/VoiceView	51	VoiceView	.animation(.snappy(duration: 0.35), value: phaseTitle)
+Views/VoiceView	457	Viewfinder	.animation(.easeOut(duration: 0.3), value: phase)
+Views/VoiceView	484	OrbFace	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	503	OrbFace	.animation(.easeOut(duration: 0.3), value: listening)
+Views/VoiceView	597	OrbFace	.transition(reduceMotion ? .opacity : .handoff)
+Views/VoiceView	599	OrbFace	.animation(reduceMotion ? .easeInOut(duration: 0.35) : .spring(duration: 0.6, bounce: 0.3), value: replySpeaker)
+Views/VoiceView	603	OrbFace	.animation(.easeOut(duration: 0.12), value: level)
+Views/VoiceView	604	OrbFace	.animation(.easeOut(duration: 0.3), value: listening)
+Views/VoiceView	655	OnyxVoiceFace	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	660	OnyxVoiceFace	TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { posed(at: $0.date) }
+Views/VoiceView	663	OnyxVoiceFace	.animation(.easeOut(duration: 0.3), value: phase)
+Views/VoiceView	720	DriftingBlobs	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	740	DriftingBlobs	guard !reduceMotion else { return }
+Views/VoiceView	741	DriftingBlobs	withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) { a = true }
+Views/VoiceView	742	DriftingBlobs	withAnimation(.easeInOut(duration: 3.9).repeatForever(autoreverses: true)) { b = true }
+Views/VoiceView	743	DriftingBlobs	withAnimation(.easeInOut(duration: 2.3).repeatForever(autoreverses: true)) { c = true }
+Views/VoiceView	744	DriftingBlobs	withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { hue = true }
+Views/VoiceView	745	DriftingBlobs	withAnimation(.linear(duration: 16).repeatForever(autoreverses: false)) { turn = true }
+Views/VoiceView	748	DriftingBlobs	guard !reduceMotion else { return }
+Views/VoiceView	750	DriftingBlobs	withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) { spin = true }
+Views/VoiceView	752	DriftingBlobs	withAnimation(.easeOut(duration: 0.8)) { spin = false }
+Views/VoiceView	755	DriftingBlobs	.animation(.easeOut(duration: 0.25), value: strength)
+Views/VoiceView	778	AuroraLight	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	794	AuroraLight	.animation(.easeOut(duration: 0.25), value: strength)
+Views/VoiceView	799	AuroraLight	guard !reduceMotion else { return }
+Views/VoiceView	801	AuroraLight	withAnimation(.easeInOut(duration: 4.0 * speed).repeatForever(autoreverses: true)) { a.toggle() }
+Views/VoiceView	802	AuroraLight	withAnimation(.easeInOut(duration: 5.5 * speed).repeatForever(autoreverses: true)) { b.toggle() }
+Views/VoiceView	803	AuroraLight	withAnimation(.easeInOut(duration: 3.2 * speed).repeatForever(autoreverses: true)) { c.toggle() }
+Views/VoiceView	804	AuroraLight	withAnimation(.easeInOut(duration: 7 * speed).repeatForever(autoreverses: true)) { tilt.toggle() }
+Views/VoiceView	827	CoreLight	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	847	CoreLight	.animation(reduceMotion ? nil : .easeIn(duration: 3.4).repeatForever(autoreverses: false).delay(Double(i) * 1.1), value: rise)
+Views/VoiceView	853	CoreLight	guard !reduceMotion else { return }
+Views/VoiceView	854	CoreLight	withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) { pulse = true }
+Views/VoiceView	859	CoreLight	.animation(.easeOut(duration: 0.25), value: strength)
+Views/VoiceView	864	CoreLight	guard !reduceMotion else { return }
+Views/VoiceView	865	CoreLight	withAnimation(.linear(duration: swirling ? 2.2 : 9).repeatForever(autoreverses: false)) { orbit.toggle() }
+Views/VoiceView	945	GlassOrb	.animation(.easeOut(duration: 0.4), value: phase)
+Views/VoiceView	959	GlassNebula	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	977	GlassNebula	guard !reduceMotion else { return }
+Views/VoiceView	978	GlassNebula	withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) { a = true }
+Views/VoiceView	979	GlassNebula	withAnimation(.easeInOut(duration: 1.95).repeatForever(autoreverses: true)) { b = true }
+Views/VoiceView	980	GlassNebula	withAnimation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true)) { c = true }
+Views/VoiceView	981	GlassNebula	withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) { hue = true }
+Views/VoiceView	982	GlassNebula	withAnimation(.linear(duration: 16).repeatForever(autoreverses: false)) { turn = true }
+Views/VoiceView	1004	GlassAurora	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	1020	GlassAurora	guard !reduceMotion else { return }
+Views/VoiceView	1021	GlassAurora	withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { a = true }
+Views/VoiceView	1022	GlassAurora	withAnimation(.easeInOut(duration: 5.5).repeatForever(autoreverses: true)) { b = true }
+Views/VoiceView	1023	GlassAurora	withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { c = true }
+Views/VoiceView	1041	GlassCore	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	1062	GlassCore	.animation(reduceMotion ? nil : .linear(duration: 7).repeatForever(autoreverses: false), value: orbit)
+Views/VoiceView	1069	GlassCore	.animation(reduceMotion ? nil : .linear(duration: 11).repeatForever(autoreverses: false), value: orbit)
+Views/VoiceView	1071	GlassCore	TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+Views/VoiceView	1082	GlassCore	guard !reduceMotion else { return }
+Views/VoiceView	1083	GlassCore	withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) { pulse = true }
+Views/VoiceView	1095	GlassCore	.animation(reduceMotion ? nil : .easeInOut(duration: 1).repeatForever(autoreverses: true).delay(delay), value: twinkle)
+Views/VoiceView	1113	GlassCore	.opacity(reduceMotion ? 0 : opacity)
+Views/VoiceView	1121	ThinkingArc	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	1131	ThinkingArc	guard !reduceMotion else { return }
+Views/VoiceView	1132	ThinkingArc	withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) { spin = true }
+Views/VoiceView	1134	ThinkingArc	.transition(.opacity)
+Views/VoiceView	1147	Halos	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	1158	Halos	guard !reduceMotion else { return }
+Views/VoiceView	1159	Halos	withAnimation(.easeOut(duration: period).repeatForever(autoreverses: false)) { expand = true }
+Views/VoiceView	1161	Halos	.transition(.opacity)
+Views/VoiceView	1169	Halos	.animation(reduceMotion ? nil : .easeOut(duration: period).repeatForever(autoreverses: false).delay(delay), value: expand)
+Views/VoiceView	1177	RisingCaption	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	1184	RisingCaption	.transition(reduceMotion ? .opacity : .offset(y: 8).combined(with: .opacity))
+Views/VoiceView	1188	RisingCaption	.animation(.easeOut(duration: 0.25), value: words.count)
+Views/VoiceView	1248	LiveWaveform	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+Views/VoiceView	1267	LiveWaveform	let live = !reduceMotion && (phase == .listening || phase == .speaking)
+Views/VoiceView	1269	LiveWaveform	TimelineView(.animation(minimumInterval: live ? 1 / 60 : 1 / 30, paused: reduceMotion)) { context in
+Views/VoiceView	1280	LiveWaveform	.frame(width: 10, height: height(i, drive) + (drive == nil && !reduceMotion ? ripple(i, t) : 0))

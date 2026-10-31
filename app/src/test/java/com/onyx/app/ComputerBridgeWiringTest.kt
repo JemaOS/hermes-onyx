@@ -11,7 +11,7 @@ import org.junit.Test
  *
  * Ces assertions lisent le source (comme les autres tests de câblage du dépôt) parce que le
  * comportement vit dans des gestes Compose, un WebSocket et un service Python que la JVM
- * n'exécute pas ici. Ce qu'elles gardent, ce sont les règles qui ne doivent pas se perdre:
+ * n'exécute pas ici. Ce qu'elles gardent, ce sont les règles qui ne doivent pas se perdre :
  * une commande ne part jamais seule, un refus ne part pas du tout, et quitter l'écran ne coupe
  * pas la session.
  */
@@ -36,7 +36,7 @@ class ComputerBridgeWiringTest {
 
     @Test
     fun `la session appartient au processus, pas a l'ecran`() {
-        // Le nœud du lot: sortir de l'écran ne doit ni couper la connexion ni rendre la main.
+        // Le nœud du lot : sortir de l'écran ne doit ni couper la connexion ni rendre la main.
         assertTrue(container.contains("computerSession = com.onyx.app.ui.computer.ComputerSession(computer)"))
         assertFalse(
             "quitter l'écran ne doit pas fermer la session",
@@ -77,7 +77,10 @@ class ComputerBridgeWiringTest {
     fun `chaque entree du menu referme le menu`() {
         // Un menu qui reste ouvert sous la question qu'il ouvre se répond à travers lui.
         val items = screen.substringAfter("items = buildList {").substringBefore("onDismiss = { showMenu = false }")
-        assertEquals(6, Regex("showMenu = false").findAll(items).count())
+        // Onze entrées : la main, les quatre commandes repliées de la rangée du bas (défiler,
+        // ajuster, plein écran), les détails du flux (les chiffres et la liaison économe), puis
+        // exécuter, raccourci, adresse et fermer.
+        assertEquals(11, Regex("showMenu = false").findAll(items).count())
     }
 
     @Test
@@ -100,16 +103,40 @@ class ComputerBridgeWiringTest {
     @Test
     fun `le pont ecoute en local, exige un jeton et refuse sans approbation`() {
         assertTrue(bridge.contains("""parser.add_argument("--host", default="127.0.0.1""""))
-        assertTrue(bridge.contains("if not authorized(request, bridge.token):"))
+        assertTrue(bridge.contains("def token_verdict(request, token: str)"))
+        assertTrue(bridge.contains("if verdict != \"ok\":"))
         assertTrue(bridge.contains("needs_approval"))
         assertTrue(bridge.contains("if not self.lease.may_send_input(viewer):"))
         assertTrue(bridge.contains("not_holder"))
         // Un point reçu dans l'espace « screen » n'est pas mis à l'échelle une seconde fois.
         assertTrue(bridge.contains("""if str(message.get("space") or "view") == "screen":"""))
-        // Le jeton n'est jamais journalisé ni rendu.
-        assertTrue(bridge.contains("log_line(\"token_rejected\", path=request.path)"))
+        // Le jeton n'est jamais journalisé ni rendu : la longueur suffit à diagnostiquer un
+        // collage tronqué, et le motif (`len`, `mismatch`) dit lequel.
+        assertTrue(bridge.contains("log_line(\"token_rejected\", origin=origin, path=path, reason=verdict,"))
+        assertTrue(bridge.contains("token_len=arrived_len"))
         assertFalse(bridge.contains("token=bridge.token"))
         assertTrue(bridge.contains("\"ok\": True"))
+    }
+
+    @Test
+    fun `le pont laisse l'app choisir la taille et la cadence, dans ses propres bornes`() {
+        // La taille : l'app annonce la largeur de son volet, le pont borne (plancher, plafond,
+        // écran) et **réannonce** ce qu'il envoie vraiment — sinon l'app placerait ses clics dans
+        // une géométrie qui n'existe plus.
+        assertTrue(bridge.contains("MIN_VIEW_WIDTH = 480"))
+        assertTrue(bridge.contains("def set_view_width(self, width: int) -> int:"))
+        assertTrue(bridge.contains("if kind == \"stream\":"))
+        assertTrue(bridge.contains("await client.send(json.dumps(self.hello_payload(viewer)))"))
+        assertTrue(bridge.contains("def hello_payload(self, viewer: str) -> dict:"))
+        // La cadence : c'est le pont qui décide combien vaut un geste, et il retombe au repos.
+        assertTrue(bridge.contains("""parser.add_argument("--turbo-fps""""))
+        assertTrue(bridge.contains("self.turbo_fps = max(self.base_fps, min(frames.max_fps, turbo_fps))"))
+        assertTrue(bridge.contains("if kind == \"rate\":"))
+        assertTrue(bridge.contains("target = self.turbo_fps if moving else self.base_fps"))
+        assertTrue("la cadence retombe quand plus personne ne regarde",
+            bridge.contains("bridge.frames.configure(fps=bridge.base_fps)"))
+        // Un client ne décide pas de brûler le processeur du PC : plafond de cadence.
+        assertTrue(bridge.contains("self.fps = max(1, min(max_fps, fps))"))
     }
 
     @Test

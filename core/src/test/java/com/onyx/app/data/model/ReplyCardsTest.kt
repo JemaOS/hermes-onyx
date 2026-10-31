@@ -8,9 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les cartes d'une réponse (`ReplyCards`, `onyx_show`): lues avec indulgence depuis les arguments
+ * Les cartes d'une réponse (`ReplyCards`, `onyx_show`) : lues avec indulgence depuis les arguments
  * de l'appel, gardées sur l'étape, retrouvées quand une conversation est relue, et remplies par la
- * réponse du plugin quand elle s'y lit. Même jeu d'épreuves que.
+ * réponse du plugin quand elle s'y lit. Même jeu d'épreuves que `ReplyCardsTests`.
  */
 class ReplyCardsTest {
 
@@ -33,7 +33,7 @@ class ReplyCardsTest {
         val walk = cards[0] as ReplyCard.Map
         val pins = cards[1] as ReplyCard.Map
         val route = walk.route!!
-        // « here » est là où la personne est; les nombres passent en texte; lat et lng sont lus.
+        // « here » est là où la personne est ; les nombres passent en texte ; lat et lng sont lus.
         assertEquals(ReplyCard.Route.Mode.WALKING, route.mode)
         assertNull(route.from)
         assertEquals("Rossio Roasters", route.to.name)
@@ -54,7 +54,7 @@ class ReplyCardsTest {
             """,
         )
         val list = cards.first() as ReplyCard.Places
-        // Un lieu sans nom est écarté; une note est ramenée sur cinq; un lien qui n'est pas du web aussi.
+        // Un lieu sans nom est écarté ; une note est ramenée sur cinq ; un lien qui n'est pas du web aussi.
         assertEquals(listOf("A", "B"), list.places.map { it.name })
         assertEquals(4.6, list.places[0].rating!!, 0.0)
         assertNull(list.places[0].url)
@@ -93,8 +93,8 @@ class ReplyCardsTest {
     }
 
     /**
-     * Vu le 2026-10-23: la réponse disait 85 °F et ciel clair, et l'appel portait 0 et pas de
-     * condition. Un relevé nomme sa condition: celui-là n'est pas dessiné, la carte n'a plus que
+     * Vu le 2026-10-23 : la réponse disait 85 °F et ciel clair, et l'appel portait 0 et pas de
+     * condition. Un relevé nomme sa condition : celui-là n'est pas dessiné, la carte n'a plus que
      * son lieu, à chercher.
      */
     @Test
@@ -115,7 +115,7 @@ class ReplyCardsTest {
         assertEquals(ReplyCard.Condition.CLEAR, reading.now!!.condition)
         // Un vrai 0 vient avec ses autres nombres.
         assertEquals(1, card("""{"type":"weather","place":"Fairbanks","now":{"temperature":0,"condition":"snow","feels_like":-12}}""").size)
-        // Plus tard le même jour: 0 et « clear », la météo jamais cherchée, rien d'autre lu avec: pas de relevé.
+        // Plus tard le même jour : 0 et « clear », la météo jamais cherchée, rien d'autre lu avec : pas de relevé.
         assertTrue(
             !hasReading(
                 card("""{"place":"Orlando FL","now":{"temperature":0,"condition":"clear"},"type":"weather","units":"F"}"""),
@@ -150,7 +150,7 @@ class ReplyCardsTest {
         assertEquals("½ hr ahead", ReplyCard.Clock.difference(1_800))
     }
 
-    /** Le plugin 1.7.0 répond avec les cartes remplies: ce qu'il a cherché remplace l'appel. */
+    /** Le plugin 1.7.0 répond avec les cartes remplies : ce qu'il a cherché remplace l'appel. */
     @Test
     fun `la reponse du plugin prime sur l appel`() {
         var step = ToolActivity(
@@ -178,7 +178,7 @@ class ReplyCardsTest {
         assertEquals(75.5, fromAnswer.now!!.temperature, 0.0)
         assertEquals(true, fromAnswer.now!!.night)
         assertEquals(true, fromAnswer.hours[0].night)
-        // Un plugin plus ancien, ou une réponse illisible: l'appel, à chercher.
+        // Un plugin plus ancien, ou une réponse illisible : l'appel, à chercher.
         val refused = step.copy(output = """{"error": "Nothing could be shown: card 1: the weather needs 'now'."}""")
         val fromCall = ReplyCards.cards(from = refused)!!.first() as ReplyCard.Weather
         assertEquals(66.0, fromCall.now!!.temperature, 0.0)

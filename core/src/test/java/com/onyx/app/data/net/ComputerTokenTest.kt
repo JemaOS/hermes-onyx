@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * Le jeton tel qu'il est collé.
  *
- * Le champ de saisie est étroit, la valeur se copie depuis un terminal: elle arrive avec des
+ * Le champ de saisie est étroit, la valeur se copie depuis un terminal : elle arrive avec des
  * blancs, des guillemets, un `Bearer ` que la documentation montrait et que l'app ajoute elle
  * aussi. Refuser la connexion pour ces restes serait une panne inventée — et le pont, lui, les
  * tolère déjà.
@@ -48,7 +48,7 @@ class ComputerTokenTest {
     fun `un jeton manifestement tronque est vu avant l'envoi`() {
         assertTrue(ComputerToken.obviouslyTooShort("abc"))
         assertFalse(ComputerToken.obviouslyTooShort(token))
-        // Le jeton du pont fait vingt caractères: un reste de collage de huit ne peut pas être lui.
+        // Le jeton du pont fait vingt caractères : un reste de collage de huit ne peut pas être lui.
         assertFalse(ComputerToken.obviouslyTooShort("12345678"))
     }
 }

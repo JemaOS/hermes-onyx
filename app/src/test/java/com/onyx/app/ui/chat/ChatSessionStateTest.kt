@@ -34,6 +34,7 @@ class ChatSessionStateTest {
         searchQuery = "old",
         searchHits = listOf("old"),
         searchCurrent = 1,
+        modelInUse = "ancien modele",
     )
 
     @Test
@@ -80,6 +81,9 @@ class ChatSessionStateTest {
         assertNull(state.error)
         assertFalse(state.canRetry)
         assertFalse(state.isConnectionProblem)
+        // Le modèle servi appartient à la conversation qu'on quitte : le sous-titre de l'en-tête
+        // ne doit pas annoncer celui de l'ancienne après une création.
+        assertNull("le modèle de l'ancienne conversation ne suit pas", state.modelInUse)
         assertTrue(state.followUps.isEmpty())
         assertTrue(state.slashItems.isEmpty())
         assertFalse(state.searchOpen)
