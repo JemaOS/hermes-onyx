@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-__TESTS__%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-3596%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -154,11 +154,11 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## Ce que __VERSION__ apporte
+## Ce que 1.0.0+972 apporte
 
 Cette vague est la **fusion de onze lots**. Chaque point ci-dessous cite le commit, le fichier ou la
 mesure qui le porte — rien n'est annoncé ici qui ne puisse être montré. Le détail complet est dans
-[`releases/NOTES-__VERSION__.md`](releases/NOTES-__VERSION__.md).
+[`releases/NOTES-1.0.0+972.md`](releases/NOTES-1.0.0+972.md).
 
 - **La palette et les surfaces sont lues dans la source** — six palettes de la référence comparées
   champ par champ : **54 valeurs, 54 identiques, 0 écart** ; le verrou de palette relève **412 sources
@@ -187,8 +187,8 @@ mesure qui le porte — rien n'est annoncé ici qui ne puisse être montré. Le 
 - **Les retours corrigés** — la page quittée n'est plus perdue au sortir du volet, et un banc mesure les
   trois chemins (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
 
-**__TESTS__ tests, 0 échec.** Les compagnons Android Auto et Wear OS ne changent pas sauf s'ils sont
-fournis avec cette release ; sinon ils restent sur **`__SIDECAR__`**.
+**3596 tests, 0 échec.** Les compagnons Android Auto et Wear OS ne changent pas sauf s'ils sont
+fournis avec cette release ; sinon ils restent sur **`1.0.0+972`**.
 
 ## What 1.0.0+547 brought
 
@@ -259,7 +259,7 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 The gallery is the **`1.0.0+547`** build — the **dark theme** for the whole set, then the
 **light theme** on the same screens. It has **not** been re-shot for this release: the images below
-show the build named in this paragraph, not `__VERSION__`. The naming convention and the list of
+show the build named in this paragraph, not `1.0.0+972`. The naming convention and the list of
 expected shots are in
 [`docs/screenshots/README.md`](docs/screenshots/README.md). Every capture was taken on an emulator, against a test server holding demo data:
 no real machine, no real conversation, no token. The **status bar is cropped out** of every shot and the
@@ -308,14 +308,14 @@ page. One code base, one signing key.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-__VERSION__-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
-| `Hermes-Onyx-__SIDECAR__-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-__SIDECAR__-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+972-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `Hermes-Onyx-1.0.0+972-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+972-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**Coming from an older build?** `__VERSION__` is signed with the same key as every release
+**Coming from an older build?** `1.0.0+972` is signed with the same key as every release
 before it, so it installs straight over `1.0.0+547`, `1.0.0+546` or `1.0.0` with no uninstall.
 
-The three names above are the exact asset names on the releases. `__VERSION__` carries a
+The three names above are the exact asset names on the releases. `1.0.0+972` carries a
 `SHA256SUMS` file with the SHA-256 of every package it ships. Check your download against
 it:
 
