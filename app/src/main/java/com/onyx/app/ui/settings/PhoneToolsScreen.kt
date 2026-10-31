@@ -41,10 +41,10 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * Réglages → Outils téléphone.
  *
- * Comme: un interrupteur maître, une politique par famille
+ * Port de `PhoneToolsSettingsView` : un interrupteur maître, une politique par famille
  * (« Off », « Ask each time », « Allow »), et la liste de ce qui a été demandé récemment.
  *
- * L'exécution côté agent passe par le plugin Hermes `phone_*`; cette page règle ce que Onyx
+ * L'exécution côté agent passe par le plugin Hermes `phone_*` ; cette page règle ce que Onyx
  * accepterait, et le widget « From Your Agent » s'écrit ici.
  */
 @Composable
@@ -207,7 +207,7 @@ fun PhoneToolsScreen(
     }
 }
 
-/** L'icône d'une famille, comme la ligne. */
+/** L'icône d'une famille, comme la ligne de la référence. */
 private fun symbolFor(area: PhoneArea): Int = when (area) {
     PhoneArea.CALENDAR -> Symbols.Calendar
     PhoneArea.REMINDERS -> Symbols.CheckmarkCircle

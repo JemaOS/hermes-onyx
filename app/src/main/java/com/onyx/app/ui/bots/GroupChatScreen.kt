@@ -1,5 +1,7 @@
 package com.onyx.app.ui.bots
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -55,6 +58,7 @@ import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.OnyxToggleRow
 import com.onyx.app.ui.design.LiveMark
+import com.onyx.app.ui.design.SafeBarSpacing
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
@@ -64,31 +68,33 @@ import com.onyx.app.voice.SpeechEngine
 /**
  * Le chat de groupe.
  *
- * Comme `GroupChatView`: la rangée des bots (on choisit qui répond), le fil où chaque réponse
+ * Port de `GroupChatView` : la rangée des bots (on choisit qui répond), le fil où chaque réponse
  * porte le visage et le nom de son bot, et le composer. « Read aloud » lit chaque réponse.
  *
- * Ce fichier réunit aussi le comme `GroupVoice` (les contrôles vocaux du groupe), le bandeau de
+ * Ce fichier réunit aussi le port de `GroupVoice` (les contrôles vocaux du groupe), le bandeau de
  * la salle, l'indicateur de tour par bot et le menu d'un bot. Le ViewModel (`GroupChatViewModel`)
- * n'est pas touché: tout état qui n'y vit pas (la dicée, le menu) est tenu ici par `remember`.
+ * n'est pas touché : tout état qui n'y vit pas (la dicée, le menu) est tenu ici par `remember`.
  */
 @Composable
 fun GroupChatScreen(
     viewModel: GroupChatViewModel,
     server: ServerConfig,
     onBack: () -> Unit,
+    /** Le crayon du groupe : une **nouvelle conversation de ce groupe** (mêmes membres). */
+    onNewConversation: (() -> Unit)? = null,
     /** Le bouton Talk du `GroupComposer` ouvre la scène vocale de la salle. */
     onOpenVoice: () -> Unit,
     /** Langue de la dictée dans le champ, distincte de la scène mains-libres. */
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
-    /** `Switch to typing`: rendre le focus et le clavier au composer une fois de retour. */
+    /** `Switch to typing` : rendre le focus et le clavier au composer une fois de retour. */
     focusComposer: Boolean = false,
     onComposerFocused: () -> Unit = {},
     modifier: Modifier = Modifier,
     /** Le titre de la salle. À défaut, les bots choisis le donnent (`formatted(.list(type: .and))`). */
     title: String? = null,
-    /** Appui long sur un bot: ouvrir son éditeur. `null` cache l'entrée du menu. */
+    /** Appui long sur un bot : ouvrir son éditeur. `null` cache l'entrée du menu. */
     onEditBot: ((BotProfile) -> Unit)? = null,
-    /** « Chat text size »: l'échelle du fil, comme dans le chat solo. */
+    /** « Chat text size » : l'échelle du fil, comme dans le chat solo. */
     chatTextScale: Float = 1f,
 ) {
     val theme = LocalOnyxTheme.current
@@ -105,28 +111,46 @@ fun GroupChatScreen(
         }
     }
 
-    // Les bots choisis, dans l'ordre du roster: le bandeau et l'état vide les nomment.
+    // Les bots choisis, dans l'ordre du roster : le bandeau et l'état vide les nomment.
     val chosenBots = remember(state.bots, state.selected) {
         state.bots.filter { it.name in state.selected }
     }
 
-    // Le tour en cours: le dernier message de la personne l'ouvre et ce qui suit, bot par bot,
+    // Le tour en cours : le dernier message de la personne l'ouvre et ce qui suit, bot par bot,
     // dit qui répond encore, qui a fini, et quel bot écrit à cet instant.
     val turn = remember(state.messages) { groupTurn(state.messages) }
 
-    // Le fil d'une salle suit la fin **tant que la personne ne remonte pas**, comme le fil solo:
-    // la décision vit dans `ScrollFollow`. Un doigt sur la liste détache le suivi tout de suite;
-    // au repos, revenir au bas le ré-attache; le contenu qui grandit ne bouge la vue que si on
-    // suit. (Avant, `LaunchedEffect(lastIndex, lastLength)` *animait* vers le bas à chaque morceau
-    // de texte reçu: on ne pouvait pas remonter lire pendant que les bots travaillaient.)
-    val reachPx = with(LocalDensity.current) { ScrollFollow.Reach.dp.toPx() }
-    val atBottom by remember {
+    // Le fil d'une salle suit la fin **tant que la personne ne remonte pas**, comme le fil solo :
+    // la décision vit dans `ScrollFollow`. Un doigt sur la liste détache le suivi tout de suite ;
+    // au repos, revenir dans la marge d'ancrage le ré-attache ; le contenu qui grandit ne bouge la
+    // vue que si on suit. (Avant, `LaunchedEffect(lastIndex, lastLength)` *animait* vers le bas à
+    // chaque morceau de texte reçu : on ne pouvait pas remonter lire pendant que les bots
+    // travaillaient.)
+    //
+    // La mesure du bas est celle du fil solo, à la réserve près : ici la liste pose
+    // `PaddingValues(vertical = 12.dp)` — c'est cette valeur, et non le bord du viewport, qui est
+    // le vrai bas du fil. `ScrollFollow` porte la règle ; l'écran ne fait que la brancher.
+    val anchorMarginPx = with(LocalDensity.current) { ScrollFollow.AnchorMarginDp.dp.toPx() }
+    val threadBottomPaddingPx = with(LocalDensity.current) { GroupThreadBottomPadding.roundToPx() }
+    val distanceToBottomPx by remember(anchorMarginPx, threadBottomPaddingPx) {
         derivedStateOf {
             val info = listState.layoutInfo
-            val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
-            last.index >= info.totalItemsCount - 1 &&
-                last.offset + last.size <= info.viewportEndOffset + reachPx
+            val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf 0
+            if (last.index < info.totalItemsCount - 1) {
+                Int.MAX_VALUE
+            } else {
+                ScrollFollow.distanceToBottom(
+                    itemEndPx = last.offset + last.size,
+                    viewportEndPx = info.viewportEndOffset,
+                    bottomPaddingPx = threadBottomPaddingPx,
+                )
+            }
         }
+    }
+    // Un **état** : le `snapshotFlow` plus bas ne suit que les lectures d'état (voir `ChatScreen`,
+    // même règle et même raison).
+    val withinAnchor by remember(anchorMarginPx, threadBottomPaddingPx) {
+        derivedStateOf { ScrollFollow.withinAnchor(distanceToBottomPx, anchorMarginPx.toInt()) }
     }
     var following by remember { mutableStateOf(true) }
     LaunchedEffect(listState) {
@@ -135,9 +159,9 @@ fun GroupChatScreen(
         }
     }
     LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress to atBottom }
-            .collect { (scrolling, bottom) ->
-                following = ScrollFollow.atRest(scrolling, bottom, following)
+        snapshotFlow { listState.isScrollInProgress to withinAnchor }
+            .collect { (scrolling, anchored) ->
+                following = ScrollFollow.atRest(scrolling, anchored, following)
             }
     }
     val lastIndex = state.messages.lastIndex
@@ -145,7 +169,7 @@ fun GroupChatScreen(
     LaunchedEffect(lastIndex, lastLength, following) {
         if (following && lastIndex >= 0) listState.scrollToItem(lastIndex, BottomScrollOffset)
     }
-    // Une question part d'où qu'elle soit écrite: elle ramène en bas (`bot == null` est la
+    // Une question part d'où qu'elle soit écrite : elle ramène en bas (`bot == null` est la
     // personne, comme `GroupMessageRow`).
     var seenUserTurns by remember { mutableStateOf(0) }
     val userTurns = remember(state.messages) { state.messages.count { it.bot == null } }
@@ -160,25 +184,34 @@ fun GroupChatScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme)
+            // La zone du système d'abord, puis l'espace visuel de la maison : la barre
+            // d'écriture de la salle ne peut plus être enterrée sous la barre de navigation,
+            // ni paraître collée au bord.
+            .navigationBarsPadding()
+            .padding(bottom = SafeBarSpacing.GapDp.dp),
     ) {
-        // `GroupChatView`: liste, en-tête de salle (visages + nom), fil, puis GroupComposer.
+        // `GroupChatView` : liste, en-tête de salle (visages + nom), fil, puis GroupComposer.
         GroupChatHeader(
             title = title.orEmpty(),
             bots = chosenBots,
             onBack = onBack,
+            onNewConversation = onNewConversation,
         )
 
         Box(modifier = Modifier.weight(1f)) {
             if (state.messages.isEmpty()) {
                 GroupOpening(loading = state.loading, bots = chosenBots)
             } else {
-                // « Chat text size »: le fil de la salle suit le même réglage que celui du chat.
-                CompositionLocalProvider(LocalOnyxTheme provides theme.withFontScale(chatTextScale)) {
+                // L'échelle de texte des Réglages est posée à la **racine** — l'activité la lit
+                // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
+                // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
+                // une seconde fois (1,23 × 1,23 = 1,51).
+                CompositionLocalProvider(LocalOnyxTheme provides theme) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = GroupThreadBottomPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     items(state.messages, key = { it.id }) { message ->
@@ -201,18 +234,19 @@ fun GroupChatScreen(
         )
     }
 
-    // L'appui long sur un bot n'ouvre aucun menu: `GroupChatView` n'en a pas pour ses bots
+    // L'appui long sur un bot n'ouvre aucun menu : `GroupChatView` de la référence n'en a pas pour ses bots
     // (seule la salle a le sien — Find in Chat, Rename, Mute, End Group Chat, encore non porté).
-    // Le menu « Edit bot… » / « Open its chat » qui vivait ici ne pouvait pas s'ouvrir: son état
+    // Le menu « Edit bot… » / « Open its chat » qui vivait ici ne pouvait pas s'ouvrir : son état
     // n'était jamais posé, et ses deux rappels n'étaient fournis par personne.
 }
 
-/** En-tête de `GroupChatView`: Conversations, FaceStack, puis le nom de la salle. */
+/** En-tête de `GroupChatView` : Conversations, FaceStack, le nom de la salle, et le crayon. */
 @Composable
 private fun GroupChatHeader(
     title: String,
     bots: List<BotProfile>,
     onBack: () -> Unit,
+    onNewConversation: (() -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
     Row(
@@ -242,36 +276,57 @@ private fun GroupChatHeader(
             text = title,
             localize = title.isEmpty(),
             style = theme.subheadline.copy(color = theme.textColor, fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        if (onNewConversation != null) {
+            // Le crayon, comme dans un fil de bot : une conversation de **ce** groupe, mêmes
+            // membres, même salle.
+            GlassCircleButton(
+                symbol = Symbols.SquareAndPencil,
+                label = "New conversation",
+                size = 36.dp,
+                iconSize = 18.dp,
+                tint = theme.accent,
+                onClick = onNewConversation,
+            )
+        }
     }
 }
 
 /**
  * De combien de pixels on demande à dépasser la dernière ligne pour toucher le vrai bas du fil
- * (voir `ChatScreen`: `scrollToItem(index, offset)` borne l'offset au bas du contenu).
+ * (voir `ChatScreen` : `scrollToItem(index, offset)` borne l'offset au bas du contenu).
  */
 private const val BottomScrollOffset = 100_000
 
-/** Ce qu'un tour du fil dit d'un bot: rien, il écrit, ou il a fini. */
+/**
+ * **La réserve que le fil d'une salle pose sous sa dernière ligne**, en dp : c'est le `vertical`
+ * du rembourrage de la liste. Elle est nommée parce qu'elle est aussi le **vrai bas** du fil pour
+ * la mesure du suivi ([ScrollFollow.distanceToBottom]) : sans ce terme, le rembourrage se
+ * comptait comme du fil remonté, et le suivi se ré-attachait alors qu'on lisait deux lignes plus
+ * haut.
+ */
+private val GroupThreadBottomPadding = 12.dp
+
+/** Ce qu'un tour du fil dit d'un bot : rien, il écrit, ou il a fini. */
 private enum class TurnMark { NONE, WORKING, DONE }
 
-/** L'état du tour en cours: qui écrit, combien répondent, et le numéro du tour. */
+/** L'état du tour en cours : qui écrit, combien répondent, et le numéro du tour. */
 private data class GroupTurn(
     /** L'état de chaque bot pendant ce tour, par nom de profil. */
     val marks: Map<String, TurnMark>,
     /** Combien de bots répondent à cet instant. */
     val answering: Int,
-    /** Le nombre de tours: un par message de la personne (`Turn N`). */
+    /** Le nombre de tours : un par message de la personne (`Turn N`). */
     val turns: Int,
     /** Le bot qui écrit maintenant, s'il y en a un. */
     val writing: BotProfile?,
 )
 
 /**
- * Lit le fil pour le tour en cours: depuis le dernier message de la personne, chaque bot est
+ * Lit le fil pour le tour en cours : depuis le dernier message de la personne, chaque bot est
  * « en train d'écrire » si une de ses réponses coule, « fini » s'il a au moins une réponse posée,
  * et « rien » sinon. Le numéro du tour est le nombre de messages de la personne.
  */
@@ -294,7 +349,7 @@ private fun groupTurn(messages: List<GroupMessage>): GroupTurn {
 }
 
 /**
- * Le bandeau de la salle: les visages des bots choisis, le titre, le nombre de bots choisis et le
+ * Le bandeau de la salle : les visages des bots choisis, le titre, le nombre de bots choisis et le
  * numéro du tour, puis l'état du tour (« N of M answering ») et la ligne du bot qui écrit.
  */
 @Composable
@@ -327,7 +382,7 @@ private fun GroupBanner(
                     text = roomTitle.ifEmpty { "Group chat" },
                     localize = roomTitle.isEmpty(),
                     style = theme.headline.copy(color = theme.textColor),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 BasicText(
@@ -337,7 +392,7 @@ private fun GroupBanner(
                 )
             }
         }
-        // « N of M answering »: l'état du tour, tant qu'il court.
+        // « N of M answering » : l'état du tour, tant qu'il court.
         if (asking || answering > 0) {
             TurnStatusLine(text = "$answering of $chosen answering")
         }
@@ -348,7 +403,7 @@ private fun GroupBanner(
     }
 }
 
-/** Une ligne d'état du tour: le point vivant, puis le texte. */
+/** Une ligne d'état du tour : le point vivant, puis le texte. */
 @Composable
 private fun TurnStatusLine(text: String) {
     val theme = LocalOnyxTheme.current
@@ -382,10 +437,10 @@ private fun FacesRow(bots: List<BotProfile>, size: Dp = 24.dp) {
 }
 
 /**
- * La rangée des bots: chacun s'allume ou s'éteint d'un tap, et porte l'indicateur de son tour —
+ * La rangée des bots : chacun s'allume ou s'éteint d'un tap, et porte l'indicateur de son tour —
  * un point vivant pendant qu'il répond, une coche discrète quand il a fini.
  *
- * Un tap, rien de plus: `GroupChatView` ne donne pas de menu à un bot de la salle (celui
+ * Un tap, rien de plus : `GroupChatView` de la référence ne donne pas de menu à un bot de la salle (celui
  * de la salle — Find in Chat, Rename, Mute, End Group Chat — porte sur la salle).
  */
 @Composable
@@ -424,7 +479,7 @@ private fun RosterRow(
                         color = if (active) theme.textColor else theme.secondaryText,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                     ),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 // L'indicateur de tour du bot, à la suite de son nom.
@@ -445,7 +500,7 @@ private fun RosterRow(
 }
 
 /**
- * L'état vide du fil: les visages des bots, « Ask them together. », la phrase d'aide et
+ * L'état vide du fil : les visages des bots, « Ask them together. », la phrase d'aide de la référence et
  * le rappel des mentions `@` du groupe.
  */
 @Composable
@@ -475,7 +530,7 @@ private fun GroupOpening(loading: Boolean, bots: List<BotProfile>) {
             )
             if (bots.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                // Le rappel de la mention: les poignées `@` du groupe, prêtes à taper.
+                // Le rappel de la mention : les poignées `@` du groupe, prêtes à taper.
                 BasicText(
                     text = bots.joinToString("   ") { "@" + it.handle },
                     localize = false,
@@ -487,9 +542,9 @@ private fun GroupOpening(loading: Boolean, bots: List<BotProfile>) {
 }
 
 /**
- * Les contrôles vocaux du groupe (comme `GroupVoice`): « Talk to the group » ouvre le micro
+ * Les contrôles vocaux du groupe (port de `GroupVoice`) : « Talk to the group » ouvre le micro
  * (symbole waveform), l'état « Listening » le dit, et « Stop reading » coupe la lecture en cours
- * (le `halt`: la lecture, l'écoute, et la ronde si elle court).
+ * (le `halt` de la référence : la lecture, l'écoute, et la ronde si elle court).
  */
 @Composable
 private fun GroupVoiceBar(
@@ -507,7 +562,7 @@ private fun GroupVoiceBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // « Talk to the group »: le même genre de bouton rond que le composer, au symbole waveform.
+        // « Talk to the group » : le même genre de bouton rond que le composer, au symbole waveform.
         ComposerCircleButton(
             symbol = Symbols.Waveform,
             label = if (listening) "Listening" else "Talk to the group",
@@ -567,7 +622,7 @@ private fun GroupVoiceBar(
                 onClick = onStopListening,
             )
         }
-        // « Stop reading »: coupe la lecture en cours, comme le bouton du haut-parleur.
+        // « Stop reading » : coupe la lecture en cours, comme le bouton du haut-parleur de la référence.
         if (reading) {
             ComposerCircleButton(
                 symbol = Symbols.Stop,
@@ -586,7 +641,7 @@ internal fun GroupMessageRow(message: GroupMessage, server: ServerConfig) {
     val bot = message.bot
 
     if (bot == null) {
-        // La question et ses fichiers, à droite; les notes techniques restent hors de la bulle.
+        // La question et ses fichiers, à droite ; les notes techniques restent hors de la bulle.
         val said = AttachedFileNote.split(message.text)
         Column(
             modifier = Modifier
@@ -649,7 +704,7 @@ internal fun GroupMessageRow(message: GroupMessage, server: ServerConfig) {
                 )
             }
         } else if (message.isStreaming) {
-            // Le bot écrit: la ligne « Replying… » , sous son visage.
+            // Le bot écrit : la ligne « Replying… » de la référence, sous son visage.
             BasicText(
                 text = "Replying…",
                 style = theme.body.copy(color = theme.tertiaryText),
@@ -660,7 +715,7 @@ internal fun GroupMessageRow(message: GroupMessage, server: ServerConfig) {
 }
 
 /**
- * Les noms joints comme `formatted(.list(type: .and))`: « A », « A and B », « A, B and C ».
+ * Les noms joints comme `formatted(.list(type: .and))` : « A », « A and B », « A, B and C ».
  * Ils donnent le titre par défaut d'une salle dont le nom n'a pas été fourni.
  */
 private fun joinLabels(labels: List<String>): String {

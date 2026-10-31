@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -36,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onyx.app.notifications.ApprovalNotifier
 import com.onyx.app.notifications.NotificationChannels
 import com.onyx.app.notifications.TurnService
+import com.onyx.app.notifications.WorkTracking
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxPageHeader
@@ -50,17 +52,17 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * Réglages → Voice → Notifications.
  *
- * Comme. Le est le relais: il appaire des
+ * Adaptation Android de `PushSettingsView`. Le la référence est le relais de la référence : il appaire des
  * Hermes, chiffre les alertes entre eux et les fait livrer par un relais. Android n'a pas de
  * relais — [ApprovalNotifier] et [TurnService] publient en local, depuis la connexion de
- * Réglages — donc chaque section devient ce qui lui correspond réellement ici:
+ * Réglages — donc chaque section de la référence devient ce qui lui correspond réellement ici :
  *
- * - la liste des appairages (état suivi, retrait par balayage) devient la liste des canaux
- * d'Android ([NotificationChannels]), chacun avec son état système et le réglage du canal;
- * - l'appairage et l'installation du greffon (commande à copier, `hermes onyx-push test`)
- * deviennent l'action d'alerte de démonstration, qui prouve la permission et crée les canaux;
- * - les pieds de page sur le chiffrement et le relais deviennent « rien ne part, tout est publié
- * sur ce téléphone ».
+ *  - la liste des appairages (état suivi, retrait par balayage) devient la liste des canaux
+ *    d'Android ([NotificationChannels]), chacun avec son état système et le réglage du canal ;
+ *  - l'appairage et l'installation du greffon (commande à copier, `hermes onyx-push test`)
+ *    deviennent l'action d'alerte de démonstration, qui prouve la permission et crée les canaux ;
+ *  - les pieds de page sur le chiffrement et le relais deviennent « rien ne part, tout est publié
+ *    sur ce téléphone ».
  *
  * Aucun appairage APNs n'est présenté comme fonctionnel.
  */
@@ -74,7 +76,7 @@ fun PushSettingsScreen(
     val context = LocalContext.current
     val notifyInBackground by viewModel.notifyInBackground.collectAsStateWithLifecycle()
     val notificationSound by viewModel.notificationSound.collectAsStateWithLifecycle()
-    val showLiveActivity by viewModel.showLiveActivity.collectAsStateWithLifecycle()
+    val workTracking by viewModel.workTracking.collectAsStateWithLifecycle()
     var systemEnabled by remember { mutableStateOf(context.notificationsEnabled()) }
     var channels by remember { mutableStateOf(context.onyxChannels()) }
 
@@ -134,7 +136,12 @@ fun PushSettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.formPageColor),
+            .background(theme.formPageColor)
+            // La zone du système est prise par la racine : la dernière rangée du corps ne peut
+            // plus être enterrée sous la barre de navigation ni sous la zone du geste d'accueil.
+            // L'encart est lu à l'exécution (24 dp en gestes, 48 dp à trois boutons) — jamais
+            // une valeur en dur qui ne vaut que pour un écran.
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Notifications", onBack = onBack)
@@ -146,7 +153,7 @@ fun PushSettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 40.dp),
         ) {
-            // Le portier du système: c'est lui qui décide si Onyx publie quoi que ce soit.
+            // Le portier du système : c'est lui qui décide si Onyx publie quoi que ce soit.
             OnyxFormSection(
                 header = "Android",
                 footer = if (systemEnabled) {
@@ -163,9 +170,9 @@ fun PushSettingsScreen(
                 )
             }
 
-            // Le Comme la liste des appairages: les canaux, leur état, et
-            // le réglage du canal. Android ne laisse pas l'app retirer un canal: on vient le
-            // régler dans ses propres réglages, comme laisse retirer un appairage.
+            // Le pendant Android de la liste des appairages de la référence : les canaux, leur état, et
+            // le réglage du canal. Android ne laisse pas l'app retirer un canal : on vient le
+            // régler dans ses propres réglages, comme la référence laisse retirer un appairage.
             OnyxFormSection(
                 header = "Channels",
                 footer = "Android keeps one channel for each kind of alert: when a reply is ready, when the agent waits " +
@@ -194,12 +201,35 @@ fun PushSettingsScreen(
                 }
             }
 
+            // « Suivi du travail » : ce qu'un bot annonce pendant et après son travail.
+            OnyxFormSection(
+                header = "Work tracking",
+                footer = "Tells you when a bot finishes its work. “At every step” also keeps a progress " +
+                    "notification in the status bar — a live update on Android 16 — with the current step, " +
+                    "the elapsed time and a Stop button. Nothing is posted while Onyx is open on the conversation " +
+                    "itself, and nothing at all once Android stops allowing Onyx's notifications.",
+            ) {
+                WorkTracking.choices.forEachIndexed { index, choice ->
+                    if (index > 0) OnyxRowDivider()
+                    OnyxRow(onClick = { viewModel.setWorkTracking(choice) }) {
+                        BasicText(
+                            text = choice.label,
+                            style = theme.body.copy(color = theme.primaryText),
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (choice == workTracking) {
+                            OnyxIcon(Symbols.Checkmark, tint = theme.accent, size = 16.dp)
+                        }
+                    }
+                }
+            }
+
             // Les choix, et l'action qui met le tout à l'épreuve.
             OnyxFormSection(
                 header = "Onyx",
                 footer = "Background alerts tell you when an agent needs an approval while you use another app. " +
-                    "They work while Android lets Onyx run; force-stopping Onyx stops them. " +
-                    "The ongoing answer notification shows progress and keeps the current turn alive.",
+                    "They work while Android lets Onyx run; force-stopping Onyx stops them.",
             ) {
                 OnyxToggleRow(
                     label = "Notify me in the background",
@@ -215,12 +245,6 @@ fun PushSettingsScreen(
                     onCheckedChange = viewModel::setNotificationSound,
                 )
                 OnyxRowDivider()
-                OnyxToggleRow(
-                    label = "Ongoing answer notification",
-                    checked = showLiveActivity,
-                    onCheckedChange = viewModel::setShowLiveActivity,
-                )
-                OnyxRowDivider()
                 OnyxRow(onClick = ::sendTestNotification) {
                     OnyxIcon(Symbols.Bell, tint = theme.accent, size = 18.dp)
                     BasicText(
@@ -234,7 +258,7 @@ fun PushSettingsScreen(
     }
 }
 
-/** Un canal Onyx tel qu'Android le rapporte: son libellé, son état et son symbole. */
+/** Un canal Onyx tel qu'Android le rapporte : son libellé, son état et son symbole. */
 private data class ChannelRow(
     val id: String,
     val label: String,

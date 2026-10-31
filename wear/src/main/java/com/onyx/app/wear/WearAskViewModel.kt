@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Où en est la montre: au repos, à l'écoute, en train d'attendre, ou en train de lire. */
+/** Où en est la montre : au repos, à l'écoute, en train d'attendre, ou en train de lire. */
 enum class WearPhase { IDLE, LISTENING, WAITING, SPEAKING, PROBLEM }
 
 data class WearState(
@@ -33,9 +33,9 @@ data class WearState(
 )
 
 /**
- * La montre: on parle, la question part au gateway, la réponse s'affiche et se lit.
+ * La montre : on parle, la question part au gateway, la réponse s'affiche et se lit.
  *
- * Miroir réduit de la Watch app: la même boucle dictée → question → réponse lue, avec
+ * Miroir réduit de la Watch app de la référence : la même boucle dictée → question → réponse lue, avec
  * les mêmes briques que le téléphone puisqu'elles vivent dans `:core`.
  */
 class WearAskViewModel(application: Application) : AndroidViewModel(application) {
@@ -67,7 +67,7 @@ class WearAskViewModel(application: Application) : AndroidViewModel(application)
         _state.update { it.copy(phase = WearPhase.IDLE, problem = null) }
     }
 
-    /** Le bouton de la montre: un tap pour parler, un tap pour arrêter. */
+    /** Le bouton de la montre : un tap pour parler, un tap pour arrêter. */
     fun toggleListening() {
         if (_state.value.phase == WearPhase.LISTENING) {
             speech.stop()
@@ -76,7 +76,7 @@ class WearAskViewModel(application: Application) : AndroidViewModel(application)
         }
         output.stop()
         _state.update { it.copy(phase = WearPhase.LISTENING, heard = "", problem = null) }
-        speech.start()
+        speech.start(true)
     }
 
     fun ask(text: String) {

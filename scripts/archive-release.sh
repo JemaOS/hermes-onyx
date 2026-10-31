@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archive les APK release de Onyx: un fichier versionné + son SHA-256 + une ligne de CHANGELOG.
+# Archive les APK release de Onyx : un fichier versionné + son SHA-256 + une ligne de CHANGELOG.
 # Appelé après chaque assembleRelease. Ne réécrit jamais une archive existante.
 set -uo pipefail
 

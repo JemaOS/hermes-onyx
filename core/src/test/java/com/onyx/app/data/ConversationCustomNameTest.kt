@@ -5,8 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * `Conversation.customName` décide si l'en-tête du chat montre le nom donné par « Renommer » ou
- * la première question — le comportement de `Conversation.headerTitle`.
+ * `Conversation.customName()` décide si l'en-tête du chat montre le nom donné par « Renommer » ou
+ * la première question — le comportement de `Conversation.headerTitle` de la référence.
  */
 class ConversationCustomNameTest {
     private fun user(text: String) = ChatMessage(id = "u", role = Role.USER, text = text, createdAt = 1L)

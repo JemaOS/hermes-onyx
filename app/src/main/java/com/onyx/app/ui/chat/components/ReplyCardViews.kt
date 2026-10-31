@@ -1,5 +1,6 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.localization.OnyxLanguage
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -38,10 +39,15 @@ import androidx.compose.ui.unit.sp
 import com.onyx.app.data.model.ReplyCard
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.cards.ReplyCardFormat
+import com.onyx.app.ui.design.GlassSurface
+import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxProgressView
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
+import com.onyx.app.ui.design.liquidGlass
+import com.onyx.app.ui.design.socleTitleInk
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ResolvedTheme
@@ -52,15 +58,15 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Les cartes d'une réponse sous ses mots (`ReplyCards`): une carte, une liste de lieux, la météo,
- * l'heure — comme `ReplyCardsView`.
+ * Les cartes d'une réponse sous ses mots (`ReplyCards`) : une carte, une liste de lieux, la météo,
+ * l'heure — port de `ReplyCardsView` (Echo/Views/ReplyCardViews:6).
  *
- * La carte, elle, n'est pas un port: MapKit n'existe pas sur Android et ses équivalents sont
+ * La carte, elle, n'est pas un port : MapKit n'existe pas sur Android et ses équivalents sont
  * payants. Elle est donc **composée** sur des tuiles OpenStreetMap ([OsmStaticMap]) — cadre calculé,
  * épingles dessinées, attribution obligatoire, et repli sur la liste des lieux quand le réseau
  * manque.
  *
- * Tout se dessine avec le thème choisi et la langue du système: aucune chaîne en dur, aucune
+ * Tout se dessine avec le thème choisi et la langue du système : aucune chaîne en dur, aucune
  * couleur en dur hors des teintes de la météo (qui ne sont pas des couleurs de thème), et rien ne
  * bouge sous « Réduire les animations ».
  */
@@ -68,7 +74,7 @@ import java.util.Locale
 fun ReplyCardsView(
     cards: List<ReplyCard>,
     modifier: Modifier = Modifier,
-    /** La réponse arrive encore: une carte météo ou d'heure dit qu'elle est en cours de recherche. */
+    /** La réponse arrive encore : une carte météo ou d'heure dit qu'elle est en cours de recherche. */
     pending: Boolean = false,
 ) {
     Column(
@@ -86,18 +92,23 @@ fun ReplyCardsView(
     }
 }
 
-/** Le cadre de chaque carte: le `CardBox` (fond secondaire, coins de 16, filet de 0,5). */
+/**
+ * Le cadre de chaque carte : le `CardBox` d'la référence (coins de 16) — mais en **vitre**.
+ *
+ * Il portait un aplat de `surfaceColor` cerné d'un filet de 0,5 dp. C'est le **bloc de réponse** de
+ * l'app : une carte posée dans la réponse de l'assistant, sur la page, et rien ne la détachait. Elle
+ * prend la vitre de la table ([GlassSurface.RESPONSE_BLOCK]) — forme et rayon explicites (16 dp),
+ * flou réel quand la réponse défile sous elle, et la finition commune dans tous les cas. Son
+ * rembourrage passe à `OnyxSpace.CardPadding`, l'écart entre ses lignes à `OnyxSpace.CardGap`.
+ */
 @Composable
 private fun CardBox(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    val theme = LocalOnyxTheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(theme.surfaceColor)
-            .border(0.5.dp, theme.separator.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .liquidGlass(GlassSurface.RESPONSE_BLOCK)
+            .padding(OnyxSpace.CardPadding),
+        verticalArrangement = Arrangement.spacedBy(OnyxSpace.CardGap),
         content = content,
     )
 }
@@ -135,7 +146,7 @@ private fun MapCard(card: ReplyCard.Map) {
                 onUnavailable = { unavailable = true },
             )
         }
-        // Pas de coordonnées, ou pas de réseau: la liste des lieux à la place, jamais un cadre vide.
+        // Pas de coordonnées, ou pas de réseau : la liste des lieux à la place, jamais un cadre vide.
         if (!canDrawMap || unavailable) {
             if (unavailable) {
                 BasicText(
@@ -169,7 +180,7 @@ private fun MapCard(card: ReplyCard.Map) {
                     style = theme.footnote.copy(color = theme.secondaryText),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    // Le texte cède la place au bouton: mesuré après lui, il ne peut pas le rogner.
+                    // Le texte cède la place au bouton : mesuré après lui, il ne peut pas le rogner.
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 CardButton(
@@ -194,7 +205,7 @@ private fun MapCard(card: ReplyCard.Map) {
     }
 }
 
-/** Le repli d'une carte sans tuiles: les lieux, en clair. */
+/** Le repli d'une carte sans tuiles : les lieux, en clair. */
 @Composable
 private fun PlaceFallbackList(places: List<ReplyCard.Place>) {
     val theme = LocalOnyxTheme.current
@@ -218,7 +229,7 @@ private fun PlaceFallbackList(places: List<ReplyCard.Place>) {
                             text = it,
                             localize = false,
                             style = theme.caption.copy(color = theme.secondaryText),
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
@@ -259,7 +270,7 @@ private fun PlacesCard(card: ReplyCard.Places) {
     }
 }
 
-/** Un lieu de la liste: son numéro, son nom, sa note, ses actions — comme `PlacesCard.row`. */
+/** Un lieu de la liste : son numéro, son nom, sa note, ses actions — comme `PlacesCard.row`. */
 @Composable
 private fun PlaceRow(place: ReplyCard.Place, number: Int) {
     val theme = LocalOnyxTheme.current
@@ -337,7 +348,7 @@ private fun WeatherCard(card: ReplyCard.Weather, pending: Boolean) {
     val context = LocalContext.current
 
     if (!card.hasReading) {
-        // Que son lieu: la prévision est en route (le plugin la cherche, la réponse arrive).
+        // Que son lieu : la prévision est en route (le plugin la cherche, la réponse arrive).
         if (pending) {
             CardBox {
                 LookingUp(OnyxLocalization.format("Looking up the weather in %1\$s…", card.place))
@@ -367,7 +378,9 @@ private fun WeatherCard(card: ReplyCard.Weather, pending: Boolean) {
                     BasicText(
                         text = ReplyCardFormat.degrees(now.temperature),
                         localize = false,
-                        style = theme.largeTitle.copy(fontSize = 34.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                        // Le grand chiffre de la carte : la forme d'un titre (Display), et l'encre
+                        // de la maison — sinon la Fondation écrit du noir (invisible en sombre).
+                        style = theme.largeTitle.copy(fontSize = OnyxSocle.Display, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", color = socleTitleInk(theme)),
                     )
                     val high = now.high
                     val low = now.low
@@ -433,7 +446,7 @@ private fun WeatherCard(card: ReplyCard.Weather, pending: Boolean) {
             CardDivider()
             val low = card.days.minOf { it.low }
             val high = card.days.maxOf { it.high }
-            // Les colonnes fixes suivent l'échelle de police du téléphone: sans cela, « Aujourd'hui »
+            // Les colonnes fixes suivent l'échelle de police du téléphone : sans cela, « Aujourd'hui »
             // serait rogné en français et « 21° » le serait à 1,3×.
             val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
             card.days.forEach { day ->
@@ -481,7 +494,7 @@ private fun WeatherCard(card: ReplyCard.Weather, pending: Boolean) {
 
         card.source?.let { source ->
             if (source == com.onyx.app.data.model.ReplyCards.lookedUpSource) {
-                // Les données d'Open-Meteo sont sous CC BY 4.0: créditées, avec un lien.
+                // Les données d'Open-Meteo sont sous CC BY 4.0 : créditées, avec un lien.
                 BasicText(
                     text = "Weather data by Open-Meteo.com",
                     style = theme.caption2.copy(color = theme.tertiaryText),
@@ -506,7 +519,7 @@ private fun TemperatureBar(low: Double, high: Double, from: Double, to: Double, 
         drawRoundRect(color = theme.separator, cornerRadius = radius, size = size)
         drawRoundRect(
             brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                colors = listOf(Color(0xFF22D3EE), Color(0xFFFACC15), Color(0xFFF97316)),
+                colors = listOf(theme.tertiaryText, theme.warning),
                 startX = start,
                 endX = start + width,
             ),
@@ -541,7 +554,7 @@ private fun TimeCard(card: ReplyCard.Clock, pending: Boolean) {
         val offsetSeconds = zone.rules.getOffset(now.toInstant()).totalSeconds - system.rules.getOffset(now.toInstant()).totalSeconds
         ReplyCard.Clock.difference(offsetSeconds)
     } else {
-        now.format(DateTimeFormatter.ofPattern("z", Locale.getDefault()))
+        now.format(DateTimeFormatter.ofPattern("z", OnyxLanguage.preferred))
     }
 
     CardBox {
@@ -563,7 +576,8 @@ private fun TimeCard(card: ReplyCard.Clock, pending: Boolean) {
                 BasicText(
                     text = now.format(DateTimeFormatter.ofPattern("HH:mm")),
                     localize = false,
-                    style = theme.largeTitle.copy(fontSize = 34.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                    // Le grand chiffre de l'heure : la forme d'un titre (Display), encre de la maison.
+                    style = theme.largeTitle.copy(fontSize = OnyxSocle.Display, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", color = socleTitleInk(theme)),
                 )
                 BasicText(
                     text = second,
@@ -585,7 +599,7 @@ private fun ClockFace(hour: Int, minute: Int, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val centre = Offset(size.width / 2f, size.height / 2f)
         val radius = minOf(size.width, size.height) / 2f
-        drawCircle(color = if (night) Color(0xCC3F51B5) else theme.secondaryText.copy(alpha = 0.12f), radius = radius)
+        drawCircle(color = if (night) Color.Black.copy(alpha = 0.80f) else theme.secondaryText.copy(alpha = 0.12f), radius = radius)
         for (tick in 0 until 12) {
             val angle = tick / 12.0 * 2 * Math.PI
             drawCircle(
@@ -615,7 +629,7 @@ private fun ClockFace(hour: Int, minute: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** L'heure, rafraîchie à chaque minute (le `TimelineView(.everyMinute)` ). */
+/** L'heure, rafraîchie à chaque minute (le `TimelineView(.everyMinute)` de la référence). */
 @Composable
 private fun minuteTick(zone: ZoneId): ZonedDateTime {
     var now by remember(zone) { mutableStateOf(ZonedDateTime.now(zone)) }
@@ -631,7 +645,7 @@ private fun minuteTick(zone: ZoneId): ZonedDateTime {
 
 // MARK: - Des morceaux communs
 
-/** Une carte qui cherche encore: la météo ou l'heure d'un lieu. */
+/** Une carte qui cherche encore : la météo ou l'heure d'un lieu. */
 @Composable
 private fun LookingUp(text: String) {
     val theme = LocalOnyxTheme.current
@@ -645,7 +659,7 @@ private fun LookingUp(text: String) {
     }
 }
 
-/** Un bouton de carte, à plat et sans fond: « Directions », « Open in Maps ». */
+/** Un bouton de carte, à plat et sans fond : « Directions », « Open in Maps ». */
 @Composable
 private fun CardButton(text: String, symbol: Int, enabled: Boolean, onClick: () -> Unit) {
     val theme = LocalOnyxTheme.current
@@ -684,23 +698,32 @@ private fun conditionSymbol(condition: ReplyCard.Condition, night: Boolean): Int
 }
 
 /**
- * La teinte d'un temps. dessine ses symboles en couleurs (`symbolRenderingMode(.multicolor)`)
- * avec les couleurs du système; ce sont des couleurs de météo, pas de thème: elles restent donc
- * fixes, éclaircies en apparence sombre pour rester lisibles.
+ * La teinte d'un temps.
+ *
+ * La maison reprenait les sept couleurs du système — cyan, or, bleu ciel, azur, jaune, bleu pâle —
+ * pour dire un temps. Sept teintes saturées dans une carte, c'est une carte qui crie. Elles sont
+ * ramenées aux **seuls signaux admis** (l'avertissement pour ce qui brille, l'encre neutre pour le
+ * reste) : trois groupes se distinguent toujours — le soleil, les nuages, la pluie — mais l'écran
+ * n'a plus qu'une couleur d'accent et des gris.
  */
 private fun conditionTint(condition: ReplyCard.Condition, theme: ResolvedTheme): Color {
-    val dark = theme.dark
     return when (condition) {
-        ReplyCard.Condition.CLEAR -> if (dark) Color(0xFFFFCC48) else Color(0xFFF5A700)
-        ReplyCard.Condition.PARTLY_CLOUDY -> if (dark) Color(0xFFFFC94A) else Color(0xFFF0A400)
-        ReplyCard.Condition.CLOUDY, ReplyCard.Condition.FOG -> if (dark) Color(0xFFB9C0CC) else Color(0xFF8A8F98)
-        ReplyCard.Condition.DRIZZLE, ReplyCard.Condition.RAIN, ReplyCard.Condition.HEAVY_RAIN ->
-            if (dark) Color(0xFF6BB4FF) else Color(0xFF1B74D8)
-        ReplyCard.Condition.THUNDERSTORM -> if (dark) Color(0xFFFFD23F) else Color(0xFFE8A600)
-        ReplyCard.Condition.SNOW, ReplyCard.Condition.SLEET, ReplyCard.Condition.HAIL ->
-            if (dark) Color(0xFFA8D8FF) else Color(0xFF4C93D8)
-        ReplyCard.Condition.WIND -> theme.secondaryText
-        ReplyCard.Condition.UNKNOWN -> theme.secondaryText
+        ReplyCard.Condition.CLEAR,
+        ReplyCard.Condition.PARTLY_CLOUDY,
+        ReplyCard.Condition.THUNDERSTORM,
+        -> theme.warning
+        ReplyCard.Condition.CLOUDY,
+        ReplyCard.Condition.FOG,
+        ReplyCard.Condition.SNOW,
+        ReplyCard.Condition.SLEET,
+        ReplyCard.Condition.HAIL,
+        -> theme.tertiaryText
+        ReplyCard.Condition.DRIZZLE,
+        ReplyCard.Condition.RAIN,
+        ReplyCard.Condition.HEAVY_RAIN,
+        ReplyCard.Condition.WIND,
+        ReplyCard.Condition.UNKNOWN,
+        -> theme.secondaryText
     }
 }
 

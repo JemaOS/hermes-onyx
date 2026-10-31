@@ -18,7 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les marques d'une tuile de bot: l'activité se lit sur **le chat du bot** — la session que le
+ * Les marques d'une tuile de bot : l'activité se lit sur **le chat du bot** — la session que le
  * serveur dit vivante (`session.active_list`) —, et le non-lu sur ce que ce téléphone a vu de ce
  * chat, jamais sur une conversation qui n'a rien à voir.
  */
@@ -27,11 +27,11 @@ class ConversationsBotTilesTest {
     fun `les badges suivent le chat du bot et pas un autre`() {
         val bot = BotProfile(name = "kilo", chatId = "bot-chat")
 
-        // Le serveur travaille dans le chat de ce bot: lui seul l'apprend.
+        // Le serveur travaille dans le chat de ce bot : lui seul l'apprend.
         assertEquals(ActivityKind.WORKING, botKind(bot, mapOf("bot-chat" to ActivityKind.WORKING), openStreaming = false, nowMillis = 0))
         assertNull(botKind(bot, mapOf("other-chat" to ActivityKind.WORKING), openStreaming = false, nowMillis = 0))
 
-        // Le serveur attend une réponse dans son chat: « Needs you ».
+        // Le serveur attend une réponse dans son chat : « Needs you ».
         val waiting = botActivity(
             bot = bot,
             isOpen = false,
@@ -48,7 +48,7 @@ class ConversationsBotTilesTest {
         val bot = BotProfile(name = "kilo", chatId = "bot-chat")
         val streaming = conversation(id = "local", serverSessionId = "bot-chat", role = Role.ASSISTANT, streaming = true)
 
-        // Le chat du bot est ouvert ici et sa réponse s'écrit encore: c'est le seul cas local.
+        // Le chat du bot est ouvert ici et sa réponse s'écrit encore : c'est le seul cas local.
         assertTrue(openStreaming(listOf(streaming), bot.chatId.orEmpty()))
         assertFalse(openStreaming(listOf(streaming), "other-chat"))
         assertNull("sans chat ouvert ni session vivante, rien", botKind(bot, emptyMap(), openStreaming = false, nowMillis = 0))

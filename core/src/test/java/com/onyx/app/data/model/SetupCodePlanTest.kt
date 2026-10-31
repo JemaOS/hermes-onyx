@@ -1,7 +1,9 @@
 package com.onyx.app.data.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SetupCodePlanTest {
@@ -104,5 +106,34 @@ class SetupCodePlanTest {
 
         assertEquals(Transport.HERMES_SESSIONS, installed.transport)
         assertEquals("https://hermes.example", installed.serveBaseUrl)
+    }
+
+    @Test
+    fun `un lien a une seule cle fait vivre le Dashboard a la meme adresse`() {
+        // Le compagnon « une clé » : `server` + `key`, aucun identifiant de Dashboard. Le même
+        // lien doit donner un seul serveur qui porte le chat **et** les bots, sans rien redemander.
+        val code = SetupCode(
+            name = "Compagnon",
+            apiURL = "https://companion.example",
+            apiKey = "install-key",
+            use = Transport.HERMES_SESSIONS,
+        )
+
+        val installed = code.toServerConfig("id")
+
+        assertEquals("https://companion.example", installed.serveBaseUrl)
+        assertEquals(Transport.HERMES_SESSIONS, installed.transport)
+        assertTrue("le Dashboard est joignable", installed.hasServeCredentials)
+        assertTrue("par la clé, sans mot de passe", installed.servesWithKey)
+        assertFalse("aucun identifiant à demander", installed.hasServePassword)
+    }
+
+    @Test
+    fun `un lien sans cle n'invente pas de Dashboard`() {
+        val code = SetupCode(apiURL = "https://bare.example")
+
+        val installed = code.toServerConfig("id")
+
+        assertEquals("", installed.serveBaseUrl)
     }
 }

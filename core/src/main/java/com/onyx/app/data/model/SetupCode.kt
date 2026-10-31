@@ -7,10 +7,15 @@ import java.net.URLEncoder
 /**
  * Une connexion transmise par lien ou par QR code, pour ne pas taper une adresse et une clé.
  *
- * Comme: les deux formes du lien (`onyx://connect?…` et l'adresse web),
+ * Miroir de `SetupCode` : les deux formes du lien (`onyx://connect?…` et l'adresse web),
  * les mêmes paramètres (`name`, `dashboard`, `user`, `password`, `api`, `key`, `profile`,
  * `model-url`, `model-key`, `model`, `use`, `v`), et la même règle — un code n'est appliqué
  * qu'après confirmation.
+ *
+ * Le **lien tout en un** ajoute `voices` (adresse du serveur de voix), `bridge` (adresse du pont
+ * « Ordinateur »), `bridge-token` (son secret) et `lang` (langue de l'app). Ces champs sont
+ * **optionnels** : un ancien lien qui n'a que `api` + `key` — ou `dashboard` + `user` +
+ * `password` — reste lu exactement comme avant.
  */
 data class SetupCode(
     val name: String = "",
@@ -28,9 +33,17 @@ data class SetupCode(
     val modelURL: String = "",
     val modelKey: String = "",
     val model: String = "",
+    /** Adresse du serveur de voix (Kokoro-compatible), quand le lien la porte. */
+    val voicesURL: String = "",
+    /** Adresse du pont « Ordinateur », quand le lien la porte. */
+    val bridgeURL: String = "",
+    /** Le jeton du pont — le secret unique, quand le lien le porte. */
+    val bridgeToken: String = "",
+    /** Langue de l'app demandée par le lien (`fr`, `en`…), vide = celle du téléphone. */
+    val language: String = "",
     val version: Int = VERSION,
 ) {
-    /** Au moins une adresse: sans elle il n'y a rien à configurer. */
+    /** Au moins une adresse : sans elle il n'y a rien à configurer. */
     val isUsable: Boolean
         get() = dashboardURL.isNotEmpty() || apiURL.isNotEmpty() || modelURL.isNotEmpty()
 
@@ -38,7 +51,16 @@ data class SetupCode(
 
     val hasSecrets: Boolean
         get() = dashboardPassword.isNotEmpty() || apiKey.isNotEmpty() || profileKey.isNotEmpty() ||
-            accessSecret.isNotEmpty() || headers.isNotEmpty() || modelKey.isNotEmpty()
+            accessSecret.isNotEmpty() || headers.isNotEmpty() || modelKey.isNotEmpty() ||
+            bridgeToken.isNotEmpty()
+
+    /** Ce qu'un lien « tout en un » ajoute au serveur : les voix, le pont, la langue. */
+    val hasVoices: Boolean get() = voicesURL.isNotEmpty()
+    val hasBridge: Boolean get() = bridgeURL.isNotEmpty()
+    val hasLanguage: Boolean get() = language.isNotEmpty()
+
+    /** Vrai dès que le lien porte autre chose que le serveur : de quoi le dire dans le récapitulatif. */
+    val hasExtras: Boolean get() = hasVoices || hasBridge || hasLanguage
 
     /** Ce que la confirmation annonce et ce que l'installation appliquera. */
     fun plan(
@@ -105,7 +127,7 @@ data class SetupCode(
         }
 
     /**
-     * Android utilise le canal Sessions avec les identifiants du Dashboard; le chat WebSocket
+     * Android utilise le canal Sessions avec les identifiants du Dashboard ; le chat WebSocket
      * `HERMES_SERVE` n'est pas encore un transport de conversation disponible dans ce port.
      */
     val requestedTransport: Transport
@@ -139,7 +161,11 @@ data class SetupCode(
             accessSecret = accessSecret,
             customHeaders = headers,
             transport = transport,
-            serveBaseUrl = dashboardURL,
+            // « Une clé » : un lien qui porte une adresse API **et** sa clé, sans identifiants de
+            // Dashboard, vaut aussi pour le Dashboard, **à la même adresse** — c'est le contrat du
+            // service compagnon, qui sert `/api/*` et `/v1/*` sous la même clé. Un seul lien, un
+            // seul serveur : le chat, les bots, les salles, les voix et le temps réel d'un coup.
+            serveBaseUrl = dashboardURL.ifEmpty { if (apiKey.isNotEmpty()) apiURL else "" },
             serveUsername = dashboardUser,
             servePassword = dashboardPassword,
         )
@@ -162,6 +188,10 @@ data class SetupCode(
             modelURL.takeIf { it.isNotEmpty() }?.let { add("model-url" to it) }
             modelKey.takeIf { it.isNotEmpty() }?.let { add("model-key" to it) }
             model.takeIf { it.isNotEmpty() }?.let { add("model" to it) }
+            voicesURL.takeIf { it.isNotEmpty() }?.let { add("voices" to it) }
+            bridgeURL.takeIf { it.isNotEmpty() }?.let { add("bridge" to it) }
+            bridgeToken.takeIf { it.isNotEmpty() }?.let { add("bridge-token" to it) }
+            language.takeIf { it.isNotEmpty() }?.let { add("lang" to it) }
             use?.let {
                 add(
                     "use" to when (it) {
@@ -180,14 +210,30 @@ data class SetupCode(
     }
 
     companion object {
+        /**
+         * Le schéma que l'app **émet** dans ses liens de configuration : c'est celui du nom actuel
+         * (le renommage des identifiants fonctionnels est validé par le propriétaire). L'ancien
+         * schéma reste **accepté** à la lecture, dans [ACCEPTED_SCHEMES], pour qu'un lien ou un QR
+         * déjà diffusé sous l'ancien nom continue de fonctionner.
+         */
         const val SCHEME = "onyx"
         const val HOST = "connect"
-        const val WEB_HOST = "onyx.goosehouse.org"
+        const val WEB_HOST = "onyx.example.org"
         const val WEB_PATH = "/connect"
         const val VERSION = 1
         const val MAXIMUM_LENGTH = 2_500
 
-        /** Lit un lien; `null` si ce n'est pas un lien Onyx ou si le code est invalide. */
+        /**
+         * Le premier nom de l'app. Les liens de configuration déjà diffusés sous ce nom restent
+         * acceptés — schéma applicatif et hôte web — le temps que les anciens QR cessent de circuler.
+         */
+        const val LEGACY_SCHEME = "onyx-legacy"
+        const val LEGACY_WEB_HOST = LEGACY_SCHEME + ".example.org"
+
+        /** Tous les schémas reconnus à la lecture : celui du nom actuel, puis l'ancien. */
+        val ACCEPTED_SCHEMES = listOf(SCHEME, LEGACY_SCHEME)
+
+        /** Lit un lien ; `null` si ce n'est pas un lien Onyx ou si le code est invalide. */
         fun parse(raw: String?): SetupCode? = read(raw)?.code
 
         /** Lecture détaillée utilisée par la feuille de confirmation. */
@@ -219,6 +265,8 @@ data class SetupCode(
             if (version > VERSION) return SetupCodeOffer(null, SetupCodeParseError.NEWER_VERSION)
 
             return try {
+                val voices = runCatching { address(fields["voices"]) }.getOrDefault("")
+                val bridge = runCatching { address(fields["bridge"]) }.getOrDefault("")
                 val code = SetupCode(
                     name = fields["name"].orEmpty().take(60),
                     use = when (fields["use"]?.lowercase()) {
@@ -230,7 +278,7 @@ data class SetupCode(
                     dashboardURL = address(fields["dashboard"]),
                     dashboardUser = fields["user"].orEmpty(),
                     dashboardPassword = fields["password"].orEmpty(),
-                    apiURL = address(fields["api"]),
+                    apiURL = address(fields["api"] ?: fields["server"]),
                     apiKey = fields["key"].orEmpty(),
                     profile = fields["profile"].orEmpty(),
                     profileKey = fields["profile-key"].orEmpty(),
@@ -244,6 +292,12 @@ data class SetupCode(
                     modelURL = address(fields["model-url"]),
                     modelKey = fields["model-key"].orEmpty(),
                     model = fields["model"].orEmpty(),
+                    voicesURL = voices,
+                    bridgeURL = bridge,
+                    // `bridge-token` (lien de l'app) ou `bridgeToken` (lien du serveur) — les clés
+                    // sont rangées en minuscules au moment de la lecture.
+                    bridgeToken = (fields["bridge-token"] ?: fields["bridgetoken"]).orEmpty().take(200),
+                    language = fields["lang"].orEmpty().take(20),
                     version = version,
                 )
                 if (code.transport == null) {
@@ -256,14 +310,14 @@ data class SetupCode(
             }
         }
 
-        /** Query du lien applicatif, fragment du lien universel; jamais la query du site web. */
+        /** Query du lien applicatif, fragment du lien universel ; jamais la query du site web. */
         private fun parameters(text: String): String? {
             val uri = runCatching { URI(text) }.getOrNull() ?: return null
             val scheme = uri.scheme?.lowercase()
             val host = uri.host?.lowercase()
-            if (scheme == SCHEME && host == HOST) return uri.rawQuery.orEmpty()
+            if (scheme in ACCEPTED_SCHEMES && host == HOST) return uri.rawQuery.orEmpty()
             if (
-                scheme != "https" || host != WEB_HOST || uri.port != -1 ||
+                scheme != "https" || (host != WEB_HOST && host != LEGACY_WEB_HOST) || uri.port != -1 ||
                 (uri.path != WEB_PATH && uri.path != "$WEB_PATH/")
             ) return null
             val fragment = uri.rawFragment
@@ -314,7 +368,7 @@ enum class SetupCodeParseError {
     TOO_LONG,
 }
 
-/** Un lien arrivé par QR, collage ou Intent; rien n'est installé avant confirmation. */
+/** Un lien arrivé par QR, collage ou Intent ; rien n'est installé avant confirmation. */
 data class SetupCodeOffer(
     val code: SetupCode?,
     val error: SetupCodeParseError,
@@ -332,14 +386,20 @@ data class SetupCodeOffer(
         }
 
     companion object {
-        /** Null pour un QR étranger à Onyx; une erreur pour un lien Onyx reconnu mais invalide. */
+        /** Null pour un QR étranger à Onyx ; une erreur pour un lien Onyx reconnu mais invalide. */
         fun fromText(text: String): SetupCodeOffer? {
             val link = findLink(text) ?: return null
             return SetupCode.read(link)
         }
 
         private fun findLink(text: String): String? {
-            val start = listOf("onyx://connect", "https://onyx.goosehouse.org/connect")
+            // Tous les schémas reconnus (le nom actuel et l'ancien), plus les deux hôtes web.
+            val prefixes = SetupCode.ACCEPTED_SCHEMES.map { "$it://${SetupCode.HOST}" } +
+                listOf(
+                    "https://${SetupCode.WEB_HOST}${SetupCode.WEB_PATH}",
+                    "https://${SetupCode.LEGACY_WEB_HOST}${SetupCode.WEB_PATH}",
+                )
+            val start = prefixes
                 .map { prefix -> text.indexOf(prefix, ignoreCase = true) }
                 .filter { it >= 0 }
                 .minOrNull() ?: return null

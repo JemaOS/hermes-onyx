@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  La bifurcation : le dessin de **la référence**, repris tel quel.
+
+  Provenance : la référence dessine ce glyphe avec le jeu `com.composables:icons-lucide` en
+  version **1.1.0** (`shared/ui/build.gradle.kts`, `gradle/libs.versions.toml:6` — `lucide = "1.1.0"`,
+  `libs.versions.toml:54` — `icons-lucide`), et la source de cet artefact donne la géométrie
+  exacte : `commonMain/com/composables/icons/lucide/GitBranch.kt` dans
+  `icons-lucide-android-1.1.0-sources.jar` (Maven Central) — un tracé `moveTo(6,3) lineTo(6,15)`,
+  un premier rond de 3 sur (18,6), un second rond de 3 sur (6,18), et l'arc de 9 allant de (18,9)
+  à (9,18). Mêmes nombres, même ordre, ici.
+
+  La famille est celle de la maison — grille 24, **un seul trait de 2**, bouts et jointures
+  arrondis, aucune surface peinte (blanc, donc teinté par `OnyxIcon`) — et l'encre tombe dans la
+  zone de 20 (2 à 22 sur les deux axes), centrée sur (12, 12) : la règle que tient
+  `ActionIconGeometryTest` pour toute la rangée d'actions de la réponse.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Le trait vertical, de (6,3) à (6,15). -->
+    <path
+        android:pathData="M6,3 L6,15"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+    <!-- Le rond du haut, de rayon 3 sur (18,6). -->
+    <path
+        android:pathData="M15,6 A3,3 0 1 1 21,6 A3,3 0 1 1 15,6 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+    <!-- Le rond du bas, de rayon 3 sur (6,18). -->
+    <path
+        android:pathData="M3,18 A3,3 0 1 1 9,18 A3,3 0 1 1 3,18 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+    <!-- La branche : l'arc de 9 qui part du bas du rond du haut et rejoint la droite du rond du bas. -->
+    <path
+        android:pathData="M18,9 A9,9 0 0 1 9,18"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+</vector>

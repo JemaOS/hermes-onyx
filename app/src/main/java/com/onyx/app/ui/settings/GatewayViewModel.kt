@@ -25,7 +25,7 @@ data class GatewayUiState(
     val probes: Map<String, McpProbe> = emptyMap(),
     val testing: Set<String> = emptySet(),
     val problem: String? = null,
-    /** Une opération de maintenance en cours: « Updating Hermes… », « Restarting the gateway… ». */
+    /** Une opération de maintenance en cours : « Updating Hermes… », « Restarting the gateway… ». */
     val working: String? = null,
     val progress: List<String> = emptyList(),
     val outcome: String? = null,
@@ -34,9 +34,9 @@ data class GatewayUiState(
 )
 
 /**
- * L'écran Gateway: l'état d'Hermes, ses serveurs MCP, ses journaux et sa maintenance.
+ * L'écran Gateway : l'état d'Hermes, ses serveurs MCP, ses journaux et sa maintenance.
  *
- * Mêmes sections, mêmes phrases, mêmes
+ * Miroir de `GatewayView` + `GatewayModel` : mêmes sections, mêmes phrases, mêmes
  * routes — les seules différences sont celles d'Android (pas de « Check for Updates » si le
  * serveur ne l'expose pas).
  */
@@ -90,13 +90,13 @@ class GatewayViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                // L'interrupteur revient en place si Hermes refuse: l'écran ne ment pas.
+                // L'interrupteur revient en place si Hermes refuse : l'écran ne ment pas.
                 _state.update { it.copy(servers = previous, problem = (error as? TransportError)?.userMessage()) }
             }
         }
     }
 
-    /** « Test »: Hermes se connecte au serveur et liste ses outils (jusqu'à 90 s). */
+    /** « Test » : Hermes se connecte au serveur et liste ses outils (jusqu'à 90 s). */
     fun testServer(name: String) {
         _state.update { it.copy(testing = it.testing + name) }
         viewModelScope.launch {
@@ -149,7 +149,7 @@ class GatewayViewModel(private val config: ServerConfig) : ViewModel() {
             _state.update { it.copy(working = label, progress = emptyList(), outcome = null) }
             try {
                 call()
-                // Le serveur travaille en tâche de fond: on suit ses lignes jusqu'à l'arrêt.
+                // Le serveur travaille en tâche de fond : on suit ses lignes jusqu'à l'arrêt.
                 repeat(PROGRESS_POLLS) {
                     val lines = runCatching { gateway.actionStatus(action) }.getOrDefault(emptyList())
                     _state.update { it.copy(progress = lines.takeLast(4)) }

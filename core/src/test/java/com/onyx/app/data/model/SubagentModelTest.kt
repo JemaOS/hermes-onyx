@@ -9,11 +9,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les sous-agents: lecture des trames du gateway, du roster, et des arguments d'un
+ * Les sous-agents : lecture des trames du gateway, du roster, et des arguments d'un
  * `delegate_task`.
  *
  * Les charges de test sont celles que le gateway émet vraiment (contrat
- * `tui_gateway/contracts/events.py`, `_subagent_payload`): c'est un rejeu des vraies frames, pas
+ * `tui_gateway/contracts/events.py`, `_subagent_payload`) : c'est un rejeu des vraies frames, pas
  * une forme inventée pour l'occasion.
  */
 class SubagentModelTest {
@@ -61,7 +61,7 @@ class SubagentModelTest {
 
     @Test
     fun `une trame sans identifiant est ignoree plutot qu inventee`() {
-        // Sans `subagent_id`, rien ne pourrait être piloté ni arrêté: pas de ligne du tout.
+        // Sans `subagent_id`, rien ne pourrait être piloté ni arrêté : pas de ligne du tout.
         assertNull(SubagentUpdate.parse("subagent.start", json("""{"goal":"orphan"}""")))
         assertNull(SubagentUpdate.parse("subagent.unknown", json("""{"subagent_id":"sa-1"}""")))
     }
@@ -80,7 +80,7 @@ class SubagentModelTest {
 
     @Test
     fun `les buts d un delegate_task se lisent dans ses arguments`() {
-        // Comme `synthesizesGoalsFromDelegateArgs`: c'est le
+        // Miroir de `synthesizesGoalsFromDelegateArgs` (EchoTests/SubagentTests:22) : c'est le
         // SEUL vestige d'un sous-agent sur l'API de conversation.
         val rows = SubagentUpdate.delegatedGoals("""{"tasks":[{"goal":"a"},{"goal":"b"}]}""", "r1")
         assertEquals(listOf("a", "b"), rows.map { it.goal })
@@ -163,7 +163,7 @@ class SubagentModelTest {
             SubagentUpdate(id = "sa-1", phase = SubagentUpdate.Phase.Tool("web_search")),
             now,
         )
-        // Un `subagent.start`/`.tool` rejoué ne doit pas faire repasser « terminé » à « en cours »:
+        // Un `subagent.start`/`.tool` rejoué ne doit pas faire repasser « terminé » à « en cours » :
         // la liste mentirait sur une tâche finie.
         assertEquals(SubagentStatus.COMPLETED, reopened.status)
     }
@@ -184,7 +184,7 @@ class SubagentModelTest {
             now,
         )
         assertEquals(SubagentStatus.DISPATCHED, progressed.status)
-        // Sans session d'enfant, il n'y a rien à ouvrir: l'écran le dit.
+        // Sans session d'enfant, il n'y a rien à ouvrir : l'écran le dit.
         assertFalse(dispatched.hasTranscript)
     }
 

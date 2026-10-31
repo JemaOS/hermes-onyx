@@ -20,14 +20,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La voix d'un bot (`BotVoicePicker`): l'entrée « Voice… » du menu ancré ouvre enfin la feuille
+ * La voix d'un bot (`BotVoicePicker`) : l'entrée « Voice… » du menu ancré ouvre enfin la feuille
  * (`onVoice` n'est plus nul), le choix est **gardé** puis relu après un redémarrage, la voix
  * choisie est celle dont le bot lit ses répliques, et sans choix rien ne change.
  */
 class BotVoicePickerWiringTest {
     private val root = File("src/main/java/com/onyx/app/ui")
     private val botsScreen = File(root, "bots/BotsScreen.kt").readText()
-    private val conversations = File(root, "conversations/ConversationsScreen.kt").readText()
     private val menus = File(root, "bots/BotMenus.kt").readText()
     private val editor = File(root, "bots/BotEditorScreen.kt").readText()
     private val picker = File(root, "bots/BotVoicePickerScreen.kt").readText()
@@ -45,18 +44,12 @@ class BotVoicePickerWiringTest {
         assertTrue("le menu porte l'entrée", menus.contains("BotMenuAction.Voice -> onVoice"))
         assertTrue(
             "la tuile des Réglages la branche",
-            botsScreen.contains("onVoice = onVoice?.let { open -> { open(bot) } }"),
-        )
-        assertTrue(
-            "celle de la liste aussi",
-            conversations.contains("onVoice = onBotVoice?.let { open -> { open(bot) } }"),
+            botsScreen.contains("onVoice = botMenu?.onVoice ?: onVoice"),
         )
         assertFalse("plus d'entrée muette", botsScreen.contains("onVoice = null"))
-        assertFalse("ni dans la liste", conversations.contains("onVoice = null"))
 
         // Les deux écrans remontent l'ouverture, et la route mène à la feuille.
         assertTrue(app.contains("onVoice = { bot ->"))
-        assertTrue(app.contains("onBotVoice = { bot ->"))
         assertTrue(app.contains("navTo(Route.BOT_VOICE.name)"))
         assertTrue("la feuille existe et est montée", app.contains("BotVoicePickerScreen("))
         assertTrue("le profil du bot la suit", app.contains("botVoiceProfile = bot.name"))
@@ -79,12 +72,12 @@ class BotVoicePickerWiringTest {
         val store = FakePreferencesStore()
         val settings = SettingsRepository(store)
         settings.load()
-        // Rien de réglé: le bot reçoit une voix de son cru, comme avant.
+        // Rien de réglé : le bot reçoit une voix de son cru, comme avant.
         assertTrue(settings.botVoicesHere("srv").isEmpty())
 
         settings.setBotVoice("srv", "quill", BotVoice(kokoro = "am_adam", speed = 1.2f))
 
-        // Un redémarrage: le même magasin, une instance neuve.
+        // Un redémarrage : le même magasin, une instance neuve.
         val restarted = SettingsRepository(store)
         restarted.load()
         assertEquals(
@@ -92,14 +85,14 @@ class BotVoicePickerWiringTest {
             restarted.botVoicesHere("srv")["quill"],
         )
 
-        // Une voix de l'appareil, et par serveur: l'autre serveur ne la voit pas.
+        // Une voix de l'appareil, et par serveur : l'autre serveur ne la voit pas.
         restarted.setBotVoice("srv", "scout", BotVoice(onDevice = "fr-fr-x-frf-local"))
         val again = SettingsRepository(store)
         again.load()
         assertEquals("fr-fr-x-frf-local", again.botVoicesHere("srv")["scout"]?.onDevice)
         assertTrue("rien n'a fui sur un autre serveur", again.botVoicesHere("autre").isEmpty())
 
-        // « Automatique » efface le réglage; une fiche vide n'est jamais gardée.
+        // « Automatique » efface le réglage ; une fiche vide n'est jamais gardée.
         again.setBotVoice("srv", "quill", null)
         again.setBotVoice("srv", "scout", BotVoice())
         val cleared = SettingsRepository(store)
@@ -117,7 +110,7 @@ class BotVoicePickerWiringTest {
         val server = "srv"
         val names = listOf("quill", "scout")
 
-        // Sans choix: la répartition d'avant (`BotVoices`), inchangée.
+        // Sans choix : la répartition d'avant (`BotVoices`), inchangée.
         val before = BotVoices.onDevice("quill", settings.botVoicesHere(server), "fr", "fr-fr-x-frd-local", french, names)
         assertEquals(
             "rien réglé, rien qui change",
@@ -132,7 +125,7 @@ class BotVoicePickerWiringTest {
             "fr-fr-x-frf-local",
             BotVoices.onDevice("quill", settings.botVoicesHere(server), "fr", "fr-fr-x-frd-local", french, names),
         )
-        // « Identique à l'agent principal »: la voix d'Onyx, comme le `sameAsMain` du modèle.
+        // « Identique à l'agent principal » : la voix d'Onyx, comme le `sameAsMain` du modèle.
         settings.setBotVoice(server, "quill", BotVoice(sameAsMain = true))
         assertNull(
             BotVoices.onDevice("quill", settings.botVoicesHere(server), "fr", "fr-fr-x-frd-local", french, names),
@@ -145,7 +138,7 @@ class BotVoicePickerWiringTest {
             0.0001f,
         )
 
-        // Le mécanisme de lecture est celui-là: la feuille n'invente rien.
+        // Le mécanisme de lecture est celui-là : la feuille n'invente rien.
         assertTrue("la feuille écrit le réglage", app.contains("settingsRepo.setBotVoice(state.server.id, bot.name, voice)"))
         assertTrue("le choix part au moteur", app.contains("botVoices = settingsRepo.botVoicesHere(state.server.id)"))
         val speechOutput = File("../core/src/main/java/com/onyx/app/voice/SpeechOutput.kt").readText()

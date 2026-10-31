@@ -1,16 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    `phone` — **le combiné d'appel, au trait.**
+
+    La rangée « Appels » de Réglages portait `phone.fill`, et ce fichier-là était un **rectangle
+    arrondi plein** (un corps d'appareil, pas un combiné) : au milieu d'une colonne de glyphes au
+    trait fin, son aplat se lisait comme un bouton d'arrêt égaré — un carré noir.
+
+    Celui-ci est le combiné de la référence, tracé sur la **grille de la maison** : boîte de 24,
+    **trait de 2** (celui de la famille : `MenuIconFamilyGeometryTest`), bouts et jointures
+    arrondis, rien de peint. Son encre tient dans la zone de vingt (**2 à 22** sur les deux axes) et
+    son centre d'encre est **(12, 12)**, comme ses voisines de colonne. Géométrie gardée par
+    `PhoneGlyphGeometryTest`.
+
+    Le plein correspondant (`ic_sym_phone_fill.xml`) est le **même combiné**, peint sur le contour du
+    tracé : même bord extérieur, donc même taille à l'œil (la règle des dossiers, `FolderIconGeometryTest`).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M7,2.5 h10 a1.5,1.5 0 0 1 1.5,1.5 v16 a1.5,1.5 0 0 1 -1.5,1.5 H7 A1.5,1.5 0 0 1 5.5,20 V4 A1.5,1.5 0 0 1 7,2.5 Z"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent" />
-    <path android:pathData="M10.5,4.5 H13.5"
+    <path
+        android:pathData="M6.62,10.79 c1.44,2.83 3.76,5.14 6.59,6.59 l2.2,-2.2 c0.27,-0.27 0.67,-0.36 1.02,-0.24 c1.12,0.37 2.33,0.57 3.57,0.57 c0.55,0 1,0.45 1,1 V20 c0,0.55 -0.45,1 -1,1 c-9.39,0 -17,-7.61 -17,-17 c0,-0.55 0.45,-1 1,-1 h3.5 c0.55,0 1,0.45 1,1 c0,1.25 0.2,2.45 0.57,3.57 c0.11,0.35 0.03,0.74 -0.25,1.02 Z"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"

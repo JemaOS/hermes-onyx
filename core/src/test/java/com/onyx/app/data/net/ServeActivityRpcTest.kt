@@ -8,10 +8,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * L'activité que le Dashboard signale (`session.active_list`): ce qui travaille, ce qui attend
+ * L'activité que le Dashboard signale (`session.active_list`) : ce qui travaille, ce qui attend
  * quelqu'un, et à qui cela appartient.
  *
- * Le modèle est `ChatActivity.kinds` / `roomKinds`:
+ * La référence est `ChatActivity.kinds` / `roomKinds` (Echo/Services/ChatActivity:170) :
  * les sessions cachées d'une salle comptent pour leur salle et jamais pour une conversation, et
  * une salle qui attend l'emporte sur une salle qui travaille.
  */
@@ -71,8 +71,8 @@ class ServeActivityRpcTest {
             """{"sessions":[{"id":"a","title":"Group: id:demo-desk · main","status":"working"}]}""",
         )
 
-        // Le titre d'une salle Desktop porte son fil après « · »: la salle est nommée sans lui,
-        // comme le fait `roomKinds`.
+        // Le titre d'une salle Desktop porte son fil après « · » : la salle est nommée sans lui,
+        // comme le fait `roomKinds` de la référence.
         assertEquals(mapOf("desktop:id:id:demo-desk" to ActivityKind.WORKING), ServeActivityRpc.roomKinds(list))
     }
 

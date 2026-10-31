@@ -88,7 +88,7 @@ class OutboxQueueTest {
         val queue = OutboxQueue()
         queue.enqueue(item.copy(id = "a"), waiting = true)
 
-        // Le suivant arrive alors que la tête attend déjà la connexion: il attend aussi.
+        // Le suivant arrive alors que la tête attend déjà la connexion : il attend aussi.
         queue.enqueue(item.copy(id = "b"), waiting = false)
 
         assertTrue(queue.items.all { it.state == OutboxState.WAITING_FOR_CONNECTION })
@@ -101,7 +101,7 @@ class OutboxQueueTest {
         queue.enqueue(item.copy(id = "b"), waiting = false)
         assertTrue(queue.items.all { it.state == OutboxState.WAITING_FOR_CONNECTION })
 
-        // La connexion revient: `takeNext` reprend la tête sans qu'on ait rien confirmé.
+        // La connexion revient : `takeNext` reprend la tête sans qu'on ait rien confirmé.
         assertEquals("a", queue.takeNext(now = 1L)?.id)
         assertEquals("b", queue.takeNext(now = 1L)?.id)
         assertTrue(queue.items.isEmpty())

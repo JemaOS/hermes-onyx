@@ -2,27 +2,28 @@ package com.onyx.app
 
 import com.onyx.app.ui.conversations.SelectionBarRows
 import com.onyx.app.ui.conversations.selectionBarRows
+import com.onyx.app.ui.conversations.selectionBarWithLabels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La barre de sélection multiple: le compte ne se casse **jamais** mot par mot.
+ * La barre de sélection multiple : le compte ne se casse **jamais** mot par mot.
  *
  * Le défaut signalé — le compte tombé en quatre lignes (« 4 / éléments / sélection / nés ») — venait
  * d'un compte laissé seul élément souple d'une ligne serrée entre deux actions de largeur fixe. La
- * barre mesure donc ses textes (en pixels, police du système comprise) et choisit sa forme: le
+ * barre mesure donc ses textes (en pixels, police du système comprise) et choisit sa forme : le
  * compte en entier à côté des actions, sinon le compte sur **sa** ligne, les actions dessous, et le
  * nombre seul en dernier recours.
  *
- * Le contrôle central n'est pas un cas particulier mais l'**invariant**: chaque fois que le compte
- * partage sa ligne avec les actions, le libellé retenu tient dans la place qui lui reste; et s'il a
+ * Le contrôle central n'est pas un cas particulier mais l'**invariant** : chaque fois que le compte
+ * partage sa ligne avec les actions, le libellé retenu tient dans la place qui lui reste ; et s'il a
  * sa ligne, il y tient aussi. C'est exactement ce qui manquait, et c'est ce qui se vérifie sur
  * toutes les largeurs, aux trois polices.
  */
 class SelectionBarRowsTest {
-    // Les largeurs mesurées d'un téléphone (pixels, densité ~2,75): le compte en entier
+    // Les largeurs mesurées d'un téléphone (pixels, densité ~2,75) : le compte en entier
     // (« 4 éléments sélectionnés »), le nombre seul, « Tout désélectionner » et « Annuler ».
     private val full = 412f
     private val short = 28f
@@ -49,7 +50,7 @@ class SelectionBarRowsTest {
 
     @Test
     fun `sur telephone le compte prend sa ligne, en entier`() {
-        // 411 dp à la police normale: la place restante ne porte pas « 4 éléments sélectionnés » à
+        // 411 dp à la police normale : la place restante ne porte pas « 4 éléments sélectionnés » à
         // côté de « Tout désélectionner » et « Annuler ». Le compte passe donc **à la ligne**, entier
         // — jamais un mot coupé, et jamais un « 4 » seul alors que la phrase peut s'écrire.
         val shape = rows(1042f)
@@ -61,7 +62,7 @@ class SelectionBarRowsTest {
 
     @Test
     fun `le compte ne s'abrege que s il ne tient pas meme seul`() {
-        // Un volet de pliable très étroit: 412 px de libellé ne tiennent plus sur une ligne.
+        // Un volet de pliable très étroit : 412 px de libellé ne tiennent plus sur une ligne.
         val shape = rows(300f)
         assertTrue(shape.shortCount)
         assertTrue(shape.actionsBelow)
@@ -109,7 +110,7 @@ class SelectionBarRowsTest {
 
     @Test
     fun `le libelle entier est prefere des qu il tient a cote des actions`() {
-        // Le repli n'est pas gratuit: la ligne courte n'apparaît que quand le libellé entier
+        // Le repli n'est pas gratuit : la ligne courte n'apparaît que quand le libellé entier
         // déborde réellement.
         assertFalse("il tient au pixel près : libellé entier", rows(full + beside).actionsBelow)
         assertTrue("un pixel de moins : il descend", rows(full + beside - 1f).actionsBelow)
@@ -118,7 +119,7 @@ class SelectionBarRowsTest {
 
     @Test
     fun `abreger est le dernier recours, apres la descente`() {
-        // Ordre des replis: le compte descend avant de s'abréger.
+        // Ordre des replis : le compte descend avant de s'abréger.
         assertTrue("il ne tient plus à côté : il descend", rows(full).actionsBelow)
         assertFalse("et il s'écrit encore en entier sur sa ligne", rows(full).shortCount)
         assertTrue(
@@ -135,5 +136,20 @@ class SelectionBarRowsTest {
         assertTrue("de 613 px à 660 px, pas d'empilement", actionsAlone <= 660f)
         assertTrue("sous 613 px, chacune prend sa ligne", rows(actionsAlone - 1f).actionsStacked)
         assertEquals("l'empilement ne change pas le compte", partagee.shortCount, rows(actionsAlone - 1f).shortCount)
+    }
+
+    /**
+     * La barre d'un **projet** a une action de plus que celle de la liste — « Déplacer N », vers un
+     * autre projet. Ses trois libellés sont mesurés ici : ils ne restent écrits que s'ils tiennent
+     * sur la ligne ; sinon la barre n'écrit que les icônes (nommées pour un lecteur d'écran) plutôt
+     * que de couper un mot.
+     */
+    @Test
+    fun `un projet garde ses trois libelles seulement s ils tiennent`() {
+        val verbs = 420f
+        assertTrue("deux actions : c'est la barre de la liste, elle ne change pas", selectionBarWithLabels(1f, verbs, hasMove = false))
+        assertTrue("trois actions qui tiennent", selectionBarWithLabels(500f, verbs, hasMove = true))
+        assertTrue("trois actions pile à la largeur", selectionBarWithLabels(verbs, verbs, hasMove = true))
+        assertFalse("trois actions d'un pixel de trop : les icônes", selectionBarWithLabels(verbs - 1f, verbs, hasMove = true))
     }
 }

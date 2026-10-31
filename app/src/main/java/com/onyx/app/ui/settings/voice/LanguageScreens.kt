@@ -1,5 +1,7 @@
 package com.onyx.app.ui.settings.voice
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,7 +35,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * Réglages → Voix → Listening language (`SpeechLanguageView`).
  *
- * La transcription embarquée comprend une langue à la fois: choisir la sienne télécharge son
+ * La transcription embarquée comprend une langue à la fois : choisir la sienne télécharge son
  * modèle sur le téléphone si besoin.
  */
 @Composable
@@ -123,7 +125,7 @@ fun ReplyLanguageScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp)
-                .background(theme.fill, androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                .background(theme.fill, androidx.compose.foundation.shape.RoundedCornerShape(OnyxSpace.ControlCorner))
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

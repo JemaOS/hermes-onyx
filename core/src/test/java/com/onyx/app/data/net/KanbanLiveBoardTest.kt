@@ -19,8 +19,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le direct du tableau kanban: le socket d'événements du plugin (`api/plugins/kanban/events`),
- * dont fait `KanbanClient.LiveBoard` — un ticket, une reprise au curseur, et une relecture du
+ * Le direct du tableau kanban : le socket d'événements du plugin (`api/plugins/kanban/events`),
+ * dont référence fait `KanbanClient.LiveBoard` — un ticket, une reprise au curseur, et une relecture du
  * tableau à chaque trame.
  */
 class KanbanLiveBoardTest {
@@ -100,7 +100,7 @@ class KanbanLiveBoardTest {
             socket.send("""{"events":[{"id":9,"task_id":"card-9","kind":"update"}],"cursor":12}""")
             assertEquals(listOf("card-9"), withTimeout(5_000) { hits.receive() })
 
-            // Le curseur avance: la trame suivante sans carte demande une relecture complète.
+            // Le curseur avance : la trame suivante sans carte demande une relecture complète.
             socket.send("""{"events":[],"cursor":13}""")
             assertEquals(emptyList<String>(), withTimeout(5_000) { hits.receive() })
 
@@ -108,7 +108,16 @@ class KanbanLiveBoardTest {
             assertFalse("arrêté, le direct se dit hors ligne", board.isLive.value)
         } finally {
             board.close()
-            server.shutdown()
+            // La fermeture du socket se fait en deux temps : sous charge, la file du serveur peut
+            // encore être active quand on l'arrête, et `shutdown()` abandonne alors sur
+            // « Gave up waiting for queue to shut down ». Ce n'est pas ce que ce test vérifie — les
+            // assertions, elles, ont déjà parlé. C'est la convention des autres tests du direct
+            // (voir `ComputerFreezeLockTest`), pas une tolérance nouvelle.
+            try {
+                server.shutdown()
+            } catch (_: java.io.IOException) {
+                // Une socket encore ouverte à l'arrêt n'est pas le sujet.
+            }
         }
     }
 
@@ -157,7 +166,7 @@ class KanbanLiveBoardTest {
             assertEquals("Three installers so far.", card.body)
             assertEquals("boom", card.lastFailure)
             assertTrue(card.failed)
-            // `created_at` en secondes d'époque: des millisecondes, pour l'âge de la rangée.
+            // `created_at` en secondes d'époque : des millisecondes, pour l'âge de la rangée.
             assertEquals(created * 1000L, card.createdAtMillis)
         } finally {
             server.shutdown()
@@ -182,8 +191,8 @@ class KanbanLiveBoardTest {
     }
 }
 
-// Un direct refusé ne doit PAS réveiller le tableau: c'est ce réveil à chaque échec qui faisait
-// clignoter l'indicateur de chargement en boucle. Le propriétaire: « des loops de chargement en
+// Un direct refusé ne doit PAS réveiller le tableau : c'est ce réveil à chaque échec qui faisait
+// clignoter l'indicateur de chargement en boucle. Le propriétaire : « des loops de chargement en
 // boucle… corrige pour que ça charge tout d'un coup ».
 class KanbanLiveBoardQuietTest {
     @Test

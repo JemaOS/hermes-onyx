@@ -7,10 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les salles gardées sur ce téléphone: écrites à la création, retrouvées après une relance, et une
+ * Les salles gardées sur ce téléphone : écrites à la création, retrouvées après une relance, et une
  * seule par nom.
  *
- * « Une relance » = un magasin neuf sur le même disque: [MemoryText] joue les préférences
+ * « Une relance » = un magasin neuf sur le même disque : [MemoryText] joue les préférences
  * d'Android, qui ne disparaissent pas quand l'application se ferme.
  */
 class GroupRoomStoreTest {

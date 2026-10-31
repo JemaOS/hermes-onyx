@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.onyx.app.ui.localization.BasicText
@@ -31,6 +32,8 @@ import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
+import com.onyx.app.ui.design.navigationBarClearance
+import com.onyx.app.ui.design.statusBarClearance
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlin.math.abs
@@ -40,11 +43,11 @@ import kotlinx.coroutines.launch
 /**
  * Une copie sélectionnable d'une réponse (`SelectableTextSheet`).
  *
- * Pour attraper une phrase plutôt que le tout; les entrées et sorties d'outils s'affichent en
+ * Pour attraper une phrase plutôt que le tout ; les entrées et sorties d'outils s'affichent en
  * monospace, parce que c'est de la donnée et non de la prose. Un compteur dit combien de caractères
  * sont pris, et « Copy all » emporte le texte entier.
  *
- * @param toolLabel le nom de la donnée d'outil — « Input » ou « Output » — posé en tête; quand il
+ * @param toolLabel le nom de la donnée d'outil — « Input » ou « Output » — posé en tête ; quand il
  * est donné, le texte passe en monospace.
  */
 @Composable
@@ -73,9 +76,9 @@ fun SelectableTextScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
-        Column(modifier = Modifier.statusBarsPadding()) {
+        Column(modifier = Modifier.statusBarClearance()) {
             OnyxPageHeader(title = title, onBack = onBack)
         }
 
@@ -87,7 +90,7 @@ fun SelectableTextScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
         ) {
             Column {
-                // Une donnée d'outil se nomme en tête: « Input » ou « Output ».
+                // Une donnée d'outil se nomme en tête : « Input » ou « Output ».
                 if (toolLabel != null) {
                     BasicText(
                         text = OnyxLocalization[toolLabel].uppercase(),
@@ -117,6 +120,9 @@ fun SelectableTextScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(theme.surfaceColor)
+                // La barre du bas peint son fond jusqu'au bord, et remonte ses commandes
+                // au-dessus de la zone de navigation.
+                .navigationBarClearance()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,7 +134,7 @@ fun SelectableTextScreen(
                     style = theme.footnote.copy(color = theme.secondaryText),
                 )
             }
-            // Le bouton « Copy all »: tout le texte, quelle que soit la sélection.
+            // Le bouton « Copy all » : tout le texte, quelle que soit la sélection.
             Row(
                 modifier = Modifier
                     .background(theme.surfaceColor.copy(alpha = 0.6f), RoundedCornerShape(50))

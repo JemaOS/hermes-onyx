@@ -3,7 +3,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -27,18 +26,23 @@ fun keystorePath(): File {
 }
 
 android {
-    namespace = "com.onyx.app.wear"
-    compileSdk = 36
+    // La montre : même paquet de code que l'appli, plus `.wear` ; son identifiant d'installation
+    // dérive de celui de l'appli (une seule déclaration, dans `gradle.properties`).
+    namespace = providers.gradleProperty("onyx.namespace").get() + ".wear"
+    compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.onyx.app.wear"
+        applicationId = providers.gradleProperty("onyx.applicationId").get() + ".wear"
+        // Les contrats partagés avec l'appli (actions) portent le paquet du **code**, identique
+        // dans les deux manifestes — jamais l'identifiant d'installation.
+        manifestPlaceholders["onyxNamespace"] = providers.gradleProperty("onyx.namespace").get()
         minSdk = 30
         targetSdk = 36
-        // Version dérivée du nombre de commits, plus la base de la ligne 1.0.0 publiée :
-        // voir `onyx.versionBaseline` dans gradle.properties.
-        versionCode = (providers.gradleProperty("onyx.versionBaseline").orNull?.toIntOrNull() ?: 0) +
-            (providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
-                .standardOutput.asText.get().trim().toIntOrNull() ?: 1)
+        // Départage de fusion : voir `app/build.gradle.kts` (`ONYX_VERSION_CODE`).
+        versionCode = providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
+            ?: ((providers.gradleProperty("onyx.versionBaseline").orNull?.toIntOrNull() ?: 0) +
+                (providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+                    .standardOutput.asText.get().trim().toIntOrNull() ?: 1))
         versionName = "1.0.0+" + versionCode
     }
 
@@ -96,7 +100,7 @@ dependencies {
     implementation(libs.wear.tiles)
     implementation(libs.wear.protolayout)
 
-    // Les tuiles Wear rendent un `ListenableFuture`; Guava est la dépendance documentée.
+    // Les tuiles Wear rendent un `ListenableFuture` ; Guava est la dépendance documentée.
     implementation(libs.guava)
 
     debugImplementation(libs.androidx.ui.tooling)

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PREMIER PLAN de l'icône adaptative du lanceur Onyx.
+
+  Source de vérité : l'illustration de référence `ic_launcher_graphite_block` (le carré arrondi
+  sombre, le cercle et la rune), extraite de l'APK aux cinq densités et mesurée au pixel :
+    - cercle  : rayon 0,72 de la largeur de l'illustration, centré ;
+    - rune ᛟ  : Othalan, hauteur 0,40 du diamètre du cercle, trait plein à bouts ronds ;
+    - encre   : #DADFE8 sur le disque, contour du cercle clair, léger reflet en haut à gauche.
+
+  Ce fichier ne porte QUE le cercle et la rune ; le carré sombre est la couche de fond
+  (`@color/ic_launcher_background`, #1A202A). Tout le contenu utile tient dans les deux tiers
+  centraux du canevas de 108 unités (zone de sécurité `[18, 90]`), et même dans le cercle garanti
+  de 33 unités de rayon : le contenu ne touche jamais le masque du lanceur.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Le disque : un peu plus clair que le carré, reflet vertical (0,72 de largeur -> rayon 31,5). -->
+    <path
+        android:pathData="M54,85.5 A31.5,31.5 0 0 1 22.5,54 A31.5,31.5 0 0 1 54,22.5 A31.5,31.5 0 0 1 85.5,54 A31.5,31.5 0 0 1 54,85.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="22.5"
+                android:endX="54" android:endY="85.5"
+                android:startColor="#FF36404C"
+                android:endColor="#FF222937" />
+        </aapt:attr>
+    </path>
+
+    <!-- Le reflet vitreux en haut à gauche de la référence (discret : 15 % de blanc qui s'éteint). -->
+    <path
+        android:pathData="M45,56 A13,13 0 0 1 32,43 A13,13 0 0 1 45,30 A13,13 0 0 1 58,43 A13,13 0 0 1 45,56 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="45" android:centerY="43"
+                android:gradientRadius="13"
+                android:startColor="#26FFFFFF"
+                android:endColor="#00FFFFFF" />
+        </aapt:attr>
+    </path>
+
+    <!-- Le contour clair du cercle. -->
+    <path
+        android:pathData="M54,85.5 A31.5,31.5 0 0 1 22.5,54 A31.5,31.5 0 0 1 54,22.5 A31.5,31.5 0 0 1 85.5,54 A31.5,31.5 0 0 1 54,85.5 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFA9B3C2"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- La rune Othalan (ᛟ) : le « O » d'Onyx, trait plein à bouts ronds, dans le cercle.
+         Sommets mesurés sur la référence (ajustement de silhouette, IoU 0,97 sur la rune) : le
+         tracé est OUVERT — la référence n'a pas de barre en bas, contrairement au chemin du
+         glyphe d'appels de `core` qui le referme. -->
+    <path
+        android:pathData="M47.15,64.73 L61.08,50.80 L54,43.27 L46.92,50.80 L60.85,64.73"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFDADFE8"
+        android:strokeWidth="3.88"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

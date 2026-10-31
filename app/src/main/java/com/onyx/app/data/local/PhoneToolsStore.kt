@@ -1,5 +1,6 @@
 package com.onyx.app.data.local
 
+import com.onyx.app.localization.OnyxLanguage
 import android.content.Context
 
 /** Une famille d'outils que l'agent peut demander à utiliser sur le téléphone. */
@@ -39,7 +40,7 @@ enum class PhonePolicy(val id: String, val label: String) {
 /**
  * Réglages → Outils téléphone.
  *
- * Comme: un interrupteur maître, puis une politique par
+ * Miroir de `PhoneToolsSettingsView` : un interrupteur maître, puis une politique par
  * famille. Ce que l'agent peut faire — et ce qu'il doit demander avant — se règle ici.
  */
 class PhoneToolsStore(context: Context) {
@@ -67,7 +68,7 @@ class PhoneToolsStore(context: Context) {
         prefs.getString(KEY_LOG, "").orEmpty().lineSequence().filter { it.isNotBlank() }.toList()
 
     fun note(title: String, detail: String, at: Long = System.currentTimeMillis()) {
-        val stamp = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(at))
+        val stamp = java.text.SimpleDateFormat("HH:mm", OnyxLanguage.preferred).format(java.util.Date(at))
         val entry = "$stamp · $title${if (detail.isBlank()) "" else " — $detail"}"
         val lines = (listOf(entry) + recent()).take(MAX_LOG)
         prefs.edit().putString(KEY_LOG, lines.joinToString("\n")).apply()

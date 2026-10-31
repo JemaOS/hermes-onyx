@@ -1,5 +1,7 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +30,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.design.semanticsLabel
+import com.onyx.app.ui.design.ProvideFieldTextColours
+import com.onyx.app.ui.design.fieldCursorColour
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Le brouillon sur une page entière (`ComposerEditor`): Return pose toujours une nouvelle ligne,
+ * Le brouillon sur une page entière (`ComposerEditor`) : Return pose toujours une nouvelle ligne,
  * « Done » ferme sans envoyer, et l'action d'envoi reste dans la barre de navigation.
  */
 @Composable
@@ -53,7 +57,7 @@ fun ComposerEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor)
+            .onyxPage(theme)
             .navigationBarsPadding()
             .imePadding(),
     ) {
@@ -74,22 +78,27 @@ fun ComposerEditorScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp),
         ) {
+            // Le champ de l'éditeur suit **la même règle** que le compositeur d'une conversation :
+            // les couleurs de sélection et de curseur sont reposées localement, et l'encre ne
+            // dépend pas d'un héritage (voir `ProvideFieldTextColours`).
+            ProvideFieldTextColours(theme) {
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
                 textStyle = theme.body.copy(color = theme.textColor),
-                cursorBrush = SolidColor(theme.accent),
+                cursorBrush = SolidColor(fieldCursorColour(theme)),
                 // Contrairement au composer, Return n'envoie jamais depuis cette page.
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                 modifier = Modifier
                     .fillMaxSize()
                     .focusRequester(focus),
             )
+            }
         }
     }
 }
 
-/** La barre native de la page: annulation à gauche, titre inline, confirmation à droite. */
+/** La barre native de la page : annulation à gauche, titre inline, confirmation à droite. */
 @Composable
 private fun ComposerHeader(
     title: String,

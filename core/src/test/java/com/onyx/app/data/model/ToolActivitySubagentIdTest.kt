@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * L'identifiant de sous-agent lu dans les arguments d'un `tool.start`: c'est lui, et rien d'autre,
+ * L'identifiant de sous-agent lu dans les arguments d'un `tool.start` : c'est lui, et rien d'autre,
  * qui autorise steer et stop. Sans lui, la transcription reste en lecture seule.
  */
 class ToolActivitySubagentIdTest {

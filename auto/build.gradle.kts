@@ -3,7 +3,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 /**
@@ -26,18 +25,23 @@ fun keystorePath(): File {
 }
 
 android {
-    namespace = "com.onyx.app.auto"
-    compileSdk = 36
+    // Le compagnon voiture : même paquet de code que l'appli, plus `.auto` ; son identifiant
+    // d'installation dérive de celui de l'appli (une seule déclaration, dans `gradle.properties`).
+    namespace = providers.gradleProperty("onyx.namespace").get() + ".auto"
+    compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.onyx.app.auto"
+        applicationId = providers.gradleProperty("onyx.applicationId").get() + ".auto"
+        // Les contrats partagés avec l'appli (permission, autorité, actions) portent le paquet du
+        // **code**, identique dans les deux manifestes — jamais l'identifiant d'installation.
+        manifestPlaceholders["onyxNamespace"] = providers.gradleProperty("onyx.namespace").get()
         minSdk = 26
         targetSdk = 36
-        // Version dérivée du nombre de commits, plus la base de la ligne 1.0.0 publiée :
-        // voir `onyx.versionBaseline` dans gradle.properties.
-        versionCode = (providers.gradleProperty("onyx.versionBaseline").orNull?.toIntOrNull() ?: 0) +
-            (providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
-                .standardOutput.asText.get().trim().toIntOrNull() ?: 1)
+        // Départage de fusion : voir `app/build.gradle.kts` (`ONYX_VERSION_CODE`).
+        versionCode = providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
+            ?: ((providers.gradleProperty("onyx.versionBaseline").orNull?.toIntOrNull() ?: 0) +
+                (providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+                    .standardOutput.asText.get().trim().toIntOrNull() ?: 1))
         versionName = "1.0.0+" + versionCode
     }
 

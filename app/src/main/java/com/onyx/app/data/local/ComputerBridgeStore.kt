@@ -5,8 +5,8 @@ import android.content.Context
 /**
  * Où joindre le pont « Ordinateur », et avec quel jeton.
  *
- * L'adresse n'est pas un secret: elle vit dans les préférences, comme l'adresse du serveur TTS.
- * Le **jeton**, lui, est un mot de passe pour le PC: il passe par [SecretStore], donc par le
+ * L'adresse n'est pas un secret : elle vit dans les préférences, comme l'adresse du serveur TTS.
+ * Le **jeton**, lui, est un mot de passe pour le PC : il passe par [SecretStore], donc par le
  * Keystore, et il n'est jamais réécrit ailleurs. Un jeton vide efface l'entrée.
  */
 class ComputerBridgeStore(context: Context) {
@@ -20,7 +20,7 @@ class ComputerBridgeStore(context: Context) {
      *
      * Un Keystore peut être indisponible ou perdre sa clé (et `SecretStore` efface alors l'entrée
      * devenue illisible, exprès). Perdre le jeton en silence obligerait à le retaper sans savoir
-     * pourquoi: il reste donc en mémoire pour la session, et l'écran le dit.
+     * pourquoi : il reste donc en mémoire pour la session, et l'écran le dit.
      */
     private var memoryToken: String = ""
 
@@ -28,7 +28,7 @@ class ComputerBridgeStore(context: Context) {
     private var refusedAtSave: Boolean = false
 
     /**
-     * Vrai quand le trousseau ne tient pas le jeton — à l'enregistrement, ou plus tard: une clé
+     * Vrai quand le trousseau ne tient pas le jeton — à l'enregistrement, ou plus tard : une clé
      * de Keystore perdue rend l'entrée illisible, et le magasin l'efface alors. Dans les deux cas
      * l'écran le dit, plutôt que de laisser croire à une adresse oubliée.
      */
@@ -59,10 +59,10 @@ class ComputerBridgeStore(context: Context) {
             prefs.edit().putBoolean(KEY_HAD_TOKEN, true).apply()
         }
 
-    /** Vrai quand les deux sont là: il ne manque plus que la connexion. */
+    /** Vrai quand les deux sont là : il ne manque plus que la connexion. */
     val configured: Boolean get() = address.isNotBlank() && token.isNotEmpty()
 
-    /** Le jeton tel qu'il se montre: jamais en clair, et on sait seulement s'il y en a un. */
+    /** Le jeton tel qu'il se montre : jamais en clair, et on sait seulement s'il y en a un. */
     val maskedToken: String get() = if (token.isEmpty()) "" else MASK
 
     fun clear() {
@@ -75,7 +75,7 @@ class ComputerBridgeStore(context: Context) {
     private companion object {
         const val KEY_ADDRESS = "bridge_address"
         const val KEY_TOKEN = "computer-bridge-token"
-        /** Un jeton a été enregistré: s'il ne se relit plus, c'est le trousseau, pas la mémoire. */
+        /** Un jeton a été enregistré : s'il ne se relit plus, c'est le trousseau, pas la mémoire. */
         const val KEY_HAD_TOKEN = "bridge_had_token"
         const val MASK = "••••••••"
     }

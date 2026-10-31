@@ -1,5 +1,6 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.localization.OnyxLanguage
 import com.onyx.app.data.model.OutboxItem
 import com.onyx.app.data.model.OutboxState
 import java.text.DateFormat
@@ -7,7 +8,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-/** La file strictement ordonnée de la conversation; toutes ses transitions sont testables hors UI. */
+/** La file strictement ordonnée de la conversation ; toutes ses transitions sont testables hors UI. */
 internal class OutboxQueue(initial: List<OutboxItem> = emptyList()) {
     private val values = initial.toMutableList()
 
@@ -25,7 +26,7 @@ internal class OutboxQueue(initial: List<OutboxItem> = emptyList()) {
         values += item.copy(state = if (mustWait) OutboxState.WAITING_FOR_CONNECTION else OutboxState.QUEUED)
     }
 
-    /** Le tour qui n'a rien reçu revient en tête; les messages déjà en file attendent aussi. */
+    /** Le tour qui n'a rien reçu revient en tête ; les messages déjà en file attendent aussi. */
     fun hold(item: OutboxItem) {
         for (index in values.indices) {
             if (values[index].state == OutboxState.QUEUED) {
@@ -57,7 +58,7 @@ internal class OutboxQueue(initial: List<OutboxItem> = emptyList()) {
         return true
     }
 
-    /** Retire la tête si elle peut partir; une attente périmée passe toute la file en pause. */
+    /** Retire la tête si elle peut partir ; une attente périmée passe toute la file en pause. */
     fun takeNext(now: Long): OutboxItem? {
         val first = values.firstOrNull() ?: return null
         if (first.state == OutboxState.PAUSED) return null
@@ -79,7 +80,7 @@ internal fun outboxStatusText(
     item: OutboxItem,
     isFirst: Boolean,
     now: Long = System.currentTimeMillis(),
-    locale: Locale = Locale.getDefault(),
+    locale: Locale = OnyxLanguage.preferred,
     timeZone: TimeZone = TimeZone.getDefault(),
 ): String {
     val formatter = DateFormat.getTimeInstance(DateFormat.SHORT, locale).apply { this.timeZone = timeZone }

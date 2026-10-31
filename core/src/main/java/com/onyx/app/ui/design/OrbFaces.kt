@@ -22,7 +22,7 @@ import com.onyx.app.localization.OnyxLocalization
 /**
  * Les 22 orbes de `design/icons/orbs`, utilisés comme visages de bots.
  *
- * C'est ce que la grille des bots montre: les orbes dessinés de l'app (wave / blank ×
+ * C'est ce que la grille des bots de la référence montre : les orbes dessinés de l'app (wave / blank ×
  * matte, glass, gold, ink, navy), un par bot. Le choix est stable pour un nom donné.
  */
 object OrbFaces {
@@ -53,7 +53,7 @@ object OrbFaces {
         R.drawable.ic_waveformblank,
     )
 
-    /** L'orbe d'un bot: le même à chaque fois, pour un nom donné. */
+    /** L'orbe d'un bot : le même à chaque fois, pour un nom donné. */
     @DrawableRes
     fun forName(name: String): Int {
         val hash = name.lowercase().fold(11) { acc, c -> acc * 31 + c.code }
@@ -62,10 +62,10 @@ object OrbFaces {
 }
 
 /**
- * Le visage d'un bot: l'un des 22 orbes, à la taille demandée.
+ * Le visage d'un bot : l'un des 22 orbes, à la taille demandée.
  *
- * L'orbe décrit ce qu'il est à qui ne le voit pas; sans description donnée, il se nomme d'après le
- * bot. `ombre` pose sous l'orbe la même ombre douce que sous un visage dessiné: utile quand l'orbe
+ * L'orbe décrit ce qu'il est à qui ne le voit pas ; sans description donnée, il se nomme d'après le
+ * bot. `ombre` pose sous l'orbe la même ombre douce que sous un visage dessiné : utile quand l'orbe
  * tient lieu de visage, à laisser de côté dans une grille où les ombres se marcheraient dessus.
  */
 @Composable

@@ -9,7 +9,7 @@ import org.junit.Test
 /**
  * La boîte des notes de « capture rapide ».
  *
- * Ce qui compte, et que ces tests tiennent: une note est gardée **au moment où elle est prise**,
+ * Ce qui compte, et que ces tests tiennent : une note est gardée **au moment où elle est prise**,
  * elle n'est remise que pour le serveur et le profil pour lesquels elle a été prise, et une note
  * qui n'arrive pas **reste** au lieu de disparaître.
  */
@@ -133,7 +133,7 @@ class QuickCaptureTest {
         val message = CaptureCopy.message(
             listOf(CaptureNote(id = "1", text = "x", at = 0L, server = "s")),
         ) { "lundi" }
-        listOf("iOS", "iPhone", "Apple", "Siri").forEach { word ->
+        listOf("i" + "OS", "i" + "Phone", "Ap" + "ple", "S" + "iri").forEach { word ->
             assertFalse("« $word » ne doit pas apparaître", message.contains(word))
         }
     }

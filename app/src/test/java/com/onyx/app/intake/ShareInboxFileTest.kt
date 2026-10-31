@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Ce qui entre par un partage: le texte, et le fichier. Un partage sans adresse ne joint rien, et
+ * Ce qui entre par un partage : le texte, et le fichier. Un partage sans adresse ne joint rien, et
  * consommer l'entrée efface les deux — un partage ne doit pas se rejouer au message suivant.
  */
 class ShareInboxFileTest {

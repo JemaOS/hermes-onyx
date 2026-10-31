@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Écrit les vector drawables des cartes de réponse (météo, carte) dans core/src/main/res/drawable.
 
-Les SF Symbols  n'existent pas sur Android : chaque symbole employé par les cartes
+Les SF Symbols de la référence n'existent pas sur Android : chaque symbole employé par les cartes
 (`ReplyCardViews`) a ici son équivalent, dessiné en blanc (les vues le teintent, comme `OnyxIcon`).
 Les formes sont composées de cercles, de rectangles et de traits — assez pour se lire à 20 dp.
 """

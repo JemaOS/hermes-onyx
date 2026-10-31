@@ -11,7 +11,7 @@ import org.junit.Test
 /**
  * Le glissement d'une carte du tableau kanban (la capture 2.0) et l'âge de sa rangée.
  *
- * Le seuil du glissement franc est celui d'`allowsFullSwipe`: place
+ * Le seuil du glissement franc est celui d'`allowsFullSwipe` de la référence : `KanbanView:52` place
  * l'action de la colonne suivante en `edge: .leading`, et la rangée reprend le texte de la
  * colonne — c'est `KanbanStatus.label`, traduit par la couche de localisation.
  */
@@ -58,8 +58,8 @@ class KanbanSwipeTest {
     @Test
     fun `l en-tete porte l etat du direct, la fleche tant qu il n ecoute pas`() {
         assertTrue(screen.contains("Symbols.DotRadiowavesLeftAndRight"))
-        //: `if available { Image(systemName: live.isLive ?
-        // "dot.radiowaves.left.and.right": "arrow.clockwise") }` — la flèche secondaire tant que
+        // `KanbanView` : `if available { Image(systemName: live.isLive ?
+        // "dot.radiowaves.left.and.right" : "arrow.clockwise") }` — la flèche secondaire tant que
         // le direct n'écoute pas encore, la pastille verte quand il écoute, rien sans Dashboard.
         assertTrue(screen.contains("else -> Symbols.ArrowClockwise"))
         assertTrue(screen.contains("state.needsDashboard -> null"))
@@ -71,13 +71,13 @@ class KanbanSwipeTest {
     fun `le tableau se relit tout seul et s arrete avec l ecran`() {
         assertTrue(screen.contains("viewModel.startLive()"))
         assertTrue(screen.contains("onDispose { viewModel.stopLive() }"))
-        // Le direct rafraîchit **sans** indicateur: sinon il clignotait à chaque tentative.
+        // Le direct rafraîchit **sans** indicateur : sinon il clignotait à chaque tentative.
         assertTrue(viewModel.contains("liveBoard.start(_state.value.latestEventId) { refresh(silent = true) }"))
         assertTrue(viewModel.contains("liveBoard.close()"))
     }
 
     @Test
-    fun `la rangee montre l age de la carte `() {
+    fun `la rangee montre l age de la carte comme référence`() {
         val now = 1_700_000_000_000L
         val card = KanbanCard(id = "t1", title = "Compare heat pump quotes", createdAtMillis = now - 3_600_000L)
         val stale = KanbanCard(id = "t2", title = "Vieux serveur", createdAt = "1780000000")

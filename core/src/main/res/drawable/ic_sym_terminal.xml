@@ -4,7 +4,8 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M3,4.5 h18 a1,1 0 0 1 1,1 v13 a1,1 0 0 1 -1,1 H3 a1,1 0 0 1 -1,-1 v-13 a1,1 0 0 1 1,-1 Z"
+    <!-- Le terminal : la boite ramenee dans la zone de 20, le chevron et la ligne de commande. -->
+    <path android:pathData="M3,5.5 A1,1 0 0 1 4,4.5 H20 A1,1 0 0 1 21,5.5 V18.5 A1,1 0 0 1 20,19.5 H4 A1,1 0 0 1 3,18.5 Z"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"

@@ -1,28 +1,53 @@
-# Build artefacts
-build/
-*/build/
+*.iml
 .gradle/
-.kotlin/
+build/
 local.properties
 .idea/
+.DS_Store
 captures/
-
-# Build outputs
+.externalNativeBuild/
+.cxx/
 *.apk
 *.aab
-
-# Signing material — never in the tree
-*.keystore
 *.jks
+*.keystore
 keystore.properties
-release.properties
 
-# QA recordings (large, and they can show the host screen)
-qa/**/*.png
-qa/**/*.jpg
-qa/**/*.xml
-qa/**/*.jsonl
+# Harnais QA fonctionnelle (captures, scripts ADB locaux)
+.qa/
 
-# Python
-__pycache__/
-*.pyc
+# Outils Python
+tools/__pycache__/
+
+# Harnais QA des lots (scripts Python)
+qa/**/__pycache__/
+
+# Caches Gradle Kotlin (artefacts de build)
+.kotlin/
+
+# Les journaux du lot « appel de l'agent » (émulateur, recette).
+qa-appel-*.log
+
+# Journaux du lot « appel de l'agent ».
+qa-recipe.log
+qa-tests.log
+qa/20261028-appel-agent/*.log
+qa/20261028-appel-agent/state.json*
+qa/20261028-appel-agent/captures-*/
+tools/gateway-plugin-onyx-calls/__pycache__/
+qa/captures/
+qa/comparaison/
+qa/*.log
+# Lot réflexion discrète : les captures pleine résolution (~100 Mo) restent hors du dépôt ; les
+# paires livrées sont dans qa/20261029-reflexion-discrete/captures/.
+qa/20261029-reflexion-discrete/shots/
+
+# Le harnais de recette du lot « fichiers résolus » (captures et racine servie).
+qa/20261030-fichiers-resolution/shots/
+qa/20261030-fichiers-resolution/server-root/
+qa/20261030-fichiers-resolution/__pycache__/
+qa/2026-10-30-actions-section/apk/
+qa/2026-10-30-actions-section/__pycache__/
+qa/2026-10-30-actions-section/mock.log
+Hermes-Onyx-*.apk
+Hermes-Onyx-*.apk.sha256

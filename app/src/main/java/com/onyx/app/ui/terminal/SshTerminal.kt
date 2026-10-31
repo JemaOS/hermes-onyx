@@ -20,7 +20,7 @@ import java.nio.charset.CodingErrorAction
 import java.security.KeyPair
 import java.security.PublicKey
 
-/** Où se connecter: coquille de login dans ce dossier, avec la clé du téléphone uniquement. */
+/** Où se connecter : coquille de login dans ce dossier, avec la clé du téléphone uniquement. */
 data class TerminalTarget(
     val host: String,
     val port: Int = 22,
@@ -48,7 +48,7 @@ sealed class TerminalProblem(message: String) : Exception(message) {
 }
 
 /**
- * Session SSH réelle de `SSHShell`: vérification TOFU de la clé du serveur, clé Ed25519 du
+ * Session SSH réelle de `SSHShell` : vérification TOFU de la clé du serveur, clé Ed25519 du
  * téléphone, PTY, flux continu dans les deux sens, redimensionnement et fin de coquille.
  */
 class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
@@ -133,7 +133,7 @@ class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
         }
     }
 
-    /** Lit sans attendre une commande: shells interactifs, prompts et programmes plein écran. */
+    /** Lit sans attendre une commande : shells interactifs, prompts et programmes plein écran. */
     suspend fun read(
         expectedGeneration: Long,
         onOutput: suspend (String) -> Unit,
@@ -188,7 +188,7 @@ class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
 
     suspend fun disconnect() = withContext(Dispatchers.IO) { close() }
 
-    /** Fermeture synchrone pour `onDispose`; sshj libère ensuite son thread de lecture. */
+    /** Fermeture synchrone pour `onDispose` ; sshj libère ensuite son thread de lecture. */
     fun close() {
         generation += 1
         runCatching { session?.close() }
@@ -206,7 +206,7 @@ class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
     }
 
     companion object {
-        /** Même commande que `SSHShell.startCommand`: `cd` sûr, puis le shell de login. */
+        /** Même commande que `SSHShell.startCommand` : `cd` sûr, puis le shell de login. */
         fun startCommand(folder: String): String {
             val quoted = "'" + folder.replace("'", "'\\''") + "'"
             return "cd $quoted 2>/dev/null || printf '%s\\r\\n' " +

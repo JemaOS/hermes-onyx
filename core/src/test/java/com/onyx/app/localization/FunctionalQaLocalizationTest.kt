@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Libellés corrigés par la QA fonctionnelle: la barre de sélection, l'état vide du kanban, les
+ * Libellés corrigés par la QA fonctionnelle : la barre de sélection, l'état vide du kanban, les
  * résumés de serveur et les pieds de page des horaires d'un bot.
  */
 class FunctionalQaLocalizationTest {
@@ -23,9 +23,9 @@ class FunctionalQaLocalizationTest {
 
     @Test
     fun `l'etat vide du kanban combine le nom traduit de la colonne`() {
-        assertEquals("Rien dans À faire", OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["To do", fr], locale = fr))
-        assertEquals("Rien dans Prêt", OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["Ready", fr], locale = fr))
-        assertEquals("Rien dans Bloqué", OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["Blocked", fr], locale = fr))
+        assertEquals("Rien dans À faire", OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["To do"], fr))
+        assertEquals("Rien dans Prêt", OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["Ready"], fr))
+        assertEquals("Rien dans Bloqué", OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["Blocked"], fr))
     }
 
     @Test

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    `lock` — cadenas au trait, tel qu'il est dessiné sur l'écran de verrouillage: le corps et
+    `lock` — SF Symbol en contour, tel qu'référence le dessine sur l'écran de verrouillage : le corps et
     l'anse sont des traits, sans remplissage (contrairement à `lock.fill`).
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"

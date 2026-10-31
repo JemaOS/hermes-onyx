@@ -11,7 +11,7 @@ import androidx.compose.ui.input.key.type
 /**
  * La touche nommée que Compose rapporte, ou [ChatKey.OTHER].
  *
- * Compose est la seule partie de la table des raccourcis qui ne peut pas être testée sur la JVM:
+ * Compose est la seule partie de la table des raccourcis qui ne peut pas être testée sur la JVM :
  * elle est isolée ici, et tout ce qui décide vit dans `chatShortcutFor`.
  */
 fun chatKeyOf(key: Key): ChatKey = when (key) {
@@ -29,8 +29,8 @@ fun chatKeyOf(key: Key): ChatKey = when (key) {
 /**
  * Le raccourci que cet événement déclenche, ou `null`.
  *
- * Comme le `onPreviewKeyEvent` de `OnyxComposer` pour Ctrl+V: la touche de commande couvre ⌘
- * et Ctrl sur un clavier Android/externe, et Échap agit sans modificateur.
+ * Miroir du `onPreviewKeyEvent` de `OnyxComposer` pour Ctrl+V : la touche de commande couvre ⌘
+ * sur la référence et Ctrl sur un clavier Android/externe, et Échap agit sans modificateur.
  */
 fun chatShortcutOf(event: KeyEvent): ChatShortcut? {
     if (event.type != KeyEventType.KeyDown) return null

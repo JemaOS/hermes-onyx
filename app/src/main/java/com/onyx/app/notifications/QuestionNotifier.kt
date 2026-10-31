@@ -15,15 +15,15 @@ import com.onyx.app.core.R
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * La notification d'une question de l'agent: il attend une réponse, l'app n'est pas au premier plan.
+ * La notification d'une question de l'agent : il attend une réponse, l'app n'est pas au premier plan.
  *
- * Comme la question: une question, un mot de passe sudo ou un secret arrive dans
+ * Pendant Android de la question référence : une question, un mot de passe sudo ou un secret arrive dans
  * la même conversation, et Onyx le dit sans qu'on ouvre l'app. L'action « Reply » porte un
- * `RemoteInput`: on répond depuis la notification elle-même. Quand la saisie en ligne n'est pas
+ * `RemoteInput` : on répond depuis la notification elle-même. Quand la saisie en ligne n'est pas
  * possible — un secret qui ne doit pas traîner dans un champ de notification, une série de
  * questions — l'action ouvre l'app sur la carte, qui reste le seul lieu de saisie.
  *
- * La réponse part par [QuestionActionReceiver], qui appelle le même gateway que la carte: le
+ * La réponse part par [QuestionActionReceiver], qui appelle le même gateway que la carte : le
  * choix est réel, pas une simple ouverture de l'écran.
  */
 object QuestionNotifier {
@@ -47,7 +47,7 @@ object QuestionNotifier {
         requestId: String,
         questionId: String? = null,
         sessionId: String? = null,
-        /** Le nom de qui pose la question: le bot dans son fil, sinon « Onyx ». */
+        /** Le nom de qui pose la question : le bot dans son fil, sinon « Onyx ». */
         name: String? = null,
         canReplyInline: Boolean = true,
         enabled: Boolean = true,
@@ -74,14 +74,14 @@ object QuestionNotifier {
                 replyAction(context, id, kind, requestId, questionId, sessionId, prompt, sound),
             )
         } else {
-            // Sans saisie en ligne, l'action ouvre l'app: c'est là que la carte attend.
+            // Sans saisie en ligne, l'action ouvre l'app : c'est là que la carte attend.
             builder.addAction(0, OnyxLocalization[NotificationCopy.OPEN], open)
         }
 
         post(context, id, builder)
     }
 
-    /** La question a reçu sa réponse: la notification le dit, ou avoue l'échec. */
+    /** La question a reçu sa réponse : la notification le dit, ou avoue l'échec. */
     fun notifyResolved(context: Context, id: String, prompt: String, failed: Boolean) {
         ApprovalNotifier.ensureChannel(context)
         if (!ApprovalNotifier.canNotify(context)) return

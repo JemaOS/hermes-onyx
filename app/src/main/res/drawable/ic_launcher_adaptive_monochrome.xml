@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  COUCHE MONOCHROME de l'icône adaptative du lanceur Onyx — l'icône thémée d'Android 13+.
+
+  La silhouette de la rune SEULE : Android ne garde que le canal alpha et la teinte selon le
+  thème du système. Mêmes coordonnées que la rune du premier plan
+  (`ic_launcher_adaptive_foreground.xml`), pour que l'icône thémée soit exactement le même signe.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M47.15,64.73 L61.08,50.80 L54,43.27 L46.92,50.80 L60.85,64.73"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.88"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

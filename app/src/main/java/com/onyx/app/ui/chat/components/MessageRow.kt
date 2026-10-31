@@ -1,9 +1,12 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.localization.OnyxLanguage
 import androidx.annotation.DrawableRes
 import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,6 +27,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +35,12 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -60,10 +66,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import com.onyx.app.data.model.ApprovalRequest
 import com.onyx.app.data.model.ChatMessage
 import com.onyx.app.data.model.ToolActivity
@@ -75,6 +84,9 @@ import com.onyx.app.ui.chat.TurnStatusCopy
 import com.onyx.app.ui.design.FoldHeader
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.LiveMark
+import com.onyx.app.ui.design.LocalReduceMotion
+import com.onyx.app.ui.design.MotionFamily
+import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxMotion
 import com.onyx.app.ui.design.ambientLoop
 import com.onyx.app.ui.design.SelectableText
@@ -88,7 +100,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Une ligne du fil de conversation.
+ * Une ligne du fil de conversation : port de `MessageRow`.
  *
  * L'agent parle sous son nom, ses réponses sont posées à plat sur la page, son raisonnement et
  * ses appels d'outils se replient sous une même ligne à chevron, et vos messages forment une
@@ -99,7 +111,7 @@ fun MessageRow(
     message: ChatMessage,
     replyName: String,
     isLive: Boolean,
-    /** L'état honnête du tour en cours: l'étape connue et les horaires (`ChatUiState.live`). */
+    /** L'état honnête du tour en cours : l'étape connue et les horaires (`ChatUiState.live`). */
     live: TurnPhase? = null,
     modifier: Modifier = Modifier,
     showActions: Boolean = true,
@@ -108,6 +120,17 @@ fun MessageRow(
     onRegenerate: (() -> Unit)? = null,
     onReadAloud: (() -> Unit)? = null,
     isReading: Boolean = false,
+    /**
+     * « Brancher à partir d'ici » : copier ce fil **jusqu'à cette réponse** dans une nouvelle
+     * conversation, et l'ouvrir. Le ViewModel demande confirmation avant de copier quoi que ce
+     * soit ; `null` là où le geste n'a pas de sens (une question, un tour en cours).
+     */
+    onBranch: (() -> Unit)? = null,
+    /**
+     * Restaurer la conversation **à ce message** : tout ce qui suit est défait. Le ViewModel
+     * demande confirmation avant de retirer quoi que ce soit.
+     */
+    onRestore: (() -> Unit)? = null,
     onApproval: (approvalId: String, choice: String) -> Unit = { _, _ -> },
     onOpenDelivered: ((com.onyx.app.data.model.serve.DeliveredFile) -> Unit)? = null,
     highlighted: Boolean = false,
@@ -117,9 +140,21 @@ fun MessageRow(
     onOpenPhotos: ((List<com.onyx.app.data.model.Attachment>, Int) -> Unit)? = null,
     onOpenFile: ((com.onyx.app.data.model.Attachment) -> Unit)? = null,
     onOpenSubagent: ((com.onyx.app.data.model.SubagentActivity) -> Unit)? = null,
+    /**
+     * LOT organisation-fil-competences : arrête un sous-agent encore vivant
+     * (`subagent.interrupt`). `null` quand le transport ne porte pas le pilotage — les cartes ne
+     * dessinent alors aucun bouton d'arrêt mort.
+     */
+    onStopSubagent: ((com.onyx.app.data.model.SubagentActivity) -> Unit)? = null,
     onClarify: ((Map<String, String>) -> Unit)? = null,
     onSudo: ((String) -> Unit)? = null,
     onSecret: ((String) -> Unit)? = null,
+    /**
+     * LOT fil-vivant : vrai quand la personne **remonte lire** le fil (le suivi du bas est
+     * détaché). Les puces d'état des cartes **ralentissent** alors — l'état ne continue pas à
+     * battre à pleine cadence sous les yeux de qui lit.
+     */
+    readingUp: Boolean = false,
 ) {
     val theme = LocalOnyxTheme.current
     val promptPrefix = theme.promptPrefix
@@ -133,7 +168,7 @@ fun MessageRow(
             .then(
                 if (highlighted) {
                     Modifier
-                        .background(theme.accent.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
+                        .background(theme.accent.copy(alpha = 0.10f), RoundedCornerShape(OnyxSpace.ControlCorner))
                         .padding(horizontal = 6.dp, vertical = 4.dp)
                 } else {
                     Modifier
@@ -142,20 +177,20 @@ fun MessageRow(
         horizontalAlignment = if (message.isUser && !promptStyled) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Le nom du bot ne se pose que s'il a quelque chose à coiffer: un message vide coiffé
+        // Le nom du bot ne se pose que s'il a quelque chose à coiffer : un message vide coiffé
         // de son nom fait lire le message de l'utilisateur qui suit comme sa réponse (défaut
         // signalé par le propriétaire).
         if (isAssistant && promptPrefix == null && (isLive || hasSomethingToShow(message))) {
             SpeakerLine(message = message, name = replyName, isLive = isLive)
         }
 
-        // Une note de pilotage s'affiche en pastille, jamais en bulle: « Your steer »
-        // (Label orange à 12 %, pied de page, texte secondaire).
+        // Une note de pilotage s'affiche en pastille, jamais en bulle : « Your steer »
+        // (`MessageRow:126` — Label orange à 12 %, pied de page, texte secondaire).
         if (message.isSteer) {
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFFF9500).copy(alpha = 0.12f))
+                    .background(theme.warning.copy(alpha = 0.12f))
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -172,7 +207,7 @@ fun MessageRow(
         if (isAssistant && (message.reasoning.isNotEmpty() || message.tools.isNotEmpty())) {
             Column {
                 if (message.reasoning.isNotEmpty()) ThinkingFold(message = message, isLive = isLive)
-                if (message.tools.isNotEmpty()) StepsFold(tools = message.tools, isLive = isLive, textEmpty = message.text.isEmpty())
+                if (message.tools.isNotEmpty()) StepsFold(tools = message.tools, isLive = isLive, textEmpty = message.text.isEmpty(), readingUp = readingUp)
             }
         }
 
@@ -180,38 +215,36 @@ fun MessageRow(
         val patch = (message.tools.mapNotNull { it.output } + message.text)
             .lastOrNull { com.onyx.app.ui.rich.looksLikePatch(it) }
         if (patch != null && onOpenPatch != null) {
-            val files = remember(patch) { com.onyx.app.ui.rich.patchFiles(patch) }
-            Row {
-                Row(
-                    modifier = Modifier
-                        .background(theme.surfaceColor, RoundedCornerShape(50))
-                        .onyxClickable(pressedScale = 0.95f) { onOpenPatch(patch) }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    OnyxIcon(Symbols.Doc, tint = theme.accent, size = 13.dp)
-                    BasicText(
-                        text = "View change · " + com.onyx.app.ui.rich.patchSummary(files),
-                        style = theme.caption.copy(color = theme.textColor),
-                        maxLines = 1,
-                    )
-                }
-            }
+            com.onyx.app.ui.chat.components.ContextCard(
+                // LOT fil-vivant : un diff est une **carte de contexte** comme les autres — même
+                // rayon, même filet, même en-tête, état à gauche, action à droite. Son état est
+                // celui d'un travail livré : il est là, complet, dès qu'il s'affiche.
+                state = patchCardState(remember(patch) { com.onyx.app.ui.rich.patchFiles(patch) }.size),
+                title = "View change",
+                detail = remember(patch) { com.onyx.app.ui.rich.patchSummary(com.onyx.app.ui.rich.patchFiles(patch)) },
+                titleMonospace = false,
+                readingUp = readingUp,
+                onClick = { onOpenPatch(patch) },
+            )
         }
 
-        // Les sous-agents que cette réponse a lancés: une rangée par tâche, ouverte au tap sur sa
+        // Les sous-agents que cette réponse a lancés : une rangée par tâche, ouverte au tap sur sa
         // transcription. Ils ne se confondent pas avec les outils (`message.subagents`), c'est le
         // gateway qui les a nommés.
         if (onOpenSubagent != null && message.subagents.isNotEmpty()) {
-            SubagentRows(subagents = message.subagents, onOpenTranscript = onOpenSubagent)
+            SubagentRows(
+                subagents = message.subagents,
+                onOpenTranscript = onOpenSubagent,
+                onStop = onStopSubagent,
+                readingUp = readingUp,
+            )
         }
 
         todosFrom(message.tools).takeIf { it.isNotEmpty() }?.let { todos ->
             TodoChecklist(items = todos, isLive = isLive)
         }
 
-        // Les fichiers que la réponse a livrés, comme les pastilles.
+        // Les fichiers que la réponse a livrés, comme les pastilles de la référence.
         val delivered = com.onyx.app.ui.chat.DeliveredFiles.of(
             message.tools.map { it.output } + message.text,
         )
@@ -226,7 +259,7 @@ fun MessageRow(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        OnyxIcon(Symbols.Doc, tint = theme.accent, size = 13.dp)
+                        OnyxIcon(Symbols.Doc, tint = theme.textColor, size = 13.dp)
                         BasicText(
                             text = file.name,
                             localize = false,
@@ -253,11 +286,12 @@ fun MessageRow(
             ApprovalCard(
                 request = approval,
                 onChoose = { choice -> onApproval(approval.id, choice) },
+                readingUp = readingUp,
             )
         }
 
         when {
-            // Tant que rien n'est écrit, le fil dit tout de même ce qui se passe: l'onde seule
+            // Tant que rien n'est écrit, le fil dit tout de même ce qui se passe : l'onde seule
             // laissait l'agent « travailler dans le vide » sans que rien ne le dise.
             isLive && message.text.isEmpty() -> WaitingPulse(flat = flatReply, phase = live)
 
@@ -285,7 +319,7 @@ fun MessageRow(
         }
 
         // La page du premier lien web, l'interrupteur allumé (`LinkPreviewSlot`), une fois la
-        // réponse finie — jamais une note de pilotage ni une erreur.
+        // réponse finie — jamais une note de pilotage ni une erreur (`MessageRow:176`).
         LinkPreviewSlot(message = message, isLive = isLive, linkPreviews = linkPreviews)
 
         message.error?.let { error ->
@@ -309,23 +343,26 @@ fun MessageRow(
                 isReading = isReading,
                 onReadAloud = onReadAloud,
                 onRegenerate = onRegenerate,
+                onRestore = onRestore,
+                onBranch = onBranch,
+                tokens = message.usage,
             )
         }
     }
 }
 
-/** Vrai quand ce message a un corps, une erreur ou une carte: de quoi justifier un nom. */
+/** Vrai quand ce message a un corps, une erreur ou une carte : de quoi justifier un nom. */
 private fun hasSomethingToShow(message: ChatMessage): Boolean =
     message.text.isNotEmpty() || message.reasoning.isNotEmpty() || message.tools.isNotEmpty() ||
         message.error != null || !message.cards.isNullOrEmpty() || message.approvals.isNotEmpty() ||
         message.clarify != null || message.secret != null || message.sudoRequestId != null
 
 /**
- * En attente du premier token: la forme d'onde de l'app, qui respire — et sous elle, l'état
- * **honnête** du tour: le temps écoulé et la dernière étape connue.
+ * En attente du premier token : la forme d'onde de l'app, qui respire — et sous elle, l'état
+ * **honnête** du tour : le temps écoulé et la dernière étape connue.
  *
  * Sans cette ligne, un tour dont le serveur n'envoie rien (ou n'envoie que plus tard) ressemble à
- * du travail à vide: une onde, et rien à lire. Un tour qui n'a rien dit depuis un délai anormal
+ * du travail à vide : une onde, et rien à lire. Un tour qui n'a rien dit depuis un délai anormal
  * le dit ici, plutôt que de tourner indéfiniment en silence.
  */
 @Composable
@@ -362,7 +399,7 @@ private fun WaitingPulse(flat: Boolean, phase: TurnPhase? = null) {
 private data class TurnStatusLine(val text: String, val warning: Boolean)
 
 /**
- * La ligne d'état du tour, recalculée chaque seconde: le temps écoulé avance même quand le
+ * La ligne d'état du tour, recalculée chaque seconde : le temps écoulé avance même quand le
  * serveur se tait, et l'avertissement arrive de lui-même après le délai anormal.
  */
 @Composable
@@ -400,7 +437,7 @@ private fun SpeakerLine(message: ChatMessage, name: String, isLive: Boolean) {
     }
 }
 
-/** Préfixe seul en gras, comme `Text("\(Text(prompt).bold)\(message.text)")`. */
+/** Préfixe seul en gras, comme `Text("\(Text(prompt).bold())\(message.text)")`. */
 internal fun promptLineText(prefix: String, text: String): androidx.compose.ui.text.AnnotatedString =
     androidx.compose.ui.text.AnnotatedString.Builder().apply {
         append(prefix)
@@ -408,7 +445,7 @@ internal fun promptLineText(prefix: String, text: String): androidx.compose.ui.t
         append(text)
     }.toAnnotatedString()
 
-/** Vos messages dans un thème CRT: `❯ texte`, à plat, comme une invite de terminal. */
+/** Vos messages dans un thème CRT : `❯ texte`, à plat, comme une invite de terminal. */
 @Composable
 private fun PromptLine(prefix: String, text: String, color: Color) {
     val theme = LocalOnyxTheme.current
@@ -420,7 +457,7 @@ private fun PromptLine(prefix: String, text: String, color: Color) {
     }
 }
 
-/** Votre bulle: ses coins sont ceux du thème, le coin bas-droit rentré. */
+/** Votre bulle : ses coins sont ceux du thème, le coin bas-droit rentré. */
 @Composable
 private fun UserBubble(
     text: String,
@@ -465,7 +502,7 @@ private fun UserBubble(
                     }
                 }
                 // Une vidéo jointe se montre comme l'image, avec sa première image et un rond de
-                // lecture par-dessus: c'est `VideoTile` du modèle. L'appui ouvre le lecteur.
+                // lecture par-dessus : c'est `VideoTile` de la référence. L'appui ouvre le lecteur.
                 val videos = attachments.filter {
                     com.onyx.app.ui.chat.FileViewers.isVideo(
                         it.name.orEmpty().ifEmpty { it.uri.substringAfterLast('/') },
@@ -491,7 +528,7 @@ private fun UserBubble(
                 if (text.isNotEmpty()) {
                     SelectableText(text = text, localize = false, style = theme.userFont.copy(color = theme.userBubbleText))
                 }
-                // Un fichier joint n'est pas qu'une image: un PDF, un texte ou une archive se
+                // Un fichier joint n'est pas qu'une image : un PDF, un texte ou une archive se
                 // montrent en pastille, et s'ouvrent au tap (le PDF dans le lecteur de l'app).
                 val files = attachments.filterNot {
                     it.mimeType.startsWith("image/") || com.onyx.app.ui.chat.FileViewers.isVideo(
@@ -514,7 +551,7 @@ private fun UserBubble(
     }
 }
 
-/** La pastille d'un fichier joint dans une bulle: son symbole, puis son nom. */
+/** La pastille d'un fichier joint dans une bulle : son symbole, puis son nom. */
 @Composable
 private fun AttachmentFileChip(
     attachment: com.onyx.app.data.model.Attachment,
@@ -544,7 +581,7 @@ private fun AttachmentFileChip(
             text = name,
             localize = false,
             style = theme.caption.copy(color = theme.userBubbleText),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
@@ -557,23 +594,29 @@ private fun AttachmentThumb(
     onClick: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val theme = LocalOnyxTheme.current
+    // Une vignette de 64 dp : elle se décode **réduite** (`BoundedImages`), jamais en pleine
+    // résolution. Décoder l'image entière puis la dessiner à 64 dp faisait lever
+    // « Canvas: trying to draw too large(192000000bytes) bitmap » sur le fil principal — le
+    // processus mourait, l'app se relançait, et la même bulle le tuait de nouveau.
+    var attempted by androidx.compose.runtime.remember(attachment.uri) {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
     val bitmap by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(
         null,
         attachment.uri,
     ) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                context.contentResolver.openInputStream(android.net.Uri.parse(attachment.uri))?.use { stream ->
-                    android.graphics.BitmapFactory.decodeStream(stream)?.asImageBitmap()
-                }
-            }.getOrNull()
-        }
+        value = com.onyx.app.ui.chat.BoundedImages
+            .decodeUriOffMain(context, android.net.Uri.parse(attachment.uri), com.onyx.app.ui.chat.BoundedImages.THUMB_PX)
+            ?.asImageBitmap()
+        attempted = true
     }
 
     Box(
         modifier = Modifier
             .size(64.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
+            .background(theme.userBubbleText.copy(alpha = 0.14f))
             .onyxClickable(onClick = onClick),
     ) {
         bitmap?.let {
@@ -584,13 +627,29 @@ private fun AttachmentThumb(
                 modifier = Modifier.size(64.dp),
             )
         }
+        // Une image qui n'a pas pu être lue garde sa place et **le dit** : une case vide fait
+        // croire à une image noire, et le propriétaire ne sait pas quoi faire.
+        if (attempted && bitmap == null) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                OnyxIcon(symbol = Symbols.Photo, tint = theme.userBubbleText.copy(alpha = 0.55f), size = 18.dp)
+                BasicText(
+                    text = com.onyx.app.localization.OnyxLocalization["Unreadable"],
+                    style = theme.caption2.copy(color = theme.userBubbleText.copy(alpha = 0.7f)),
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
 /**
- * La vignette d'une vidéo jointe: sa première image sous un rond de lecture.
+ * La vignette d'une vidéo jointe : sa première image sous un rond de lecture.
  *
- * C'est `VideoTile` du modèle, à la lettre: l'image se lit une fois et reste là (aucune
+ * C'est `VideoTile` de la référence, à la lettre : l'image se lit une fois et reste là (aucune
  * lecture pendant que le fil défile), et quand aucune image ne sort du film, c'est le rond seul
  * sur un fond neutre. L'appui ouvre le lecteur intégré.
  */
@@ -601,7 +660,7 @@ private fun VideoThumb(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val name = attachment.name.orEmpty().ifEmpty { attachment.uri.substringAfterLast('/') }
-    // La vignette se fait à 3× la taille affichée, comme le modèle: nette à la densité de
+    // La vignette se fait à 3× la taille affichée, comme la référence : nette à la densité de
     // l'écran sans garder en mémoire l'image entière du film.
     val poster by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(
         null,
@@ -613,7 +672,7 @@ private fun VideoThumb(
     Box(
         modifier = Modifier
             .size(64.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
             .onyxClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -645,78 +704,260 @@ private fun VideoThumb(
     }
 }
 
-/** Le raisonnement du modèle, replié sous « Thinking » / « Thought for 6 s ». */
+/**
+ * Le raisonnement du modèle, replié sous une ligne à icône : le cerveau, **son annonce en petites
+ * capitales** (« RAISONNEMENT DU MODÈLE »), la durée discrète, puis un chevron. Le détail se lit en
+ * retrait derrière un **filet vertical de 2 dp** — le filet des replis de la maison —, posé sur la
+ * **surface de la page** : plus de pavé plein qui se détache du fond papier.
+ *
+ * La ligne dit **ce que c'est**, et si le texte est dans une autre langue que l'app, elle le dit
+ * aussi (« brut, non traduit ») : sans cela, un raisonnement en anglais posé dans une interface
+ * française se lit comme de l'interface mal traduite.
+ *
+ * Le repli est **fermé par défaut** (même une réponse courte : il ne s'ouvre pas tout seul) et ne
+ * s'ouvre que sur appui. Sous Reduce Motion, l'ouverture est **figée**.
+ */
 @Composable
 private fun ThinkingFold(message: ChatMessage, isLive: Boolean) {
     val theme = LocalOnyxTheme.current
+    val reduceMotion = LocalReduceMotion.current
     var chosen by remember(message.id) { mutableStateOf<Boolean?>(null) }
-    val open = chosen ?: isLive
+    val open = chosen ?: false
     val thinking = isLive && message.text.isEmpty()
+    // **Ce que le bloc doit dire de lui-même** : le raisonnement est dans une autre langue que
+    // l'app. Rien à annoncer s'il est déjà dans notre langue.
+    val foreign = reasoningLooksForeign(message.reasoning, OnyxLocalization.isFrench())
+    // **L'annonce en petites capitales** : 11 sp SemiBold, interlettrage +0,08 em — la métrique du
+    // libellé de section de la maison —, à l'encre mesurée ([reasoningInk]).
+    val eyebrow = theme.caption2.copy(
+        color = reasoningInk(theme),
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.08.em,
+    )
+
+    val chevronAngle by animateFloatAsState(
+        targetValue = if (open) 90f else 0f,
+        animationSpec = OnyxMotion.Sites.MessageFold,
+        label = "reasoningChevron",
+    )
+    // **L'arrivée du raisonnement** est une famille nommée ([MotionFamily.Reasoning]) : la durée
+    // paraît en fondu de 200 ms, et le passage de « en train de réfléchir » à « réflexion terminée »
+    // est **le même** mouvement. Ce qui vient d'la référence (le repli lui-même, `MessageFold`) garde
+    // sa courbe : c'est une autre intention, et la parité des courbes portées ne se négocie pas.
+    // Sous « Réduire les animations », la spec vaut `snap()` : la ligne change d'un coup.
+    val reasoningSpec = MotionFamily.Reasoning.spec<Float>(reduceMotion)
 
     Column {
-        FoldHeader(open = open, onClick = { chosen = !open }) {
-            if (thinking) {
-                ShimmerText(
-                    text = "Thinking",
-                    style = theme.subheadline,
-                    baseColor = theme.secondaryText,
-                    highlightColor = theme.textColor,
-                )
-            } else {
-                BasicText(text = thoughtLabel(message), style = theme.subheadline.copy(color = theme.secondaryText))
+        Row(
+            modifier = Modifier
+                .onyxClickable(pressedScale = 0.98f, pressedAlpha = 0.7f) { chosen = !open }
+                // **Aligné sur la marge du contenu** : plus de retrait horizontal — le cerveau
+                // commence au bord du texte du message dont le bloc dépend.
+                .padding(vertical = OnyxSpace.Hair),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(OnyxSpace.IconLabelGap),
+        ) {
+            OnyxIcon(symbol = Symbols.Brain, tint = theme.secondaryText, size = 12.dp)
+            AnimatedContent(
+                targetState = thinking,
+                transitionSpec = { fadeIn(animationSpec = reasoningSpec) togetherWith fadeOut(animationSpec = reasoningSpec) },
+                label = "reasoningArrival",
+            ) { live ->
+                if (live) {
+                    ShimmerText(
+                        text = OnyxLocalization["Model reasoning"].uppercase(),
+                        style = eyebrow,
+                        baseColor = reasoningInk(theme),
+                        highlightColor = theme.textColor,
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(OnyxSpace.IconLabelGap),
+                    ) {
+                        // **L'annonce** : ce n'est pas un libellé d'interface, c'est le
+                        // raisonnement brut du modèle — la ligne le dit en petites capitales.
+                        BasicText(
+                            text = OnyxLocalization["Model reasoning"].uppercase(),
+                            localize = false,
+                            style = eyebrow,
+                        )
+                        // La durée reste (elle sert au propriétaire) mais discrète, et lisible : sa
+                        // taille suffit à la mettre en retrait, pas une encre sous le seuil.
+                        reasoningSeconds(message)?.let { seconds ->
+                            BasicText(
+                                text = "$seconds s",
+                                localize = false,
+                                style = theme.caption.copy(color = reasoningInk(theme)),
+                            )
+                        }
+                    }
+                }
             }
+            // **La mention qui évite le malentendu.** Un raisonnement dans une autre langue que
+            // l'app est **brut** — pas de l'interface mal traduite. Elle paraît même replié, pour
+            // que personne ne l'attribue à l'app.
+            if (foreign) {
+                BasicText(
+                    text = "· " + OnyxLocalization["raw, untranslated"].uppercase(),
+                    localize = false,
+                    style = eyebrow,
+                )
+            }
+            OnyxIcon(
+                symbol = Symbols.ChevronRight,
+                tint = theme.secondaryText,
+                size = 11.dp,
+                modifier = Modifier.rotate(chevronAngle),
+            )
         }
         AnimatedVisibility(
             visible = open,
-            enter = expandVertically(
-                animationSpec = OnyxMotion.Sites.MessageFoldSize,
-                expandFrom = Alignment.Top,
-            ) +
-                slideInVertically(animationSpec = OnyxMotion.Sites.MessageFoldOffset) { -it } +
-                fadeIn(animationSpec = OnyxMotion.Sites.MessageFold),
-            exit = shrinkVertically(animationSpec = OnyxMotion.Sites.MessageFoldSize, shrinkTowards = Alignment.Top) +
-                slideOutVertically(animationSpec = OnyxMotion.Sites.MessageFoldOffset) { -it } +
-                fadeOut(animationSpec = OnyxMotion.Sites.MessageFold),
+            enter = if (reduceMotion) {
+                EnterTransition.None
+            } else {
+                expandVertically(
+                    animationSpec = OnyxMotion.Sites.MessageFoldSize,
+                    expandFrom = Alignment.Top,
+                ) +
+                    slideInVertically(animationSpec = OnyxMotion.Sites.MessageFoldOffset) { -it } +
+                    fadeIn(animationSpec = OnyxMotion.Sites.MessageFold)
+            },
+            exit = if (reduceMotion) {
+                ExitTransition.None
+            } else {
+                shrinkVertically(animationSpec = OnyxMotion.Sites.MessageFoldSize, shrinkTowards = Alignment.Top) +
+                    slideOutVertically(animationSpec = OnyxMotion.Sites.MessageFoldOffset) { -it } +
+                    fadeOut(animationSpec = OnyxMotion.Sites.MessageFold)
+            },
         ) {
-            FoldBody {
+            ReasoningDetail(message = message, isLive = isLive)
+        }
+    }
+}
+
+/**
+ * Le détail d'un raisonnement : **un filet vertical de 2 dp à gauche** — le filet des replis de la
+ * maison (`FoldBody`) — et le texte **en retrait**, posé sur la **surface de la page**. Pas d'aplat
+ * plein, pas de bordure lourde, pas de monospace (il est réservé aux identifiants) : la réflexion
+ * est un contenu **secondaire**, elle se lit, elle ne crie pas.
+ *
+ * **La longueur est tenue** : au-delà de six lignes le bloc se tronque, et son **pied** porte
+ * « Voir tout » ; déplié, il porte « Réduire ». Il y a donc toujours un moyen de refermer **depuis
+ * le bas du bloc** — jamais un mur de dix écrans, jamais un texte sans fin.
+ *
+ * Le bloc est **à la marge du contenu** : il n'ajoute aucun retrait de carte qui le détacherait du
+ * message dont il dépend.
+ */
+@Composable
+private fun ReasoningDetail(message: ChatMessage, isLive: Boolean) {
+    val theme = LocalOnyxTheme.current
+    var expanded by remember(message.id) { mutableStateOf(false) }
+    val full = if (isLive) tail(message.reasoning, 360) else message.reasoning
+    val long = reasoningIsLong(full)
+    // **Le corps secondaire** : la méta de l'échelle, à l'interligne confortable — c'est une page
+    // à lire, pas un compteur.
+    val body = theme.footnote.copy(
+        color = reasoningInk(theme),
+        lineHeight = theme.footnote.fontSize * ReasoningBlock.LineHeightRatio,
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = OnyxSpace.Hair),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            // **Le filet** : un repère de 2 dp au ton de filet de la maison, pas une bordure de
+            // carte — il rattache le bloc au message, il ne l'encadre pas.
+            Box(
+                modifier = Modifier
+                    .width(ReasoningBlock.RailWidth)
+                    .fillMaxHeight()
+                    .background(theme.separator),
+            )
+            Column(modifier = Modifier.padding(start = ReasoningBlock.TextIndent)) {
                 SelectableText(
-                    text = if (isLive) tail(message.reasoning, 360) else message.reasoning,
+                    text = full,
                     localize = false,
-                    style = theme.footnote.copy(color = theme.secondaryText),
+                    style = body,
+                    maxLines =
+                        if (long && !expanded) ReasoningBlock.CollapsedLines else Int.MAX_VALUE,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                if (long) {
+                    ReasoningLengthControl(expanded = expanded, onToggle = { expanded = !expanded })
+                }
             }
         }
     }
 }
 
-/** « Thought for 6 s »; « Thought » pour les réponses enregistrées avant qu'on garde les temps. */
-private fun thoughtLabel(message: ChatMessage): String {
-    val started = message.reasoningStartedAt
-    val ended = message.reasoningEndedAt
-    if (started != null && ended != null) {
-        // Une réflexion sous la seconde a quand même pris un moment; « 0 s » se lirait comme rien.
-        val seconds = ((maxOf(ended, started + 1000) - started) / 1000).coerceAtLeast(1)
-        return "Thought for $seconds s"
+/**
+ * Le **pied du bloc** : « Voir tout » quand il est tronqué, « Réduire » quand il est déplié. La
+ * cible est celle du pouce ([OnyxSpace.TouchTarget], 48 dp), l'encre est **mesurée** contre la page
+ * ([reasoningInk]), et le chevron dit le sens du geste — jamais un mot sans contrôle.
+ */
+@Composable
+private fun ReasoningLengthControl(expanded: Boolean, onToggle: () -> Unit) {
+    val theme = LocalOnyxTheme.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = OnyxSpace.TouchTarget)
+            .onyxClickable(pressedAlpha = 0.6f, onClick = onToggle),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(OnyxSpace.IconLabelGap),
+    ) {
+        BasicText(
+            text = OnyxLocalization[if (expanded) "Show less" else "See all"],
+            style = theme.footnote.copy(color = reasoningInk(theme)),
+        )
+        OnyxIcon(
+            symbol = if (expanded) Symbols.ChevronUp else Symbols.ChevronDown,
+            tint = reasoningInk(theme),
+            size = 11.dp,
+        )
     }
-    return "Thought"
+}
+
+/**
+ * L'encre lisible du raisonnement et de son libellé : **mesurée** contre le fond réel (la page).
+ * La teinte secondaire du thème donne 3,45:1 en clair — sous le seuil de 4,5 d'un texte. 0,70 de
+ * l'encre principale donne **8,5:1** en clair et **10:1** en sombre. La mise en retrait se fait par
+ * la **taille**, pas par une encre illisible ; les icônes, elles, gardent la teinte secondaire
+ * (3,45:1 clair / 6,33:1 sombre, au-dessus du seuil de 3 d'une icône).
+ */
+internal fun reasoningInk(theme: com.onyx.app.ui.theme.ResolvedTheme): Color =
+    theme.textColor.copy(alpha = 0.70f)
+
+/** Les secondes de réflexion, ou `null` pour une réponse enregistrée avant qu'on garde les temps. */
+internal fun reasoningSeconds(message: ChatMessage): Long? {
+    val started = message.reasoningStartedAt ?: return null
+    val ended = message.reasoningEndedAt ?: return null
+    // Une réflexion sous la seconde a quand même pris un moment ; « 0 s » se lirait comme rien.
+    return ((maxOf(ended, started + 1000) - started) / 1000).coerceAtLeast(1)
 }
 
 /** Les outils que la réponse a utilisés, repliés de la même façon. */
 @Composable
-private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boolean) {
+private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boolean, readingUp: Boolean = false) {
     val theme = LocalOnyxTheme.current
     var chosen by remember { mutableStateOf<Boolean?>(null) }
-    var openStep by remember { mutableStateOf<String?>(null) }
+    // LOT outils-detail : l'appel dont la **feuille de détail** est ouverte, gardé par son
+    // identifiant — jamais une position dans la liste (voir `toolCallSelection`).
+    var detailOf by remember { mutableStateOf<String?>(null) }
     val working = isLive && tools.any { it.isRunning }
     val open = chosen ?: (isLive && textEmpty)
 
     Column {
+        // LOT organisation-fil-competences : la puce repliée de la référence — deux icônes de
+        // genre d'outil, puis « Ran 3 tools · 1 s » (et « Working · 3 tools » tant que ça tourne).
         FoldHeader(
             open = open,
-            label = if (working) "Working · ${toolsSummary(tools, working = true)}"
-            else "Used ${toolsSummary(tools, working = false)}",
             onClick = { chosen = !open },
-        )
+        ) {
+            RanToolsChipLabel(tools = tools, working = working)
+        }
         AnimatedVisibility(
             visible = open,
             enter = expandVertically(
@@ -732,71 +973,46 @@ private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boo
             FoldBody {
                 tools.forEach { tool ->
                     val canOpen = tool.args != null || tool.output != null
-                    val isOpen = openStep == tool.id
-                    val chevronAngle by animateFloatAsState(
-                        targetValue = if (isOpen) 90f else 0f,
-                        animationSpec = OnyxMotion.Sites.MessageFold,
-                        label = "stepChevron",
+                    val rowLabel = toolRowLabel(tool)
+                    // **LOT fil-vivant : chaque appel d'outil est une carte de contexte**
+                    // ([ContextCard]) — même rayon, même filet, même en-tête, état à gauche, action
+                    // à droite, exactement comme un sous-agent ou une approbation. Sa puce dit son
+                    // **vrai** état ([toolCardState] : l'anneau qui tourne, la coche tracée,
+                    // la croix), et le repli est celui de la maison.
+                    //
+                    // Le repli garde son geste d'origine : la **rangée** ouvre la feuille du détail
+                    // (48 dp de haut, le même contrat que le lot « outils-detail »), le **chevron**
+                    // déplie l'appel sur place.
+                    ContextCard(
+                        state = toolCardState(tool.status),
+                        title = rowLabel.text,
+                        titleMonospace = rowLabel.monospace,
+                        identifier = rowLabel.id,
+                        detail = tool.preview?.takeIf { it.isNotBlank() },
+                        trailing = toolElapsedSeconds(tool)?.let { ranToolsDuration(it) },
+                        minHeight = ToolCallRowMinTouch,
+                        leading = { StepMark(status = tool.status) },
+                        readingUp = readingUp,
+                        onClick = { detailOf = tool.id },
+                        foldBody = if (canOpen) {
+                            { StepDetail(tool) }
+                        } else {
+                            null
+                        },
                     )
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onyxTappable(enabled = canOpen) { openStep = if (isOpen) null else tool.id }
-                                .padding(vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            StepMark(status = tool.status)
-                            Column(modifier = Modifier.weight(1f)) {
-                                SelectableText(
-                                    text = tool.name.ifBlank { "outil" },
-                                    localize = false,
-                                    style = theme.subheadline.copy(
-                                        color = if (tool.isRunning) theme.textColor else theme.secondaryText,
-                                    ),
-                                )
-                                tool.preview?.takeIf { it.isNotBlank() }?.let { preview ->
-                                    SelectableText(
-                                        text = preview,
-                                        localize = false,
-                                        style = theme.caption.copy(color = theme.secondaryText),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                            if (canOpen) {
-                                OnyxIcon(
-                                    Symbols.ChevronRight,
-                                    tint = theme.tertiaryText,
-                                    size = 11.dp,
-                                    modifier = Modifier.rotate(chevronAngle),
-                                )
-                            }
-                        }
-                        AnimatedVisibility(
-                            visible = isOpen,
-                            enter = expandVertically(
-                                animationSpec = OnyxMotion.Sites.MessageFoldSize,
-                                expandFrom = Alignment.Top,
-                            ) +
-                                slideInHorizontally(animationSpec = OnyxMotion.Sites.MessageFoldOffset) { -it } +
-                                fadeIn(animationSpec = OnyxMotion.Sites.MessageFold),
-                            exit = shrinkVertically(animationSpec = OnyxMotion.Sites.MessageFoldSize, shrinkTowards = Alignment.Top) +
-                                slideOutHorizontally(animationSpec = OnyxMotion.Sites.MessageFoldOffset) { -it } +
-                                fadeOut(animationSpec = OnyxMotion.Sites.MessageFold),
-                        ) {
-                            StepDetail(tool)
-                        }
-                    }
                 }
             }
+        }
+        // LOT outils-detail : la feuille du gabarit maison, ouverte sur **l'appel touché**.
+        // `toolCallSelection` le choisit par son identifiant : deux `terminal` de la même réponse
+        // ne se confondent pas, et la feuille ne montre jamais « le premier » ni « le dernier ».
+        toolCallSelection(tools, detailOf)?.let { picked ->
+            ToolCallDetailSheet(tool = picked, onDismiss = { detailOf = null })
         }
     }
 }
 
-/** Un outil, ouvert: ce avec quoi il a été appelé et ce qu'il a rendu. */
+/** Un outil, ouvert : ce avec quoi il a été appelé et ce qu'il a rendu. */
 @Composable
 private fun StepDetail(tool: ToolActivity) {
     val theme = LocalOnyxTheme.current
@@ -830,7 +1046,7 @@ private fun DetailBlock(label: String, text: String, lines: Int) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(theme.surfaceColor, RoundedCornerShape(10.dp))
+                .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.ControlCorner))
                 .padding(horizontal = 10.dp, vertical = 8.dp),
         ) {
             SelectableText(
@@ -844,7 +1060,7 @@ private fun DetailBlock(label: String, text: String, lines: Int) {
     }
 }
 
-/** L'état d'un outil: un anneau qui tourne, une coche, ou une croix. */
+/** L'état d'un outil : un anneau qui tourne, une coche, ou une croix. */
 @Composable
 private fun StepMark(status: ToolStatus) {
     val theme = LocalOnyxTheme.current
@@ -903,14 +1119,14 @@ private fun StepMark(status: ToolStatus) {
 
 /**
  * La coche d'un outil fini, qui se trace (`StepMark`, `CheckShape` + `.trim(from:to:)`,
- * `.easeOut(duration: 0.4).delay(0.05)`). Le chemin est celui , dessiné au trait.
+ * `.easeOut(duration: 0.4).delay(0.05)`). Le chemin est celui de la référence, dessiné au trait.
  */
 @Composable
 private fun DrawnCheckmark(color: androidx.compose.ui.graphics.Color) {
     var drawn by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { drawn = true }
-    // `StepMark`: `if animated, !reduceMotion { withAnimation(…0,4 + 0,05) } else { drawn = 1 }`
-    // — la coche est posée d'un coup, sans tracé.
+    // `StepMark` : `if animated, !reduceMotion { withAnimation(…0,4 + 0,05) } else { drawn = 1 }`
+    // (`MessageRow:620-624`) — la coche est posée d'un coup, sans tracé.
     val progress = ambientLoop(1f) {
         androidx.compose.animation.core.animateFloatAsState(
             targetValue = if (drawn) 1f else 0f,
@@ -954,18 +1170,90 @@ private fun DrawnCheckmark(color: androidx.compose.ui.graphics.Color) {
     }
 }
 
-internal val ReplyActionRowLeading = (-7).dp
-internal val ReplyActionGlyphSize = 15.dp
+/**
+ * Le retrait de la rangée : il aligne le **premier glyphe** sur le bord du texte de la réponse.
+ * La case fait 44 dp et le glyphe 20 dp, donc 12 dp d'encart de chaque côté — d'où un retrait de
+ * −12 (mesuré, pas à l'œil).
+ */
+internal val ReplyActionRowLeading = (-12).dp
 
-/** `MessageRow.actionRow`: caption2 avec chiffres tabulaires, pas tout le texte en monospace. */
+/** La taille du glyphe, **identique pour les quatre**. */
+internal val ReplyActionGlyphSize = 20.dp
+
+/** La cible tactile de chaque action : 44 dp (guide d'accessibilité). */
+internal val ReplyActionTouchTarget = 44.dp
+
+/** L'espacement, **égal**, entre deux cases (et donc entre deux glyphes). */
+internal val ReplyActionSpacing = 2.dp
+
+/**
+ * Les actions de la rangée, dans l'ordre de la référence : **brancher d'ici**, restaurer,
+ * régénérer, lire (ou arrêter), copier.
+ *
+ * La référence n'a pas de « restaurer » (c'est le geste de la maison) ; elle ouvre la rangée par la
+ * *bifurcation*. Celle-ci est donc la première à gauche, et les quatre actions d'avant gardent
+ * leur ordre et leurs cases.
+ */
+internal enum class ReplyAction { Branch, Restore, Regenerate, Read, Copy }
+
+/** Une case de la rangée : son glyphe, son libellé, et si elle est active. */
+internal data class ReplyActionSlot(
+    val action: ReplyAction,
+    @DrawableRes val symbol: Int,
+    val label: String,
+    val enabled: Boolean,
+    /** La copie réussie teinte sa coche en vert, comme la référence. */
+    val tintIsSuccess: Boolean = false,
+)
+
+/**
+ * Les cases de la rangée, dans l'ordre : **brancher d'ici**, restaurer, régénérer, lire (ou
+ * arrêter), copier.
+ *
+ * Fonction **pure** (donc testable) : les cinq cases portent la **même** taille de glyphe, et une
+ * action indisponible garde **sa** case plutôt que de disparaître — la rangée ne bouge donc jamais.
+ * L'état de la lecture (enceinte → carré) et celui de la copie (feuilles → coche) changent le glyphe
+ * **dans** la même case.
+ */
+internal fun replyActionSlots(
+    copied: Boolean,
+    isReading: Boolean,
+    canBranch: Boolean,
+    canRestore: Boolean,
+    canRegenerate: Boolean,
+    canRead: Boolean,
+): List<ReplyActionSlot> = listOf(
+    // La **première à gauche**, comme la référence : la bifurcation ouvre la rangée.
+    ReplyActionSlot(ReplyAction.Branch, Symbols.Branch, "Branch from here", canBranch),
+    ReplyActionSlot(ReplyAction.Restore, Symbols.ArrowCounterclockwise, "Restore to here", canRestore),
+    ReplyActionSlot(ReplyAction.Regenerate, Symbols.ArrowClockwise, "Regenerate", canRegenerate),
+    ReplyActionSlot(
+        ReplyAction.Read,
+        if (isReading) Symbols.Stop else Symbols.SpeakerWave,
+        if (isReading) "Stop reading" else "Read aloud",
+        canRead,
+    ),
+    ReplyActionSlot(
+        ReplyAction.Copy,
+        if (copied) Symbols.Checkmark else Symbols.DocOnDoc,
+        if (copied) "Copied" else "Copy reply",
+        enabled = true,
+        tintIsSuccess = copied,
+    ),
+)
+
+/** `MessageRow.actionRow` : caption2 avec chiffres tabulaires, pas tout le texte en monospace. */
 internal fun replyMetricsTextStyle(theme: com.onyx.app.ui.theme.ResolvedTheme): androidx.compose.ui.text.TextStyle =
     theme.caption2.copy(color = theme.tertiaryText, fontFeatureSettings = "tnum")
 
-/** Copier, lire à voix haute, relancer, puis la vitesse de la réponse. */
+/**
+ * Restaurer, régénérer, lire à voix haute, copier — puis la vitesse de la réponse, à la fin de la
+ * rangée et **discrète** (elle ne déplace pas les quatre glyphes).
+ */
 @Composable
 private fun ActionRow(
     text: String,
-    /** Le nom de qui parle: l'étiquette du presse-papiers suit le fil (le bot, sinon Onyx). */
+    /** Le nom de qui parle : l'étiquette du presse-papiers suit le fil (le bot, sinon Onyx). */
     speaker: String,
     onToast: ((String) -> Unit)?,
     onSelectText: ((String) -> Unit)?,
@@ -973,6 +1261,18 @@ private fun ActionRow(
     isReading: Boolean,
     onReadAloud: (() -> Unit)?,
     onRegenerate: (() -> Unit)?,
+    onRestore: (() -> Unit)?,
+    /**
+     * « Brancher à partir d'ici » : la copie du fil jusqu'à cette réponse, dans une nouvelle
+     * conversation. `null` quand l'écran ne le propose pas — la case reste, grisée, et n'ouvre
+     * alors la confirmation de personne.
+     */
+    onBranch: (() -> Unit)? = null,
+    /**
+     * LOT organisation-fil-competences : les jetons du tour, « 18,4k ↓ · 612 ↑ », à droite du pied
+     * — la même paire que la référence. `null` quand le serveur n'a rien compté.
+     */
+    tokens: com.onyx.app.data.model.TokenUsage? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val clipboard = LocalClipboard.current
@@ -987,48 +1287,69 @@ private fun ActionRow(
         }
     }
 
+    val slots = replyActionSlots(
+        copied = copied,
+        isReading = isReading,
+        canBranch = onBranch != null,
+        canRestore = onRestore != null,
+        canRegenerate = onRegenerate != null,
+        canRead = onReadAloud != null,
+    )
+
     Row(
         modifier = Modifier.offset(x = ReplyActionRowLeading),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(ReplyActionSpacing),
     ) {
-        ActionIcon(
-            symbol = if (copied) Symbols.Checkmark else Symbols.DocOnDoc,
-            label = if (copied) "Copied" else "Copy reply",
-            tint = if (copied) theme.success else theme.secondaryText,
-        ) {
-            scope.launch {
-                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(speaker, text)))
+        slots.forEach { slot ->
+            ActionIcon(
+                symbol = slot.symbol,
+                label = slot.label,
+                tint = when {
+                    !slot.enabled -> theme.tertiaryText
+                    slot.tintIsSuccess -> theme.success
+                    else -> theme.secondaryText
+                },
+                enabled = slot.enabled,
+                // « Select text » reste joignable (il a perdu son icône « … » au profit des quatre
+                // actions de la référence) : l'appui long sur la copie ouvre le texte sélectionnable.
+                onLongPress = if (slot.action == ReplyAction.Copy && onSelectText != null) {
+                    { onSelectText.invoke(text) }
+                } else {
+                    null
+                },
+            ) {
+                when (slot.action) {
+                    ReplyAction.Branch -> onBranch?.invoke()
+                    ReplyAction.Restore -> onRestore?.invoke()
+                    ReplyAction.Regenerate -> onRegenerate?.invoke()
+                    ReplyAction.Read -> onReadAloud?.invoke()
+                    ReplyAction.Copy -> {
+                        scope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(speaker, text)))
+                        }
+                        copied = true
+                        onToast?.invoke("Copied")
+                    }
+                }
             }
-            copied = true
-            onToast?.invoke("Copied")
         }
 
-        onReadAloud?.let { action ->
-            ActionIcon(
-                symbol = if (isReading) Symbols.Stop else Symbols.SpeakerWave,
-                label = if (isReading) "Stop reading" else "Read aloud",
-                tint = theme.secondaryText,
-                onClick = action,
+        // LOT organisation-fil-competences : les jetons du pied de réponse, à droite — « 18,4k ↓ ·
+        // 612 ↑ », entrée puis sortie. Rien quand le serveur n'a rien compté.
+        replyTokenPair(tokens)?.let { pair ->
+            BasicText(
+                text = pair,
+                localize = false,
+                style = replyMetricsTextStyle(theme),
+                maxLines = 1,
+                modifier = Modifier.padding(start = 6.dp),
             )
-        }
-
-        onRegenerate?.let { action ->
-            ActionIcon(
-                symbol = Symbols.ArrowClockwise,
-                label = "Regenerate",
-                tint = theme.secondaryText,
-                onClick = action,
-            )
-        }
-
-        ActionIcon(symbol = Symbols.Ellipsis, label = "More", tint = theme.secondaryText) {
-            onSelectText?.invoke(text)
         }
 
         metrics?.takeIf { it.completedAt != null }?.let { value ->
-            // `withAnimation(.easeOut(duration: 0.15)) { fullMetrics.toggle }`: les chiffres
-            // détaillés remplacent le résumé en fondu.
+            // `withAnimation(.easeOut(duration: 0.15)) { fullMetrics.toggle() }` : les chiffres
+            // détaillés remplacent le résumé en fondu. Discret, à la fin de la rangée.
             AnimatedContent(
                 targetState = fullMetrics,
                 transitionSpec = {
@@ -1051,20 +1372,39 @@ private fun ActionRow(
     }
 }
 
+/**
+ * Une case de la rangée : même côté (44 dp) pour les quatre, glyphe centré, et le changement d'état
+ * (copie → coche, lecture → arrêt) échange le dessin **dans** la case sans en bouger le cadre.
+ */
 @Composable
 private fun ActionIcon(
     @DrawableRes symbol: Int,
     label: String,
     tint: Color,
+    enabled: Boolean = true,
+    onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .onyxClickable(pressedScale = 0.9f, onClick = onClick),
+            .size(ReplyActionTouchTarget)
+            // L'encre des cases est choisie (secondaire au repos, tertiaire quand l'action manque) :
+            // `disabledAlpha = 1f` pour qu'une couche d'opacité ne l'écrase pas.
+            .then(
+                if (onLongPress == null) {
+                    Modifier.onyxClickable(
+                        enabled = enabled,
+                        pressedScale = 0.9f,
+                        disabledAlpha = 1f,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier.onyxTappable(enabled = enabled, onLongPress = onLongPress, onClick = onClick)
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        // Le glyphe s'échange en se redimensionnant: `withAnimation(.snappy(duration: 0.2))`
+        // Le glyphe s'échange en se redimensionnant : `withAnimation(.snappy(duration: 0.2))`
         // autour du changement de `copied` (copie → coche, lecture → arrêt).
         AnimatedContent(
             targetState = symbol,
@@ -1084,7 +1424,7 @@ private fun ActionIcon(
     }
 }
 
-/** Le corps d'un repli: un filet de 2 pt sur son flanc gauche (`FoldBody`). */
+/** Le corps d'un repli : un filet de 2 pt sur son flanc gauche (`FoldBody`). */
 @Composable
 private fun FoldBody(content: @Composable () -> Unit) {
     val theme = LocalOnyxTheme.current
@@ -1111,7 +1451,7 @@ private fun toolsSummary(tools: List<ToolActivity>, working: Boolean): String {
     val end = tools.mapNotNull { it.endedAt }.maxOrNull() ?: return count
     if (end <= start) return count
     val seconds = (end - start).toDouble() / 1000.0
-    return if (seconds < 10) "$count · ${"%.1f".format(seconds)} s" else "$count · ${seconds.toInt()} s"
+    return if (seconds < 10) "$count · ${String.format(OnyxLanguage.preferred, "%.1f", seconds)} s" else "$count · ${seconds.toInt()} s"
 }
 
 /** Les premières lignes d'un texte, comme `MessageRow.head`. */

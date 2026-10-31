@@ -1,9 +1,8 @@
 package com.onyx.app.ui.voice
 
-import android.graphics.BitmapFactory
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -12,160 +11,239 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.onyx.app.core.R
 import com.onyx.app.ui.design.LocalReduceMotion
 import com.onyx.app.ui.design.OnyxMotion
 import com.onyx.app.ui.design.ambientLoop
+import com.onyx.app.ui.design.ambientState
+import com.onyx.app.ui.theme.ReferencePalette
 import com.onyx.app.voice.VoicePhase
 import kotlin.math.exp
-import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Les hauteurs que la vague prend avec la voix: le centre le plus haut, chaque barre vers
+ * Les hauteurs que la vague prend avec la voix : le centre le plus haut, chaque barre vers
  * l'extérieur un cran plus bas, symétrique. **Sept** barres, comme `LiveWaveform.weights` de la
- * référence — les deux barres des extrémités en font partie: ce sont des points de la vague, pas
+ * référence — les deux barres des extrémités en font partie : ce sont des points de la vague, pas
  * des parasites.
  */
-private val LiveWaveWeights = floatArrayOf(0.13f, 0.27f, 0.51f, 1f, 0.51f, 0.27f, 0.13f)
-
-/**
- * Une barre figée du PNG est **claire et sans couleur**; le disque autour est bleu et sombre.
- * C'est ce contraste qui la fait trouver dans l'image, sans géométrie supposée.
- */
-private const val FrozenBarColourTolerance = 48
-private const val FrozenBarMinLuminance = 140
-
-/** La part de la bande centrale qu'une colonne doit couvrir pour être une barre. */
-private const val FrozenBarMinCoverage = 0.25f
-
-/** La marge laissée de chaque côté d'une barre trouvée, en points du disque (190 pt). */
-private const val FrozenBarPadPoints = 0.75f
+internal val LiveWaveWeights = floatArrayOf(0.13f, 0.27f, 0.51f, 1f, 0.51f, 0.27f, 0.13f)
 
 private const val LiveWaveRest = 6f
 private const val LiveWaveTallest = 88f
 private const val LiveWaveGate = 0.06f
 private const val LiveWaveGain = 1.4f
-private val LiveWaveColor = Color(0xFFDCE3EE)
+private val LiveWaveColor = ReferencePalette.DarkText
 
 /** La largeur d'une barre, l'écart entre deux, dans le repère de 190 points du disque. */
 private const val LiveWaveBarWidth = 10f
 private const val LiveWaveBarSpacing = 5.5f
 
-/** Le bas d'une barre est très légèrement fondu: la lumière du disque descend. */
+/** Le bas d'une barre est très légèrement fondu : la lumière du disque descend. */
 private const val LiveWaveBottomAlpha = 0.88f
 
-/** Le disque de `ic_dark_glass` est dessiné comme un orbe de 190 points. */
+/** Le disque dessiné fait 190 points (`GlassOrb.diameter`) : la vague s'y mesure. */
 private const val ORB_POINT_SIZE = 190f
 
 /**
- * `GlassOrb.overlay { LiveWaveform(...) }`.
- *
- * Le PNG reste la source de tous les pixels de l'orbe. Ses sept barres figées sont découpées dans
- * un calque hors écran (`BlendMode.Clear`), puis remplacées par les barres vivantes. Le reste du
- * disque n'est ni repeint ni remplacé par une approximation vectorielle.
+ * L'ondulation : une crête qui **se propage** d'un point au suivant, toutes les 5 s.
+ * Au repos elle fait 3 pt, avec la voix 10 pt — c'est elle qui distingue les hauteurs à un instant
+ * donné, même quand le niveau du micro est stable.
  */
+private const val LiveWaveRipplePeriod = 5f
+private const val LiveWaveRippleRest = 3f
+private const val LiveWaveRippleLive = 10f
+private const val LiveWaveRippleStep = 0.12f
+private const val LiveWaveRippleWidth = 0.16f
+
+/** La respiration du repos : chaque point monte et descend un peu, jamais tous ensemble. */
+private const val LiveWaveBreathHeight = 1.7f
+private const val LiveWaveBreathPeriod = 3.6f
+private const val LiveWaveBreathOffset = 0.62f
+
 /**
- * `GlassOrb.overlay { LiveWaveform(...) }`.
+ * La hauteur d'un point de la vague, en points du disque de 190.
  *
- * Le PNG de verre donne le disque; **ses sept barres figées sont effacées du bitmap au
- * chargement**, puis remplacées par les barres vivantes, dessinées en rectangles arrondis qui
- * montent et descendent avec la voix.
+ * Trois choses s'ajoutent, et c'est ce qui la fait vivre :
+ *  - la **voix** (`drive`), pondérée par le profil des sept points (`LiveWaveWeights`) ;
+ *  - l'**ondulation** qui se propage, dont l'amplitude grandit avec la voix (3 → 10 pt) : dès
+ *    qu'elle est vivante, les sept points ne sont plus à la même hauteur un même instant ;
+ *  - la **respiration** du repos, une houle lente et décalée d'un point au suivant, qui s'efface
+ *    quand la voix prend la main.
  *
- * Ce qui a changé, et pourquoi:
- * - l'ancien code découpait les barres figées avec `BlendMode.Clear` dans un calque hors écran.
- * Sous l'orbe, ce `Clear` trouait aussi ce qu'il y avait dessous: le fond et les lumières
- * apparaissaient dans les trous, laissant des **carrés** nets et des **points** colorés autour
- * des barres. Une image nettoyée une fois pour toutes supprime la cause, sans composition
- * hors écran ni mode de fusion.
- * - les barres vivantes sont maintenant des rectangles arrondis (rayon = demi-largeur), avec un
- * dégradé vertical clair en haut et légèrement fondu en bas, cohérent avec la lumière du
- * disque — au lieu d'aplats blancs aux extrémités carrées.
+ * Fonction pure (aucun état, aucune horloge) : c'est elle que les tests éprouvent. Sous Reduce
+ * Motion (`animate = false`), elle rend le repos exact — sept points à la même hauteur, comme le
+ * `TimelineView(paused:)` de la référence.
+ */
+internal fun liveWaveHeight(
+    index: Int,
+    drive: Float,
+    rippleTime: Float,
+    breatheTime: Float,
+    animate: Boolean = true,
+): Float {
+    if (!animate) return LiveWaveRest
+    val weight = LiveWaveWeights[index.coerceIn(0, LiveWaveWeights.lastIndex)]
+    val d = drive.coerceIn(0f, 1f)
+    val ripple = liveWaveRipple(index, rippleTime) *
+        (LiveWaveRippleRest + (LiveWaveRippleLive - LiveWaveRippleRest) * d)
+    val breathe = LiveWaveBreathHeight * (1f - d) * sin(
+        (breatheTime + index * LiveWaveBreathOffset) *
+            (2f * Math.PI.toFloat() / LiveWaveBreathPeriod),
+    )
+    return LiveWaveRest + (LiveWaveTallest - LiveWaveRest) * weight * d + ripple + breathe
+}
+
+/**
+ * Une crête de 5 s qui traverse les sept points de gauche à droite : le point `index` la reçoit
+ * `index × 0,12 s` après le premier. `exp(-d²)` retombe à zéro avant la fin de la période : au
+ * redémarrage il reste moins de 0,03 pt (invisible sur un disque de 190), donc aucun saut visible.
+ */
+internal fun liveWaveRipple(index: Int, timeSeconds: Float): Float {
+    val phase = timeSeconds % LiveWaveRipplePeriod
+    val crest = 0.3f + index * LiveWaveRippleStep
+    val distance = (phase - crest) / LiveWaveRippleWidth
+    return exp(-distance * distance)
+}
+
+/** `LiveWaveform.loudness` : seuil de pièce et gain du micro, plancher propre à la lecture. */
+private fun liveWaveLoudness(phase: VoicePhase, level: Float): Float {
+    val normalized = if (phase == VoicePhase.SPEAKING) {
+        ((level - 0.2f) / 0.6f).coerceIn(0f, 1f)
+    } else {
+        ((level - LiveWaveGate) / (1f - LiveWaveGate) * LiveWaveGain).coerceIn(0f, 1f)
+    }
+    return sqrt(normalized)
+}
+
+/**
+ * Le niveau du micro, **lissé** : montée vive, retombée douce (`attack` court, `release` long).
+ * C'est le lissage qui fait la différence entre une vague qui suit la voix et une vague qui saute
+ * d'un cran à chaque trame — sur une attaque de consonne, le niveau brut fait des marches.
+ *
+ * L'état est lu dans le **dessin**, pas dans la composition : une trame de niveau n'invalide donc
+ * que le tracé de la vague, pas l'écran.
  */
 @Composable
-internal fun DarkGlassWaveOrb(
+private fun rememberSmoothedLevel(raw: Float, reduceMotion: Boolean): State<Float> {
+    val value = remember { mutableFloatStateOf(0f) }
+    val latest by rememberUpdatedState(raw)
+    LaunchedEffect(reduceMotion) {
+        if (reduceMotion) {
+            value.floatValue = 0f
+            return@LaunchedEffect
+        }
+        var current = value.floatValue
+        var last = withFrameNanos { it }
+        while (true) {
+            withFrameNanos { now ->
+                val dt = ((now - last) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.05f)
+                last = now
+                val target = latest
+                // Montée en ~45 ms, retombée en ~160 ms : la vague respire avec la parole.
+                val time = if (target > current) 0.045f else 0.16f
+                current += (target - current) * (1f - exp(-dt / time))
+                value.floatValue = current
+            }
+        }
+    }
+    return value
+}
+
+/**
+ * `GlassOrb.overlay { LiveWaveform(...) }` — la vague vivante sur le disque.
+ *
+ * Ce qui a changé, et pourquoi :
+ *  - l'ancienne vague était dessinée sur le disque en **image** et ses sept barres figées devaient
+ *    être découpées du bitmap ; le disque étant maintenant calculé, il n'y a plus rien à découper,
+ *    donc plus de couture ni de carré autour des barres.
+ *  - elle ne bougeait, au repos, que par une ondulation de 3 pt **sans respiration** : sept points
+ *    identiques et immobiles, exactement ce que le propriétaire a vu. Elle respire maintenant.
+ *  - l'ondulation ne tournait **pas** pendant la parole (`drive == nil` la gardait) : les sept
+ *    points montaient et descendaient ensemble, à la même hauteur. Elle tourne désormais toujours
+ *    et grandit avec la voix.
+ *  - le niveau du micro est **lissé** (montée vive, retombée douce) au lieu de suivre la trame
+ *    brute.
+ *
+ * Sous **Reduce Motion**, aucune horloge ne tourne et le niveau n'est pas lu : la vague est figée
+ * au repos, ses sept points à la même hauteur — comme le `TimelineView(paused:)` de la référence.
+ */
+@Composable
+internal fun LiquidOrbWave(
     phase: VoicePhase,
     level: Float,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val image = remember(context) {
-        val decoded = BitmapFactory.decodeResource(context.resources, R.drawable.ic_dark_glass)
-        stripFrozenBars(decoded).asImageBitmap()
-    }
-    val animatedLevel by animateFloatAsState(
-        targetValue = level.coerceIn(0f, 1f),
-        animationSpec = OnyxMotion.Sites.VoiceLevel,
-        label = "darkGlassLevel",
-    )
     val reduceMotion = LocalReduceMotion.current
-    val clock = rememberInfiniteTransition(label = "darkGlassWaveClock")
-    // `LiveWaveform`: « At rest the timeline still ticks, slowly, for the ripple; off under
-    // Reduce Motion ». La crête ne passe donc plus.
-    val rippleTime = ambientLoop(rest = 0f) {
+    val smoothed = rememberSmoothedLevel(level, reduceMotion)
+    val clock = rememberInfiniteTransition(label = "orbWaveClock")
+    // `LiveWaveform` : « At rest the timeline still ticks, slowly, for the ripple; off under
+    // Reduce Motion ». Les deux horloges sont coupées sous Reduce Motion (`ambientLoop` renvoie le
+    // repos sans jamais créer l'animation), et leurs valeurs sont lues **dans le dessin** : une
+    // trame d'animation ne fait redessiner que la vague.
+    val ripple: State<Float>? = ambientState {
         clock.animateFloat(
             initialValue = 0f,
-            targetValue = 5f,
+            targetValue = LiveWaveRipplePeriod,
             animationSpec = infiniteRepeatable(
-                animation = tween(OnyxMotion.MS_5000, easing = OnyxMotion.Linear),
+                animation = tween(OnyxMotion.MS_5000, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart,
             ),
-            label = "darkGlassWaveRipple",
-        ).value
+            label = "orbWaveRipple",
+        )
+    }
+    val breathe: State<Float>? = ambientState {
+        clock.animateFloat(
+            initialValue = 0f,
+            targetValue = LiveWaveBreathPeriod,
+            animationSpec = infiniteRepeatable(
+                animation = tween((LiveWaveBreathPeriod * 1000).toInt(), easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "orbWaveBreathe",
+        )
     }
 
     Canvas(modifier = modifier) {
-        drawImage(
-            image = image,
-            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-            filterQuality = FilterQuality.High,
-        )
-
-        val unit = size.width / 190f
+        val unit = size.width / ORB_POINT_SIZE
         val centreX = size.width / 2f
         val centreY = size.height / 2f
         val live = phase == VoicePhase.LISTENING || phase == VoicePhase.SPEAKING
-        val rawLevel = if (live) animatedLevel else 0f
+        val rawLevel = if (live && !reduceMotion) smoothed.value else 0f
         val moving = phase == VoicePhase.SPEAKING || rawLevel > LiveWaveGate
-        val drive = if (moving) liveWaveLoudness(phase, rawLevel) else null
+        val drive = if (moving) liveWaveLoudness(phase, rawLevel) else 0f
+        val rippleTime = ripple?.value ?: 0f
+        val breatheTime = breathe?.value ?: 0f
+
         val barWidth = LiveWaveBarWidth * unit
         val gap = LiveWaveBarSpacing * unit
-
-        // **Les sept barres du modèle**, toutes dessinées. Un lot précédent avait retiré les
-        // deux poids extrêmes pour faire disparaître « deux mini barres » vues aux extrémités de la
-        // rangée: le remède était à côté — ces deux traits n'étaient pas des barres vivantes mais
-        // le **reste des barres figées du PNG** (voir [stripFrozenBars]), que rien n'effaçait
-        // complètement. La vague reste donc entière (sept barres, comme `LiveWaveform.weights`).
-        val weights = LiveWaveWeights
-        weights.forEachIndexed { index, weight ->
-            // `drive == nil && !reduceMotion ? ripple(i, t): 0`.
-            val ripple = if (drive == null && !reduceMotion) liveWaveRipple(index, rippleTime) else 0f
-            val barHeight = LiveWaveRest +
-                (LiveWaveTallest - LiveWaveRest) * weight * (drive ?: 0f) + ripple
-            val height = (barHeight * unit).coerceAtLeast(barWidth)
-            val left = centreX + (index - (weights.size - 1) / 2f) * (barWidth + gap) - barWidth / 2f
+        for (index in LiveWaveWeights.indices) {
+            val height = (liveWaveHeight(index, drive, rippleTime, breatheTime, animate = !reduceMotion) * unit)
+                .coerceAtLeast(barWidth)
+            val left = centreX + (index - (LiveWaveWeights.size - 1) / 2f) * (barWidth + gap) -
+                barWidth / 2f
             val top = centreY - height / 2f
             drawRoundRect(
                 brush = Brush.verticalGradient(
@@ -181,185 +259,28 @@ internal fun DarkGlassWaveOrb(
     }
 }
 
-/**
- * Le bitmap de verre, ses barres figées remplacées par la couleur du disque juste à côté.
- *
- * **Les barres sont trouvées dans l'image**, pas devinées. C'est la correction du défaut: le code
- * découpait des rectangles calculés sur une géométrie supposée (pas de 15,5 pt, largeur de 10 pt),
- * alors que le dessin a des barres de 9,2 pt de large à 14,85 pt de pas. L'écart se rattrapait au
- * centre et **débordait aux extrémités**: sur les deux barres du bout, 2 px de blanc survivaient,
- * juste à l'extérieur des points de la vague — les « deux mini barres verticales » signalées, qui
- * ne devaient rien aux poids de la vague et que retirer deux points ne pouvait pas faire partir.
- *
- * La couleur de remplacement est échantillonnée de part et d'autre de chaque barre, à la même
- * hauteur: le dégradé du disque est donc suivi, et non recouvert d'un aplat. Fait une fois au
- * chargement.
- *
- * `internal` et sans dépendance à Compose: c'est ce qui permet d'éprouver la **décision** sur une
- * image fabriquée (`VoiceOrbBarsTest`).
- */
-internal fun stripFrozenBars(source: android.graphics.Bitmap): android.graphics.Bitmap {
-    if (source.width == 0 || source.height == 0) return source
-    val out = source.copy(android.graphics.Bitmap.Config.ARGB_8888, true) ?: return source
-    val pixels = IntArray(out.width * out.height)
-    out.getPixels(pixels, 0, out.width, 0, 0, out.width, out.height)
-    val pad = (out.width / ORB_POINT_SIZE * FrozenBarPadPoints).roundToInt().coerceAtLeast(2)
-
-    frozenBarColumns(pixels, out.width, out.height).forEach { run ->
-        val extent = frozenBarRows(pixels, out.width, out.height, run) ?: return@forEach
-        val left = (run.first - pad).coerceAtLeast(0)
-        val right = (run.last + pad).coerceAtMost(out.width - 1)
-        val top = (extent.first - pad).coerceAtLeast(0)
-        val bottom = (extent.last + pad).coerceAtMost(out.height - 1)
-
-        for (y in top..bottom) {
-            // La couleur du disque: prise à gauche et à droite de la barre, à la même hauteur, et
-            // **interpolée d'un bord à l'autre**. La moyenne des deux couleurs laissait une bande
-            // plate là où le disque, lui, glisse: les endroits des barres figées se voyaient
-            // encore comme des rectangles un peu plus clairs.
-            val outsideLeft = (left - Math.max(2, pad)).coerceAtLeast(0)
-            val outsideRight = (right + Math.max(2, pad)).coerceAtMost(out.width - 1)
-            val leftColour = pixels[y * out.width + outsideLeft]
-            val rightColour = pixels[y * out.width + outsideRight]
-            val span = (right - left).coerceAtLeast(1)
-            for (x in left..right) {
-                pixels[y * out.width + x] = blendAcross(leftColour, rightColour, (x - left).toFloat() / span)
-            }
-        }
-    }
-    out.setPixels(pixels, 0, out.width, 0, 0, out.width, out.height)
-    return out
-}
-
-/** Vrai pour un pixel de barre figée: clair et sans couleur, là où le disque est bleu. */
-private fun isFrozenBarPixel(pixel: Int): Boolean {
-    val red = (pixel shr 16) and 0xFF
-    val green = (pixel shr 8) and 0xFF
-    val blue = pixel and 0xFF
-    val brightest = maxOf(red, green, blue)
-    val darkest = minOf(red, green, blue)
-    return brightest - darkest <= FrozenBarColourTolerance && brightest >= FrozenBarMinLuminance
-}
-
-/**
- * Les colonnes des barres figées, trouvées dans les pixels du disque.
- *
- * Une colonne est une barre quand elle est claire et sans couleur sur au moins un quart de la bande
- * centrale — c'est-à-dire là où le disque, lui, est bleu et sombre. Les colonnes voisines sont
- * réunies, et un trou d'une colonne est comblé (le bord anti-aliasé d'une barre n'est pas une
- * séparation).
- *
- * Recherché autour du centre seul: un reflet clair au bord du disque n'est pas une barre.
- */
-internal fun frozenBarColumns(pixels: IntArray, width: Int, height: Int): List<IntRange> {
-    if (width <= 0 || height <= 0 || pixels.size < width * height) return emptyList()
-    val bandTop = height * 3 / 8
-    val bandBottom = (height * 5 / 8).coerceAtLeast(bandTop + 1)
-    val needed = ((bandBottom - bandTop) * FrozenBarMinCoverage).toInt().coerceAtLeast(1)
-    val centre = width / 2f
-    val span = width * 0.45f
-
-    val runs = ArrayList<IntRange>()
-    var start = -1
-    var hole = 0
-    for (x in 0 until width) {
-        val candidate = if (kotlin.math.abs(x - centre) > span) false else {
-            var lit = 0
-            for (y in bandTop until bandBottom) {
-                if (isFrozenBarPixel(pixels[y * width + x])) lit++
-            }
-            lit >= needed
-        }
-        if (candidate) {
-            if (start < 0) start = x
-            hole = 0
-        } else if (start >= 0) {
-            // Un trou d'une seule colonne: le bord d'une barre, pas deux barres.
-            hole++
-            if (hole > 1) {
-                runs.add(start..(x - hole))
-                start = -1
-                hole = 0
-            }
-        }
-    }
-    if (start >= 0) runs.add(start..(width - 1 - hole))
-    return runs
-}
-
-/** Les lignes d'une barre: ses colonnes, de la première à la dernière ligne claire. */
-internal fun frozenBarRows(pixels: IntArray, width: Int, height: Int, columns: IntRange): IntRange? {
-    if (width <= 0 || height <= 0 || pixels.size < width * height) return null
-    var top = -1
-    var bottom = -1
-    for (y in 0 until height) {
-        var lit = false
-        for (x in columns.first..columns.last) {
-            if (isFrozenBarPixel(pixels[y * width + x])) {
-                lit = true
-                break
-            }
-        }
-        if (lit) {
-            if (top < 0) top = y
-            bottom = y
-        }
-    }
-    if (top < 0) return null
-    return top..bottom
-}
-
-/** La couleur d'un point entre deux colonnes du disque, pour suivre son dégradé. */
-private fun blendAcross(first: Int, second: Int, t: Float): Int {
-    val k = t.coerceIn(0f, 1f)
-    fun channel(shift: Int): Int {
-        val a = (first shr shift) and 0xFF
-        val b = (second shr shift) and 0xFF
-        return (a + (b - a) * k).roundToInt().coerceIn(0, 255)
-    }
-    return (channel(24) shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
-}
-
-/** `LiveWaveform.loudness`: seuil de pièce et gain du micro, plancher propre à la lecture. */
-private fun liveWaveLoudness(phase: VoicePhase, level: Float): Float {
-    val normalized = if (phase == VoicePhase.SPEAKING) {
-        ((level - 0.2f) / 0.6f).coerceIn(0f, 1f)
-    } else {
-        ((level - LiveWaveGate) / (1f - LiveWaveGate) * LiveWaveGain).coerceIn(0f, 1f)
-    }
-    return sqrt(normalized)
-}
-
-/** Une crête de 3 pt traverse les sept barres toutes les 5 s, puis retombe à plat. */
-private fun liveWaveRipple(index: Int, timeSeconds: Float): Float {
-    val crest = 0.3f + index * 0.12f
-    val distance = (timeSeconds - crest) / 0.16f
-    return 3f * exp(-distance * distance)
-}
-
-/** Le diamètre de base des anneaux: `GlassOrb.haloDiameter`, pour l'orbe dessiné. */
+/** Le diamètre de base des anneaux : `GlassOrb.haloDiameter`, pour l'orbe dessiné. */
 internal val OrbHaloBaseDiameter = 228.dp
 
 /** Combien de fois le diamètre de base va l'anneau le plus large (`Halos.ring`). */
 private const val HaloMaxScale = 1.6f
 
-/** Où part un anneau, et jusqu'où il s'ouvre: `Halos.ring`. */
+/** Où part un anneau, et jusqu'où il s'ouvre : `Halos.ring`. */
 private const val HaloRestScale = 0.95f
 private const val HaloLiveTravel = 0.65f
 private const val HaloSubtleTravel = 0.30f
 
 /**
- * `Halos`: les anneaux qui s'ouvrent depuis le bord de l'orbe. Avec l'anneau de phase collé au
- * disque, ce sont les **trois cercles concentriques** du modèle.
+ * `Halos` : les anneaux qui s'ouvrent depuis le bord de l'orbe, pour les **faces-image** et la
+ * scène d'une salle. L'orbe dessiné de la voix solo ne s'en sert plus : il porte un halo unique.
  *
- * `diameter` est le diamètre de base (`Halos.diameter` ): 228 points pour l'orbe dessiné
- * (`GlassOrb.haloDiameter`), 198 pour les faces-image. L'anneau part à 0,95 de ce diamètre et
- * s'ouvre jusqu'à 1,6 (1,25 au repos), l'opacité s'éteignant au fil de l'ouverture — 0,45 à
- * l'écoute et pendant la lecture, 0,22 au repos, et un trait de 1,5 pt (1 pt au repos). Le rythme
- * est celui: 2,6 s et deux anneaux décalés de 1,3 s en activité, 4,5 s et un seul anneau
- * au repos.
+ * `diameter` est le diamètre de base (`Halos.diameter` de la référence) : 228 points pour l'orbe dessiné,
+ * 198 pour les faces-image. L'anneau part à 0,95 de ce diamètre et s'ouvre jusqu'à 1,6 (1,25 au
+ * repos), l'opacité s'éteignant au fil de l'ouverture — 0,45 à l'écoute et pendant la lecture,
+ * 0,22 au repos, et un trait de 1,5 pt (1 pt au repos). Le rythme est celui de la référence : 2,6 s et
+ * deux anneaux décalés de 1,3 s en activité, 4,5 s et un seul anneau au repos.
  *
- * Le cadre porte l'anneau le plus large et se mesure **sans contrainte**: les cercles débordent
+ * Le cadre porte l'anneau le plus large et se mesure **sans contrainte** : les cercles débordent
  * donc du carré de l'orbe — c'est ce qui se voit sur la capture, les anneaux sont bien plus larges
  * que le disque — sans rien pousser sous eux. Aucun anneau ne touche le bord du cadre (son opacité
  * y est nulle), donc il n'apparaît jamais d'arête droite.
@@ -375,7 +296,7 @@ internal fun VoiceHalos(
     val period = if (subtle) OnyxMotion.MS_4500 else OnyxMotion.MS_2600
     val delays = if (subtle) intArrayOf(0) else intArrayOf(0, 1300)
     val pulses = delays.map { delay ->
-        // `Halos.onAppear { guard !reduceMotion else { return } }`:
+        // `Halos.onAppear { guard !reduceMotion else { return } }` (`VoiceView:1157-1160`) :
         // la boucle ne démarre pas, l'anneau reste à son repos (échelle 0,95, opacité pleine).
         ambientLoop(rest = 0f) {
             transition.animateFloat(
@@ -396,7 +317,7 @@ internal fun VoiceHalos(
             .clip(CircleShape)
             .requiredSize(diameter * HaloMaxScale),
     ) {
-        // Le rayon de base se relit de la taille **réellement** mesurée: si l'écran a borné le
+        // Le rayon de base se relit de la taille **réellement** mesurée : si l'écran a borné le
         // cadre, le rapport des anneaux au disque reste le même.
         val base = size.minDimension / (2f * HaloMaxScale)
         val travel = if (subtle) HaloSubtleTravel else HaloLiveTravel
@@ -410,21 +331,21 @@ internal fun VoiceHalos(
     }
 }
 
-/** `ThinkingArc`: un arc de 22 % du cercle, une rotation linéaire toutes les 1,4 s. */
+/** `ThinkingArc` : un arc de 22 % du cercle, une rotation linéaire toutes les 1,4 s. */
 @Composable
 internal fun VoiceThinkingArc(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
     val transition = rememberInfiniteTransition(label = "thinkingArc")
-    // `ThinkingArc`: `guard !reduceMotion else { return }` — l'arc
+    // `ThinkingArc` : `guard !reduceMotion else { return }` (`VoiceView:740-748`) — l'arc
     // reste à sa rotation de départ au lieu de tourner.
     val spinning = ambientLoop(rest = 0f) {
         transition.animateFloat(
             initialValue = 0f,
             targetValue = 360f,
             animationSpec = infiniteRepeatable(
-                animation = tween(OnyxMotion.MS_1400, easing = OnyxMotion.Linear),
+                animation = tween(OnyxMotion.MS_1400, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart,
             ),
             label = "thinkingArcRotation",

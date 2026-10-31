@@ -7,10 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * « Hold-to-ear »: le capteur de proximité fait jouer la réponse dans l'écouteur.
+ * « Hold-to-ear » : le capteur de proximité fait jouer la réponse dans l'écouteur.
  *
  * Le routeur prend son capteur et son application de sortie par injection — c'est justement ce
- * qui permet de l'exercer **entièrement** ici, sans téléphone et sans capteur: le chemin est réel,
+ * qui permet de l'exercer **entièrement** ici, sans téléphone et sans capteur : le chemin est réel,
  * seule la plomberie Android est remplacée.
  */
 class EarRoutingTest {
@@ -69,7 +69,7 @@ class EarRoutingTest {
         router.setWanted(true)
         assertTrue("une réponse se lit : le capteur s'ouvre", router.isWatching)
         assertEquals(1, watcher.starts)
-        // Le capteur ne rend compte que d'un changement: sans mesure, on reste au haut-parleur.
+        // Le capteur ne rend compte que d'un changement : sans mesure, on reste au haut-parleur.
         assertEquals(EarOutput.SPEAKER, route.applied.last())
 
         router.setWanted(false)
@@ -155,7 +155,7 @@ class EarRoutingTest {
         router.setWanted(true)
         assertFalse(router.isWatching)
         assertEquals(0, watcher.starts)
-        // Réglage éteint: Onyx ne touche pas à la sortie du téléphone, ni pour l'imposer ni
+        // Réglage éteint : Onyx ne touche pas à la sortie du téléphone, ni pour l'imposer ni
         // pour la rendre — il ne l'a jamais prise.
         assertTrue(route.applied.isEmpty())
         assertEquals(0, route.restores)
@@ -171,7 +171,7 @@ class EarRoutingTest {
         assertFalse(router.isWatching)
         assertEquals(0, watcher.starts)
         assertEquals(0, watcher.stops)
-        // Un capteur absent n'est jamais ouvert: rien n'est appliqué ni rendu, la sortie du
+        // Un capteur absent n'est jamais ouvert : rien n'est appliqué ni rendu, la sortie du
         // téléphone reste celle de la lecture.
         assertNull(router.lastApplied)
         assertEquals(0, route.restores)

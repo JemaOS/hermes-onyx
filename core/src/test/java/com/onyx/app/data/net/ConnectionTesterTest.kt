@@ -81,6 +81,40 @@ class ConnectionTesterTest {
         assertEquals("access-secret", server.lastHeaders["cf-access-client-secret"])
         assertEquals("alpha", server.lastHeaders["x-tenant"])
     }
+
+    @Test
+    fun `un Dashboard a mot de passe accepte la connexion par auth password-login`() = runBlocking {
+        server.respond("/api/status", 200, """{"version":"2026.10","auth_required":true}""")
+        server.respond("/api/sessions", 401, "")
+        server.respond("/auth/password-login", 200, """{"ok":true,"next":"/"}""")
+        val config = ServerConfig(
+            id = "test",
+            transport = Transport.HERMES_SERVE,
+            serveBaseUrl = server.baseUrl,
+            serveUsername = "john",
+            servePassword = "secret",
+        )
+
+        val result = ConnectionTester.current(config)
+
+        assertTrue(result.ok)
+        assertTrue(result.message.contains("Login accepted"))
+    }
+
+    @Test
+    fun `un Dashboard qui exige une connexion sans identifiants ne se dit pas connecte`() = runBlocking {
+        server.respond("/api/status", 200, """{"version":"2026.10","auth_required":true}""")
+        val config = ServerConfig(
+            id = "test",
+            transport = Transport.HERMES_SERVE,
+            serveBaseUrl = server.baseUrl,
+        )
+
+        val result = ConnectionTester.current(config)
+
+        assertFalse(result.ok)
+        assertTrue(result.message.contains("login failed"))
+    }
 }
 
 /** Serveur HTTP de test sans dépendance supplémentaire, sur loopback uniquement. */

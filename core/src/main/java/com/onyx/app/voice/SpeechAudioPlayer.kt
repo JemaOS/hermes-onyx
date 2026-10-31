@@ -14,17 +14,17 @@ import java.io.File
 
 /**
  * Lit le PCM de Kokoro et les MP3/WAV renvoyés par Hermes, avec un seul son à la fois.
- * Les callbacks reviennent sur le thread principal; `release` coupe aussi un téléchargement déjà joué.
+ * Les callbacks reviennent sur le thread principal ; `release` coupe aussi un téléchargement déjà joué.
  *
- * Le PCM passe par un `AudioTrack` de flux, et c'est là que tout se joue: `write` **copie** les
+ * Le PCM passe par un `AudioTrack` de flux, et c'est là que tout se joue : `write` **copie** les
  * octets dans le tampon du mélangeur, il ne les fait pas sonner. Deux conséquences, apprises à la
- * dure:
+ * dure :
  * - le tampon doit être un **tampon de flux** (quelques centaines de millisecondes), pas la phrase
- * entière: taillé sur la phrase, il l'avale d'un coup, `write` ne bloque jamais et tout part en
- * quelques millisecondes;
+ *   entière : taillé sur la phrase, il l'avale d'un coup, `write` ne bloque jamais et tout part en
+ *   quelques millisecondes ;
  * - le lecteur doit ensuite **attendre que la tête de lecture ait atteint le dernier échantillon**
- * avant de couper la piste. Couper juste après la boucle d'écriture jette ce qui n'a pas encore
- * sonné: la voix ne sort jamais, alors que le bouton affiche « en lecture ».
+ *   avant de couper la piste. Couper juste après la boucle d'écriture jette ce qui n'a pas encore
+ *   sonné : la voix ne sort jamais, alors que le bouton affiche « en lecture ».
  */
 class SpeechAudioPlayer(context: Context) {
     private val appContext = context.applicationContext
@@ -35,9 +35,9 @@ class SpeechAudioPlayer(context: Context) {
     private var mediaPlayer: MediaPlayer? = null
 
     /**
-     * Où sort le son: un média (`USAGE_MEDIA`), ou un appel
+     * Où sort le son : un média (`USAGE_MEDIA`), ou un appel
      * (`USAGE_VOICE_COMMUNICATION`) quand la réponse doit se jouer dans l'écouteur du téléphone
-     * levé à l'oreille. Les attributs sont figés à la création du lecteur: c'est donc au tour
+     * levé à l'oreille. Les attributs sont figés à la création du lecteur : c'est donc au tour
      * suivant qu'un changement en cours de phrase s'entend.
      */
     @Volatile
@@ -46,10 +46,10 @@ class SpeechAudioPlayer(context: Context) {
     private var temporaryFile: File? = null
 
     /**
-     * Le niveau du son qui sort, quand il passe en PCM (les voix de Kokoro et de Hermes): la
+     * Le niveau du son qui sort, quand il passe en PCM (les voix de Kokoro et de Hermes) : la
      * **vraie** amplitude des échantillons écrits, de 0 à 1. C'est ce qui fait battre la bouche du
      * visage de la scène vocale avec la voix. Rien pour un format compressé, dont on ne voit pas
-     * les échantillons: l'appelant sait alors qu'aucune mesure n'est disponible.
+     * les échantillons : l'appelant sait alors qu'aucune mesure n'est disponible.
      */
     var onLevel: ((Float) -> Unit)? = null
 
@@ -119,7 +119,7 @@ class SpeechAudioPlayer(context: Context) {
             runCatching { it.release() }
         }
         file?.delete()
-        // Plus rien ne sort: le niveau retombe, la bouche du visage avec lui.
+        // Plus rien ne sort : le niveau retombe, la bouche du visage avec lui.
         main.post { onLevel?.invoke(0f) }
     }
 
@@ -194,7 +194,7 @@ class SpeechAudioPlayer(context: Context) {
                 AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
             )
-            // Un tampon de flux, jamais la phrase entière: voir l'en-tête de la classe.
+            // Un tampon de flux, jamais la phrase entière : voir l'en-tête de la classe.
             val buffer = (minimum.coerceAtLeast(MIN_BUFFER_BYTES) * STREAM_BUFFERS)
                 .coerceAtMost(BUFFER_CAP)
             val track = AudioTrack.Builder()
@@ -257,13 +257,13 @@ class SpeechAudioPlayer(context: Context) {
                                     "state=${track.playState} t=${SystemClock.elapsedRealtime() - started}ms",
                             )
                         }
-                        // Le niveau est mesuré sur les échantillons réellement écrits: c'est la
+                        // Le niveau est mesuré sur les échantillons réellement écrits : c'est la
                         // voix qui sort, pas une estimation.
                         val level = pcmLevel(bytes, offset, accepted)
                         main.post { if (isCurrent(token, track)) onLevel?.invoke(level) }
                         offset += accepted
                     }
-                    // `write` a copié les octets dans le tampon: le son n'est pas encore sorti.
+                    // `write` a copié les octets dans le tampon : le son n'est pas encore sorti.
                     // On attend la tête de lecture, sinon la coupe jette la fin de la phrase.
                     val totalFrames = written / BYTES_PER_FRAME
                     val deadline = started + clipMillis(written) + DRAIN_GRACE_MS
@@ -287,7 +287,7 @@ class SpeechAudioPlayer(context: Context) {
                             "musicActive=${manager.isMusicActive}",
                     )
                     if (head < totalFrames && isCurrent(token, track)) {
-                        // Le lecteur n'a pas vidé le tampon: l'appareil ne sort donc rien de ce
+                        // Le lecteur n'a pas vidé le tampon : l'appareil ne sort donc rien de ce
                         // qu'on lui a donné. On le dit, au lieu d'un bouton « en lecture » muet.
                         Log.w(
                             TAG,
@@ -324,7 +324,7 @@ class SpeechAudioPlayer(context: Context) {
         byteCount.toLong() * 1000L / (SAMPLE_RATE.toLong() * BYTES_PER_FRAME)
 
     /**
-     * Écrit ce que l'app a **reçu** dans un WAV de son dossier: la preuve à écouter, quand le son
+     * Écrit ce que l'app a **reçu** dans un WAV de son dossier : la preuve à écouter, quand le son
      * de l'appareil ne suffit pas à trancher entre « rien reçu » et « rien sorti ».
      * Activé à la demande (`adb shell setprop log.tag.$TAG VERBOSE`), jamais en marche normale.
      */
@@ -364,7 +364,7 @@ class SpeechAudioPlayer(context: Context) {
     }
 
     /**
-     * L'amplitude d'un morceau de PCM 16 bits mono, de 0 à 1: sa valeur efficace, ramenée à
+     * L'amplitude d'un morceau de PCM 16 bits mono, de 0 à 1 : sa valeur efficace, ramenée à
      * l'échelle d'un niveau de voix (la parole utile tient dans les premiers dixièmes).
      */
     private fun pcmLevel(samples: ByteArray, from: Int, count: Int): Float {
@@ -420,7 +420,7 @@ class SpeechAudioPlayer(context: Context) {
         /** Le plancher d'un tampon de flux, quand l'appareil ne sait pas dire son minimum. */
         const val MIN_BUFFER_BYTES = 4_800
 
-        /** Combien de tampons minimaux on demande: de quoi écrire sans aller-retour par échantillon. */
+        /** Combien de tampons minimaux on demande : de quoi écrire sans aller-retour par échantillon. */
         const val STREAM_BUFFERS = 2
 
         /** Plafond de sécurité du tampon. */
@@ -429,7 +429,7 @@ class SpeechAudioPlayer(context: Context) {
         /** Taille d'un morceau écrit (200 ms), multiple de la trame de 2 octets. */
         const val WRITE_CHUNK = 9_600
 
-        /** On regarde la tête de lecture toutes les 20 ms: inaudible, et précis. */
+        /** On regarde la tête de lecture toutes les 20 ms : inaudible, et précis. */
         const val DRAIN_POLL_MS = 20L
 
         /** Marge au-delà de la durée de la phrase avant d'abandonner l'attente. */
@@ -442,7 +442,7 @@ class SpeechAudioPlayer(context: Context) {
  *
  * Vrai tant que la tête de lecture n'a pas rattrapé le dernier échantillon **écrit** (`write` les a
  * copiés dans le tampon du mélangeur, il ne les a pas joués), que la piste joue encore, et que la
- * marge n'est pas épuisée. Une piste arrêtée ou en pause ne rattrapera jamais rien: attendre serait
+ * marge n'est pas épuisée. Une piste arrêtée ou en pause ne rattrapera jamais rien : attendre serait
  * alors une boucle sans fin, et c'est exactement ce que faisait l'ancien code en coupant tout de
  * suite — la phrase était jetée avant d'avoir sonné.
  */

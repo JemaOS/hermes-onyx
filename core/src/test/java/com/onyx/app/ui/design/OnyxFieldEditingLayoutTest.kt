@@ -6,10 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La mise en page du champ: au repos le regard du modèle, en édition le curseur visible.
+ * La mise en page du champ : au repos le regard de la référence, en édition le curseur visible.
  *
  * Le défaut d'origine — un champ aligné à droite dont le début reste coupé pendant l'édition — venait
- * du champ lui-même: la valeur était posée dans une boîte de la largeur du champ, sans défilement,
+ * du champ lui-même : la valeur était posée dans une boîte de la largeur du champ, sans défilement,
  * et le curseur se promenait dans un texte tronqué. Ces gardes tiennent la correction en place.
  */
 class OnyxFieldEditingLayoutTest {
@@ -40,7 +40,9 @@ class OnyxFieldEditingLayoutTest {
     @Test
     fun `les deux champs de formulaire passent par la meme valeur editable`() {
         assertTrue("la rangée de formulaire", form.contains("OnyxEditableValue("))
-        assertTrue("le champ de texte", form.contains("if (singleLine) {"))
+        // Le champ de texte passe par la **même** valeur éditable — désormais aussi quand la
+        // valeur se replie sur plusieurs lignes (l'adresse longue, qu'on doit pouvoir relire).
+        assertTrue("le champ de texte", form.contains("if (singleLine || wrapLines > 1) {"))
         assertTrue("le champ multiple garde son ancien dessin", form.contains("singleLine = false"))
     }
 

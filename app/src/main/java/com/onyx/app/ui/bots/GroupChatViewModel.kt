@@ -19,7 +19,10 @@ import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.data.net.TurnEvent
+import com.onyx.app.di.AppContainer
+import com.onyx.app.voice.ReplyVoice
 import com.onyx.app.voice.SpeechOutput
+import com.onyx.app.voice.VoiceDiagnostics
 import com.onyx.app.ui.chat.PendingAttachment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -36,20 +40,20 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.UUID
 
-/** Un tour du chat de groupe: la question, ou la réponse d'un bot. */
+/** Un tour du chat de groupe : la question, ou la réponse d'un bot. */
 data class GroupMessage(
     val id: String,
     val bot: BotProfile?,
     val text: String,
     /**
-     * Son numéro dans le fil local, posé à sa naissance: c'est ce qui ordonne la lecture à voix
+     * Son numéro dans le fil local, posé à sa naissance : c'est ce qui ordonne la lecture à voix
      * haute d'une salle neuve, comme le `seq` du journal d'une salle du serveur
      * (`GroupVoiceReplies`). Posé une fois, il ne bouge plus, même si un message est retiré.
      */
     val seq: Int = 0,
     val isStreaming: Boolean = false,
     val failed: Boolean = false,
-    /** Noms affichés pendant l'upload; les notes du texte donnent ensuite les vraies chips. */
+    /** Noms affichés pendant l'upload ; les notes du texte donnent ensuite les vraies chips. */
     val pendingFiles: List<String> = emptyList(),
     val waiting: Boolean = false,
 )
@@ -66,9 +70,20 @@ data class GroupUiState(
 )
 
 /**
+ * Vrai quand un fil de groupe a de quoi ouvrir une **autre** conversation : il a dit quelque chose,
+ * une ronde écrit encore, ou il porte une erreur à lire. Un fil vierge rend faux — il se reprend tel
+ * quel, sinon le crayon empilerait deux conversations vides.
+ */
+internal fun groupStartsAnotherConversation(
+    messages: List<GroupMessage>,
+    asking: Boolean,
+    error: String?,
+): Boolean = messages.isNotEmpty() || asking || error != null
+
+/**
  * Seul le gateway Hermes sait appliquer le profil et le provider associé au modèle brut d'un bot.
  * Sur un endpoint OpenAI-compatible non scopé, la configuration de la connexion (notamment un
- * alias `model_routes`) reste donc autoritaire: la remplacer par `BotProfile.model` changerait
+ * alias `model_routes`) reste donc autoritaire : la remplacer par `BotProfile.model` changerait
  * de backend sans pouvoir changer de provider et peut mener à un serveur local inexistant.
  */
 internal fun groupBotConfig(connection: ServerConfig, bot: BotProfile): ServerConfig {
@@ -83,7 +98,7 @@ internal fun groupBotConfig(connection: ServerConfig, bot: BotProfile): ServerCo
  * L'API OpenAI d'Hermes considère le dernier message comme le nouveau prompt. Les réponses déjà
  * données dans ce round appartiennent donc au contexte, et la question courante est répétée à la
  * fin. Les erreurs de transport et les brouillons ne sont jamais des paroles à faire relire à un
- * autre bot. Les réponses d'un autre bot gardent son nom et un rôle `user`; les nôtres sont des
+ * autre bot. Les réponses d'un autre bot gardent son nom et un rôle `user` ; les nôtres sont des
  * réponses `assistant` dans l'historique de ce bot.
  */
 internal fun groupHistory(messages: List<GroupMessage>, bot: BotProfile): List<ChatTurn> {
@@ -109,16 +124,28 @@ internal fun groupHistory(messages: List<GroupMessage>, bot: BotProfile): List<C
 }
 
 /**
- * Le chat de groupe: plusieurs bots répondent à tour de rôle.
+ * Les réglages de voix dont **ce** lecteur a besoin, réunis pour `combine` : la synthèse choisie,
+ * l'adresse et la voix Kokoro, son jeton, et les voix réglées pour les bots de ce serveur.
+ */
+private data class VoiceSetup(
+    val replyVoice: ReplyVoice,
+    val kokoroUrl: String,
+    val kokoroVoice: String,
+    val kokoroToken: String,
+    val botVoices: Map<String, com.onyx.app.voice.BotVoice>,
+)
+
+/**
+ * Le chat de groupe : plusieurs bots répondent à tour de rôle.
  *
- * Comme `GroupChatView` / `GroupComposer` / `GroupVoice`: on choisit qui répond,
+ * Miroir de `GroupChatView` / `GroupComposer` / `GroupVoice` de la référence : on choisit qui répond,
  * chacun parle dans son profil (donc avec son modèle et sa personnalité), et les réponses
  * s'écrivent l'une après l'autre — lues à voix haute si on le veut.
  */
 class GroupChatViewModel(
     application: Application,
     private val config: ServerConfig,
-    /** Les profils d'une salle du serveur ouverte depuis la liste: cochés d'avance. */
+    /** Les profils d'une salle du serveur ouverte depuis la liste : cochés d'avance. */
     private val preselected: List<String>? = null,
 ) : AndroidViewModel(application), GroupVoiceThread {
 
@@ -130,7 +157,7 @@ class GroupChatViewModel(
     private var roundGeneration = 0L
 
     /**
-     * Le numéro du dernier message du fil local. Il ne recule jamais: c'est lui qui ordonne la
+     * Le numéro du dernier message du fil local. Il ne recule jamais : c'est lui qui ordonne la
      * lecture d'une salle neuve (`GroupVoiceLine.seq`).
      */
     private var messageSequence = 0
@@ -144,13 +171,13 @@ class GroupChatViewModel(
 
     override val roomName: String get() = OnyxLocalization["Group chat"]
 
-    /** Le fil local, comme les lignes d'une salle du serveur: la question, puis chaque réponse. */
+    /** Le fil local, comme les lignes d'une salle du serveur : la question, puis chaque réponse. */
     override val lines: StateFlow<List<GroupVoiceLine>> =
         state.map { ui ->
             ui.messages.map { message ->
                 GroupVoiceLine(
                     id = "voice-" + message.id,
-                    // Le profil du bot: c'est lui qui choisit sa voix (`BotVoices`) et son visage.
+                    // Le profil du bot : c'est lui qui choisit sa voix (`BotVoices`) et son visage.
                     profile = message.bot?.name,
                     memberID = message.bot?.name,
                     name = message.bot?.label() ?: "",
@@ -159,7 +186,7 @@ class GroupChatViewModel(
                     live = message.isStreaming,
                     failed = message.failed,
                     // Le numéro du message ordonne la lecture, comme le `seq` d'une salle du
-                    // serveur; tant qu'il s'écrit, c'est un brouillon — il n'est pas lu à moitié.
+                    // serveur ; tant qu'il s'écrit, c'est un brouillon — il n'est pas lu à moitié.
                     seq = message.seq.takeIf { it > 0 && !message.isStreaming },
                     draftId = if (message.isStreaming) "local-" + message.id else null,
                     after = (message.seq - 1).coerceAtLeast(0),
@@ -172,14 +199,26 @@ class GroupChatViewModel(
     override val isTalking: StateFlow<Boolean> =
         state.map { it.asking }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    /** Ce transport local ne connaît pas d'approbation: rien n'attend la personne. */
+    /** Ce transport local ne connaît pas d'approbation : rien n'attend la personne. */
     override val waitsOnPerson: StateFlow<Boolean> = MutableStateFlow(false)
 
+    /** Ce que ce fil a refusé (une question qui n'est pas partie) : la scène vocale le montre. */
+    override val problem: StateFlow<String?> =
+        state.map { it.error }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     /** Une question reconnue remplace un round encore actif, que ce transport ne peut chevaucher. */
-    override fun ask(question: String) {
+    override fun ask(question: String, askId: String) {
+        // La même question ne se repose pas : son identifiant l'a déjà dite.
+        if (!askedIds.add(askId)) {
+            VoiceDiagnostics.note("voice (salle locale): question déjà posée — elle ne repart pas ($askId)")
+            return
+        }
         if (_state.value.asking) stop()
         send(question)
     }
+
+    /** Les questions déjà posées par la voix, par leur identifiant. */
+    private val askedIds = mutableSetOf<String>()
 
     override fun haltTalking() = stop()
 
@@ -197,12 +236,39 @@ class GroupChatViewModel(
 
     init {
         speech.setRate(1f)
+        // **La voix de chaque bot doit s'entendre ici aussi.** La lecture à voix haute d'une salle
+        // qui s'écrit passe par **ce** lecteur, et il ne portait aucun réglage : un bot y lisait
+        // donc de la voix d'Onyx, quel que soit son « Voix » (menu du bot → « Voix… »). Les mêmes
+        // réglages que le fil lui sont posés (`OnyxApp` → `SpeechOutput.configure`) : sans eux, le
+        // profil passé par `speak` n'aurait rien à quoi s'appliquer.
+        viewModelScope.launch {
+            val settings = AppContainer.settings
+            combine(
+                settings.replyVoice,
+                settings.kokoroUrl,
+                settings.kokoroVoice,
+                settings.kokoroToken,
+                settings.botVoices,
+            ) { voice, kokoroUrl, kokoroVoice, kokoroToken, botVoices ->
+                VoiceSetup(voice, kokoroUrl, kokoroVoice, kokoroToken, botVoices[config.id].orEmpty())
+            }.collect { setup ->
+                speech.configure(
+                    voice = setup.replyVoice,
+                    kokoroUrl = setup.kokoroUrl,
+                    kokoroVoice = setup.kokoroVoice,
+                    kokoroToken = setup.kokoroToken,
+                    // Hermes lit de la voix du serveur, une pour tous : rien de plus à poser.
+                    hermesServer = config,
+                    botVoices = setup.botVoices,
+                )
+            }
+        }
         viewModelScope.launch {
             try {
                 val source = profiles.visible(config.displayName)
                 val local = source.associate { it.name to faceStore.faceOf(it.name) }
-                val bots = source.withOnyxFaces(local)
-                // Par défaut, tous ceux qui sont réglés comme bots; sinon les deux premiers. Une
+                val bots = source.withSwiftFaces(local)
+                // Par défaut, tous ceux qui sont réglés comme bots ; sinon les deux premiers. Une
                 // salle ouverte depuis la liste part de ses propres membres.
                 val chosen = preselected?.filter { name -> bots.any { it.name == name } }
                     ?.takeIf { it.isNotEmpty() }
@@ -229,7 +295,7 @@ class GroupChatViewModel(
     }
 
     /**
-     * Les membres d'une salle neuve, choisis dans `NewGroupChatView`: exactement ceux-là, et rien
+     * Les membres d'une salle neuve, choisis dans `NewGroupChatView` : exactement ceux-là, et rien
      * d'autre. La liste des bots peut n'être pas encore chargée — le choix est alors gardé et posé
      * dès qu'elle arrive.
      */
@@ -268,6 +334,21 @@ class GroupChatViewModel(
         }
     }
 
+    /**
+     * Une nouvelle conversation de cette salle : le fil repart à vide et les bots choisis
+     * **restent** — mêmes membres, même salle —, et ce qui écrivait encore est arrêté proprement.
+     *
+     * Un fil **déjà vide** est repris tel quel : un fil vierge n'en empile pas un deuxième (rien
+     * ne change à l'écran, la conversation y est déjà neuve).
+     */
+    fun startNewConversation() {
+        val current = _state.value
+        if (!groupStartsAnotherConversation(current.messages, current.asking, current.error)) return
+        stop()
+        messageSequence = 0
+        _state.update { it.copy(messages = emptyList(), error = null) }
+    }
+
     /** Pose la question à chaque bot choisi, après dépôt des pièces jointes sur le serveur. */
     fun send(question: String, pendingAttachments: List<PendingAttachment> = emptyList()) {
         val clean = question.trim()
@@ -275,7 +356,7 @@ class GroupChatViewModel(
         if ((clean.isEmpty() && pendingAttachments.isEmpty())) return
         val asked = initial.bots.filter { it.name in initial.selected }
         if (asked.isEmpty()) return
-        // Le transport local est séquentiel: une nouvelle question arrête proprement la ronde
+        // Le transport local est séquentiel : une nouvelle question arrête proprement la ronde
         // précédente au lieu de laisser le bouton « Send after this reply » sans effet.
         if (initial.asking) stop()
 
@@ -365,7 +446,9 @@ class GroupChatViewModel(
 
                     if (_state.value.readAloud) {
                         val said = builder.toString()
-                        if (said.isNotBlank()) speech.speak(said)
+                        // La réplique sort de **la voix de son bot** (`BotVoices`), comme la salle
+                        // du serveur (`GroupVoice` → `session.speak(…, speaker = reply.profile)`).
+                        if (said.isNotBlank()) speech.speak(said, speaker = bot.name)
                     }
                 }
             } catch (error: CancellationException) {

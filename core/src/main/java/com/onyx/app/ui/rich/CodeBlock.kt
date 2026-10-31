@@ -1,5 +1,7 @@
 package com.onyx.app.ui.rich
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -34,16 +36,16 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Un morceau de réponse: du texte Markdown, ou un bloc de code. */
+/** Un morceau de réponse : du texte Markdown, ou un bloc de code. */
 data class MarkdownBlock(
     val prose: String? = null,
     val code: String? = null,
     val language: String? = null,
     /** Une formule, à rendre par KaTeX (le contenu est du TeX, sans les `$$`). */
     val math: String? = null,
-    /** Une citation; son contenu est du Markdown, rendu récursivement. */
+    /** Une citation ; son contenu est du Markdown, rendu récursivement. */
     val quote: String? = null,
-    /** Un tableau GFM; Markwon n'offre ni teinte d'en-tête ni défilement, Compose s'en charge. */
+    /** Un tableau GFM ; Markwon n'offre ni teinte d'en-tête ni défilement, Compose s'en charge. */
     val table: MarkdownTable? = null,
 ) {
     val isMermaid: Boolean get() = language?.lowercase() == "mermaid"
@@ -53,8 +55,8 @@ data class MarkdownBlock(
 enum class MarkdownRenderer { PROSE, CODE, LIVE_CODE, MERMAID, MATH, QUOTE, TABLE, AGENT_PAGE }
 
 /**
- * Le routage de `MarkdownBlockView`: un diagramme, une formule ou une page encore en train
- * d'arriver reste dans une fenêtre de code; les blocs précédents gardent leur vrai rendu.
+ * Le routage de `MarkdownBlockView` : un diagramme, une formule ou une page encore en train
+ * d'arriver reste dans une fenêtre de code ; les blocs précédents gardent leur vrai rendu.
  */
 fun MarkdownBlock.renderer(trailing: Boolean): MarkdownRenderer = when {
     trailing && (code != null || math != null) -> MarkdownRenderer.LIVE_CODE
@@ -67,10 +69,10 @@ fun MarkdownBlock.renderer(trailing: Boolean): MarkdownRenderer = when {
     else -> MarkdownRenderer.PROSE
 }
 
-/** L'alignement d'une colonne de tableau, comme `MarkdownBlock.ColumnAlignment`. */
+/** L'alignement d'une colonne de tableau, comme `MarkdownBlock.ColumnAlignment` côté référence. */
 enum class TableAlignment { LEADING, CENTER, TRAILING }
 
-/** Un tableau GFM: son en-tête, ses lignes, et l'alignement de chaque colonne. */
+/** Un tableau GFM : son en-tête, ses lignes, et l'alignement de chaque colonne. */
 data class MarkdownTable(
     val header: List<String>,
     val rows: List<List<String>> = emptyList(),
@@ -78,12 +80,12 @@ data class MarkdownTable(
 )
 
 /**
- * Découpe une réponse en texte et en blocs de code, sur les clôtures de code (`).
+ * Découpe une réponse en texte et en blocs de code, sur les clôtures de code (```).
  *
- * Markwon rend la prose; les blocs de code demandent davantage — un surligneur, des numéros de
+ * Markwon rend la prose ; les blocs de code demandent davantage — un surligneur, des numéros de
  * ligne et un bouton « copier » —, et les citations et les tableaux sont détachés ici pour que
  * Compose les rende (barre de citation, en-tête teinté, défilement horizontal), comme
- * le fait.
+ * `MarkdownView` le fait.
  */
 fun splitMarkdown(markdown: String): List<MarkdownBlock> {
     val blocks = mutableListOf<MarkdownBlock>()
@@ -101,7 +103,7 @@ fun splitMarkdown(markdown: String): List<MarkdownBlock> {
         val line = lines[index]
         val fence = line.trimStart()
 
-        // Une formule détachée: `$$ … $$` ou `\[ … \]`, sur une ligne ou plusieurs.
+        // Une formule détachée : `$$ … $$` ou `\[ … \]`, sur une ligne ou plusieurs.
         val mathDelimiters = when {
             fence.startsWith("$$") -> "$$" to "$$"
             fence.startsWith("\\[") -> "\\[" to "\\]"
@@ -113,7 +115,7 @@ fun splitMarkdown(markdown: String): List<MarkdownBlock> {
             val closesInline = rest.isNotEmpty() && rest.endsWith(closer)
             val sameLine = rest.removeSuffix(closer).trim()
             if (closesInline && sameLine.isEmpty()) {
-                // Un délimiteur vide (`$$$$`) est de la prose, comme dans le parseur.
+                // Un délimiteur vide (`$$$$`) est de la prose, comme dans le parseur la référence.
                 prose.appendLine(line)
                 index++
                 continue
@@ -152,7 +154,7 @@ fun splitMarkdown(markdown: String): List<MarkdownBlock> {
             continue
         }
 
-        // Un tableau GFM: une ligne d'en-tête suivie de sa ligne de séparation `|---|:--:|`.
+        // Un tableau GFM : une ligne d'en-tête suivie de sa ligne de séparation `|---|:--:|`.
         if (isTableRow(line) && index + 1 < lines.size && isTableDelimiter(lines[index + 1])) {
             flushProse()
             val header = splitTableRow(line)
@@ -167,7 +169,7 @@ fun splitMarkdown(markdown: String): List<MarkdownBlock> {
             continue
         }
 
-        // Une citation: une suite de lignes préfixées par « > ». Le contenu reste du Markdown,
+        // Une citation : une suite de lignes préfixées par « > ». Le contenu reste du Markdown,
         // si bien qu'un tableau ou une liste dans la citation se rendent comme ailleurs.
         if (fence.startsWith(">")) {
             flushProse()
@@ -189,7 +191,7 @@ fun splitMarkdown(markdown: String): List<MarkdownBlock> {
     return blocks
 }
 
-/** Une ligne de tableau: elle porte des « | » et n'ouvre pas un autre bloc. */
+/** Une ligne de tableau : elle porte des « | » et n'ouvre pas un autre bloc. */
 private fun isTableRow(line: String): Boolean {
     val text = line.trim()
     return text.isNotEmpty() &&
@@ -199,7 +201,7 @@ private fun isTableRow(line: String): Boolean {
 }
 
 /**
- * La ligne de séparation d'un tableau (`|---|---|:--:|`): uniquement des « | », « - », «: » et
+ * La ligne de séparation d'un tableau (`|---|---|:--:|`) : uniquement des « | », « - », « : » et
  * des espaces, et au moins un tiret. C'est elle qui distingue un tableau d'une simple ligne de
  * prose contenant un « | ».
  */
@@ -250,23 +252,23 @@ private fun alignmentOf(spec: String): TableAlignment {
     }
 }
 
-/** Le libellé d'un bloc: son langage, en capitales, ou « code » quand la clôture n'en donne pas. */
+/** Le libellé d'un bloc : son langage, en capitales, ou « code » quand la clôture n'en donne pas. */
 fun codeBlockLabel(language: String?): String = (language?.takeIf { it.isNotBlank() } ?: "code").uppercase()
 
 /**
- * Un bloc de code: son langage, « Copy », et la coloration du thème.
+ * Un bloc de code : son langage, « Copy », et la coloration du thème.
  *
- * Comme la partie « code » de: même fond que le `Color.primary.opacity(0.06)`
- * , même monospace (Source Code Pro), les couleurs de `SyntaxPalette` du thème actif, et
+ * Port de la partie « code » de `MarkdownView` : même fond que le `Color.primary.opacity(0.06)`
+ * de la référence, même monospace (Source Code Pro), les couleurs de `SyntaxPalette` du thème actif, et
  * les mêmes marges — 10 de chaque côté, 6 au-dessus du libellé, 10 sous le code. Pas de numéros de
- * ligne: n'en dessine pas, et la capture de référence n'en montre pas.
+ * ligne : référence n'en dessine pas, et la capture de référence n'en montre pas.
  */
 @Composable
 fun CodeBlock(
     code: String,
     language: String?,
     modifier: Modifier = Modifier,
-    /** Le dernier bloc pendant le streaming reste monochrome, comme `CodeBlock.live`. */
+    /** Le dernier bloc pendant le streaming reste monochrome, comme `CodeBlock.live` sur la référence. */
     live: Boolean = false,
 ) {
     val theme = LocalOnyxTheme.current
@@ -299,7 +301,7 @@ fun CodeBlock(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(theme.textColor.copy(alpha = 0.06f), RoundedCornerShape(10.dp)),
+            .background(theme.textColor.copy(alpha = 0.06f), RoundedCornerShape(OnyxSpace.ControlCorner)),
     ) {
         Row(
             modifier = Modifier
@@ -312,12 +314,12 @@ fun CodeBlock(
                 style = theme.caption.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
                 modifier = Modifier.weight(1f),
             )
-            // Le bouton est nu, comme `.buttonStyle(.plain)`: pas de pastille derrière.
+            // Le bouton est nu, comme `.buttonStyle(.plain)` côté référence : pas de pastille derrière.
             Row(
                 modifier = Modifier
                     .onyxClickable(pressedScale = 0.9f) {
                         scope.launch {
-                            // La copie est réelle: elle va dans le presse-papiers du système.
+                            // La copie est réelle : elle va dans le presse-papiers du système.
                             clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("code", code)))
                         }
                         copied = true
@@ -343,7 +345,7 @@ fun CodeBlock(
                 .fillMaxWidth()
                 .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
         ) {
-            // Le code se prend au doigt comme le reste du texte du fil: appui long → un mot, puis
+            // Le code se prend au doigt comme le reste du texte du fil : appui long → un mot, puis
             // les poignées et la barre du système. Le bouton « Copy » ci-dessus, lui, emporte tout
             // le bloc.
             SelectableText(

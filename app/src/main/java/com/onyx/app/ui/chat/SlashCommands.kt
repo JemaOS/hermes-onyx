@@ -3,14 +3,14 @@ package com.onyx.app.ui.chat
 /**
  * Les commandes « / » que l'app exécute elle-même.
  *
- * ne garde qu'une seule commande locale — `/model` nu ouvre le sélecteur de modèle
- * — et confie toutes les autres au gateway (`slash.exec`, puis
- * `command.dispatch` sur l'erreur 4018). Android n'a pas la ligne de statut pour rendre
+ * référence ne garde qu'une seule commande locale — `/model` nu ouvre le sélecteur de modèle
+ * (`ComposerView:569`) — et confie toutes les autres au gateway (`slash.exec`, puis
+ * `command.dispatch` sur l'erreur 4018). Android n'a pas la ligne de statut de la référence pour rendre
  * la sortie d'une commande, donc les commandes qui ne parlent qu'à l'écran sont exécutées ici,
- * et tout le reste part au gateway comme.
+ * et tout le reste part au gateway comme sur la référence.
  */
 enum class SlashAction {
-    /** `/model` nu: le sélecteur de modèle de l'app. */
+    /** `/model` nu : le sélecteur de modèle de l'app. */
     OPEN_MODEL_PICKER,
 
     /** Une nouvelle conversation avec l'agent, comme ⌘N. */
@@ -28,7 +28,7 @@ enum class SlashAction {
     /** La liste des commandes connues. */
     HELP,
 
-    /** Rien à traiter ici: la commande part au gateway. */
+    /** Rien à traiter ici : la commande part au gateway. */
     GATEWAY,
 }
 
@@ -56,14 +56,14 @@ object SlashCommands {
     /**
      * Ce que cette ligne de brouillon déclenche.
      *
-     * Un `/model` nu ouvre le sélecteur; `/model <quelque chose>` reste une commande du
-     * gateway, exactement comme (« Bare /model opens the picker; with
+     * Un `/model` nu ouvre le sélecteur ; `/model <quelque chose>` reste une commande du
+     * gateway, exactement comme `ComposerView:569` (« Bare /model opens the picker; with
      * an argument it stays a serve slash command »).
      */
     fun action(text: String): SlashAction {
         val clean = text.trim().lowercase()
         if (!clean.startsWith("/")) return SlashAction.GATEWAY
-        // Commande nue: premier mot seul, sans argument après.
+        // Commande nue : premier mot seul, sans argument après.
         val bare = clean.substringBefore(' ')
         val command = builtIn.firstOrNull { it.name.equals(bare, ignoreCase = true) }
         val hasArgument = clean.length > bare.length

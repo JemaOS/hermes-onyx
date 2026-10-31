@@ -6,27 +6,27 @@ import com.onyx.app.data.model.Role
 /**
  * Une question de l'agent qui attend encore sa réponse, prête à être notifiée.
  *
- * Ce que la notification a besoin de savoir, et rien de plus: de quoi l'identifier, de quoi la
+ * Ce que la notification a besoin de savoir, et rien de plus : de quoi l'identifier, de quoi la
  * reformuler, et de quoi répondre par le bon appel du gateway.
  */
 data class PendingQuestion(
-    /** L'identifiant Android de la notification: stable tant que la question attend. */
+    /** L'identifiant Android de la notification : stable tant que la question attend. */
     val notificationId: String,
     val kind: NotificationCopy.QuestionKind,
-    /** Le texte montré: la question, la consigne sudo, ou le libellé du secret. */
+    /** Le texte montré : la question, la consigne sudo, ou le libellé du secret. */
     val prompt: String,
     /** L'identifiant que le gateway attend dans la réponse. */
     val requestId: String,
     /** La question précise d'une série (`clarify.lock`), ou `null` pour une question seule. */
     val questionId: String?,
-    /** Le nombre de questions de la série: au-delà d'une, on répond depuis l'app. */
+    /** Le nombre de questions de la série : au-delà d'une, on répond depuis l'app. */
     val questionCount: Int,
 )
 
 /**
  * Les questions en attente d'une conversation, dans l'ordre où elles se sont posées.
  *
- * Comme ce que la carte montre déjà: une question (`clarify`), un mot de passe sudo
+ * Miroir Android de ce que la carte montre déjà : une question (`clarify`), un mot de passe sudo
  * (`sudoRequestId`), ou un secret que l'agent réclame (`secret` sans valeur fournie). Une
  * interruption déjà répondue n'y figure pas — le champ est remis à `null` dès la réponse.
  */

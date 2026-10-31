@@ -5,7 +5,7 @@ import java.net.URI
 import java.security.MessageDigest
 import java.util.Base64
 
-/** Compte SSH non secret, conservé par serveur Hermes comme `TerminalAccount`. */
+/** Compte SSH non secret, conservé par serveur Hermes comme `TerminalAccount` sur la référence. */
 data class TerminalAccount(
     val host: String = "",
     val port: Int = 22,
@@ -57,7 +57,7 @@ class TerminalAccountStore(context: Context) {
     }
 }
 
-/** Calculs de `KnownHosts`, sans stockage: nom d'hôte et empreinte OpenSSH/SHA-256. */
+/** Calculs de `KnownHosts`, sans stockage : nom d'hôte et empreinte OpenSSH/SHA-256. */
 object TerminalKnownHosts {
     fun name(host: String, port: Int): String =
         if (port == 22) host.lowercase() else "[${host.lowercase()}]:$port"
@@ -92,7 +92,7 @@ fun checkTerminalHostKey(expected: String?, presented: String): TerminalHostKeyC
     return TerminalHostKeyCheck(status, expected, presented)
 }
 
-/** Empreintes TOFU; elles ne sont pas secrètes et restent indépendantes des comptes. */
+/** Empreintes TOFU ; elles ne sont pas secrètes et restent indépendantes des comptes. */
 class TerminalKnownHostsStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("onyx_terminal_known_hosts", Context.MODE_PRIVATE)
 

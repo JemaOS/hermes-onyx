@@ -26,9 +26,9 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.delay
 
 /**
- * Le toast de l'app: une capsule en bas, qui s'efface d'elle-même (`ToastModifier`).
+ * Le toast de l'app : une capsule en bas, qui s'efface d'elle-même (`ToastModifier`).
  *
- * C'est le même geste qu': on pose un texte, il reste trois secondes, il part.
+ * C'est le même geste qu'référence : on pose un texte, il reste trois secondes, il part.
  */
 class Toaster {
     internal val text = mutableStateOf<String?>(null)

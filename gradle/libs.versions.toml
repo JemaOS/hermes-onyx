@@ -1,10 +1,10 @@
 [versions]
-agp = "8.11.1"
-kotlin = "2.1.20"
+agp = "9.1.0"
+kotlin = "2.4.20"
 coreKtx = "1.16.0"
 lifecycle = "2.9.1"
 activityCompose = "1.10.1"
-composeBom = "2025.06.01"
+composeBom = "2026.09.00"
 okhttp = "4.12.0"
 serialization = "1.8.1"
 coroutines = "1.10.2"
@@ -23,6 +23,16 @@ billing = "7.1.1"
 sshj = "0.38.0"
 zxing = "4.3.0"
 guava = "33.4.0-android"
+# Le verre liquide : le flou des vitres **et** la réfraction du contenu.
+#
+# Haze 2 a **séparé ses effets en modules** : `haze` porte le cœur (l'état, la source, le nœud
+# d'effet), `haze-blur` le flou, `haze-glass` le **verre** — réfraction, profil d'arête, dispersion
+# chromatique, reflet spéculaire piloté par le doigt, et ses propres replis matériels.
+#
+# Le prix du saut est explicite : Haze 2.0.1 réclame Compose 1.12.1 (`composeBom = 2026.09.00`) et
+# Kotlin 2.4.20, et son AAR exige `compileSdk = 37`. Les trois sont donc montés ensemble — c'est un
+# seul mouvement, pas trois.
+haze = "2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +48,16 @@ wear-tiles = { group = "androidx.wear.tiles", name = "tiles", version.ref = "wea
 wear-protolayout = { group = "androidx.wear.protolayout", name = "protolayout", version.ref = "wearProtolayout" }
 androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+# Le cœur : `HazeState`, `hazeSource`, `hazeEffect`, le nœud d'effet, les replis.
+# `haze-materials`/`haze-blur-materials` sont **volontairement écartés** : ils tirent
+# `androidx.compose.material3` (`HazeMaterials` n'est qu'un habillage Material), et l'app ne doit
+# aucun composant Material.
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
+# Le flou : le repli de tous les appareils, et le seul effet des versions qui refusent le verre.
+haze-blur = { group = "dev.chrisbanes.haze", name = "haze-blur", version.ref = "haze" }
+# Le **verre** : réfraction du contenu échantillonné, profil d'arête, dispersion chromatique,
+# reflet spéculaire au doigt, et la sélection automatique du moteur (complet ou limité).
+haze-glass = { group = "dev.chrisbanes.haze", name = "haze-glass", version.ref = "haze" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragment" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }

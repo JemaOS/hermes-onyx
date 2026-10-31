@@ -1,19 +1,19 @@
 package com.onyx.app.localization
 
 /**
- * Réglages → Outils: les titres et les descriptions que le serveur envoie.
+ * Réglages → Outils : les titres et les descriptions que le serveur envoie.
  *
  * La page affichait les libellés du serveur tels quels — « Browser Automation », « navigate, click,
- * type, scroll », « background desktop control via cua-driver »… Le propriétaire: « traduis toute
+ * type, scroll », « background desktop control via cua-driver »… Le propriétaire : « traduis toute
  * cette page, on comprend rien ».
  *
  * Les clés sont **exactement** le libellé et la description renvoyés par le serveur (le libellé
- * sans son emoji, les descriptions paragraphe par paragraphe: [OnyxLocalization.translateParagraphs]).
+ * sans son emoji, les descriptions paragraphe par paragraphe : [OnyxLocalization.translateParagraphs]).
  * Les noms d'outils (`web_search`, `a2a_call`, `execute_code`, `clarify`…) sont des identifiants
- * d'API: ils restent tels quels, et n'ont donc pas d'entrée ici.
+ * d'API : ils restent tels quels, et n'ont donc pas d'entrée ici.
  *
  * Les clés déjà traduites ailleurs (« Skills », « Memory », « navigate, click, type, scroll »…)
- * ne sont pas répétées: une seconde entrée écraserait la première.
+ * ne sont pas répétées : une seconde entrée écraserait la première.
  */
 internal val onyxToolsPageFrench: Map<String, String> = linkedMapOf(
     // Les titres des jeux d'outils.
@@ -37,7 +37,7 @@ internal val onyxToolsPageFrench: Map<String, String> = linkedMapOf(
     "Cron Jobs" to "Tâches planifiées",
     "Discord (read/participate)" to "Discord (lire et participer)",
     "Discord Server Admin" to "Administration d’un serveur Discord",
-    "Computer Use (macOS/Windows/Linux)" to "Utilisation de l’ordinateur (macOS/Windows/Linux)",
+    "Computer Use (la référence/Windows/Linux)" to "Utilisation de l’ordinateur (la référence/Windows/Linux)",
 
     // Les descriptions, là où elles ne sont pas déjà traduites.
     "video_analyze (requires video-capable model)" to
@@ -62,7 +62,7 @@ internal val onyxToolsPageFrench: Map<String, String> = linkedMapOf(
     "background desktop control via cua-driver" to
         "contrôle du bureau en arrière-plan via cua-driver",
 
-    // A2A: la fiche du greffon, un paragraphe à la fois.
+    // A2A : la fiche du greffon, un paragraphe à la fois.
     "A2A (Agent-to-Agent) protocol v1.0 support for Hermes Agent — both directions of the open Linux Foundation standard for inter-agent communication." to
         "Prise en charge du protocole A2A (Agent-to-Agent) v1.0 pour Hermes Agent — les deux sens de la norme ouverte de la Linux Foundation pour la communication entre agents.",
     "OUTBOUND (client tools): a2a_discover, a2a_call, a2a_list, a2a_history, and a2a_orchestrate let the agent fetch another agent's Agent Card and send it tasks over JSON-RPC — works with any A2A-compliant peer (Hermes, LangChain, CrewAI, Google ADK, OpenClaw, ...)." to

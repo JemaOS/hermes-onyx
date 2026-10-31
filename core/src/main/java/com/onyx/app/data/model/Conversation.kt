@@ -6,7 +6,7 @@ import java.util.UUID
 /**
  * Une conversation enregistrée.
  *
- * Comme l'`Envelope` de: un identifiant, un titre, les dates qui
+ * Miroir de l'`Envelope` de `ConversationStore` : un identifiant, un titre, les dates qui
  * ordonnent la liste, le serveur d'origine et le fil tel qu'il était.
  */
 @Serializable
@@ -16,7 +16,7 @@ data class Conversation(
     val title: String = DefaultTitle,
     val createdAt: Long,
     val updatedAt: Long,
-    /** Serveur avec qui elle a été écrite: la liste s'y rapporte. */
+    /** Serveur avec qui elle a été écrite : la liste s'y rapporte. */
     val serverId: String = "",
     /** Session côté gateway, quand le transport en tient une. */
     val serverSessionId: String? = null,
@@ -36,7 +36,7 @@ data class Conversation(
     /**
      * Le nom donné à la conversation par « Renommer », ou `null` quand le titre n'est encore que
      * la première question (ou « New Conversation »). L'en-tête du chat préfère ce nom au premier
-     * message, comme `Conversation.name`.
+     * message, comme `Conversation.name` de la référence.
      */
     fun customName(): String? {
         val first = messages.firstOrNull { it.role == Role.USER }?.text
@@ -53,7 +53,7 @@ data class Conversation(
     companion object {
         const val DefaultTitle = "New Conversation"
 
-        /** Le titre d'une conversation: la première ligne du premier message, coupée court. */
+        /** Le titre d'une conversation : la première ligne du premier message, coupée court. */
         fun titleFrom(text: String): String {
             val firstLine = text.trim().lineSequence().firstOrNull()?.trim().orEmpty()
             if (firstLine.isEmpty()) return DefaultTitle

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rend les orbes  sans perdre leurs détourages ni leurs dégradés.
+"""Rend les orbes référence sans perdre leurs détourages ni leurs dégradés.
 
 Le convertisseur VectorDrawable précédent aplatissait les dégradés et supprimait les
 clipPath : les rectangles noirs destinés à la vignette recouvraient donc tout l'orbe.
@@ -56,7 +56,7 @@ def render(source: Path) -> bytes:
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, required=True, help="Dossier design/icons/orbs ")
+    parser.add_argument("--source", type=Path, required=True, help="Dossier design/icons/orbs de la référence")
     parser.add_argument("--out", type=Path, default=root / "core/src/main/res/drawable")
     parser.add_argument("--check", action="store_true", help="Vérifie sans modifier les ressources")
     args = parser.parse_args()

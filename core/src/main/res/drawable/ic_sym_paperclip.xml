@@ -1,9 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Le trombone : la forme de la reference, redessinee au trait sur la grille de 24.
+         Un seul fil continu, comme le trombone de la reference : le montant part du haut-gauche,
+         descend la boucle du bas (r 5,94), remonte le montant droit, la petite boucle du haut
+         (r 3,22) repart vers la gauche, et le fil rentre par le milieu.
+         Trait 2, bouts et jointures ronds, encre de 3,04 a 20,97 en largeur et de 3,42 a 20,58
+         en hauteur : centre a 0,005 de (12 ; 12), dans la zone 2 a 22. -->
     <path
-        android:fillColor="#FF000000"
-        android:pathData="M8.1,17.6C6.3,19.4 3.4,19.4 1.6,17.6C-0.2,15.8 -0.2,12.9 1.6,11.1L10.5,2.2C12.1,0.6 14.7,0.6 16.3,2.2C17.9,3.8 17.9,6.4 16.3,8L8.2,16.1C7.4,16.9 6.1,16.9 5.3,16.1C4.5,15.3 4.5,14 5.3,13.2L12.6,5.9L14,7.3L6.7,14.6C6.5,14.8 6.5,15.1 6.7,15.3C6.9,15.5 7.2,15.5 7.4,15.3L15.5,7.2C16.3,6.4 16.3,5.2 15.5,4.4C14.7,3.6 13.5,3.6 12.7,4.4L3.8,13.3C2.8,14.3 2.8,16 3.8,17C4.8,18 6.5,18 7.5,17L17.4,7.1L18.8,8.5L8.9,18.4Z" />
+        android:pathData="M4.04,12.04 L9.98,17.99 A5.94,5.94 0 0 0 18.38,9.6 L14,5.22 A3.22,3.22 0 0 0 9.46,9.77 L13.31,13.62"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
 </vector>

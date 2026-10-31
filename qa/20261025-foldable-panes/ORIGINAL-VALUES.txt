@@ -1,3 +1,0 @@
-wm size 2200x2480
-wm density 420
-font_scale 1.0

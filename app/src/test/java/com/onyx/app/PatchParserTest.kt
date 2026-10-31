@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Vérifie la lecture d'un diff unifié: c'est ce qui décide ce qu'on montre d'un changement
+ * Vérifie la lecture d'un diff unifié : c'est ce qui décide ce qu'on montre d'un changement
  * proposé par l'agent, et une erreur y ferait lire du code faux.
  */
 class PatchParserTest {

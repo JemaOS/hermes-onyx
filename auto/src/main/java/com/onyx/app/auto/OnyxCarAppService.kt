@@ -8,10 +8,10 @@ import androidx.car.app.SessionInfo
 import androidx.car.app.validation.HostValidator
 import com.onyx.app.data.model.ChatTurn
 
-/** Le service que la voiture démarre; l'hôte fournit les templates et la dictée de l'assistant. */
+/** Le service que la voiture démarre ; l'hôte fournit les templates et la dictée de l'assistant. */
 class OnyxCarAppService : CarAppService() {
     override fun createHostValidator(): HostValidator =
-        // En développement la voiture n'est pas signée par nous; la validation est désactivée.
+        // En développement la voiture n'est pas signée par nous ; la validation est désactivée.
         HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
 
     override fun onCreateSession(sessionInfo: SessionInfo): Session = OnyxCarSession()

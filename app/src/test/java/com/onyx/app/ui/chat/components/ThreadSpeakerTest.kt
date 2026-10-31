@@ -16,10 +16,10 @@ import org.junit.Test
  * Qui la conversation montre, et où.
  *
  * L'ancien en-tête du fil (le visage posé en tête des messages, avec le nom en pastille juste
- * dessous) a été retiré: le visage vit maintenant dans la barre du haut, où il ne défile pas, et le
+ * dessous) a été retiré : le visage vit maintenant dans la barre du haut, où il ne défile pas, et le
  * nom n'est plus écrit sous l'avatar. Ces tests tiennent la règle du visage (le bot de la
  * conversation, sinon Onyx), le rattachement du bot par le titre posé, et les propriétés de la
- * barre: avatar découpé au cercle, Reduce Motion respecté, plus rien dans le fil.
+ * barre : avatar découpé au cercle, Reduce Motion respecté, plus rien dans le fil.
  */
 class ThreadSpeakerTest {
 
@@ -66,7 +66,7 @@ class ThreadSpeakerTest {
     fun `un roster sans chat serveur retrouve le bot par le titre pose`() {
         val bot = BotProfile(name = "scout", title = "Scout") // `canonical_session` absent du roster
 
-        // Le chat d'un bot est ouvert titré de son nom (`botChatToOpen`): c'est ce titre qui le lie.
+        // Le chat d'un bot est ouvert titré de son nom (`botChatToOpen`) : c'est ce titre qui le lie.
         assertEquals(
             "scout",
             botOfConversation(conversation("c1", "Scout", firstMessage = "Bonjour Scout"), listOf(bot))?.name,
@@ -77,7 +77,7 @@ class ThreadSpeakerTest {
 
     @Test
     fun `le titre pose lie encore quand la session serveur s'est ecrite`() {
-        // Le défaut « scout »: après le premier tour, la session serveur s'écrit dans la
+        // Le défaut « scout » : après le premier tour, la session serveur s'écrit dans la
         // conversation, et l'ancien test (`serverSessionId == null`) perdait le bot.
         val bot = BotProfile(name = "scout", title = "Scout")
 
@@ -99,9 +99,9 @@ class ThreadSpeakerTest {
     @Test
     fun `le lien tient a l ouverture par la liste comme par la barre`() {
         // Ouvrir un fil de bot par la liste (nom de rangée) ou par la barre (visage + nom) revient
-        // au même lien: le chat serveur du bot (`canonical_session`), sinon le titre posé. Le
+        // au même lien : le chat serveur du bot (`canonical_session`), sinon le titre posé. Le
         // premier tour écrit la session serveur et un changement de modèle ne touchent ni l'un ni
-        // l'autre: le bot reste lié.
+        // l'autre : le bot reste lié.
         val named = BotProfile(name = "writer", title = "writer", chatId = "sess-w")
         val byTitle = BotProfile(name = "scout", title = "scout")
         assertEquals("writer", botOfConversation(conversation("c1", "writer", session = "sess-w"), listOf(named))?.name)
@@ -113,7 +113,7 @@ class ThreadSpeakerTest {
 
     @Test
     fun `un titre ambigu ne rattache personne`() {
-        // Deux profils du même libellé: le lien serait un faux positif — mieux vaut Onyx.
+        // Deux profils du même libellé : le lien serait un faux positif — mieux vaut Onyx.
         val first = BotProfile(name = "scout", title = "Scout")
         val second = BotProfile(name = "scout-2", title = "Scout")
 
@@ -142,7 +142,7 @@ class ThreadSpeakerTest {
 
         val speaker = threadHeaderSpeaker(bot, assistantName = "Hermes")
 
-        // « son nom d'agent »: le nom des Réglages → Apparence, et le visage de la bulle de Onyx.
+        // « son nom d'agent » : le nom des Réglages → Apparence, et le visage de la bulle de Onyx.
         assertEquals("Hermes", speaker.label)
         assertEquals("default", speaker.faceName)
     }
@@ -183,28 +183,43 @@ class ThreadSpeakerTest {
     }
 
     @Test
-    fun `le visage de la barre est a plat, sans aura ni clignement`() {
-        assertTrue("l'avatar est dessiné par BotLook", topBarSource.contains("BotLook("))
-        // L'aura (le disque de couleur derrière la face) a été retirée: n'en met aucune.
+    fun `le visage de la barre n a ni aura ni pulsation`() {
+        // Le visage de la barre, c'est la scène vivante `LiveBotFace`, qui dessine par le
+        // `BotLook` partagé : la barre ne réinvente pas un avatar.
+        assertTrue("la barre montre le visage vivant", topBarSource.contains("LiveBotFace("))
+        val liveSource = File("src/main/java/com/onyx/app/ui/chat/components/LiveBotFace.kt").readText()
+        assertTrue("l'avatar est dessiné par BotLook", liveSource.contains("BotLook("))
+        // L'aura (le disque de couleur derrière la face) n'existe pas : la référence n'en met aucune.
         assertFalse("plus d'aura d'accent", topBarSource.contains("radialGradient"))
         assertFalse("plus de dégradé", topBarSource.contains("Brush."))
         assertFalse("plus de pulsation", topBarSource.contains("rememberInfiniteTransition"))
-        assertFalse("plus de clignement dans la barre", topBarSource.contains("rememberBlink"))
-        assertTrue("le visage est figé", topBarSource.contains("blinks = false"))
-        // Rien de Material: la barre reste faite main, comme le reste de l'écran.
+        assertFalse("plus d'aura non plus dans la scène", liveSource.contains("radialGradient"))
+        assertFalse("ni de dégradé", liveSource.contains("Brush."))
+        assertFalse("ni de pulsation", liveSource.contains("rememberInfiniteTransition"))
+        // Le clignement **du moteur** reste éteint : la scène donne l'instant du visage, sinon deux
+        // clignotements se superposeraient. C'est elle qui fait vivre la face, par pouls espacés.
+        assertFalse("pas de clignement du moteur dans la barre", topBarSource.contains("rememberBlink"))
+        assertTrue("la scène donne l'instant du visage", liveSource.contains("blinks = false"))
+        // Rien de Material : la barre reste faite main, comme le reste de l'écran.
         assertFalse(topBarSource.contains("androidx.compose.material"))
     }
 
     @Test
     fun `la barre nomme le bot de la conversation`() {
         val speakerSource = File("src/main/java/com/onyx/app/ui/chat/components/ThreadSpeaker.kt").readText()
-        // La première ligne de la barre porte le nom; la seconde porte le « @handle » du bot et
-        // le modèle — la répéter à l'identique était le doublon
+        // La première ligne de la barre porte le nom ; la seconde porte le « @handle » du bot et
+        // le modèle (`ContentView:448`) — la répéter à l'identique était le doublon
         // « writer / writer » vu par l'utilisateur.
-        // La seconde ligne nomme **le modèle qui répond** (le nom du bot est déjà au-dessus):
+        // La seconde ligne nomme **le modèle qui répond** (le nom du bot est déjà au-dessus) :
         // le « @handle » ne servait à rien et a été retiré à la demande du propriétaire.
         assertFalse("plus de « @handle » dans la barre", screenSource.contains("\"@\$it\""))
-        assertTrue("le sous-titre nomme le modèle", screenSource.contains("subtitle = state.modelInUse"))
+        // La seconde ligne nomme le modèle — **son nom**, jamais l'alias de passerelle que l'app
+        // envoie (`hermes-agent`) : c'est la **valeur unique** `state.modelInForce` qui s'écrit, et la
+        // requête d'envoi porte exactement la même.
+        assertTrue(
+            "le sous-titre nomme le modèle en vigueur — la même valeur que l'envoi",
+            screenSource.contains("subtitle = state.modelInForce"),
+        )
         assertTrue("le profil principal a le handle « hermes »", speakerSource.contains("if (it == OnyxProfile) \"hermes\" else it"))
         assertTrue("l'étiquette au-dessus de la bulle aussi", screenSource.contains("replyName = threadSpeaker.label"))
         assertTrue("le placeholder du composeur aussi", screenSource.contains("title = threadSpeaker.label"))

@@ -5,10 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Les libellés des sous-agents en français: l'écran des tâches, ses états et ses lignes de détail.
+ * Les libellés des sous-agents en français : l'écran des tâches, ses états et ses lignes de détail.
  *
  * Les phrases composées (détail d'une tâche) passent par les motifs du dictionnaire, comme ailleurs
- * dans l'app: le compte d'outils et la durée restent des chiffres, le reste se traduit.
+ * dans l'app : le compte d'outils et la durée restent des chiffres, le reste se traduit.
  */
 class SubagentLocalizationTest {
 
@@ -33,15 +33,15 @@ class SubagentLocalizationTest {
         assertEquals("7 outils · read_file", t("7 tools · read_file"))
         assertEquals("1 outil · web_search", t("1 tool · web_search"))
         assertEquals("4 outils · 23 s · Three tiers.", t("4 tools · 23 s · Three tiers."))
-        // Sans outil: la durée et le résumé.
+        // Sans outil : la durée et le résumé.
         assertEquals("12 s · Three tiers.", t("12 s · Three tiers."))
-        // Le temps écoulé en tête (liste des tâches): la durée reste, le reste se traduit.
+        // Le temps écoulé en tête (liste des tâches) : la durée reste, le reste se traduit.
         assertEquals("42 s · 7 outils · read_file", t("42 s · 7 tools · read_file"))
         assertEquals(
             "12 s · Tourne en arrière-plan ; les résultats arrivent dans un tour ultérieur",
             t("12 s · Running in the background; results arrive in a later turn"),
         )
-        // La ligne d'état de la transcription traduit le détail **à part**: sinon le compte
+        // La ligne d'état de la transcription traduit le détail **à part** : sinon le compte
         // restait en anglais dans la phrase complète.
         assertEquals("7 outils · 3.3 min · all done", t("7 tools · 3.3 min · all done"))
         // Le compte d'outils seul, et la tâche en série.

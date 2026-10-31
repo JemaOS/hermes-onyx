@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    `key` — la clé en **contour**, telle que le modèle la dessine dans Réglages: un anneau et une
+    `key` — la clé en **contour**, telle que la référence la dessine dans Réglages : un anneau et une
     tige à deux dents, tracés au trait. `key.fill` reste pour les cartes d'approbation, où un
-    pictogramme plein se lit mieux; ici le plein faisait une tache, sans élégance.
+    pictogramme plein se lit mieux ; ici le plein faisait une tache, sans élégance.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- L'anneau: un vrai cercle ouvert, tracé au trait comme l'anse du cadenas. -->
+    <!-- L'anneau : un vrai cercle ouvert, tracé au trait comme l'anse du cadenas. -->
     <path
         android:pathData="M9,4.8 a4.2,4.2 0 1 0 0,8.4 a4.2,4.2 0 1 0 0,-8.4 Z"
         android:strokeColor="#FFFFFFFF"

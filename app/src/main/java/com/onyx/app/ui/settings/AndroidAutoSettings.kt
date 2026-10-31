@@ -1,5 +1,7 @@
 package com.onyx.app.ui.settings
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -79,7 +81,7 @@ fun AutoCardSettings(
     }
 }
 
-/** Le disclosure CarPlayVoiceSettings: deux états statiques, sans micro ni animation inventés. */
+/** Le disclosure CarPlayVoiceSettings : deux états statiques, sans micro ni animation inventés. */
 @Composable
 fun AutoVoiceSettings(
     current: AutoVoiceLook,
@@ -151,7 +153,7 @@ private fun AutoCardImage(start: AutoStart, look: AutoCardLook, modifier: Modifi
         contentScale = ContentScale.Fit,
         modifier = modifier
             .aspectRatio(AutoArtwork.CARD_WIDTH.toFloat() / AutoArtwork.CARD_HEIGHT)
-            .clip(RoundedCornerShape(5.dp)),
+            .clip(RoundedCornerShape(OnyxSpace.ControlCorner)),
     )
 }
 

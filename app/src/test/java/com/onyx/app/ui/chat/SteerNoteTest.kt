@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le pilotage (steer): `Conversation.canSteer` et `Conversation.steer`.
+ * Le pilotage (steer) : `Conversation.canSteer` et `Conversation.steer` côté référence.
  *
  * Une note écrite pendant une réponse se place AVANT la réponse qui streame, pour que la bulle
  * vivante reste la dernière du fil — et n'est pas une question, donc elle ne nomme pas la

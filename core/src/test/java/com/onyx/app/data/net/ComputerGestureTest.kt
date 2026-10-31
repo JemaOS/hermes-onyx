@@ -20,7 +20,7 @@ class ComputerGestureTest {
     fun `un doigt qui bouge est un glisser`() {
         assertEquals(ComputerGesture.DRAG, ComputerGestures.classify(60f, 0f, 300L, slop))
         assertEquals(ComputerGesture.DRAG, ComputerGestures.classify(0f, -60f, 800L, slop))
-        // Une diagonale compte aussi: c'est la distance, pas l'axe.
+        // Une diagonale compte aussi : c'est la distance, pas l'axe.
         assertEquals(ComputerGesture.DRAG, ComputerGestures.classify(40f, 40f, 300L, slop))
     }
 

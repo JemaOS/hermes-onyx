@@ -22,19 +22,19 @@ import kotlinx.serialization.json.put
 /**
  * Le chat du transport **Hermes Dashboard (WebSocket)**.
  *
- * Jusqu'ici `ServeRpc` ne servait que le RPC du Dashboard (commandes `/`, interruptions, bots):
+ * Jusqu'ici `ServeRpc` ne servait que le RPC du Dashboard (commandes `/`, interruptions, bots) :
  * le chat partait toujours par `ChatCompletionsClient`, qui a besoin d'une adresse `/v1` — un
  * serveur en mode Dashboard (`serveBaseUrl` seul) n'en a pas, et l'envoi échouait. Ce transport
  * branche le tour de conversation sur le même canal JSON-RPC que le RPC, comme
- * `HermesServeTransport`:
+ * `HermesServeTransport` côté référence :
  *
- * 1. `session.resume` (session connue) ou `session.create` (`source = desktop`);
- * 2. `prompt.submit { session_id, text }`;
+ * 1. `session.resume` (session connue) ou `session.create` (`source = desktop`) ;
+ * 2. `prompt.submit { session_id, text }` ;
  * 3. les notifications `method == "event"` du socket alimentent les [TurnEvent] — `message.delta`
- * pour le texte, `message.complete` pour la fin et la consommation, `session.info` pour la
- * reprise après un changement d'état, `error` pour un échec.
+ *    pour le texte, `message.complete` pour la fin et la consommation, `session.info` pour la
+ *    reprise après un changement d'état, `error` pour un échec.
  *
- * Le repli est franc: si le Dashboard ne connaît pas ces méthodes (`-32601`) ou refuse
+ * Le repli est franc : si le Dashboard ne connaît pas ces méthodes (`-32601`) ou refuse
  * `prompt.submit`, l'erreur remonte telle quelle à l'appelant (bulle d'erreur dans le chat),
  * jamais un faux succès.
  */
@@ -45,7 +45,7 @@ class HermesServeChat(
      * Faux quand le canal est **partagé** avec les RPC de contrôle (steer / stop / roster).
      *
      * Le gateway n'accorde le pilotage d'un sous-agent qu'au **transport** attaché à la session
-     * (`_current_session_steer_authority`): un second socket, même avec la bonne session, est
+     * (`_current_session_steer_authority`) : un second socket, même avec la bonne session, est
      * refusé en `4001`. Le tour et les commandes doivent donc passer par le même socket — et le
      * tour ne doit pas le fermer en finissant, sinon l'écran des tâches perd le sien.
      */
@@ -56,7 +56,7 @@ class HermesServeChat(
     /**
      * Un tour, du `prompt.submit` à la dernière notification.
      *
-     * [storedSessionId]: la session serveur à réutiliser (`Conversation.serverSessionId`), ou
+     * [storedSessionId] : la session serveur à réutiliser (`Conversation.serverSessionId`), ou
      * `null` pour en ouvrir une neuve. Les tours suivants réutilisent celle que le premier a
      * annoncée (événement [TurnEvent.SessionId]).
      */
@@ -64,7 +64,7 @@ class HermesServeChat(
         request: ChatRequest,
         storedSessionId: String? = null,
         /**
-         * Ce qui a été décidé du tour: un abandon laisse l'hôte le finir, un arrêt l'interrompt.
+         * Ce qui a été décidé du tour : un abandon laisse l'hôte le finir, un arrêt l'interrompt.
          * Sans drapeau, toute annulation arrête l'hôte (comportement d'avant).
          */
         departure: TurnDeparture? = null,
@@ -72,7 +72,7 @@ class HermesServeChat(
          * L'identifiant **runtime** de la session, celui sous lequel le gateway l'a enregistrée.
          *
          * C'est lui (et pas l'identifiant conservé côté app) que `subagent.list` / `.tail` /
-         * `.steer` / `.interrupt` attendent: `_current_session_steer_authority` le cherche dans
+         * `.steer` / `.interrupt` attendent : `_current_session_steer_authority` le cherche dans
          * les sessions vivantes du processus. L'app ne le voyait pas — elle ne gardait que
          * l'identifiant à réutiliser.
          */
@@ -81,11 +81,11 @@ class HermesServeChat(
         val scope = this
         val events = Channel<ServeEvent>(Channel.UNLIMITED)
         val listener = link.addListener { event -> events.trySend(event) }
-        // `runtime` sert au nettoyage: un arrêt de l'utilisateur interrompt le tour côté serveur.
+        // `runtime` sert au nettoyage : un arrêt de l'utilisateur interrompt le tour côté serveur.
         var runtime: String? = null
         var completed = false
         try {
-            // `ServeRpc.connect` ouvre déjà la session du Dashboard (bocal à cookies partagé):
+            // `ServeRpc.connect` ouvre déjà la session du Dashboard (bocal à cookies partagé) :
             // le ticket WebSocket part avec elle.
             link.connect()
 
@@ -93,6 +93,13 @@ class HermesServeChat(
             runtime = session.runtime
             onRuntimeSessionId?.invoke(session.runtime)
             send(TurnEvent.SessionId(session.stored))
+
+            // Les images d'abord : le Dashboard ne prend que du texte sur `prompt.submit`, et une
+            // image se dépose sur la session par `image.attach_bytes` (voir [attachImages]). Sans
+            // cet appel, l'image jointe était **silencieusement perdue** : le message partait et la
+            // silhouette ne l'avait jamais reçue. Un refus ne bloque pas le tour : il est dit, et le
+            // texte part quand même.
+            attachImages(request, session.runtime)?.let { send(TurnEvent.Status(it)) }
 
             val submitted = link.call(
                 "prompt.submit",
@@ -138,9 +145,9 @@ class HermesServeChat(
             }
         } finally {
             link.removeListener(listener)
-            // Interrompu par l'utilisateur: le tour s'arrête aussi côté serveur (le nôtre, sans
-            // travail: on n'attend pas la réponse). Un tour dont on s'est **détaché** n'est pas
-            // arrêté: l'hôte le finit, et sa réponse est là au retour. Un tour fini ne l'est jamais.
+            // Interrompu par l'utilisateur : le tour s'arrête aussi côté serveur (le nôtre, sans
+            // travail : on n'attend pas la réponse). Un tour dont on s'est **détaché** n'est pas
+            // arrêté : l'hôte le finit, et sa réponse est là au retour. Un tour fini ne l'est jamais.
             if (!completed && runtime != null && departure?.hasLeft != true) {
                 val session = runtime
                 withContext(NonCancellable) {
@@ -159,7 +166,7 @@ class HermesServeChat(
                 put("session_id", stored)
                 put("omit_messages", true)
             } else {
-                // « desktop », pas « mobile »: le hint plateforme du prompt système.
+                // « desktop », pas « mobile » : le hint plateforme du prompt système (comme référence).
                 put("source", "desktop")
                 put("close_on_disconnect", false)
                 request.model?.takeIf { it.isNotBlank() }?.let { put("model", it) }
@@ -180,19 +187,95 @@ class HermesServeChat(
     private fun promptText(request: ChatRequest): String =
         request.history.lastOrNull { it.role == Role.USER }?.text.orEmpty()
 
+    /**
+     * Les images du tour, confiées à la session **avant** le `prompt.submit`.
+     *
+     * Le Dashboard ne prend que du texte sur `prompt.submit` : une image s'y dépose d'abord par
+     * `image.attach_bytes` (base64 + nom), exactement comme `HermesServeTransport.attachFrame` de
+     * la référence. Le serveur la garde avec la session et l'envoie avec le message suivant ; pour
+     * une image il ne rend aucun texte de référence (contrairement à un fichier), donc rien n'est à
+     * concaténer au message.
+     *
+     * Rend `null` quand tout est passé, sinon la raison **en mots** d'un refus. Un refus n'arrête
+     * pas le tour : l'appelant le dit à l'écran et le texte part sans l'image.
+     */
+    private suspend fun attachImages(request: ChatRequest, runtime: String): String? {
+        val turn = request.history.lastOrNull { it.role == Role.USER } ?: return null
+        if (turn.images.isEmpty()) return null
+        var problem: String? = null
+        for (image in turn.images) {
+            val payload = DataImage.of(image) ?: continue
+            val refused = runCatching {
+                val answer = link.call(
+                    "image.attach_bytes",
+                    buildJsonObject {
+                        put("session_id", runtime)
+                        put("content_base64", payload.base64)
+                        put("filename", payload.name)
+                    },
+                    ATTACH_TIMEOUT_MS,
+                ).asObject()
+                if (answer?.bool("attached") != true) {
+                    error(answer?.strOrNull("message") ?: OnyxLocalization["the server refused the image"])
+                }
+            }.exceptionOrNull()
+            if (refused != null) {
+                val why = (refused as? TransportError)?.userMessage() ?: refused.message.orEmpty()
+                problem = OnyxLocalization["The picture didn't reach the server."] + " " + why
+            }
+        }
+        return problem
+    }
+
     private fun timeoutMillis(): Long = config.callTimeoutSeconds.coerceAtLeast(1) * 1_000
 
     private companion object {
         const val OPEN_TIMEOUT_MS = 60_000L
         const val PROMPT_TIMEOUT_MS = 60_000L
+
+        /** Une image se dépose en un appel court : ses octets sont déjà sur le fil. */
+        const val ATTACH_TIMEOUT_MS = 60_000L
     }
 }
 
-/** La session ouverte: l'identifiant runtime du tour, et l'identifiant à garder côté app. */
+/**
+ * Un `data:` URL d'image, coupé en base64 et en nom de fichier — ce que `image.attach_bytes`
+ * attend. Le nom ne sert qu'à **suggérer l'extension** : le serveur décide sur les octets
+ * magiques (`_sniff_image_ext`), et refuse une extension qu'il ne connaît pas.
+ */
+internal data class DataImage(val base64: String, val name: String) {
+
+    companion object {
+        fun of(value: String): DataImage? {
+            val trimmed = value.trim()
+            if (!trimmed.startsWith("data:")) return null
+            val comma = trimmed.indexOf(',')
+            if (comma < 0) return null
+            val header = trimmed.substring(5, comma)
+            if (!header.contains(";base64", ignoreCase = true)) return null
+            val base64 = trimmed.substring(comma + 1).filterNot { it.isWhitespace() }
+            if (base64.isEmpty()) return null
+            val mime = header.substringBefore(';').trim().ifEmpty { "image/png" }
+            return DataImage(base64 = base64, name = "image" + extensionFor(mime))
+        }
+
+        private fun extensionFor(mime: String): String = when (mime.lowercase()) {
+            "image/jpeg", "image/jpg" -> ".jpg"
+            "image/png" -> ".png"
+            "image/gif" -> ".gif"
+            "image/webp" -> ".webp"
+            "image/heic", "image/heif" -> ".heic"
+            "image/bmp" -> ".bmp"
+            else -> ".png"
+        }
+    }
+}
+
+/** La session ouverte : l'identifiant runtime du tour, et l'identifiant à garder côté app. */
 internal data class ServeSession(val runtime: String, val stored: String)
 
 /**
- * Le canal minimal dont le chat du Dashboard a besoin: vrai `ServeRpc` en production, faux en
+ * Le canal minimal dont le chat du Dashboard a besoin : vrai `ServeRpc` en production, faux en
  * test. Évite d'ouvrir un socket pour éprouver la boucle d'événements.
  */
 interface ServeChatChannel {
@@ -239,9 +322,9 @@ internal sealed interface ServeStep {
 /**
  * Traduit une notification du Dashboard en [TurnEvent] — pur, donc éprouvable sans socket.
  *
- * Comme `HermesServeTransport.hear` pour
- * les types qu'un tour de conversation emploie. `streamed`: du texte a déjà été poussé (décide si
- * `message.complete` reprend le texte complet); `underWay`: un événement de tour a été vu
+ * Miroir de `HermesServeTransport.hear` (Echo/Services/Transport/HermesServeTransport) pour
+ * les types qu'un tour de conversation emploie. `streamed` : du texte a déjà été poussé (décide si
+ * `message.complete` reprend le texte complet) ; `underWay` : un événement de tour a été vu
  * (décide si un `session.info running=false` clôt *ce* tour et non celui d'avant).
  */
 internal object ServeChatEvents {
@@ -273,9 +356,11 @@ internal object ServeChatEvents {
                     listOf(
                         TurnEvent.ToolStarted(
                             name = name,
-                            preview = payload.strOrNull("context"),
-                            // Les arguments d'un appel de cartes (`onyx_show`) sont gardés en JSON:
-                            // c'est d'eux que la carte se lit; les autres se lisent en toutes lettres.
+                            // Le contexte d'un appel passe la garde : un chemin interne du serveur
+                            // n'atteint jamais la rangée (le nom du fichier reste, le dossier non).
+                            preview = StreamLeak.preview(payload.strOrNull("context")),
+                            // Les arguments d'un appel de cartes (`onyx_show`) sont gardés en JSON :
+                            // c'est d'eux que la carte se lit ; les autres se lisent en toutes lettres.
                             args = ToolActivity.args(name, payload["args"]),
                         ),
                     ),
@@ -285,7 +370,7 @@ internal object ServeChatEvents {
             "tool.complete" -> {
                 val error = payload["error"]
                 val failed = error != null && error !is JsonNull
-                // Le résultat de l'appel: la réponse du plugin (`result_text`), ou le résultat brut.
+                // Le résultat de l'appel : la réponse du plugin (`result_text`), ou le résultat brut.
                 val output = ToolActivity.detail(payload["result_text"])
                     ?: ToolActivity.detail(payload["result"])
                     ?: ToolActivity.detail(error)
@@ -334,8 +419,8 @@ internal object ServeChatEvents {
                 }
             }
 
-            // Un sous-agent délégué: le Dashboard émet ses trames sur la session du **parent**,
-            // l'enfant est nommé par `subagent_id`. C'est la route qui était morte: sans ce cas,
+            // Un sous-agent délégué : le Dashboard émet ses trames sur la session du **parent**,
+            // l'enfant est nommé par `subagent_id`. C'est la route qui était morte : sans ce cas,
             // tout le vocabulaire `subagent.*` tombait dans le `else` et l'app ne voyait rien.
             in SubagentUpdate.EVENT_TYPES ->
                 SubagentUpdate.parse(event.type, payload)

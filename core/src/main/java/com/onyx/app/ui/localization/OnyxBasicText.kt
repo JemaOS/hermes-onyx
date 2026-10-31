@@ -15,7 +15,7 @@ import androidx.compose.foundation.text.BasicText as AndroidBasicText
 
 /**
  * `BasicText` avec la même API que Compose Foundation 1.8, plus un repli explicite pour le contenu
- * verbatim. Seules les clés connues de [OnyxLocalization] changent: le texte inconnu est inchangé.
+ * verbatim. Seules les clés connues de [OnyxLocalization] changent : le texte inconnu est inchangé.
  *
  * [localize] doit être `false` pour les messages, noms de bots, identifiants et réponses du serveur.
  * Cela évite qu'un contenu dynamique identique à un libellé (« Settings », par exemple) soit traduit.
@@ -35,8 +35,9 @@ fun BasicText(
     localize: Boolean = true,
 ) {
     val localized = run {
-        // Une configuration Android changée force la recomposition; la valeur affichée continue
-        // néanmoins de suivre Locale.getDefault, comme le font les autres API Java de l'app.
+        // Une configuration Android changée force la recomposition ; la valeur affichée continue
+        // néanmoins de suivre la langue de l'app (`OnyxLanguage.preferred`), comme le font les
+        // autres API Java de l'app.
         LocalConfiguration.current
         resolveOnyxText(text, localize)
     }
@@ -54,7 +55,7 @@ fun BasicText(
     )
 }
 
-/** Les chaînes annotées conservent leurs intervalles et leur contenu: elles restent verbatim. */
+/** Les chaînes annotées conservent leurs intervalles et leur contenu : elles restent verbatim. */
 @Composable
 fun BasicText(
     text: AnnotatedString,

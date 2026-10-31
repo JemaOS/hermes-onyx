@@ -13,7 +13,7 @@ import org.junit.Test
 
 /**
  * La géométrie des deux panneaux, telle que la demande de la capture du Honor Magic V3 déplié
- * (2344×2156 px ≈ 933×859 dp) l'impose: un volet borné (320…400 dp, jamais plus de 40 % de la
+ * (2344×2156 px ≈ 933×859 dp) l'impose : un volet borné (320…400 dp, jamais plus de 40 % de la
  * fenêtre), un détail qui garde 360 dp, un repli possible et persistant, et — sous ce que les
  * deux minima demandent — un seul panneau.
  */
@@ -26,7 +26,7 @@ class ResponsiveLayoutTest {
         assertEquals("dp attendus", expected, actual.value, tolerance)
     }
 
-    // — Le seuil: deux panneaux seulement quand les deux minima tiennent —
+    // — Le seuil : deux panneaux seulement quand les deux minima tiennent —
 
     @Test
     fun `le telephone compact conserve une seule colonne`() {
@@ -42,7 +42,7 @@ class ResponsiveLayoutTest {
 
     /**
      * Entre 600 et 800 dp, l'ancien code ouvrait deux panneaux avec un volet rogné et un détail
-     * sous ses minima. La règle d'téléphone est plus stricte: pas de deux panneaux tant que le
+     * sous ses minima. La règle de la référence est plus stricte : pas de deux panneaux tant que le
      * volet (320 dp) et le détail (360 dp) ne tiennent pas ensemble, volet ≤ 40 %.
      */
     @Test
@@ -57,7 +57,7 @@ class ResponsiveLayoutTest {
         assertTrue(canShowTwoPanes(800.dp))
     }
 
-    // — Les bornes du volet: 320…400 dp, jamais plus de 40 % —
+    // — Les bornes du volet : 320…400 dp, jamais plus de 40 % —
 
     @Test
     fun `le volet ne sort jamais de ses bornes`() {
@@ -72,7 +72,7 @@ class ResponsiveLayoutTest {
     }
 
     @Test
-    fun `la largeur ideale est celle d iPadOS des que la fenetre le permet`() {
+    fun `la largeur ideale est celle de la reference des que la fenetre le permet`() {
         listOf(900.dp, 933.dp, 1024.dp, 1280.dp, 1920.dp).forEach { width ->
             assertDp(360f, listDetailLayout(width).sidebarWidth)
         }
@@ -100,7 +100,7 @@ class ResponsiveLayoutTest {
         }
     }
 
-    // — Le repli: le détail prend tout, le volet garde sa largeur de référence —
+    // — Le repli : le détail prend tout, le volet garde sa largeur de référence —
 
     @Test
     fun `replie le detail prend toute la largeur`() {
@@ -127,8 +127,8 @@ class ResponsiveLayoutTest {
     }
 
     /**
-     * La géométrie exacte du Magic V3 déplié: 933 dp de large. L'ancien partage donnait ~541 dp
-     * au volet (58 %) et 392 dp au fil; ici le volet tient dans 360 dp et le fil prend 573 dp.
+     * La géométrie exacte du Magic V3 déplié : 933 dp de large. L'ancien partage donnait ~541 dp
+     * au volet (58 %) et 392 dp au fil ; ici le volet tient dans 360 dp et le fil prend 573 dp.
      */
     @Test
     fun `le volet du pliable deplie tient dans 360 dp`() {
@@ -166,7 +166,7 @@ class ResponsiveLayoutTest {
             assertDp(list.sidebarWidth.value, pair.sidebarWidth)
             assertDp(list.detailWidth.value, pair.detailWidth)
         }
-        // L'ancien partage 58/42 n'existe plus: le tableau n'est plus le plus large.
+        // L'ancien partage 58/42 n'existe plus : le tableau n'est plus le plus large.
         assertTrue(kanbanPairLayout(933.dp).detailWidth > kanbanPairLayout(933.dp).sidebarWidth)
     }
 
@@ -188,7 +188,7 @@ class ResponsiveLayoutTest {
         assertDp(933f, collapsed.detailWidth)
     }
 
-    // — Le libellé du contrôle: localisé, et il dit ce que le prochain appui fera —
+    // — Le libellé du contrôle : localisé, et il dit ce que le prochain appui fera —
 
     @Test
     fun `le controle du volet est localise dans les deux sens`() {
@@ -208,21 +208,24 @@ class ResponsiveLayoutTest {
     fun `la selection compacte rouvre le chat sans empiler un faux retour`() {
         val backStack = mutableListOf("CHAT")
 
-        val route = navigateWithBackStack("CONVERSATIONS", "CHAT", backStack)
+        val route = navigateWithBackStack("SKILLS", "CHAT", backStack)
 
         assertEquals("CHAT", route)
+        // Le fil était déjà dans la pile : il est dépilé, jamais empilé deux fois.
         assertTrue(backStack.isEmpty())
     }
 
     @Test
-    fun `une nouvelle conversation compacte rouvre le meme chat sans doublon`() {
-        val backStack = mutableListOf("CHAT")
+    fun `une conversation ouverte depuis le volet revient au fil`() {
+        // La liste n'est plus une route : ouvrir une conversation depuis le volet **va** au fil,
+        // sans empiler la liste absente — le retour remonte donc la pile telle qu'elle était.
+        val backStack = mutableListOf("SETTINGS")
 
-        val route = navigateWithBackStack("CONVERSATIONS", "CHAT", backStack)
-        val repeated = navigateWithBackStack(route, "CHAT", backStack)
+        val route = navigateWithBackStack("SKILLS", "CHAT", backStack)
 
-        assertEquals("CHAT", repeated)
-        assertTrue(backStack.isEmpty())
+        assertEquals("CHAT", route)
+        assertEquals(listOf("SETTINGS", "SKILLS"), backStack)
+        assertEquals("SKILLS", popRoute(backStack))
     }
 
     @Test
@@ -237,112 +240,71 @@ class ResponsiveLayoutTest {
         assertNull(popRoute(backStack))
     }
 
-    @Test
-    fun `la liste compacte devient le detail etendu sans faux retour`() {
-        val backStack = mutableListOf("SETTINGS", "CHAT")
-
-        val route = routeWhenExpanded(
-            currentRoute = "CONVERSATIONS",
-            backStack = backStack,
-            conversationsRoute = "CONVERSATIONS",
-            chatRoute = "CHAT",
-        )
-
-        assertEquals("CHAT", route)
-        assertEquals(listOf("SETTINGS"), backStack)
-    }
-
-    @Test
-    fun `un detail deja etendu ne change pas de route au redimensionnement`() {
-        val backStack = mutableListOf("CHAT")
-
-        val route = routeWhenExpanded(
-            currentRoute = "CRON",
-            backStack = backStack,
-            conversationsRoute = "CONVERSATIONS",
-            chatRoute = "CHAT",
-        )
-
-        assertEquals("CRON", route)
-        assertEquals(listOf("CHAT"), backStack)
-    }
-
     // — Les retours (audit des routes) —
 
     @Test
-    fun `un onglet de section ouvert depuis les Reglages ne renvoie pas aux Reglages`() {
-        // Réglages ouverts par-dessus la liste: la pile porte le fil et la liste.
-        val backStack = mutableListOf("CHAT", "CONVERSATIONS")
+    fun `un onglet de section ouvert depuis les Reglages revient aux Reglages`() {
+        // Réglages ouverts par-dessus une page : la pile porte le fil et cette page.
+        val backStack = mutableListOf("CHAT", "SKILLS")
 
         val route = navigateWithBackStack("SETTINGS", "KANBAN", backStack)
 
         assertEquals("KANBAN", route)
-        // La feuille ne reste pas dessous: il n'y a plus rien à dépiler…
-        assertTrue(backStack.isEmpty())
-        assertNull(popRoute(backStack))
-        // …donc le retour retombe sur la liste des conversations, jamais sur les Réglages.
-        assertEquals(
-            "CONVERSATIONS",
-            rootRouteBehind("KANBAN", twoPanes = false, chatRoute = "CHAT", conversationsRoute = "CONVERSATIONS"),
-        )
+        // La feuille reste dessous : la route quittée (les Réglages) est entrée dans la pile…
+        assertEquals(listOf("CHAT", "SKILLS", "SETTINGS"), backStack)
+        // …donc le retour du bord — comme le bouton retour maison, `navBack()` — rend les Réglages.
+        assertEquals("SETTINGS", popRoute(backStack))
     }
 
     @Test
     fun `le meme chemin vaut pour l onglet Cron`() {
-        val backStack = mutableListOf("CHAT", "CONVERSATIONS")
+        val backStack = mutableListOf("CHAT", "SKILLS")
 
         assertEquals("CRON", navigateWithBackStack("SETTINGS", "CRON", backStack))
-        assertTrue(backStack.isEmpty())
-        assertEquals(
-            "CONVERSATIONS",
-            rootRouteBehind("CRON", twoPanes = false, chatRoute = "CHAT", conversationsRoute = "CONVERSATIONS"),
-        )
+        assertEquals(listOf("CHAT", "SKILLS", "SETTINGS"), backStack)
+        assertEquals("SETTINGS", popRoute(backStack))
     }
 
     @Test
-    fun `un onglet de section reste la racine en deux panneaux`() {
-        val backStack = mutableListOf("CHAT", "CONVERSATIONS")
+    fun `un onglet de section atteint depuis un onglet reste dans le rail`() {
+        val backStack = mutableListOf("CHAT", "SKILLS")
 
-        assertEquals("KANBAN", navigateWithBackStack("SETTINGS", "KANBAN", backStack))
+        // De Cron à Kanban : c'est un onglet, pas une page — la pile est remise au fond.
+        assertEquals("KANBAN", navigateWithBackStack("CRON", "KANBAN", backStack))
         assertTrue(backStack.isEmpty())
-        // Deux panneaux: la liste est déjà le fond de l'écran.
-        assertEquals(
-            "CONVERSATIONS",
-            rootRouteBehind("KANBAN", twoPanes = true, chatRoute = "CHAT", conversationsRoute = "CONVERSATIONS"),
-        )
+        // La liste des conversations n'est plus une route : le repli est le fil, dans les deux
+        // largeurs — un onglet de section à pile vide y retombe comme tout le reste.
+        assertEquals("CHAT", rootRouteBehind("KANBAN", chatRoute = "CHAT"))
+        assertEquals("CHAT", rootRouteBehind("CRON", chatRoute = "CHAT"))
     }
 
     @Test
-    fun `le fil reste la racine compacte partout ailleurs`() {
-        assertEquals("CHAT", rootRouteBehind("CHAT", false, "CHAT", "CONVERSATIONS"))
-        assertEquals("CHAT", rootRouteBehind("SETTINGS", false, "CHAT", "CONVERSATIONS"))
-        // Depuis la liste elle-même le retour va au fil: le rail mène de l'un à l'autre.
-        assertEquals("CHAT", rootRouteBehind("CONVERSATIONS", false, "CHAT", "CONVERSATIONS"))
+    fun `le fil est la racine partout`() {
+        assertEquals("CHAT", rootRouteBehind("CHAT", "CHAT"))
+        assertEquals("CHAT", rootRouteBehind("SETTINGS", "CHAT"))
+        assertEquals("CHAT", rootRouteBehind("KANBAN", "CHAT"))
     }
 
     @Test
     fun `les Reglages referment la feuille et reviennent a l ecran quitte`() {
-        // Ouverts depuis la liste: « Terminé » rend la liste, pas le fil.
-        assertEquals("CONVERSATIONS", popRoute(mutableListOf("CHAT", "CONVERSATIONS")))
-        // Ouverts depuis le fil: « Terminé » rend le fil.
+        // Ouverts depuis une page : « Terminé » rend cette page, pas le fil.
+        assertEquals("SKILLS", popRoute(mutableListOf("CHAT", "SKILLS")))
+        // Ouverts depuis le fil : « Terminé » rend le fil.
         assertEquals("CHAT", popRoute(mutableListOf("CHAT")))
-        // Pile vide (premier lancement): le repli est le fil.
+        // Pile vide (premier lancement) : le repli est le fil.
         assertNull(popRoute(mutableListOf()))
     }
 
     @Test
-    fun `une conversation ouverte depuis la liste ramene a la liste au retour`() {
-        // Le rail mène du fil à la liste; ouvrir une conversation depuis la liste empile la
-        // liste, et le retour y revient. Avant, la pile gardait le fil: elle était dépilée à
-        // l'ouverture de la conversation, si bien que le retour laissait une pile **vide** sur le
-        // fil — l'app se fermait et l'appareil retombait sur le lanceur (mesuré sur l'appareil).
+    fun `un onglet de section ouvert depuis une page y ramene au retour`() {
+        // Les pages qui ne sont pas des onglets de section sont **poussées** : une page → Cron →
+        // retour du bord rend cette page, et un onglet de section à un autre remet la pile au fond.
         val backStack = mutableListOf<String>()
 
-        assertEquals("CONVERSATIONS", navigateWithBackStack("CHAT", "CONVERSATIONS", backStack))
-        assertTrue(backStack.isEmpty())
-        assertEquals("CHAT", navigateWithBackStack("CONVERSATIONS", "CHAT", backStack))
-        assertEquals(listOf("CONVERSATIONS"), backStack)
-        assertEquals("CONVERSATIONS", popRoute(backStack))
+        assertEquals("CRON", navigateWithBackStack("SKILLS", "CRON", backStack))
+        assertEquals(listOf("SKILLS"), backStack)
+        assertEquals("KANBAN", navigateWithBackStack("CRON", "KANBAN", backStack))
+        assertTrue("d'un onglet de section à un autre, la pile est au fond", backStack.isEmpty())
     }
 
     // — Ce qui tient la demande dans le code (le volet, les rangées, le composeur) —
@@ -367,17 +329,42 @@ class ResponsiveLayoutTest {
         assertTrue(settingsRepo.contains("suspend fun setSidebarCollapsed(value: Boolean)"))
         assertTrue(settingsRepo.contains("booleanPreferencesKey(\"sidebarCollapsed\")"))
         assertTrue(appSource.contains("val sidebarCollapsed by settingsRepo.sidebarCollapsed.collectAsStateWithLifecycle()"))
-        assertTrue(appSource.contains("settingsRepo.setSidebarCollapsed(true)"))
-        assertTrue(appSource.contains("settingsRepo.setSidebarCollapsed(false)"))
-        assertTrue(appSource.contains("val layout = listDetailLayout(maxWidth, sidebarCollapsed)"))
+        // Le repli est écrit depuis **l'état du volet** (une mémoire par largeur), plus depuis deux
+        // boutons qui écrivaient chacun leur tour : un seul geste décide, et l'état le garde.
+        assertTrue(appSource.contains("settingsRepo.setSidebarCollapsed(!sidebarState.isOpen)"))
+        assertTrue(appSource.contains("val sidebarState = com.onyx.app.ui.sidebar.rememberOnyxSidebarState()"))
+        assertTrue(appSource.contains("val sidebarMode = sidebarModeFor(maxWidth)"))
+        assertTrue(appSource.contains("LaunchedEffect(sidebarMode) { sidebarState.updateMode(sidebarMode) }"))
+        // La géométrie des deux panneaux suit l'ouverture du volet **et** ce qu'il porte : porteur
+        // d'un écran, il prend la largeur d'un écran (la colonne de la liste l'écraserait).
+        assertTrue(appSource.contains("collapsed = sidebarMode == SidebarMode.DOCKED && !sidebarState.isOpen,"))
+        assertTrue(appSource.contains("content = sidebarState.isNavigating,"))
+    }
+
+    @Test
+    fun `le volet pose portant un ecran prend la largeur d un ecran`() {
+        listOf(800.dp, 838.dp, 900.dp, 933.dp, 1024.dp, 1280.dp, 1920.dp).forEach { width ->
+            val list = listDetailLayout(width)
+            val content = listDetailLayout(width, content = true)
+
+            assertTrue("$width : le volet porteur d'un écran est plus large", content.sidebarWidth > list.sidebarWidth)
+            assertTrue("$width : volet sous la largeur d'un écran", content.sidebarWidth >= SidebarContentMinWidth)
+            assertTrue("$width : volet au-dessus du plafond", content.sidebarWidth <= SidebarContentMaxWidth)
+            assertTrue("$width : volet plus large que la fenêtre", content.sidebarWidth <= width)
+            assertTrue("$width : détail trop étroit", content.detailWidth >= 320.dp)
+            assertDp(width.value, content.sidebarWidth + content.detailWidth)
+            // Replié, c'est le détail qui prend tout, quelle que soit la largeur du volet.
+            assertDp(width.value, listDetailLayout(width, collapsed = true, content = true).detailWidth)
+        }
     }
 
     @Test
     fun `le controle est porte par toutes les routes en deux panneaux`() {
-        // Le volet des routes de liste, et le tableau Kanban.
-        assertTrue(appSource.contains("conversationsPane(true, presentedRoute, collapseControl)"))
+        // Le volet des routes de liste — c'est le volet du Chat qui le porte —, et le tableau Kanban.
+        assertTrue(appSource.contains("sidebar = { chatSidebar() },"))
+        assertTrue(appSource.contains("SidebarScaffold(state = sidebarState, sidebar = { chatSidebar() }, content = { inner() })"))
         assertTrue(appSource.contains("kanbanPane(true, kanbanTopRow, collapseControl)"))
-        // Replié, c'est la barre du détail qui le porte: fil, horaires, bots, Kanban, Réglages.
+        // Replié, c'est la barre du détail qui le porte : fil, horaires, bots, Kanban, Réglages.
         assertTrue(appSource.contains("chatPane(false, expandControl)"))
         assertTrue(appSource.contains("Route.CRON -> cronPane(true, expandControl)"))
         assertTrue(appSource.contains("Route.BOTS -> botsPane(true, expandControl)"))
@@ -388,12 +375,19 @@ class ResponsiveLayoutTest {
     }
 
     @Test
-    fun `le controle est dessine par les barres des cinq ecrans`() {
+    fun `le controle est dessine par les barres des ecrans`() {
         assertTrue(kanbanSource.contains("leading = sidebarControl"))
-        assertTrue(File("src/main/java/com/onyx/app/ui/cron/CronScreen.kt").readText().contains("leading = sidebarControl"))
+        // Le rond du volet a été **retiré** de l'en-tête de Planifiés (ordre explicite du
+        // propriétaire, 2026-10-30 : « supprime, elle ne sert à rien »). Ce rond portait
+        // `sidebarState.toggle()` — replier/déplier la liste — et non une pause ; la pause d'une
+        // tâche vit sur la tâche. Le verrou refuse donc son retour : le réintroduire rougit.
+        assertFalse(
+            "le rond du volet ne revient pas dans l'en-tête de Planifiés",
+            File("src/main/java/com/onyx/app/ui/cron/CronScreen.kt").readText().contains("panel = sidebarControl"),
+        )
         assertTrue(File("src/main/java/com/onyx/app/ui/bots/BotsScreen.kt").readText().contains("leading = sidebarControl"))
-        assertTrue(File("src/main/java/com/onyx/app/ui/settings/SettingsScreen.kt").readText().contains("leading = sidebarControl"))
-        assertTrue(File("src/main/java/com/onyx/app/ui/conversations/ConversationsScreen.kt").readText().contains("sidebarControl?.let {"))
+        assertTrue(File("src/main/java/com/onyx/app/ui/settings/SettingsScreen.kt").readText().contains("actions = sidebarControl"))
+        assertTrue(File("src/main/java/com/onyx/app/ui/sidebar/ChatSidebar.kt").readText().contains("onOpenSettings = onOpenSettings"))
         assertTrue(chatSource.contains("sidebarToggle = sidebarToggle"))
     }
 
@@ -408,37 +402,88 @@ class ResponsiveLayoutTest {
 
     @Test
     fun `le placeholder du composeur tient sur une ligne`() {
-        assertTrue(composerSource.contains("text = placeholder"))
+        // **Le libellé de la plaque est choisi entre deux clés** (celle de la planche, et la même
+        // sans l'ellipse quand la place manque : voir `PlaqueInvite`) : la source ne porte donc plus
+        // un seul `text = placeholder`, mais les deux cas — et les deux tiennent sur **une** ligne.
+        assertTrue(
+            composerSource.contains("OnyxLocalization[PlaqueInvite.key(maxWidth.value, measureInvite)]"),
+        )
+        assertTrue(composerSource.contains("placeholder"))
+        assertTrue(composerSource.contains("maxLines = if (plate) 1 else 2"))
         assertTrue(composerSource.contains("maxLines = 1"))
         assertTrue(composerSource.contains("overflow = TextOverflow.Ellipsis"))
     }
 
     @Test
+    fun `aucun libelle du volet ne se coupe au milieu d un mot`() {
+        // La règle : tout libellé à lignes bornées porte une **ellipse**, jamais une coupure sèche
+        // qui briserait un mot à 1,3× (« Nouvelle conver », « Vous atten ») ou sortirait de sa
+        // pastille. Le bouton « Nouvelle conversation », les pastilles de filtre et leurs comptes,
+        // l'âge d'une rangée et le pavé d'action sont les cas visés.
+        val source = File("src/main/java/com/onyx/app/ui/sidebar/ChatSidebar.kt").readText()
+        val lignes = source.lines()
+        val nues = mutableListOf<String>()
+        lignes.forEachIndexed { index, ligne ->
+            if (ligne.trim().startsWith("maxLines =") || ligne.trim().startsWith("maxLines=")) {
+                val fenetre = lignes.subList(index, minOf(index + 4, lignes.size)).joinToString(" ")
+                if (!fenetre.contains("overflow = TextOverflow.Ellipsis")) nues += ligne.trim()
+            }
+        }
+        assertTrue("des libellés se coupent sans ellipse : $nues", nues.isEmpty())
+        // Et le libellé du pied — le bouton « Nouvelle conversation » — est bien celui-là.
+        assertTrue(source.contains("text = \"New conversation\""))
+    }
+
+    @Test
     fun `le bouton du dernier message a une marge du bord`() {
-        assertTrue(chatSource.contains(".padding(start = 16.dp, end = 16.dp, bottom = composerHeight + 8.dp)"))
+        // Le bouton se pose au-dessus de la **réserve du fil** — la pile mesurée (compositeur,
+        // barre d'onglets, encart du système, écart) plus un dégagement nommé — et non plus
+        // au-dessus de deux estimations recopiées. La marge intérieure de 16 dp est conservée.
+        assertTrue(
+            chatSource.contains(
+                ".padding(start = 16.dp, end = 16.dp, bottom = jumpClearance)",
+            ),
+        )
+        assertTrue(
+            chatSource.contains("val jumpClearance = glassBottomInset + ComposerStacking.PillClearanceDp.dp"),
+        )
+        // **L'encart du système n'est plus compté deux fois** : la réserve le porte déjà, et le
+        // second `navigationBarsPadding()` faisait descendre le bouton dans la carte.
+        assertFalse(
+            "le bouton ne reprend pas une seconde marge système",
+            chatSource.substringAfter("val jumpClearance").substringBefore("ToastHost")
+                .contains("navigationBarsPadding()"),
+        )
+        // La hauteur de la barre d'onglets est mesurée, pas devinée.
+        assertTrue(chatSource.contains("var tabBarHeightPx by remember { mutableIntStateOf(0) }"))
+        assertTrue(chatSource.contains("tabBarHeightPx = it.height"))
     }
 
     @Test
     fun `les sous-pages depilent avant de se rabattre sur leur parent logique`() {
-        // Réglages: « Terminé » revient à l'écran quitté, pas systématiquement au fil.
+        // Réglages : « Terminé » revient à l'écran quitté, pas systématiquement au fil.
         assertTrue(appSource.contains("onDone = { if (!navBack()) navTo(Route.CHAT.name) }"))
-        // Les pages Modèle, Voix, salle de groupe: même contrat.
+        // Les pages Modèle, Voix, salle de groupe : même contrat.
         assertTrue(appSource.contains("onBack = { if (!navBack()) navTo(Route.CHAT.name) }"))
         assertTrue(appSource.contains("onBack = { if (!navBack()) navTo(Route.SETTINGS.name) }"))
         assertTrue(appSource.contains("onBack = { if (!navBack()) navTo(Route.BOTS.name) }"))
         // Le retour à pile vide passe par la règle partagée, plus par une route écrite en dur.
         assertTrue(appSource.contains("rootRouteBehind("))
         assertTrue(layoutSource.contains("internal val SectionTabRoutes: Set<String>"))
-        assertTrue(layoutSource.contains("if (targetRoute in SectionTabRoutes) {"))
-        // Les **deux** onglets de section retombent sur la liste des conversations.
-        val listFallback = "if (!navBack()) navTo(Route.CONVERSATIONS.name) })"
-        assertEquals(2, appSource.split(listFallback).size - 1)
+        // La pile ne se vide que **dans le rail** : onglet de section atteint depuis un onglet, ou
+        // la liste elle-même. Depuis les Réglages, la route est poussée (le retour rend les Réglages).
+        assertTrue(layoutSource.contains("val intoRail = targetRoute in SectionTabRoutes && currentRoute in SectionTabRoutes"))
+        // La liste des conversations n'est plus une route : les onglets de section retombent sur le
+        // **fil**, comme les autres sous-pages.
+        val listFallback = "if (!navBack()) navTo(Route.CHAT.name) })"
+        assertEquals(0, appSource.split("Route.CONVERSATIONS").size - 1)
+        assertTrue("le repli des onglets de section est le fil", appSource.contains(listFallback))
         // Plus aucun onglet ne se rabat sur les Réglages quand la pile est vide.
         assertFalse(appSource.contains("onBack = { navTo(Route.SETTINGS.name) },\n                sidebarControl = sidebarControl,"))
-        // Toute entrée de route passe par la pile: une affectation directe de `route` laissait
+        // Toute entrée de route passe par la pile : une affectation directe de `route` laissait
         // la pile intacte et le retour dépilait l'entrée d'avant.
         val direct = Regex(
-            "^\\s*route = (?!previous|navigateWithBackStack|routeWhenExpanded|navigateLeavingEmpty)",
+            "^\\s*route = (?!previous|navigateWithBackStack|navigateLeavingEmpty)",
             RegexOption.MULTILINE,
         ).findAll(appSource).toList()
         assertTrue("aucune route écrite en direct : $direct", direct.isEmpty())

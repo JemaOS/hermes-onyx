@@ -1,5 +1,8 @@
 package com.onyx.app.ui.cron
 
+import com.onyx.app.ui.design.onyxPage
+
+import com.onyx.app.localization.OnyxLanguage
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.activity.compose.BackHandler
@@ -89,9 +92,9 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * Les planifications d'un seul bot, avec `RoutineEditor`.
+ * Les planifications d'un seul bot, port de `BotSchedulesView` et de `RoutineEditor`.
  *
- * La rangée s'ouvre pour être modifiée; un appui long offre Run Now, Pause/Resume et Delete,
+ * La rangée s'ouvre pour être modifiée ; un appui long offre Run Now, Pause/Resume et Delete,
  * tandis qu'un glissement révèle Pause/Resume à gauche et Delete à droite. Chaque réponse est
  * livrée dans la conversation du bot, jamais dans une cible choisie par l'utilisateur.
  */
@@ -109,7 +112,7 @@ fun BotSchedulesScreen(
     var menuFor by remember { mutableStateOf<CronJob?>(null) }
 
     // Le retour Android ferme d'abord l'éditeur, puis la feuille. Il reste consommé pendant un
-    // enregistrement, comme `interactiveDismissDisabled(working)`.
+    // enregistrement, comme `interactiveDismissDisabled(working)` côté la référence.
     BackHandler {
         if (!state.saving) {
             if (state.draft != null) viewModel.cancelDraft() else onBack()
@@ -156,7 +159,7 @@ fun BotSchedulesScreen(
                 )
                 if (job.state == "scheduled" || job.state == "paused" || job.paused) {
                     add(
-                        MenuItem(if (job.paused) "Resume" else "Pause", if (job.paused) Symbols.PlayOutline else Symbols.PauseOutline) {
+                        MenuItem(if (job.paused) "Resume" else "Pause job", if (job.paused) Symbols.PlayOutline else Symbols.PauseOutline) {
                             menuFor = null
                             if (job.paused) viewModel.resume(job) else viewModel.pause(job)
                         },
@@ -195,7 +198,7 @@ private fun BotSchedulesList(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "$name's Schedules", onBack = null, action = "Done", onAction = onBack)
@@ -226,7 +229,7 @@ private fun BotSchedulesList(
                     )
                 }
                 .navigationBarsPadding()
-                .padding(bottom = 40.dp),
+                .padding(bottom = CronBottomReserve),
         ) {
             if (pull > 0f || (state.loading && state.jobs.isNotEmpty())) {
                 Box(
@@ -303,7 +306,7 @@ private fun BotSchedulesList(
                     footer = "Each run is $name's, with its own personality and tools, and its answer comes into its chat, with a notification, while your phone is off. Times are your server's. Hermes 0.21.5 and later run a bot's schedules by themselves; earlier ones only with gateway.multiplex_profiles on.",
                 ) {
                     OnyxRow(onClick = onNew) {
-                        OnyxIcon(Symbols.Plus, tint = theme.accent, size = 19.dp)
+                        OnyxIcon(Symbols.Plus, tint = theme.textColor, size = 19.dp)
                         BasicText("New Schedule", style = theme.body.copy(color = theme.accent))
                     }
                 }
@@ -372,9 +375,13 @@ private fun BotScheduleRow(
                     )
                 }
             }
+            val whenSummary = RoutineWhen.parse(job.schedule)?.summary()
             BasicText(
-                text = RoutineWhen.parse(job.schedule)?.summary() ?: job.schedule,
-                localize = RoutineWhen.parse(job.schedule) != null,
+                // Un horaire que la maison sait lire s'écrit déjà en français (`summary`) ; sinon
+                // c'est la **syntaxe** du serveur, que la table raconte (« every 60m » →
+                // « toutes les 60 min ») — la capture du propriétaire la montrait en anglais.
+                text = whenSummary ?: job.schedule,
+                localize = whenSummary == null,
                 style = theme.footnote.copy(color = theme.secondaryText),
             )
             val nextRunAt = job.nextRunAt
@@ -404,7 +411,7 @@ private fun BotScheduleRow(
     }
 }
 
-/** Les actions de balayage: pause/reprise à gauche, suppression à droite. */
+/** Les actions de balayage de la référence : pause/reprise à gauche, suppression à droite. */
 @Composable
 private fun SwipeScheduleRow(
     job: CronJob,
@@ -427,7 +434,7 @@ private fun SwipeScheduleRow(
         Row(modifier = Modifier.matchParentSize()) {
             if (canPause) {
                 SwipeAction(
-                    label = if (job.paused) "Resume" else "Pause",
+                    label = if (job.paused) "Resume" else "Pause job",
                     symbol = if (job.paused) Symbols.Play else Symbols.Pause,
                     color = if (job.paused) theme.success else theme.warning,
                     width = pauseWidth,
@@ -532,7 +539,7 @@ private fun RoutineEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor)
+            .onyxPage(theme)
             .imePadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
@@ -552,7 +559,7 @@ private fun RoutineEditorScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(bottom = 40.dp),
+                .padding(bottom = CronBottomReserve),
         ) {
             OnyxFormSection(header = "Name") {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp)) {
@@ -616,7 +623,7 @@ private fun RoutineEditorScreen(
                                 )
                                 OnyxIcon(
                                     Symbols.MinusCircle,
-                                    tint = theme.accent,
+                                    tint = theme.textColor,
                                     size = 22.dp,
                                     modifier = Modifier.onyxClickable(enabled = hours > 1) {
                                         updateWhen(whenState.copy(everyHours = hours - 1))
@@ -624,7 +631,7 @@ private fun RoutineEditorScreen(
                                 )
                                 OnyxIcon(
                                     Symbols.PlusCircle,
-                                    tint = theme.accent,
+                                    tint = theme.textColor,
                                     size = 22.dp,
                                     modifier = Modifier.onyxClickable(enabled = hours < 23) {
                                         updateWhen(whenState.copy(everyHours = hours + 1))
@@ -758,7 +765,7 @@ private fun WeekdayPicker(days: Set<Int>, onChange: (Set<Int>) -> Unit) {
         for (day in 0..6) {
             val on = day in days
             val dayOfWeek = DayOfWeek.of(if (day == 0) 7 else day)
-            val fullName = dayOfWeek.getDisplayName(JavaTextStyle.FULL, Locale.getDefault())
+            val fullName = dayOfWeek.getDisplayName(JavaTextStyle.FULL, OnyxLanguage.preferred)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -774,7 +781,7 @@ private fun WeekdayPicker(days: Set<Int>, onChange: (Set<Int>) -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 BasicText(
-                    text = dayOfWeek.getDisplayName(JavaTextStyle.NARROW, Locale.getDefault()),
+                    text = dayOfWeek.getDisplayName(JavaTextStyle.NARROW, OnyxLanguage.preferred),
                     style = theme.caption.copy(color = if (on) theme.userText else theme.secondaryText),
                     maxLines = 1,
                 )
@@ -812,7 +819,7 @@ private fun ScheduleSpinner(size: Dp) {
 }
 
 private fun shortTime(time: LocalTime): String = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-    .withLocale(Locale.getDefault())
+    .withLocale(OnyxLanguage.preferred)
     .format(time)
     .replace(Regex("[\\u00A0\\u202F]"), " ")
 
@@ -820,7 +827,7 @@ private fun formatOnce(instant: Instant): String = DateTimeFormatter.ofLocalized
     FormatStyle.MEDIUM,
     FormatStyle.SHORT,
 )
-    .withLocale(Locale.getDefault())
+    .withLocale(OnyxLanguage.preferred)
     .withZone(ZoneId.systemDefault())
     .format(instant)
     .replace(Regex("[\\u00A0\\u202F]"), " ")

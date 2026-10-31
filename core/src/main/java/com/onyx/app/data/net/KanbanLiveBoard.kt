@@ -34,7 +34,7 @@ import okhttp3.WebSocketListener
 data class KanbanEventFrame(
     /** Le curseur à reprendre (`since=`) à la reconnexion. */
     val cursor: Int?,
-    /** Les cartes touchées; vide avec [hadEvents] veut dire « relis le tableau ». */
+    /** Les cartes touchées ; vide avec [hadEvents] veut dire « relis le tableau ». */
     val taskIds: List<String>,
     /** La trame portait des événements, même sans identifiant de carte. */
     val hadEvents: Boolean,
@@ -43,7 +43,7 @@ data class KanbanEventFrame(
 /**
  * Décode une trame d'événements du tableau, ou `null` pour tout ce qui n'en est pas une.
  *
- * Comme le décodage de `LiveBoard.run`: tant que la clé `events` est là, la trame
+ * Miroir du décodage de `LiveBoard.run` côté référence : tant que la clé `events` est là, la trame
  * demande une relecture, même quand elle ne nomme aucune carte.
  */
 fun kanbanEventFrame(text: String): KanbanEventFrame? {
@@ -59,7 +59,7 @@ fun kanbanEventFrame(text: String): KanbanEventFrame? {
 /**
  * Les changements du tableau en direct (`api/plugins/kanban/events`).
  *
- * Comme `KanbanClient.LiveBoard`: le socket
+ * Miroir de `KanbanClient.LiveBoard` (Echo/Services/HermesAutomation:489) : le socket
  * reprend au curseur reçu du dernier `board`, et quand il ne peut pas s'ouvrir — connexion par
  * OAuth seule, passerelle ancienne — l'interrogation périodique prend le relais avec une
  * réouverture de plus en plus espacée (2 s, puis 15 s au plus).
@@ -73,12 +73,12 @@ class KanbanLiveBoard(
 
     private val _isLive = MutableStateFlow(false)
 
-    /** `true` tant que le socket est ouvert: l'en-tête montre alors la diffusion. */
+    /** `true` tant que le socket est ouvert : l'en-tête montre alors la diffusion. */
     val isLive: StateFlow<Boolean> = _isLive.asStateFlow()
 
     private var job: Job? = null
 
-    /** Ouvre le socket depuis [since]; [onChange] reçoit les cartes touchées, vide = tout relire. */
+    /** Ouvre le socket depuis [since] ; [onChange] reçoit les cartes touchées, vide = tout relire. */
     fun start(since: Int, onChange: (List<String>) -> Unit) {
         stop()
         job = scope.launch { loop(since, onChange) }
@@ -90,7 +90,7 @@ class KanbanLiveBoard(
         _isLive.value = false
     }
 
-    /** L'écran est quitté: plus rien à tenir. */
+    /** L'écran est quitté : plus rien à tenir. */
     fun close() {
         stop()
         if (scope.isActive) scope.cancel()
@@ -102,7 +102,7 @@ class KanbanLiveBoard(
         while (scope.isActive) {
             val socket = runCatching { open(cursor) }.getOrNull()
             if (socket == null) {
-                // Refusé: on réessaie de plus en plus lentement, **sans** réveiller un
+                // Refusé : on réessaie de plus en plus lentement, **sans** réveiller un
                 // rafraîchissement — c'est ce réveil à chaque échec qui faisait clignoter
                 // l'indicateur en boucle sur le tableau.
                 _isLive.value = false
@@ -182,7 +182,7 @@ private const val EVENTS = "api/plugins/kanban/events"
 
 private val KANBAN_JSON = Json { ignoreUnknownKeys = true; isLenient = true }
 
-/** `https://hôte` → `wss://hôte`: les sockets passent par le même hôte que le REST. */
+/** `https://hôte` → `wss://hôte` : les sockets passent par le même hôte que le REST. */
 internal fun webSocketBase(base: String): String = when {
     base.startsWith("https://") -> "wss://" + base.removePrefix("https://")
     base.startsWith("http://") -> "ws://" + base.removePrefix("http://")

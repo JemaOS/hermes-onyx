@@ -1,5 +1,7 @@
 package com.onyx.app.ui.setup
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -43,14 +45,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -67,6 +72,8 @@ import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import java.util.concurrent.Executors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private enum class CameraAccess { ASKING, ALLOWED, DENIED, UNSUPPORTED, FAILED }
 
@@ -74,7 +81,7 @@ fun codeScannerSupported(context: Context): Boolean =
     context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
 
 /**
- * La caméra de: QR uniquement, premier lien Onyx accepté, message pour
+ * La caméra de `SetupCodeScanner` : QR uniquement, premier lien Onyx accepté, message pour
  * tout autre QR, permission et refus réels. La feuille de confirmation reste chez l'appelant.
  */
 @Composable
@@ -94,9 +101,11 @@ fun SetupCodeScanner(
     },
     onCancel = onCancel,
     modifier = modifier,
+    // Un bouton « Coller le lien » dans la feuille : le même chemin que le scan, sans caméra.
+    pasteLabel = "Paste the link",
 )
 
-/** Scanner QR générique, équivalent du `CodeScanner`: `accept` décide quel code fermer. */
+/** Scanner QR générique, équivalent du `CodeScanner` la référence : `accept` décide quel code fermer. */
 @Composable
 fun CodeScanner(
     title: String,
@@ -106,6 +115,8 @@ fun CodeScanner(
     accept: (String) -> Boolean,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Le libellé d'un bouton « Coller » (le presse-papier passé à `accept`) ; `null` : aucun. */
+    pasteLabel: String? = null,
 ) {
     val context = LocalContext.current
     val theme = LocalOnyxTheme.current
@@ -128,9 +139,50 @@ fun CodeScanner(
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         access = if (granted) CameraAccess.ALLOWED else CameraAccess.DENIED
     }
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    /** Rien lu après quelques secondes : il faut le dire — une caméra qui ne voit rien ne l'annonce pas. */
+    var slowToRead by remember { mutableStateOf(false) }
+    /** Un code repéré mais illisible : ce n'est pas « rien vu », et le dire change le geste. */
+    var seenButUnreadable by remember { mutableStateOf(false) }
+
+    // Le même chemin que le scan, sans caméra : ce que le presse-papier porte passe à `accept`,
+    // qui décide (offre de configuration fermée, ou QR étranger).
+    fun pasteFromClipboard() {
+        scope.launch {
+            val clip = runCatching { clipboard.getClipEntry() }.getOrNull()?.clipData
+            val text = if (clip != null && clip.itemCount > 0) {
+                clip.getItemAt(0).text?.toString().orEmpty()
+            } else {
+                ""
+            }
+            if (text.isEmpty()) return@launch
+            if (currentAccept(text)) {
+                previewView.performHapticFeedback(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        HapticFeedbackConstants.CONFIRM
+                    } else {
+                        HapticFeedbackConstants.LONG_PRESS
+                    },
+                )
+                onCancel()
+            } else {
+                wrongCode = true
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (access == CameraAccess.ASKING) permission.launch(Manifest.permission.CAMERA)
+    }
+    // Six secondes sans aucune lecture : la caméra ne voit pas le code. L'utilisateur l'apprend.
+    LaunchedEffect(access) {
+        if (access != CameraAccess.ALLOWED) {
+            slowToRead = false
+            return@LaunchedEffect
+        }
+        delay(6_000)
+        slowToRead = true
     }
     DisposableEffect(lifecycleOwner, supported) {
         val observer = LifecycleEventObserver { _, event ->
@@ -168,7 +220,17 @@ fun CodeScanner(
             analysis.setAnalyzer(executor) { image ->
                 try {
                     val luminance = image.luminanceBytes()
-                    val text = luminance?.let { QrCodeDecoder.decodeYuv(it, image.width, image.height) }
+                    val outcome = luminance?.let {
+                        QrCodeDecoder.scanYuv(it, image.width, image.height)
+                    }
+                    // « Vu mais illisible » se dit tout de suite : le code est dans le champ, ce
+                    // n'est pas la peine de demander d'approcher ce qui est déjà là.
+                    if (outcome is ScanOutcome.Unreadable) {
+                        ContextCompat.getMainExecutor(context).execute {
+                            if (active) seenButUnreadable = true
+                        }
+                    }
+                    val text = (outcome as? ScanOutcome.Text)?.value
                     if (text != null && deduplicator.accept(text)) {
                         ContextCompat.getMainExecutor(context).execute {
                             if (!active) return@execute
@@ -247,6 +309,12 @@ fun CodeScanner(
             CameraAccess.ALLOWED -> Unit
         }
 
+        // La zone de visée : un repère dit où poser le code. Sans lui, la caméra ouverte ne
+        // ressemble à rien et on ne sait pas si elle cherche.
+        if (access == CameraAccess.ALLOWED) {
+            ScannerViewfinder(modifier = Modifier.align(Alignment.Center))
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -269,21 +337,81 @@ fun CodeScanner(
         }
 
         if (access == CameraAccess.ALLOWED) {
-            BasicText(
-                text = if (wrongCode) wrong else prompt,
-                style = theme.subheadline.copy(
-                    color = Color.White,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                ),
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(bottom = 32.dp)
-                    .background(Color.Black.copy(alpha = 0.48f), RoundedCornerShape(50))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-            )
+                    .padding(bottom = 30.dp)
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                BasicText(
+                    // Un code lu mais étranger d'abord ; sinon, après six secondes sans rien
+                    // décoder, la feuille dit qu'elle ne voit pas le code au lieu de rester muette.
+                    text = when {
+                        wrongCode -> wrong
+                        seenButUnreadable ->
+                            "A code is in view, but I can't read it — move closer, and avoid the glare."
+                        slowToRead -> "I can't see a code yet — bring it closer, and avoid the glare."
+                        else -> prompt
+                    },
+                    style = theme.subheadline.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                    ),
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.48f), RoundedCornerShape(50))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+                // « Coller le lien » : la même entrée que le scan, sans dépendre de la caméra.
+                // Elle est **toujours** offerte, et nommée dès que le scan ne donne rien : au bout
+                // de quelques secondes sans lecture, ou dès qu'un code est repéré sans être lu.
+                if (pasteLabel != null && (wrongCode || seenButUnreadable || slowToRead)) {
+                    BasicText(
+                        text = "Paste the link instead.",
+                        style = theme.footnote.copy(
+                            color = Color.White.copy(alpha = 0.72f),
+                            textAlign = TextAlign.Center,
+                        ),
+                    )
+                }
+                pasteLabel?.let { label ->
+                    BasicText(
+                        text = label,
+                        style = theme.subheadline.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(50))
+                            .onyxClickable(onClick = { pasteFromClipboard() })
+                            .padding(horizontal = 18.dp, vertical = 10.dp),
+                    )
+                }
+            }
         }
+    }
+}
+
+/** Les quatre équerres de la zone de visée, comme le repère d'un scanner. */
+@Composable
+private fun ScannerViewfinder(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(250.dp)) {
+        val width = size.width
+        val height = size.height
+        val arm = 34.dp.toPx()
+        val stroke = 3.dp.toPx()
+        val colour = Color.White.copy(alpha = 0.92f)
+        fun line(x1: Float, y1: Float, x2: Float, y2: Float) =
+            drawLine(colour, Offset(x1, y1), Offset(x2, y2), strokeWidth = stroke, cap = StrokeCap.Round)
+        line(0f, arm, 0f, 0f)
+        line(0f, 0f, arm, 0f)
+        line(width - arm, 0f, width, 0f)
+        line(width, 0f, width, arm)
+        line(width, height - arm, width, height)
+        line(width, height, width - arm, height)
+        line(arm, height, 0f, height)
+        line(0f, height, 0f, height - arm)
     }
 }
 
@@ -291,7 +419,7 @@ fun CodeScanner(
 private fun ScannerMessage(
     title: String,
     message: String,
-    /** Le libellé du bouton; `null`: aucun bouton, et donc aucun rappel à fournir. */
+    /** Le libellé du bouton ; `null` : aucun bouton, et donc aucun rappel à fournir. */
     action: String?,
     onAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -311,7 +439,7 @@ private fun ScannerMessage(
             text = message,
             style = theme.body.copy(color = Color.White.copy(alpha = 0.78f), textAlign = TextAlign.Center),
         )
-        // Sans libellé **et** sans rappel, aucun bouton n'est dessiné: jamais un bouton qui ne
+        // Sans libellé **et** sans rappel, aucun bouton n'est dessiné : jamais un bouton qui ne
         // fait rien (« Camera unavailable » n'en a pas).
         val label = action
         if (label != null && onAction != null) {
@@ -319,7 +447,7 @@ private fun ScannerMessage(
                 text = label,
                 style = theme.body.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(OnyxSpace.ControlCorner))
                     .onyxClickable(onClick = onAction)
                     .padding(horizontal = 18.dp, vertical = 10.dp),
             )
@@ -347,17 +475,9 @@ private fun ScannerSpinner(modifier: Modifier = Modifier) {
     }
 }
 
-/** CameraX fournit YUV_420_888; ZXing n'a besoin que du plan Y, rowStride compris. */
+/** CameraX fournit YUV_420_888 ; ZXing n'a besoin que du plan Y, `rowStride` respecté. */
 private fun ImageProxy.luminanceBytes(): ByteArray? {
     val plane = planes.firstOrNull() ?: return null
     if (plane.pixelStride != 1) return null
-    val buffer = plane.buffer.duplicate()
-    val result = ByteArray(width * height)
-    for (row in 0 until height) {
-        val position = row * plane.rowStride
-        if (position < 0 || position + width > buffer.limit()) return null
-        buffer.position(position)
-        buffer.get(result, row * width, width)
-    }
-    return result
+    return QrCodeDecoder.packLuminance(plane.buffer, width, height, plane.rowStride)
 }

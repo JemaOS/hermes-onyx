@@ -1,5 +1,9 @@
 package com.onyx.app.ui.files
 
+import com.onyx.app.ui.design.OnyxSpace
+
+import com.onyx.app.ui.design.onyxPage
+
 import android.content.ClipData
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -15,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.onyx.app.ui.localization.BasicText
@@ -38,6 +44,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onyx.app.data.model.serve.FileEntry
 import com.onyx.app.ui.design.AlertAction
 import com.onyx.app.ui.design.OnyxAlert
+import com.onyx.app.ui.common.OnyxCardRow
+import com.onyx.app.ui.common.OnyxLazyFormPage
+import com.onyx.app.ui.common.OnyxLoadingRows
+import com.onyx.app.ui.common.OnyxTroublePanel
+import com.onyx.app.ui.common.onyxLazyCardFooter
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxMenu
@@ -52,11 +63,12 @@ import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.ClipEntry
+import com.onyx.app.ui.design.IdentifierText
 
 /**
  * Réglages → Fichiers.
  *
- * Comme: la racine « Places », les dossiers qu'on empile, les fichiers
+ * Port de `FilesView` : la racine « Places », les dossiers qu'on empile, les fichiers
  * texte qu'on édite, les autres qu'on ouvre, et le menu de dossier (téléverser, nouveau dossier,
  * fichiers cachés, aller à un chemin).
  */
@@ -84,7 +96,7 @@ fun FilesScreen(
         if (state.showHidden) state.entries else state.entries.filterNot { it.name.startsWith(".") }
     }
 
-    // Le geste retour d'Android remonte d'un dossier, comme le bouton.
+    // Le geste retour d'Android remonte d'un dossier, comme le bouton de la référence.
     BackHandler(enabled = !state.atRoot) { viewModel.back() }
 
     val uploader = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -94,7 +106,13 @@ fun FilesScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme)
+            // La zone du système est prise par la racine de l'écran : la dernière rangée du
+            // corps ne peut plus être enterrée sous la barre de navigation ni sous la zone du
+            // geste d'accueil. L'encart est **lu à l'exécution** (24 dp en navigation par
+            // gestes, 48 dp à trois boutons, et ce qu'il faut sur un pliable déplié) — jamais
+            // une valeur en dur qui ne vaut que pour un écran.
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
@@ -105,97 +123,111 @@ fun FilesScreen(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 40.dp),
-        ) {
+        // Ce qu'un appui sur une rangée fait : entrer dans un dossier, ouvrir un texte, ou
+        // télécharger un binaire (qui n'a pas d'éditeur).
+        val openEntry: (FileEntry) -> Unit = { entry ->
+            if (entry.isDirectory) {
+                viewModel.open(entry)
+            } else if (entry.isText) {
+                onOpenFile(entry)
+            } else {
+                scope.launch {
+                    val bytes = viewModel.bytes(entry)
+                    if (bytes != null) downloadToStore(context, entry, bytes)
+                }
+            }
+        }
+
+        // **La page est une liste paresseuse** : un dossier de 500 fichiers ne compose plus que
+        // les rangées visibles. C'était le défaut T9 de l'audit — `Column(verticalScroll)` dans une
+        // `OnyxFormSection` composait **les 500**, y compris les 490 hors de l'écran. La carte garde
+        // exactement sa forme : c'est `OnyxCardRow` qui pose sa surface, rangée par rangée
+        // (`ui/common/LazyCard.kt`), et l'en-tête, le chemin, la ligne d'état et le pied sont des
+        // `item` de la même liste, donc ils défilent avec elle comme avant.
+        OnyxLazyFormPage(modifier = Modifier.weight(1f)) {
             if (state.path != null) {
-                BasicText(
-                    text = state.path.orEmpty(),
-                    localize = false,
-                    style = theme.caption.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                )
+                item(key = "path") {
+                    // Le chemin est un **identifiant** : il s'abrège au milieu et garde donc son
+                    // début comme sa fin (la politique de texte de la maison). Il reste l'`item`
+                    // paresseux de la page : un dossier de 500 entrées ne compose pas son chemin
+                    // 500 fois.
+                    IdentifierText(
+                        text = state.path.orEmpty(),
+                        style = theme.caption.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
+                        maxLines = 2,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                    )
+                }
             }
 
             state.working?.let { working ->
-                OnyxFormSection {
-                    OnyxRow {
-                        BasicText(text = working, style = theme.footnote.copy(color = theme.secondaryText))
+                item(key = "working") {
+                    OnyxFormSection {
+                        OnyxRow {
+                            BasicText(text = working, style = theme.footnote.copy(color = theme.secondaryText))
+                        }
                     }
                 }
             }
 
             state.problem?.let { problem ->
-                OnyxFormSection {
-                    OnyxRow {
-                        OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 16.dp)
-                        BasicText(
-                            text = problem,
-                            localize = false,
-                            style = theme.footnote.copy(color = theme.secondaryText),
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    OnyxRowDivider()
-                    OnyxRow(onClick = viewModel::reload) {
-                        BasicText("Try Again", style = theme.body.copy(color = theme.accent))
-                    }
+                item(key = "problem") {
+                    // Le panneau des autres écrans : carte du fil quand le serveur n'a pas répondu,
+                    // rangée d'avertissement sinon — avec « Réessayer » dans les deux cas.
+                    OnyxTroublePanel(problem = problem, onRetry = viewModel::reload)
                 }
             }
 
             when {
-                state.loading -> OnyxFormSection {
-                    OnyxRow { BasicText("Loading from Onyx…", style = theme.body.copy(color = theme.secondaryText)) }
+                state.loading -> item(key = "loading") {
+                    OnyxLoadingRows(label = "Loading from Onyx…")
                 }
 
-                state.atRoot -> OnyxFormSection(header = "Places") {
-                    OnyxRow(
-                        onClick = { state.home?.let { viewModel.open(it) } ?: viewModel.open("~") },
-                    ) {
-                        OnyxIcon(Symbols.Brain, tint = theme.accent, size = 18.dp)
-                        BasicText(
-                            text = "Hermes",
-                            style = theme.body.copy(color = theme.textColor),
-                            modifier = Modifier.weight(1f),
-                        )
-                        OnyxIcon(Symbols.ChevronRight, tint = theme.tertiaryText, size = 12.dp)
-                    }
-                }
-
-                else -> OnyxFormSection(
-                    footer = "Names that start with a dot are hidden.",
-                ) {
-                    if (entries.isEmpty()) {
-                        OnyxRow {
-                            BasicText("This folder is empty.", style = theme.body.copy(color = theme.secondaryText))
+                state.atRoot -> item(key = "places") {
+                    OnyxFormSection(header = "Places") {
+                        OnyxRow(
+                            onClick = { state.home?.let { viewModel.open(it) } ?: viewModel.open("~") },
+                        ) {
+                            OnyxIcon(Symbols.Brain, tint = theme.textColor, size = 18.dp)
+                            BasicText(
+                                text = "Hermes",
+                                style = theme.body.copy(color = theme.textColor),
+                                modifier = Modifier.weight(1f),
+                            )
+                            OnyxIcon(Symbols.ChevronRight, tint = theme.tertiaryText, size = 12.dp)
                         }
-                        return@OnyxFormSection
                     }
-                    entries.forEachIndexed { index, entry ->
-                        if (index > 0) OnyxRowDivider()
-                        FileRow(
-                            entry = entry,
-                            onClick = {
-                                if (entry.isDirectory) {
-                                    viewModel.open(entry)
-                                } else if (entry.isText) {
-                                    onOpenFile(entry)
-                                } else {
-                                    // Un fichier binaire n'a pas d'éditeur: on le télécharge.
-                                    scope.launch {
-                                        val bytes = viewModel.bytes(entry)
-                                        if (bytes != null) downloadToCache(context, entry, bytes)
-                                    }
-                                }
-                            },
-                            onLongPress = { pendingDelete = entry },
-                        )
+                }
+
+                entries.isEmpty() -> {
+                    item(key = "empty") {
+                        OnyxCardRow(first = true, last = true) {
+                            OnyxRow {
+                                // Une phrase **vraie** plutôt que « Aucun élément » : elle dit ce
+                                // que le dossier est, et pourquoi il peut paraître vide alors qu'il
+                                // ne l'est pas au sens du système de fichiers.
+                                BasicText(
+                                    text = "This folder has nothing Onyx can show. Files whose names start with a dot stay hidden unless you ask for them.",
+                                    style = theme.body.copy(color = theme.secondaryText),
+                                )
+                            }
+                        }
                     }
+                    onyxLazyCardFooter("Names that start with a dot are hidden.")
+                }
+
+                else -> {
+                    itemsIndexed(entries, key = { _, entry -> entry.path }) { index, entry ->
+                        OnyxCardRow(first = index == 0, last = index == entries.lastIndex) {
+                            if (index > 0) OnyxRowDivider()
+                            FileRow(
+                                entry = entry,
+                                onClick = { openEntry(entry) },
+                                onLongPress = { pendingDelete = entry },
+                            )
+                        }
+                    }
+                    onyxLazyCardFooter("Names that start with a dot are hidden.")
                 }
             }
         }
@@ -330,10 +362,17 @@ private fun readAndUpload(context: android.content.Context, uri: Uri, viewModel:
     viewModel.upload(name, bytes)
 }
 
-/** Écrit un fichier binaire dans le cache et le confie au système, faute d'éditeur. */
-private fun downloadToCache(context: android.content.Context, entry: FileEntry, bytes: ByteArray) {
+/**
+ * Écrit un fichier venu du serveur dans le **stockage privé durable**, puis le confie au système.
+ *
+ * C'était `cacheDir` : le lecteur s'ouvrait, puis le système purgeait le cache et le fichier
+ * n'était plus là — la seconde porte du même défaut. Un fichier qu'on a récupéré une fois se
+ * garde, exactement comme une pièce jointe de l'appareil.
+ */
+private fun downloadToStore(context: android.content.Context, entry: FileEntry, bytes: ByteArray) {
     runCatching {
-        val file = java.io.File(context.cacheDir, entry.name)
+        val folder = java.io.File(context.filesDir, "downloads").apply { mkdirs() }
+        val file = java.io.File(folder, entry.name.replace('/', '_'))
         file.writeBytes(bytes)
         val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
@@ -364,7 +403,13 @@ fun FileEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme)
+            // La zone du système est prise par la racine de l'écran : la dernière rangée du
+            // corps ne peut plus être enterrée sous la barre de navigation ni sous la zone du
+            // geste d'accueil. L'encart est **lu à l'exécution** (24 dp en navigation par
+            // gestes, 48 dp à trois boutons, et ce qu'il faut sur un pliable déplié) — jamais
+            // une valeur en dur qui ne vaut que pour un écran.
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
@@ -419,7 +464,7 @@ fun FileEditorScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .background(theme.surfaceColor, RoundedCornerShape(12.dp))
+                    .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FormCorner))
                     .padding(10.dp),
             ) {
                 BasicTextField(

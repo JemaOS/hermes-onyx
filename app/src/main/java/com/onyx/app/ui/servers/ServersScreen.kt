@@ -1,5 +1,7 @@
 package com.onyx.app.ui.servers
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,9 +40,10 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.onyx.app.ui.design.IdentifierText
 
 /**
- * Les serveurs Hermes enregistrés (`ServersView`): basculer, ajouter, renommer, retirer.
+ * Les serveurs Hermes enregistrés (`ServersView`) : basculer, ajouter, renommer, retirer.
  *
  * Le serveur actif se règle avec l'écran de connexion habituel, qui en est la copie de travail.
  */
@@ -63,7 +66,7 @@ fun ServersScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Servers", onBack = onBack)
@@ -94,11 +97,9 @@ fun ServersScreen(
                                 localize = false,
                                 style = theme.body.copy(color = theme.textColor),
                             )
-                            BasicText(
+                            IdentifierText(
                                 text = detailOf(server),
                                 style = theme.footnote.copy(color = theme.secondaryText),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                         if (active) {
@@ -118,7 +119,7 @@ fun ServersScreen(
                 footer = "A new server can be filled in from a setup code: scan or paste one on its setup screen.",
             ) {
                 OnyxRow(onClick = onEditConnection) {
-                    OnyxIcon(Symbols.Globe, tint = theme.accent, size = 18.dp)
+                    OnyxIcon(Symbols.Globe, tint = theme.textColor, size = 18.dp)
                     BasicText("Edit connection…", style = theme.body.copy(color = theme.accent), modifier = Modifier.weight(1f))
                 }
                 OnyxRowDivider()
@@ -126,7 +127,7 @@ fun ServersScreen(
                     nameText = ""
                     adding = true
                 }) {
-                    OnyxIcon(Symbols.Plus, tint = theme.accent, size = 18.dp)
+                    OnyxIcon(Symbols.Plus, tint = theme.textColor, size = 18.dp)
                     BasicText("Add server…", style = theme.body.copy(color = theme.accent), modifier = Modifier.weight(1f))
                 }
             }

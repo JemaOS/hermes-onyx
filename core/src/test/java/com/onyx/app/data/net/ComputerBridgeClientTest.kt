@@ -22,13 +22,13 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * La session « Ordinateur » telle qu'elle se comporte vraiment: ce qui part sur le fil, ce qui
+ * La session « Ordinateur » telle qu'elle se comporte vraiment : ce qui part sur le fil, ce qui
  * reste à l'écran quand le pont refuse, et ce qui arrive quand il se tait.
  *
- * Rien d'inventé: le pont est une `MockWebServer`, le WebSocket est réel, et les motifs de refus
+ * Rien d'inventé : le pont est une `MockWebServer`, le WebSocket est réel, et les motifs de refus
  * sont ceux que le pont envoie (`bad-token:len:18:20`, `too many attempts`). Les cas du lot
  * « adresse et jeton » (schéma déduit du port, jeton recollé, 401 de poignée de main, changement
- * d'adresse ou de jeton) vivent ici à côté: c'est le même client, et une régression de l'un se
+ * d'adresse ou de jeton) vivent ici à côté : c'est le même client, et une régression de l'un se
  * voit tout de suite dans l'autre.
  */
 class ComputerBridgeClientTest {
@@ -57,7 +57,7 @@ class ComputerBridgeClientTest {
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
-                    // Le pont répond au battement applicatif: la session reste vivante.
+                    // Le pont répond au battement applicatif : la session reste vivante.
                     if (text.contains("\"t\":\"ping\"")) webSocket.send("""{"t":"pong","echo":1}""")
                 }
             }),
@@ -65,8 +65,8 @@ class ComputerBridgeClientTest {
     }
 
     /**
-     * Ferme le serveur de test sans transformer un arrêt de socket en échec de test: une session
-     * encore ouverte fait attendre `shutdown` (la machine est chargée, plusieurs builds tournent).
+     * Ferme le serveur de test sans transformer un arrêt de socket en échec de test : une session
+     * encore ouverte fait attendre `shutdown()` (la machine est chargée, plusieurs builds tournent).
      */
     private fun quietShutdown(server: MockWebServer) {
         serverSide?.close(1000, "test over")
@@ -75,7 +75,7 @@ class ComputerBridgeClientTest {
         try {
             server.shutdown()
         } catch (_: java.io.IOException) {
-            // L'assertion est faite; l'arrêt d'une socket ouverte n'est pas le sujet.
+            // L'assertion est faite ; l'arrêt d'une socket ouverte n'est pas le sujet.
         }
     }
 
@@ -125,14 +125,14 @@ class ComputerBridgeClientTest {
         val client = clientFor(server)
         try {
             client.connect()
-            awaitTrue("refus enregistré") { client.problem.value != null }
+            awaitTrue("refus enregistré") { client.problem.value != null && client.notice.value != null }
             assertEquals(ComputerBridgeError.TokenCut(18, 20), client.problem.value)
             val notice = client.notice.value ?: ""
             assertTrue("longueur reçue absente: $notice", notice.contains("18"))
             assertTrue("longueur attendue absente: $notice", notice.contains("20"))
             // Aucun texte interne du pont ne doit arriver à l'écran.
             assertTrue("motif brut affiché: $notice", !notice.contains("bad-token"))
-            // Un jeton faux ne se réessaie pas tout seul: cela épuiserait les essais du pont.
+            // Un jeton faux ne se réessaie pas tout seul : cela épuiserait les essais du pont.
             Thread.sleep(1_500)
             assertEquals(1, server.requestCount)
         } finally {
@@ -220,7 +220,7 @@ class ComputerBridgeClientTest {
 
     @Before
     fun forceEnglish() {
-        // Les phrases se vérifient sur leurs clés anglaises: la machine de recette est en français.
+        // Les phrases se vérifient sur leurs clés anglaises : la machine de recette est en français.
         Locale.setDefault(Locale.ENGLISH)
     }
 
@@ -254,8 +254,8 @@ class ComputerBridgeClientTest {
      * Démonte le serveur de recette.
      *
      * Une session WebSocket que le serveur garde ouverte empêche sa file de se vider, et
-     * `shutdown` rend alors un `IOException` de ménage **après** que les assertions ont passé.
-     * Le cas porte sur le jeton reçu, pas sur la fermeture: on tolère ce ménage-là.
+     * `shutdown()` rend alors un `IOException` de ménage **après** que les assertions ont passé.
+     * Le cas porte sur le jeton reçu, pas sur la fermeture : on tolère ce ménage-là.
      */
     private fun shutdown(server: MockWebServer) {
         Thread.sleep(200)
@@ -268,7 +268,7 @@ class ComputerBridgeClientTest {
         server.dispatcher = TokenDispatcher("jeton-attendu")
         server.start()
         try {
-            // Collé tel quel: blancs autour et préfixe en trop — le pont doit recevoir le jeton.
+            // Collé tel quel : blancs autour et préfixe en trop — le pont doit recevoir le jeton.
             val good = client(base(server), "  Bearer jeton-attendu \n")
             good.connect()
             await("le salut du pont") { good.hello.value != null }
@@ -305,7 +305,7 @@ class ComputerBridgeClientTest {
             assertEquals("/ws", request?.path)
             assertEquals(0, first.requestCount - 1) // un seul essai sur la première adresse
             // La fermeture de l'ancien socket ne doit pas se lire comme une panne de la nouvelle
-            // session: l'écran afficherait « impossible de joindre le pont » sur une session ouverte.
+            // session : l'écran afficherait « impossible de joindre le pont » sur une session ouverte.
             Thread.sleep(400)
             assertNull(live.notice.value)
             assertEquals(ComputerBridgeClient.Phase.LIVE, live.phase.value)
@@ -404,12 +404,12 @@ class ComputerBridgeClientTest {
     }
 
     /**
-     * Un pont en miniature: il n'ouvre la session qu'au bon jeton.
+     * Un pont en miniature : il n'ouvre la session qu'au bon jeton.
      *
      * Un refus **après** la poignée de main (code `4401`) ne se provoque pas avec MockWebServer —
      * sa fermeture serveur n'atteint pas le client. Ce chemin-là se vérifie sur le vrai pont, avec
-     * un faux jeton, et se lit au journal du pont; ici on verrouille ce que MockWebServer sait
-     * faire: l'en-tête reçu, et une session qui s'ouvre quand le jeton est le bon.
+     * un faux jeton, et se lit au journal du pont ; ici on verrouille ce que MockWebServer sait
+     * faire : l'en-tête reçu, et une session qui s'ouvre quand le jeton est le bon.
      */
     private class TokenDispatcher(private val expected: String) : Dispatcher() {
         override fun dispatch(request: RecordedRequest): MockResponse {
@@ -423,6 +423,94 @@ class ComputerBridgeClientTest {
                     )
                 }
             })
+        }
+    }
+
+    // ---- la compatibilité avec un pont plus ancien -----------------------------------------------
+
+    /**
+     * Un pont qui répond à tout ce qu'on lui envoie, avec le refus qu'on lui a fixé.
+     *
+     * `reasonFor` rend `null` pour ce qu'il accepte. Les identifiants reviennent tels quels — c'est
+     * ce qui permet au client de reconnaître **laquelle** de ses demandes vient d'être refusée — et
+     * `vus` garde la trace des types effectivement reçus, pour que le test attende un fait et non
+     * une supposition.
+     */
+    private fun denyingServer(
+        reasonFor: (String) -> String?,
+        vus: MutableList<String> = mutableListOf(),
+    ): MockWebServer = MockWebServer().apply {
+        enqueue(
+            MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    webSocket.send(
+                        "{\"t\":\"hello\",\"screen\":[3840,2160],\"view\":[1280,720],\"fps\":6,\"viewer\":\"test\"}",
+                    )
+                }
+
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    // Le pont répond au battement applicatif : la session reste vivante.
+                    if (text.contains("\"t\":\"ping\"")) {
+                        webSocket.send("{\"t\":\"pong\",\"echo\":1}")
+                        return
+                    }
+                    val kind = Regex("\"t\":\"([a-z_]+)\"").find(text)?.groupValues?.get(1) ?: return
+                    vus.add(kind)
+                    val reason = reasonFor(kind) ?: return
+                    val id = Regex("\"id\":(\\d+)").find(text)?.groupValues?.get(1)
+                    webSocket.send("{\"t\":\"denied\",\"id\":$id,\"reason\":\"$reason\"}")
+                }
+            }),
+        )
+    }
+
+    /**
+     * Un pont plus ancien ne connaît ni la taille d'image ni la cadence : il refuse les deux. Ce
+     * refus ne dit rien de l'écran — l'app doit donc se taire, et continuer à afficher l'aperçu.
+     */
+    @Test
+    fun `un pont plus ancien refuse la taille et la cadence, aucune panne a l'ecran`() {
+        val vus = mutableListOf<String>()
+        val server = denyingServer(
+            { kind -> if (kind == "stream" || kind == "rate") "unknown_action:$kind" else null },
+            vus,
+        )
+        server.start()
+        try {
+            val app = client(base(server), token)
+            app.connect()
+            await("la session vivante") { app.phase.value == ComputerBridgeClient.Phase.LIVE }
+            app.requestStream(1080)
+            app.setMoving(true)
+            await("les deux demandes parties") { vus.contains("stream") && vus.contains("rate") }
+            // Le refus a le temps d'arriver : s'il devait s'afficher, il serait là.
+            Thread.sleep(700)
+            assertNull(
+                "une demande de confort refusée ne doit rien afficher : ${app.notice.value}",
+                app.notice.value,
+            )
+            assertEquals(ComputerBridgeClient.Phase.LIVE, app.phase.value)
+            app.close()
+        } finally {
+            shutdown(server)
+        }
+    }
+
+    /** Le pendant du cas précédent : un refus d'**action**, lui, reste affiché. */
+    @Test
+    fun `un refus d'action, lui, reste affiche`() {
+        val server = denyingServer({ kind -> if (kind == "tap") "not_holder" else null })
+        server.start()
+        try {
+            val app = client(base(server), token)
+            app.connect()
+            await("la session vivante") { app.phase.value == ComputerBridgeClient.Phase.LIVE }
+            app.tap(100, 200)
+            await("le refus affiché") { app.notice.value != null }
+            assertTrue("refus d'action perdu : ${app.notice.value}", app.notice.value!!.contains("hand"))
+            app.close()
+        } finally {
+            shutdown(server)
         }
     }
 }

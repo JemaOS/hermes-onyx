@@ -3,6 +3,7 @@ package com.onyx.app.localization
 import com.onyx.app.ui.localization.resolveOnyxText
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,6 +13,19 @@ class OnyxLocalizationTest {
         assertEquals("Réglages", OnyxLocalization.translate("Settings", Locale.FRANCE))
         assertEquals("Terminé", OnyxLocalization.translate("Done", Locale.CANADA_FRENCH))
         assertEquals("Configurer Onyx", OnyxLocalization.translate("Set up Onyx", Locale.forLanguageTag("fr-BE")))
+    }
+
+    @Test
+    fun `les libelles de la poignee de la barre d onglets ont quitte le dictionnaire`() {
+        // La poignée à chevron a été retirée de l'écran sur l'ordre du propriétaire : ses deux
+        // libellés n'ont plus de contrôle à nommer. Ils quittent donc le dictionnaire, plutôt que
+        // d'y rester comme des traductions qu'aucun bouton ne porte — une clé morte est un chemin
+        // qu'on rebrancherait par distraction.
+        //
+        // Ce qui se vérifie ici est justement **l'absence de traduction** : les clés se rendent
+        // verbatim, exactement comme un contenu inconnu.
+        assertEquals("Hide the tab bar", OnyxLocalization.translate("Hide the tab bar", Locale.FRANCE))
+        assertEquals("Show the tab bar", OnyxLocalization.translate("Show the tab bar", Locale.FRANCE))
     }
 
     @Test
@@ -162,6 +176,28 @@ class OnyxLocalizationTest {
         }
     }
 
+    @Test
+    fun `un salon ne se dit plus « discussion de groupe »`() {
+        // L'objet a changé de nom — « salon », comme la référence l'appelle — et le dictionnaire
+        // central le dit. Les **identifiants** du code (`GroupRoom`, `createGroup`, `Route.GROUP_CHAT`)
+        // restent, eux : les renommer casserait la persistance des salles gardées ici.
+        assertEquals("Salon", OnyxLocalization.translate("Group chat", Locale.FRANCE))
+        assertEquals("Nouveau salon", OnyxLocalization.translate("New room", Locale.FRANCE))
+        assertEquals("Salons", OnyxLocalization.translate("Rooms", Locale.FRANCE))
+        assertEquals("Aucun salon pour le moment.", OnyxLocalization.translate("No rooms yet.", Locale.FRANCE))
+
+        listOf(
+            "Group chat", "New Group Chat", "New room", "Rooms", "Room name",
+            "Talk to the group", "Pick two to six bots for the group.",
+        ).forEach { key ->
+            val french = OnyxLocalization.translate(key, Locale.FRANCE)
+            assertFalse(
+                "« $key » se dit encore en « discussion de groupe » ($french)",
+                french.lowercase().contains("discussion de groupe"),
+            )
+        }
+    }
+
     private companion object {
         /** Un échantillon transversal volontairement indépendant du dictionnaire de production. */
         val criticalFrench = linkedMapOf(
@@ -179,16 +215,18 @@ class OnyxLocalizationTest {
             "Dismiss" to "Ignorer",
             "Copy reply" to "Copier la réponse",
             "Read aloud" to "Lire à voix haute",
-            // Conversations, bots et groupe.
+            // Conversations, bots et salons.
             "Bots" to "Bots",
-            "Group chat" to "Discussion de groupe",
+            "Group chat" to "Salon",
             "No bots yet" to "Aucun bot pour le moment",
             "Ask them together." to "Posez-leur une question ensemble.",
-            "New Group Chat" to "Nouvelle discussion de groupe",
+            "New Group Chat" to "Nouveau salon",
+            "Room name" to "Nom du salon",
+            "Bots · pick 2 to 6" to "BOTS · EN CHOISIR DE 2 À 6",
             // Voix.
             "Voice" to "Voix",
             "Listening" to "À l’écoute",
-            "Talk to the group" to "Parler au groupe",
+            "Talk to the group" to "Parler au salon",
             "Stop listening" to "Arrêter l’écoute",
             "Stop reading" to "Arrêter la lecture",
             "Voice settings" to "Réglages vocaux",

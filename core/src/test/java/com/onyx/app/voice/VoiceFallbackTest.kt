@@ -11,7 +11,7 @@ import org.junit.Test
 
 class VoiceFallbackTest {
 
-    /** HTTP 400/403/5xx, délai, injoignable, flux coupé, réponse illisible: tous replient. */
+    /** HTTP 400/403/5xx, délai, injoignable, flux coupé, réponse illisible : tous replient. */
     private val serverFailures = listOf(
         TransportError.Http(400, "{\"detail\":\"TTS chunk 1\"}"),
         TransportError.Http(403, "forbidden"),

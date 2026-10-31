@@ -66,6 +66,18 @@ class ComputerWireTest {
     }
 
     @Test
+    fun `la taille voulue et la cadence se demandent au pont`() {
+        val stream = ComputerWire.stream(8, 1080, 9)
+        assertTrue(stream.contains("\"t\":\"stream\""))
+        assertTrue(stream.contains("\"id\":8"))
+        assertTrue(stream.contains("\"width\":1080"))
+        assertTrue(stream.contains("\"quality\":9"))
+
+        assertTrue(ComputerWire.rate(9, moving = true).contains("\"moving\":true"))
+        assertTrue(ComputerWire.rate(10, moving = false).contains("\"moving\":false"))
+    }
+
+    @Test
     fun `les entrees partent avec leurs coordonnees et leur approbation`() {
         assertTrue(ComputerWire.take(1).contains("\"t\":\"take\""))
         assertTrue(ComputerWire.release(2).contains("\"id\":2"))
@@ -75,7 +87,7 @@ class ComputerWireTest {
         assertTrue(tap.contains("\"x\":186"))
         assertTrue(tap.contains("\"y\":1101"))
         assertTrue(tap.contains("\"button\":1"))
-        // L'app dit que ses coordonnées sont déjà des pixels de l'écran du PC: sans cela, le pont
+        // L'app dit que ses coordonnées sont déjà des pixels de l'écran du PC : sans cela, le pont
         // les agrandirait une seconde fois et le clic partirait ailleurs.
         assertTrue(tap.contains("\"space\":\"screen\""))
 
@@ -86,14 +98,14 @@ class ComputerWireTest {
 
         assertTrue(ComputerWire.typeText(5, "bonjour").contains("\"text\":\"bonjour\""))
         assertTrue(ComputerWire.scroll(6, 5, 6, -3).contains("\"amount\":-3"))
-        // L'autre espace reste possible: c'est celui des clients qui envoient l'image telle quelle.
+        // L'autre espace reste possible : c'est celui des clients qui envoient l'image telle quelle.
         assertTrue(ComputerWire.tap(7, 10, 20, space = ComputerWire.SPACE_VIEW)
             .contains("\"space\":\"view\""))
     }
 
     @Test
     fun `une commande et un raccourci disent s'ils sont approuves`() {
-        // Rien ne part apprové par défaut: l'approbation est une décision, pas une valeur par défaut.
+        // Rien ne part apprové par défaut : l'approbation est une décision, pas une valeur par défaut.
         assertTrue(ComputerWire.run(1, "uname -a", approved = false).contains("\"approved\":false"))
         assertTrue(ComputerWire.run(2, "uname -a", approved = true).contains("\"approved\":true"))
         assertTrue(ComputerWire.key(3, "ctrl+alt+l", approved = false).contains("\"approved\":false"))

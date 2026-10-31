@@ -13,7 +13,7 @@ import org.w3c.dom.Element
 /** Le sélecteur ne doit exposer que des icônes réellement embarquées et réellement lançables. */
 class AppIconCatalogTest {
     @Test
-    fun `les quatorze choix suivent lordre et le primaire dios`() {
+    fun `les quatorze choix suivent lordre et le primaire de la reference`() {
         assertEquals(
             listOf(
                 "AppIconFaceMist",
@@ -33,7 +33,7 @@ class AppIconCatalogTest {
             ),
             AppIconChoice.entries.map { it.rawValue },
         )
-        assertEquals(AppIconChoice.FACE_MIST, AppIconChoice.primary)
+        assertEquals(AppIconChoice.GRAPHITE_BLOCK, AppIconChoice.primary)
         assertEquals(14, AppIconChoice.entries.map { it.aliasName }.distinct().size)
         assertEquals(14, AppIconChoice.entries.map { it.resourceName }.distinct().size)
     }
@@ -65,10 +65,16 @@ class AppIconCatalogTest {
 
         AppIconChoice.entries.forEach { choice ->
             val alias = (0 until aliases.length).map { aliases.item(it) as Element }.firstOrNull {
-                it.getAttributeNS(androidNs, "name") == choice.aliasName
+                // L'alias est nommé d'après le paquet **installé** (`${applicationId}`) : c'est ce
+                // que le code reconstruit à l'exécution avec `context.packageName`.
+                it.getAttributeNS(androidNs, "name") == "\${applicationId}" + choice.aliasName
             }
             assertNotNull("missing alias ${choice.aliasName}", alias)
             alias!!
+            assertFalse(
+                "un alias nommé sans le paquet installé ne bascule jamais : ${choice.aliasName}",
+                (alias.getAttributeNS(androidNs, "name")).startsWith("."),
+            )
             assertEquals(".MainActivity", alias.getAttributeNS(androidNs, "targetActivity"))
             assertEquals("@mipmap/${choice.resourceName}", alias.getAttributeNS(androidNs, "icon"))
             assertEquals("@mipmap/${choice.resourceName}_round", alias.getAttributeNS(androidNs, "roundIcon"))

@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-2460%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-__TESTS__%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -154,7 +154,43 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## What 1.0.0+547 brings
+## Ce que __VERSION__ apporte
+
+Cette vague est la **fusion de onze lots**. Chaque point ci-dessous cite le commit, le fichier ou la
+mesure qui le porte — rien n'est annoncé ici qui ne puisse être montré. Le détail complet est dans
+[`releases/NOTES-__VERSION__.md`](releases/NOTES-__VERSION__.md).
+
+- **La palette et les surfaces sont lues dans la source** — six palettes de la référence comparées
+  champ par champ : **54 valeurs, 54 identiques, 0 écart** ; le verrou de palette relève **412 sources
+  lues, 0 couleur hors palette** (`3cd0f588`).
+- **Le thème sombre est mesuré, barreau par barreau** — le compositeur passe de **1,058:1** à
+  **1,314:1** sur sa page, la capsule d'onglet actif tient **1,201:1** contre sa barre, son encre
+  d'accent **5,165:1** ; une seule famille de formes (coins **22 → 26 dp**) et d'ombres (`a8c50987`,
+  `UI-UNIFORMITY-SOMBRE.md`).
+- **Le verre liquide passe en Haze 2.0.1, avec réfraction et soudure** — modules `haze`, `haze-blur`,
+  `haze-glass` ; la réfraction déplace le contenu échantillonné selon le profil d'arête
+  (`RefractionProfile.Edge`), et `GlassRefractionAvailable = true` est une **mesure** ; la soudure des
+  formes sort des traces (`13033ee5`, `4f414fde`).
+- **Une barre du bas flottante** (`52d0a4cf`) et **des boutons ronds sans facettes** — les octogones
+  deviennent des cercles (`794472c7`).
+- **Le suivi du défilement** du fil (`af6f86e6`) et **le glissement des conversations à deux sens**
+  (`da32ba08`).
+- **L'appel entrant et les heures de tranquillité** — le téléphone sonne comme un appel, plein écran,
+  et les heures de tranquillité coupent la sonnerie (`4cc98475` ; `CallRinger.kt`, `QuietHours`,
+  `CallsScreen.kt`).
+- **TIFF, HEIC et AVIF** en plus des formats courants (`363a1cb0`, `02f7a517`) ; **le widget HTML
+  réparé** — repli immédiat, pont et mesure de la page de nouveau en scripts (`b7afc4dd`, `b523abef`).
+- **L'organisation du fil et les sous-agents** — liste de tâches, transcription, durée et arrêt
+  (`5ddc604e`, `170ed926`).
+- **Le doublon « Compétences » retiré** — la tuile du volet et la ligne des Réglages quittent
+  l'interface, le groupe « Onyx » passe à quatre tuiles, tout est **dans** « Capacités » (`64d8e756`).
+- **Les retours corrigés** — la page quittée n'est plus perdue au sortir du volet, et un banc mesure les
+  trois chemins (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
+
+**__TESTS__ tests, 0 échec.** Les compagnons Android Auto et Wear OS ne changent pas sauf s'ils sont
+fournis avec cette release ; sinon ils restent sur **`__SIDECAR__`**.
+
+## What 1.0.0+547 brought
 
 A design-QA pass over `1.0.0+546`: **eleven major defects**, every one of them visible on
 screen, measured and corrected.
@@ -221,8 +257,11 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 ## Screenshots
 
-The gallery is the **1.0.0+547** build — the **dark theme** for the whole set, then the **light theme**
-on the same screens. Every capture was taken on an emulator, against a test server holding demo data:
+The gallery is the **`1.0.0+547`** build — the **dark theme** for the whole set, then the
+**light theme** on the same screens. It has **not** been re-shot for this release: the images below
+show the build named in this paragraph, not `__VERSION__`. The naming convention and the list of
+expected shots are in
+[`docs/screenshots/README.md`](docs/screenshots/README.md). Every capture was taken on an emulator, against a test server holding demo data:
 no real machine, no real conversation, no token. The **status bar is cropped out** of every shot and the
 demo server's **address is blurred**.
 
@@ -254,33 +293,31 @@ demo server's **address is blurred**.
 |:---:|:---:|
 | <img src="docs/screenshots/archive.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> |
 
-The **panel** (over the thread and docked), the **Archive** screen and the **Capabilities** screen are
-the **1.0.0+546** build: this pass did not re-shoot them, and nothing they show changed. Every other
-capture here is **1.0.0+547**. The bot roster and the name on the cards are read from the server — the
+Every capture here is **`1.0.0+547`** — the build it was taken from — and each shot is labelled with
+its build in [`docs/screenshots/README.md`](docs/screenshots/README.md). The bot
+roster and the name on the cards are read from the server — the app lists the profiles it exposes, it
+never invents one. The bot roster and the name on the cards are read from the server — the
 app lists the profiles it exposes, it never invents one — and the name on the panel (`Onyx`, and
 `homelab` in the docked shot) with the letter chip derived from it are the test double's, not a real
 machine.
 
 ## Install
 
-The signed APKs are on the [latest release](https://github.com/JemaOS/hermes-onyx/releases/latest) page.
-One code base, one signing key. **This release ships the phone**: the Android Auto and Wear OS
-companions were not rebuilt for `1.0.0+547` and stay on **`1.0.0+546`**, where all three packages live.
+The signed APKs are on the [latest release](https://github.com/JemaOS/hermes-onyx/releases/latest)
+page. One code base, one signing key.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+547-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
-| `Hermes-Onyx-1.0.0+546-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. **Unchanged — take it from the 1.0.0+546 release.** |
-| `Hermes-Onyx-1.0.0+546-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. **Unchanged — take it from the 1.0.0+546 release.** |
+| `Hermes-Onyx-__VERSION__-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `Hermes-Onyx-__SIDECAR__-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-__SIDECAR__-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**Coming from an older build?** `1.0.0+547` is signed with the same key as every release before it, so
-it installs straight over `1.0.0+546`, `1.0.0+467`, `1.0.0+460` or `1.0.0` with no uninstall. In the
-other direction, `1.0.0+467` is the release that fixed the broken top bar `1.0.0+460` shipped (swallowed
-taps, no glass, square corners, the gateway alias where the model name belonged).
+**Coming from an older build?** `__VERSION__` is signed with the same key as every release
+before it, so it installs straight over `1.0.0+547`, `1.0.0+546` or `1.0.0` with no uninstall.
 
-The three names above are the exact asset names on the releases. `1.0.0+547` carries a `SHA256SUMS`
-file with the SHA-256 of the phone APK; `1.0.0+546` carries one with all three. Check your download
-against it:
+The three names above are the exact asset names on the releases. `__VERSION__` carries a
+`SHA256SUMS` file with the SHA-256 of every package it ships. Check your download against
+it:
 
 ```bash
 curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS

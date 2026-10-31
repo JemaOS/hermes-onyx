@@ -40,11 +40,12 @@ import com.onyx.app.ui.design.OnyxValueRow
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
+import com.onyx.app.ui.design.IdentifierText
 
 /**
  * Réglages → Gateway.
  *
- * Comme: l'état d'Hermes, ce à quoi il est connecté, ses serveurs MCP avec
+ * Port de `GatewayView` : l'état d'Hermes, ce à quoi il est connecté, ses serveurs MCP avec
  * leur interrupteur et leur test, les journaux, et la maintenance (redémarrage, mise à jour).
  */
 @Composable
@@ -290,12 +291,9 @@ private fun McpSection(
                     }
                 }
                 if (server.target.isNotBlank()) {
-                    BasicText(
+                    IdentifierText(
                         text = server.target,
-                        localize = false,
                         style = theme.footnote.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 server.plugin?.let {
@@ -353,7 +351,7 @@ private fun MaintenanceSection(
                             text = line,
                             localize = false,
                             style = theme.caption.copy(color = theme.secondaryText, fontFamily = FontFamily.Monospace),
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
@@ -394,7 +392,7 @@ private fun MaintenanceSection(
     }
 }
 
-/** Une ligne « libellé → valeur », comme `LabeledContent` dans un formulaire. */
+/** Une ligne « libellé → valeur », comme `LabeledContent` dans un formulaire référence. */
 @Composable
 private fun LabeledRow(
     label: String,
@@ -405,7 +403,7 @@ private fun LabeledRow(
 ) {
     val theme = LocalOnyxTheme.current
     OnyxRow {
-        // Poids partagés: sans largeur réservée, une valeur longue (la chaîne `uname` du
+        // Poids partagés : sans largeur réservée, une valeur longue (la chaîne `uname` du
         // serveur, par exemple) mangeait toute la ligne et le libellé se réduisait à une
         // lettre par ligne (« OS » affiché en colonne verticale).
         BasicText(

@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * Le modèle de rendu des blocs riches, tel qu'il est embarqué dans les assets.
  *
- * Deux choses s'y vérifient, parce qu'elles se cassent sans bruit: tout marqueur `__…__` a un
+ * Deux choses s'y vérifient, parce qu'elles se cassent sans bruit : tout marqueur `__…__` a un
  * remplacement côté Kotlin (un marqueur oublié s'afficherait tel quel dans le fil), et le dessin
  * plus large que le bloc se fait glisser au lieu d'être coupé.
  */

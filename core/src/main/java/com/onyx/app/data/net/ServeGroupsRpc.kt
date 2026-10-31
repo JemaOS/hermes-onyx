@@ -17,14 +17,14 @@ import kotlinx.serialization.json.put
 /**
  * Les salles de bots d'Hermes, lues par le RPC du Dashboard.
  *
- * Comme `HermesServeClient.groupSupport` / `groupRooms` / `desktopRooms` / `groupState` /
+ * Miroir de `HermesServeClient.groupSupport` / `groupRooms` / `desktopRooms` / `groupState` /
  * `sendToGroup` / `groupLog` / `stopGroup` / `renameGroup` / `disbandGroup` / `retryGroupTask` /
  * `answerGroupApproval` / `groupLiveSessions` / `groupMemberSession` / `sessionEvents`
- *: `groups.capabilities` dit si ce Dashboard sait
- * tenir une salle et s'il peut en ouvrir une maintenant; `groups.list` les liste, paginées;
+ * (Echo/Services/Transport/ServerGroups:306) : `groups.capabilities` dit si ce Dashboard sait
+ * tenir une salle et s'il peut en ouvrir une maintenant ; `groups.list` les liste, paginées ;
  * `groups.log` donne ce qui y a été dit, `groups.state` ce qu'elle attend, `groups.send` y écrit et
- * `groups.stop` arrête les bots; `profiles.list` porte la copie des salles qu'Hermes Desktop tient
- * lui-même (`ui_meta["hermes-bots-groups"]`); `session.active_list` / `session.list` /
+ * `groups.stop` arrête les bots ; `profiles.list` porte la copie des salles qu'Hermes Desktop tient
+ * lui-même (`ui_meta["hermes-bots-groups"]`) ; `session.active_list` / `session.list` /
  * `session.events.since` donnent les réponses qu'un bot écrit dans sa session cachée
  * « Group: <salle> », que la salle n'a pas encore.
  */
@@ -32,12 +32,12 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
 
     constructor(rpc: ServeRpc) : this(rpc.asChannel())
 
-    /** Ce que ce Dashboard sait des salles: `supported`, et `writable` s'il peut en ouvrir une. */
+    /** Ce que ce Dashboard sait des salles : `supported`, et `writable` s'il peut en ouvrir une. */
     suspend fun support(): GroupSupport {
         val caps = try {
             rpc.call("groups.capabilities", buildJsonObject { }, SUPPORT_TIMEOUT)
         } catch (_: TransportError) {
-            // Méthode inconnue (un Hermes plus ancien, ou pas de plugin): pas de salles.
+            // Méthode inconnue (un Hermes plus ancien, ou pas de plugin) : pas de salles.
             return GroupSupport(supported = false, writable = false)
         }
         return supportFrom(caps)
@@ -64,10 +64,10 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
     }
 
     /**
-     * Ouvre une salle (`groups.create`), deux à six membres: le corps d'appel est celui de la
+     * Ouvre une salle (`groups.create`), deux à six membres : le corps d'appel est celui de la
      * référence — l'identifiant de la salle, son nom, et ses membres, chacun avec son profil, sa
      * poignée et son nom de salle. Rend la salle telle qu'Hermes l'a faite, `null` s'il n'en a
-     * rien dit: l'appelant ne doit alors pas croire qu'elle existe.
+     * rien dit : l'appelant ne doit alors pas croire qu'elle existe.
      */
     suspend fun create(id: String, name: String, members: List<GroupMember>): GroupRoom? {
         val result = rpc.call(
@@ -83,7 +83,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
     }
 
     /**
-     * Les salles qu'Hermes Desktop tient lui-même: sa copie est dans le `ui_meta` du profil
+     * Les salles qu'Hermes Desktop tient lui-même : sa copie est dans le `ui_meta` du profil
      * principal (`GroupRoom.desktopRooms`).
      */
     override suspend fun desktopRooms(): List<GroupRoom> {
@@ -106,8 +106,8 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
     }
 
     /**
-     * Dit `text` dans la salle (`groups.send`). Le même corps d'appel que: la salle, le
-     * message et son identifiant propre (`event_id`: envoyé deux fois, c'est le même message), et
+     * Dit `text` dans la salle (`groups.send`). Le même corps d'appel que la référence : la salle, le
+     * message et son identifiant propre (`event_id` : envoyé deux fois, c'est le même message), et
      * la charge utile du texte dans le fil « main ».
      */
     override suspend fun send(room: String, text: String, eventID: String) {
@@ -180,7 +180,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
 
     /**
      * Termine la salle pour de bon (`groups.disband`). Des bots encore en train de s'arrêter font
-     * qu'Hermes refuse un moment: on essaie de nouveau.
+     * qu'Hermes refuse un moment : on essaie de nouveau.
      */
     override suspend fun disband(room: String) {
         repeat(DISBAND_TRIES) { attempt ->
@@ -207,7 +207,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
         )
     }
 
-    /** Répond à la commande d'un bot: « once » ou « deny » (`groups.approve`). */
+    /** Répond à la commande d'un bot : « once » ou « deny » (`groups.approve`). */
     override suspend fun approve(room: String, approval: GroupApproval, choice: String) {
         rpc.call(
             "groups.approve",
@@ -240,7 +240,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
     }
 
     /**
-     * La session d'un bot pour une salle, par son titre sur le profil du bot: son identifiant
+     * La session d'un bot pour une salle, par son titre sur le profil du bot : son identifiant
      * gardé (la dernière partie, quand Hermes l'a comprimé), celui dont sa session vivante se sert.
      */
     override suspend fun memberSession(room: String, profile: String): String? {
@@ -263,7 +263,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
 
     /**
      * Ce qu'une session vivante a envoyé après l'événement `since`, tel qu'Hermes le garde pour un
-     * client qui se reconnecte: `truncated` quand certains sont partis (il garde les 512 derniers).
+     * client qui se reconnecte : `truncated` quand certains sont partis (il garde les 512 derniers).
      */
     override suspend fun sessionEvents(session: String, since: Int): GroupSessionSlice {
         val result = rpc.call(
@@ -293,7 +293,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
         const val DISBAND_TRIES = 5
         const val DISBAND_PAUSE = 2_000L
 
-        /** Ce qu'un `groups.capabilities` autorise: les cinq méthodes, et le worker à l'écoute. */
+        /** Ce qu'un `groups.capabilities` autorise : les cinq méthodes, et le worker à l'écoute. */
         fun supportFrom(caps: JsonElement): GroupSupport {
             val root = caps.asObject()
             val methods = root?.array("methods")?.mapNotNull { it.asString() }?.toSet().orEmpty()
@@ -319,9 +319,9 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
 }
 
 /**
- * Les appels d'une salle dont un fil a besoin: ce qui y a été dit, ce qu'elle attend, l'envoi,
+ * Les appels d'une salle dont un fil a besoin : ce qui y a été dit, ce qu'elle attend, l'envoi,
  * l'arrêt, et les sessions cachées où s'écrivent les réponses en cours. `ServeGroupsRpc` les fait
- * sur le socket du Dashboard; un fil se laisse ainsi éprouver sans socket.
+ * sur le socket du Dashboard ; un fil se laisse ainsi éprouver sans socket.
  */
 interface GroupRoomApi {
     suspend fun log(room: String, since: Int): List<GroupEvent>

@@ -114,6 +114,12 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "Keep Editing" to "Continuer la modification",
     "Discard" to "Abandonner",
     "Notifications" to "Notifications",
+    // Les deux en-têtes de section qui restaient en anglais : « PHONE » et « ACCOUNT » se
+    // lisaient tels quels au milieu de « PASSERELLE », « VOIX », « CONFIDENTIALITÉ » (relevé sur
+    // 1.0.0+546, 411 dp). Aucune de ces deux clés n'est employée ailleurs comme libellé de ligne :
+    // ce sont les en-têtes de `OnyxFormSection`, et rien d'autre.
+    "Phone" to "Téléphone",
+    "Account" to "Compte",
     "Android" to "Android",
     "Notification settings" to "Réglages de notifications",
     "Notify me in the background" to "M’alerter en arrière-plan",
@@ -134,7 +140,7 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "Onyx for Android, a client for your own Hermes server." to "Onyx pour Android, un client pour votre propre serveur Hermes.",
     "Acknowledgements" to "Remerciements",
 
-    // L'écran des remerciements: l'introduction, les deux groupes, puis une ligne par composant.
+    // L'écran des remerciements : l'introduction, les deux groupes, puis une ligne par composant.
     // Chaque ligne dit aussi la licence et l'attribution exactes — la page ne crédite que ce que
     // l'app embarque ou ce que le poste fait tourner (aucune bibliothèque d'une autre plateforme).
     "Onyx draws math with KaTeX and diagrams with mermaid, both embedded in the app and used offline; its terminal is written here and speaks SSH with sshj. The rest comes from Android's libraries and from the services running on your own PC." to "Onyx dessine les mathématiques avec KaTeX et les diagrammes avec Mermaid, tous deux embarqués dans l'app et utilisés hors ligne ; son terminal est écrit ici même et parle SSH avec sshj. Le reste vient des bibliothèques Android et des services qui tournent sur votre PC.",
@@ -158,6 +164,10 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "The terminal is not a third-party component: its screen, its buffer and its SSH session are written in this app, on top of the sshj library above — no other project to credit." to "Le terminal n'est pas un composant tiers : son écran, son tampon et sa session SSH sont écrits dans cette app, par-dessus la bibliothèque sshj ci-dessus — aucun autre projet à créditer.",
     "Hermes, your own server, is the one that answers — MIT License, © 2025 Nous Research." to "Hermes, votre propre serveur, est celui qui répond — licence MIT, © 2025 Nous Research.",
     "Kokoro gives the app its voices: the model weights are Apache License 2.0 (© hexgrad), served by Kokoro-FastAPI, also Apache License 2.0 (© remsky)." to "Kokoro fournit les voix de l'app : les poids du modèle sont sous licence Apache 2.0 (© hexgrad), servis par Kokoro-FastAPI, également Apache 2.0 (© remsky).",
+    // Le jeton du service vocal protégé (`VoiceSettingsScreen`, section Voix → Kokoro). Le libellé et
+    // sa note : le jeton ne va jamais dans l'adresse, il se saisit ici et part dans l'en-tête.
+    "Voice token" to "Jeton de la voix",
+    "Sent to the voice server as a bearer token. Leave it empty when the server needs none." to "Envoyé au service vocal comme jeton porteur. Laissez-le vide si le service n'en exige pas.",
     "Piper adds French voices behind the same address — GNU General Public License 3.0 or later, © the Piper authors (piper-tts 1.8.0)." to "Piper ajoute des voix françaises derrière la même adresse — GNU General Public License 3.0 ou ultérieure, © les auteurs de Piper (piper-tts 1.8.0).",
     "faster-whisper turns recorded speech into text on the PC — MIT License, © 2023 SYSTRAN." to "faster-whisper transforme la parole enregistrée en texte sur le PC — licence MIT, © 2023 SYSTRAN.",
     "FFmpeg reads and converts the audio of recordings and videos. The build installed here is GPL (built with --enable-gpl, GNU General Public License 3); a build without those parts stays LGPL." to "FFmpeg lit et convertit l'audio des enregistrements et des vidéos. La compilation installée ici est GPL (bâtie avec --enable-gpl, GNU General Public License 3) ; une compilation sans ces parties reste LGPL.",
@@ -179,11 +189,18 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "The server returned HTTP %1\$d.%2\$s" to "Le serveur a renvoyé HTTP %1\$d.%2\$s",
     "Connected." to "Connecté.",
     "Connected — %1\$d model(s)." to "Connecté — %1\$d modèle(s).",
+    // LOT anatomie-des-contenus : le compte du modèle s'accorde, et sans « (s) ».
+    "%1\$d model" to "%1\$d modèle",
+    "%1\$d models" to "%1\$d modèles",
+    // La ligne d'état d'une connexion mesurée : la **mesure** seule, jamais l'état une 2e fois.
+    "%1\$d ms" to "%1\$d ms",
+    "new attempt in %1\$d s" to "nouvelle tentative dans %1\$d s",
     "Delete this server" to "Supprimer ce serveur",
     "Every theme carries its own light and dark look; Appearance chooses which one you see." to "Chaque thème possède son apparence claire et sombre ; Apparence détermine celle qui s’affiche.",
     "Shown in the header and the message box. Spoken phrases and the Home Screen icon keep the app's real name." to "Affiché dans l’en-tête et la zone de saisie. Les phrases d’invocation et l’icône de l’écran d’accueil gardent le vrai nom de l’app.",
     "Each theme keeps its own colors. Text on your bubbles and on accent buttons turns light or dark to stay readable." to "Chaque thème garde ses propres couleurs. Le texte de vos bulles et des boutons d’accent passe en clair ou en sombre pour rester lisible.",
     "Accent" to "Accent",
+    "Buttons, links and your own messages." to "Les boutons, les liens et vos propres messages.",
     "Your bubbles" to "Vos bulles",
     "Your messages" to "Vos messages",
     "Light and dark" to "Clair et sombre",
@@ -224,13 +241,13 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "Warnings and errors" to "Avertissements et erreurs",
     "Errors only" to "Erreurs uniquement",
 
-    // Apparence: bots, texte du chat et orbe vocal (`AppearanceSettings` / `VoiceOrbSettings`).
+    // Apparence : bots, texte du chat et orbe vocal (`AppearanceSettings` / `VoiceOrbSettings`).
     "Bot faces" to "Visages des bots",
     "Off, each bot, Onyx too, is its initial on a circle of its color, and voice mode shows the Bubble orb in place of a face. The bots work the same either way." to "Éteint, chaque bot — Onyx compris — est son initiale sur un disque de sa couleur, et le mode vocal montre l’orbe Bubble à la place d’un visage. Les bots fonctionnent pareil dans les deux cas.",
     "Pictures from Hermes" to "Photos depuis Hermes",
     "A bot with a picture set in Hermes Desktop shows that picture instead of its face." to "Un bot dont une photo est définie dans Hermes Desktop montre cette photo au lieu de son visage.",
     "Bot colors in their chats" to "Couleurs des bots dans leurs chats",
-    "Your bubbles and the buttons in a bot's chat take its color, and Onyx's own chats take its face's if it has one. Group chats keep the theme's." to "Vos bulles et les boutons d’un chat de bot prennent sa couleur, et les chats de Onyx prennent celle de son visage s’il en a une. Les discussions de groupe gardent celle du thème.",
+    "Your bubbles and the buttons in a bot's chat take its color, and Onyx's own chats take its face's if it has one. Group chats keep the theme's." to "Vos bulles et les boutons d’un chat de bot prennent sa couleur, et les chats de Onyx prennent celle de son visage s’il en a une. Les salons gardent celle du thème.",
     "Chat text size" to "Taille du texte du chat",
     "Same as the phone" to "Comme le téléphone",
     "Smallest" to "Le plus petit",
@@ -304,4 +321,39 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "Efface toutes les conversations et pièces jointes de cet appareil, oublie tous les " +
         "serveurs, leurs clés et leurs mots de passe, et remet les réglages à leurs valeurs " +
         "d’origine. Rien n’est touché sur vos serveurs.",
+
+    // Les en-têtes de section des Réglages, regroupés par thème et dits en français.
+    "Connection" to "Passerelle",
+    "Answering" to "Réponses",
+    "Writing" to "Écriture",
+    "About" to "À propos",
+    "Name" to "Nom",
+    "Dashboard" to "Tableau de bord",
+    "Server" to "Serveur",
+    "Android Auto" to "Android Auto",
+
+    // La carte de la passerelle : le bouton qui teste la connexion pour de vrai.
+    "Check" to "Vérifier",
+    "Verifying…" to "Vérification…",
+    "The gateway card: its address, and a button that tests the connection and says what failed." to
+        "La carte de la passerelle : son adresse, et un bouton qui teste la connexion et dit ce qui a échoué.",
+
+    // « Noir pur » et « Halo » (`AppearanceSettings`).
+    "Pure black" to "Noir pur",
+    "True black backgrounds in dark mode, easier on OLED screens." to
+        "Des fonds noirs purs en mode sombre, plus doux pour les écrans OLED.",
+    "Halo" to "Halo",
+    "Soft colored light behind the top of each screen and under your messages and buttons. Off, everything is flat." to
+        "Une lumière colorée douce derrière le haut de chaque écran, et sous vos messages et boutons. Éteint, tout est plat.",
+
+    // L'anatomie des Réglages : le pied (version, passerelle), le curseur de taille de texte et
+    // sa mention sous la piste, et la description lue par les lecteurs d'écran du bouton de la carte.
+    "App version" to "Version de l’app",
+    "Text size" to "Taille du texte",
+    "Check connection" to "Vérifier la connexion",
+    "Défaut" to "Défaut",
+    "Smallest" to "La plus petite",
+    "Small" to "Petite",
+    "Large" to "Grande",
+    "Largest" to "La plus grande",
 )

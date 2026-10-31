@@ -8,7 +8,7 @@ import com.onyx.app.data.model.Transport
 /**
  * La configuration du serveur, telle que la montre la garde.
  *
- * Une montre n'a pas de grandes Réglages: deux champs au premier lancement, et c'est tout. La
+ * Une montre n'a pas de grandes Réglages : deux champs au premier lancement, et c'est tout. La
  * même adresse et la même clé que sur le téléphone suffisent, puisque le serveur est le même.
  */
 class WearSettings(context: Context) {
@@ -23,7 +23,7 @@ class WearSettings(context: Context) {
         apiKey = prefs.getString(KEY_KEY, null).orEmpty(),
         model = prefs.getString(KEY_MODEL, null).orEmpty(),
         transport = Transport.CHAT_COMPLETIONS,
-        // Une montre attend moins longtemps: mieux vaut un message clair qu'une attente muette.
+        // Une montre attend moins longtemps : mieux vaut un message clair qu'une attente muette.
         readTimeoutSeconds = 60L,
         callTimeoutSeconds = 600L,
     )

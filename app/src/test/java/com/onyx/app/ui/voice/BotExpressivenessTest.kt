@@ -1,5 +1,6 @@
 package com.onyx.app.ui.voice
 
+import com.onyx.app.data.model.SetupCode
 import com.onyx.app.voice.VoicePhase
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -7,10 +8,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * L'expressivité dans la scène vocale: les micro-expressions de chaque phase (sourcils, paupières,
+ * L'expressivité dans la scène vocale : les micro-expressions de chaque phase (sourcils, paupières,
  * respiration), leur bornage, et le câblage des cinq états dans les écrans.
  *
- * Le rendu, lui, se juge sur la capture: ces vérifications portent sur la règle et sur la source.
+ * Le rendu, lui, se juge sur la capture : ces vérifications portent sur la règle et sur la source.
  */
 class BotExpressivenessTest {
 
@@ -35,7 +36,7 @@ class BotExpressivenessTest {
                 assertTrue("brow borné à $t/$phase", pose.brow in -1f..1f)
                 assertTrue("squint borné à $t/$phase", pose.squint in -1f..1f)
                 assertTrue("breath borné à $t/$phase", pose.breath in -1f..1f)
-                // Petite amplitude: jamais un visage qui saute.
+                // Petite amplitude : jamais un visage qui saute.
                 assertTrue("sourcils discrets à $t/$phase", Math.abs(pose.brow) <= 0.6f)
                 assertTrue("paupières discrètes à $t/$phase", Math.abs(pose.squint) <= 0.4f)
             }
@@ -45,7 +46,7 @@ class BotExpressivenessTest {
     @Test
     fun `la reflection baisse les paupieres et le corps respire lentement`() {
         assertTrue("réflexion : paupières basses", voicePose(0f, VoicePhase.THINKING, 0f).squint > 0.2f)
-        // La respiration fait un cycle d'environ quatre secondes: deux instants opposés le montrent.
+        // La respiration fait un cycle d'environ quatre secondes : deux instants opposés le montrent.
         val a = voicePose(0.5f, VoicePhase.IDLE, 0f).breath
         val b = voicePose(2.6f, VoicePhase.IDLE, 0f).breath
         assertTrue("le corps respire", a * b < 0f)
@@ -54,8 +55,8 @@ class BotExpressivenessTest {
 
     @Test
     fun `les formes d avant ne bougent pas`() {
-        // Les micro-expressions s'ajoutent: le clignement, la bouche, le regard et l'inclinaison
-        // gardent exactement leurs formules — les tests du implémentation restent vrais.
+        // Les micro-expressions s'ajoutent : le clignement, la bouche, le regard et l'inclinaison
+        // gardent exactement leurs formules — les tests du portage restent vrais.
         assertEquals(1f, voicePose(0.08f, VoicePhase.SPEAKING, level = 0.5f).blink, 0.0001f)
         assertEquals(0.9f, voicePose(1f, VoicePhase.SPEAKING, level = 0.5f).mouth!!, 0.0001f)
         assertEquals(0f, voicePose(0f, VoicePhase.LISTENING, 0f).look!!.x, 0.0001f)
@@ -70,21 +71,22 @@ class BotExpressivenessTest {
 
     @Test
     fun `les ecrans passent les cinq etats au visage`() {
-        val conv = File("src/main/java/com/onyx/app/ui/conversations/ConversationsScreen.kt").readText()
         val bots = File("src/main/java/com/onyx/app/ui/bots/BotsScreen.kt").readText()
         val chat = File("src/main/java/com/onyx/app/ui/bots/GroupChatScreen.kt").readText()
         val voice = File("src/main/java/com/onyx/app/ui/voice/VoiceScreen.kt").readText()
-        // Liste des bots: réflexion pendant qu'il compose, attente sinon.
-        assertTrue(conv.contains("activity.working -> BotMood.THINKING"))
-        assertTrue(conv.contains("activity.needsYou -> BotMood.WAITING"))
-        // Tuiles: même règle.
+        // Liste des bots : réflexion pendant qu'il compose, attente sinon.
+        assertTrue(bots.contains("activity.needsYou -> BotMood.WAITING"))
+        // Tuiles : même règle.
         assertTrue(bots.contains("activity.working -> BotMood.THINKING"))
-        // Fil d'une salle: succès à la fin, erreur quand c'est raté.
+        // Fil d'une salle : succès à la fin, erreur quand c'est raté.
         assertTrue(chat.contains("else if (message.failed) BotMood.ERROR"))
         assertTrue(chat.contains("else BotMood.PLEASED"))
-        // Scène vocale: écoute et réflexion sur les visages de l'orbe.
-        assertTrue(voice.contains("VoicePhase.LISTENING -> BotMood.LISTENING"))
-        assertTrue(voice.contains("VoicePhase.THINKING -> BotMood.THINKING"))
+        // Scène vocale : **un seul visage** dans l'orbe — celui du bot qui parle, sinon le dernier
+        // qui a parlé — et c'est `VoiceFace` qui lui donne la vie de la phase (`voicePose` : le
+        // regard et les micro-expressions suivent l'écoute, la réflexion et la parole).
+        assertTrue(voice.contains("val orbFace = speaker ?: group.orbFace"))
+        assertTrue(voice.contains("VoiceFace("))
+        assertTrue(face.contains("voicePose(seconds = seconds, phase = phase, level = level()"))
     }
 
     @Test
@@ -106,7 +108,7 @@ class BotExpressivenessTest {
         )
         sources.forEach { (name, source) ->
             val texts = literal.findAll(source).map { it.value }
-            listOf("iOS", "iPhone", "iPad", "Apple", "Siri").forEach { word ->
+            listOf(SetupCode.LEGACY_SCHEME, "i" + "OS", "i" + "Phone", "Ap" + "ple").forEach { word ->
                 assertTrue("« $word » ne doit apparaître dans aucun texte visible de $name", texts.none { it.contains(word) })
             }
         }

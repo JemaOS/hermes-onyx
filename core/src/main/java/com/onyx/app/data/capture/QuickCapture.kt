@@ -1,14 +1,14 @@
 package com.onyx.app.data.capture
 
 /**
- * Une note prise en passant: ce que « capture rapide » recueille.
+ * Une note prise en passant : ce que « capture rapide » recueille.
  *
  * « Le plombier passe jeudi à dix » n'est pas une question, et la conversation qui se trouve
  * ouverte n'est pas l'endroit où elle se range. La note est gardée ici **au moment où elle est
  * prise**, et remise dès que le serveur répond — tout de suite en règle générale, plus tard si le
  * téléphone est hors ligne.
  *
- * Une note appartient au serveur et au profil qui servaient quand elle a été prise, et les attend:
+ * Une note appartient au serveur et au profil qui servaient quand elle a été prise, et les attend :
  * une note prise pour « Travail » ne part pas chez « Maison » parce que c'est Maison qui est
  * ouvert une heure plus tard.
  */
@@ -28,9 +28,9 @@ object CaptureCopy {
     const val Title = "Notes"
 
     /**
-     * Ce que l'agent reçoit: les notes, l'heure de chacune, et le fait que personne n'attend.
+     * Ce que l'agent reçoit : les notes, l'heure de chacune, et le fait que personne n'attend.
      *
-     * Même intention que le message du modèle, mot pour mot sur le fond: ranger là où ça va,
+     * Même intention que le message de la référence, mot pour mot sur le fond : ranger là où ça va,
      * répondre en quelques mots, ne rien demander en retour.
      */
     fun message(notes: List<CaptureNote>, whenLabel: (CaptureNote) -> String): String {
@@ -47,10 +47,10 @@ object CaptureCopy {
 
 /** Ce qu'une remise a donné. */
 enum class CaptureOutcome {
-    /** La ou les notes sont arrivées: elles ne sont plus à nous. */
+    /** La ou les notes sont arrivées : elles ne sont plus à nous. */
     FILED,
 
-    /** Elles n'ont pas pu partir: elles restent, et repartiront. */
+    /** Elles n'ont pas pu partir : elles restent, et repartiront. */
     WAITING,
 
     /** Rien à remettre (aucune note, ou aucune pour ce serveur-ci). */
@@ -58,9 +58,9 @@ enum class CaptureOutcome {
 }
 
 /**
- * La boîte des notes: ce qui attend, et ce qui peut partir.
+ * La boîte des notes : ce qui attend, et ce qui peut partir.
  *
- * La logique est ici, sans Android, pour être éprouvée sans appareil: la remise elle-même
+ * La logique est ici, sans Android, pour être éprouvée sans appareil : la remise elle-même
  * (`deliver`) et l'écriture sur le disque (`persist`) sont données de l'extérieur.
  */
 class CaptureInbox(
@@ -76,20 +76,20 @@ class CaptureInbox(
     /** Les notes pas encore remises, la plus ancienne d'abord. */
     val waiting: List<CaptureNote> get() = values.toList()
 
-    /** Vrai pendant qu'une remise est en cours: deux remises ne se chevauchent pas. */
+    /** Vrai pendant qu'une remise est en cours : deux remises ne se chevauchent pas. */
     var isFiling: Boolean = false
 
     /** Vrai quand au moins une note est prise pour ce serveur et ce profil-ci. */
     fun hasReady(server: String, profile: String?): Boolean =
         ready(server, profile).isNotEmpty()
 
-    /** Les notes qui peuvent partir maintenant: celles du serveur et du profil en service. */
+    /** Les notes qui peuvent partir maintenant : celles du serveur et du profil en service. */
     fun ready(server: String, profile: String?): List<CaptureNote> =
         values.filter { it.server == server && it.profile == profile }
 
     /**
-     * Prend une note. Faux pour une note vide: rien n'est gardé pour un texte blanc, comme le
-     * refus du modèle.
+     * Prend une note. Faux pour une note vide : rien n'est gardé pour un texte blanc, comme le
+     * refus de la référence.
      */
     fun add(text: String, server: String, profile: String?): Boolean {
         val clean = text.trim()
@@ -115,7 +115,7 @@ class CaptureInbox(
     /**
      * Remet ce qui peut partir, en un seul lot. Ce qui n'arrive pas reste et repartira.
      *
-     * Un lot déjà remis part **en entier**: une note qui a atteint le serveur ne repart jamais
+     * Un lot déjà remis part **en entier** : une note qui a atteint le serveur ne repart jamais
      * une seconde fois, sinon elle serait classée deux fois.
      */
     suspend fun file(server: String, profile: String?): CaptureOutcome {

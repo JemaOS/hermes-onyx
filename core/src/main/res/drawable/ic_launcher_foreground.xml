@@ -1,20 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Avant-plan de l'icône: le « O » d'Onyx, tracé comme la rune Othalan (ᛟ) — un losange
-  fermé et ses deux jambes croisées, mis à l'échelle dans la zone sûre de 66/108. C'est un
-  chemin géométrique (`Path`), pas une police: il sert l'icône monochrome d'Android 13+ et
-  la petite icône de notification, où Android ne garde que le canal alpha.
+  L'avant-plan du signe : LE CERCLE ET LA RUNE de la maison.
+
+  **Ce fichier obéit à la source unique.** Le trace et l'épaisseur sont *mot pour mot* ceux de
+  `com/onyx/app/ui/design/OnyxRune.kt`, eux-mêmes relevés sur la couche de premier plan de l'icône
+  adaptative (`ic_launcher_adaptive_foreground.xml`, lot de l'icône adaptative). Le verrou
+  `app/src/test/java/com/onyx/app/ui/identite/RuneSourceUniqueTest.kt` compare cette ressource au
+  trace de référence **et nomme ce fichier et sa ligne** dès que les deux divergent.
+
+  Le trace était auparavant **fermé** (`… L68.25,75.81Z`) : ses deux jambes se rejoignaient par une
+  barre en bas, ce que la rune de l'icône n'a pas. Deux signes voisins dans la même application,
+  c'est le défaut que la source unique supprime.
+
+  La ressource sert de **petite icône de notification** et de silhouette monochrome (Android n'en
+  garde que le canal alpha). Le trace reste écrit dans le canevas de 108 de la référence : c'est le
+  `<group>` qui l'enveloppe qui le met à l'échelle du carré, sans retoucher un seul sommet.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:pathData="M39.75,75.81L68.25,47.89L54.00,32.20L39.75,47.89L68.25,75.81Z"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="8.39"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+
+    <!-- Trois fois la taille du canevas, ramenée pour centrer la rune : le trace n'est pas retouché. -->
+    <group
+        android:scaleX="3"
+        android:scaleY="3"
+        android:translateX="-108"
+        android:translateY="-108">
+        <path
+            android:pathData="M47.15,64.73 L61.08,50.80 L54,43.27 L46.92,50.80 L60.85,64.73"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="3.88"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
 </vector>

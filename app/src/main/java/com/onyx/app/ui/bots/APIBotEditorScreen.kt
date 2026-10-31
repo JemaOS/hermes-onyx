@@ -1,5 +1,7 @@
 package com.onyx.app.ui.bots
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,7 +29,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * « Add Bot » sur la seule API Hermes (`APIBotEditor`).
  *
- * Un bot est l'un des profils du serveur: le nom de son dossier sous `~/.hermes/profiles`. Onyx
+ * Un bot est l'un des profils du serveur : le nom de son dossier sous `~/.hermes/profiles`. Onyx
  * ouvre son chat, celui que Hermes Desktop et le Dashboard montrent pour lui.
  */
 @Composable
@@ -44,7 +46,7 @@ fun APIBotEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(

@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * Répond à la question d'un agent depuis la notification, sans ouvrir l'app.
  *
  * La saisie vient d'un `RemoteInput` (l'action « Reply »). La réponse part par le même gateway que
- * la carte: `clarify.lock` pour une question, `sudo.respond` pour un mot de passe,
+ * la carte : `clarify.lock` pour une question, `sudo.respond` pour un mot de passe,
  * `secret.respond` pour un secret. La notification est retirée aussitôt — le champ ne doit pas
  * rester ouvert pendant l'appel — puis remplacée par son résultat.
  */
@@ -56,7 +56,7 @@ class QuestionActionReceiver : BroadcastReceiver() {
                 }
                 rpc.close()
             } catch (error: Exception) {
-                // L'app n'est pas ouverte: c'est la notification qui porte l'échec, sinon la
+                // L'app n'est pas ouverte : c'est la notification qui porte l'échec, sinon la
                 // question disparaîtrait sans qu'on sache si l'agent l'a reçue.
                 failed = true
             } finally {

@@ -18,7 +18,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 /**
  * L'image d'une caméra qui tourne, remplissant le cadre qu'on lui donne (`CameraPreview`).
  *
- * branche une `AVCaptureVideoPreviewLayer`; ici, CameraX: le même parti — la vue de
+ * référence branche une `AVCaptureVideoPreviewLayer` ; ici, CameraX : le même parti — la vue de
  * prévisualisation remplit son cadre, l'image est recadrée au centre, et rien n'est pris tant que
  * la personne n'a pas déclenché.
  */

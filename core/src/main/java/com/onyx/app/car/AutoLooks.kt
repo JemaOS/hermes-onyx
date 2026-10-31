@@ -45,5 +45,5 @@ enum class AutoVoiceLook(val id: String, val label: String, val blurb: String) {
 /** Seules ces deux cartes ont une action réelle dans le Car App actuel. */
 enum class AutoStart { ASK, NEW_CHAT }
 
-/** Android Auto ne prête pas de micro au Car App: seuls ces deux états sont donc affichés. */
+/** Android Auto ne prête pas de micro au Car App : seuls ces deux états sont donc affichés. */
 enum class AutoVoiceState { THINKING, SPEAKING }

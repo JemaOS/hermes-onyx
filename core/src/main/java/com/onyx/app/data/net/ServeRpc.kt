@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Le canal JSON-RPC du Dashboard Hermes.
  *
- * Comme `HermesServeClient.call`: un ticket à usage unique
+ * Miroir de `HermesServeClient.call` côté référence : un ticket à usage unique
  * (`POST api/auth/ws-ticket`), puis `ws(s)://…/api/ws?ticket=…` et des trames JSON-RPC 2.0.
  * C'est par là que passent les commandes `/`, l'écriture d'un profil de bot et les réponses aux
  * interruptions — les routes REST ne les portent pas.
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class ServeRpc(
     private val config: ServerConfig,
     /**
-     * Le même bocal à cookies que le client REST: le ticket est demandé avec la session ouverte
+     * Le même bocal à cookies que le client REST : le ticket est demandé avec la session ouverte
      * par le login, sinon le Dashboard le refuse.
      */
     private val httpClient: OkHttpClient = ServeClient.clientFor(config),
@@ -51,13 +51,13 @@ class ServeRpc(
      * Les abonnés aux notifications du serveur (`method == "event"`).
      *
      * Le Dashboard pousse les événements d'un tour (`message.delta`, `message.complete`,
-     * `session.info`, `tool.start`…) sur le même socket que les réponses RPC: ce sont des
+     * `session.info`, `tool.start`…) sur le même socket que les réponses RPC : ce sont des
      * trames sans `id`, que le canal ignorait jusqu'ici. C'est par là que passe le chat du
      * transport Dashboard (voir [HermesServeChat]).
      */
     private val listeners = ConcurrentHashMap<String, (ServeEvent) -> Unit>()
 
-    /** S'abonne aux notifications du serveur; rend la clé à passer à [removeListener]. */
+    /** S'abonne aux notifications du serveur ; rend la clé à passer à [removeListener]. */
     fun addListener(listener: (ServeEvent) -> Unit): String {
         val key = UUID.randomUUID().toString()
         listeners[key] = listener
@@ -68,7 +68,7 @@ class ServeRpc(
         listeners.remove(key)
     }
 
-    /** Distribue une notification à tous les abonnés; un abonné fautif ne bloque pas les autres. */
+    /** Distribue une notification à tous les abonnés ; un abonné fautif ne bloque pas les autres. */
     private fun notify(event: ServeEvent) {
         for (listener in listeners.values) {
             runCatching { listener(event) }
@@ -86,12 +86,18 @@ class ServeRpc(
     /** Ouvre le canal si besoin. */
     suspend fun connect() = withContext(Dispatchers.IO) {
         if (isReady) return@withContext
-        // Le ticket est demandé avec la session du Dashboard: on s'assure d'abord qu'elle est
-        // ouverte (bocal à cookies partagé par tout le processus). Un Dashboard sans login
-        // exigé passe la sonde de `login` sans rien faire; l'échec éventuel laisse le ticket
-        // parler de lui-même.
-        runCatching { ServeClient(config).login() }
-        val ticket = ticket()
+        // La session du Dashboard est ouverte d'abord (bocal à cookies partagé par tout le
+        // processus) : le ticket part avec elle. Un Dashboard sans login exigé passe la sonde de
+        // `login` sans rien faire. L'échec n'est pas avalé pour autant : si le ticket est ensuite
+        // refusé, c'est la connexion qui dit *pourquoi* (identifiants refusés, adresse
+        // introuvable) au lieu d'un 401 nu — ou d'une attente sans fin.
+        val signInFailure = runCatching { ServeClient(config).login() }.exceptionOrNull()
+        val ticket = try {
+            ticket()
+        } catch (error: TransportError.Http) {
+            if (error.status == 401 && signInFailure != null) throw signInFailure
+            throw error
+        }
         val base = config.serveBase
         val wsBase = when {
             base.startsWith("https://") -> "wss://" + base.removePrefix("https://")
@@ -103,6 +109,9 @@ class ServeRpc(
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", OnyxHttp.USER_AGENT)
+            // « Une clé » : le serveur compagnon exige la clé d'installation sur le WebSocket
+            // comme sur le REST — c'est son identité, sans cookie de session côté app.
+            .apply { if (config.servesWithKey) header("Authorization", "Bearer ${config.effectiveApiKey}") }
             .build()
 
         val opened = CompletableDeferred<Boolean>()
@@ -135,7 +144,7 @@ class ServeRpc(
                     }
                     return
                 }
-                // Notification du serveur: une trame d'événement, sans `id`.
+                // Notification du serveur : une trame d'événement, sans `id`.
                 if (frame["method"]?.asString() != "event") return
                 val params = frame["params"].asObject() ?: return
                 val event = ServeEvent(
@@ -168,7 +177,7 @@ class ServeRpc(
         withTimeoutOrNull(10_000) { opened.await() }
     }
 
-    /** Un appel JSON-RPC; le profil est ajouté aux paramètres comme. */
+    /** Un appel JSON-RPC ; le profil est ajouté aux paramètres comme sur la référence. */
     suspend fun call(method: String, params: JsonObject = buildJsonObject { }, timeoutMillis: Long = 60_000): JsonElement {
         connect()
         val webSocket = socket ?: throw TransportError.Unreachable(OnyxLocalization["no channel to the Dashboard"])
@@ -207,6 +216,9 @@ class ServeRpc(
             .post("{}".toRequestBody())
             .header("Content-Type", "application/json")
             .header("User-Agent", OnyxHttp.USER_AGENT)
+            // « Une clé » : la clé d'installation accompagne la demande de ticket, exactement
+            // comme elle accompagne chaque appel `/api/*`.
+            .apply { if (config.servesWithKey) header("Authorization", "Bearer ${config.effectiveApiKey}") }
             .build()
         try {
             httpClient.newCall(request).execute().use { response ->
@@ -222,7 +234,7 @@ class ServeRpc(
     }
 
     /**
-     * Le profil, sur les seules méthodes qui l'acceptent: les autres refusent une clé inconnue.
+     * Le profil, sur les seules méthodes qui l'acceptent : les autres refusent une clé inconnue.
      */
     private fun withProfile(method: String, params: JsonObject): JsonObject {
         val profile = config.effectiveProfile ?: return params
@@ -236,7 +248,7 @@ class ServeRpc(
     private fun String.toRequestBody() = this.toRequestBody(JSON_MEDIA_TYPE)
 
     private companion object {
-        /** Les méthodes du gateway qui prennent un profil; les autres rejettent la clé. */
+        /** Les méthodes du gateway qui prennent un profil ; les autres rejettent la clé. */
         val PROFILE_SCOPED = setOf(
             "chat.send", "session.create", "session.list", "session.resume",
             "complete.slash", "skills.list", "skills.read", "tools.list",
@@ -250,9 +262,9 @@ private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 /**
  * Une notification du Dashboard (`method == "event"`).
  *
- * `type`: `message.delta`, `reasoning.delta`, `tool.start`, `tool.complete`, `status.update`,
- * `message.complete`, `session.info`, `error`… `sessionId`: la session runtime concernée.
- * `payload`: le corps varié de l'événement (texte, usage, drapeaux), lu à la demande.
+ * `type` : `message.delta`, `reasoning.delta`, `tool.start`, `tool.complete`, `status.update`,
+ * `message.complete`, `session.info`, `error`… `sessionId` : la session runtime concernée.
+ * `payload` : le corps varié de l'événement (texte, usage, drapeaux), lu à la demande.
  */
 data class ServeEvent(
     val type: String,

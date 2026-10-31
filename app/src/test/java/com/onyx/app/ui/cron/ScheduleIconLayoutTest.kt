@@ -9,13 +9,17 @@ class ScheduleIconLayoutTest {
     private val bot = File("src/main/java/com/onyx/app/ui/cron/BotSchedulesScreen.kt").readText()
 
     @Test
-    fun `run now pause et resume utilisent les variantes outline `() {
+    fun `run now pause et resume utilisent les variantes outline de la référence`() {
         assertTrue(cron.contains("MenuItem(\"Run now\", Symbols.BoltOutline)"))
         assertTrue(cron.contains("if (job.paused) Symbols.PlayOutline else Symbols.PauseOutline"))
         assertTrue(bot.contains("if (job.paused) Symbols.PlayOutline else Symbols.PauseOutline"))
-        assertTrue(cron.contains("ActionRow(\"Run now\", Symbols.BoltOutline"))
-        assertTrue(cron.contains("ActionRow(\"Edit\", Symbols.Pencil"))
-        assertTrue(cron.contains("ActionRow(\"Delete\", Symbols.Trash"))
+        // LOT anatomie-des-contenus : « Run now » et « Pause » sont devenus les **pilules** de la
+        // carte de résumé (noir rempli / gris), et le crayon et la corbeille vivent dans la **ligne
+        // d'actions** de l'en-tête. Aucune fonction n'a disparu.
+        assertTrue(cron.contains("symbol = Lucide.Zap,"))
+        assertTrue(cron.contains("if (job.paused) Lucide.Play else Lucide.Pause"))
+        assertTrue(cron.contains("symbol = Lucide.Pencil,"))
+        assertTrue(cron.contains("symbol = Lucide.Trash2,"))
         listOf(
             "ic_sym_bolt.xml",
             "ic_sym_play.xml",
@@ -35,13 +39,16 @@ class ScheduleIconLayoutTest {
 
     @Test
     fun `le point cron mesure neuf points et reste aligne en haut`() {
+        // LOT anatomie-des-contenus : le rond d'état de couleur est remplacé par **la vignette
+        // d'icône de l'anatomie** (`ContentRow(symbol = …)`) — l'état est dit par la colonne de
+        // droite, en monospace, comme dans la source (`ScheduledPage.kt:325`).
         assertTrue(cron.contains("CronStatusDotSize = 9.dp"))
-        assertTrue(cron.contains(".size(CronStatusDotSize)"))
-        assertTrue(cron.contains("verticalAlignment = Alignment.Top"))
+        assertTrue(cron.contains("symbol = if (job.lastError != null"))
+        assertTrue(cron.contains("statusLabel = statusLabel"))
     }
 
     @Test
-    fun `sans Dashboard cron montre la cloche question et les etats vides `() {
+    fun `sans Dashboard cron montre la cloche question et les etats vides de la référence`() {
         // `ContentUnavailableView("No gateway configured", systemImage: "clock.badge.questionmark")`
         assertTrue(cron.contains("title = \"No gateway configured\""))
         assertTrue(cron.contains("symbol = Symbols.ClockBadgeQuestionmark"))
@@ -50,8 +57,12 @@ class ScheduleIconLayoutTest {
         assertTrue(cron.contains("symbol = Symbols.Clock,"))
         assertTrue(cron.contains("Schedule Onyx to run a prompt every hour"))
         assertTrue(cron.contains("OnyxEmptyState("))
-        // `ContentUnavailableView("Couldn't load jobs", systemImage: "wifi.exclamationmark")`
-        assertTrue(cron.contains("OnyxIcon(Symbols.WifiExclamation, tint = theme.warning, size = 16.dp)"))
+        // `ContentUnavailableView("Couldn't load jobs", systemImage: "wifi.exclamationmark")` : le
+        // signe de la panne vit désormais dans le **panneau commun des états**, qui remplace la
+        // rangée locale — même symbole, et « Réessayer » dans les deux cas (lot « états manquants »).
+        assertTrue(cron.contains("OnyxTroublePanel(problem = problem, onRetry = viewModel::refresh)"))
+        val trouble = File("src/main/java/com/onyx/app/ui/common/ConnectionProblemCard.kt").readText()
+        assertTrue(trouble.contains("Symbols.WifiExclamation"))
     }
 
     @Test

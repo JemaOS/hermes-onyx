@@ -8,10 +8,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Libellés des écrans relevés par l'audit de localisation (voir LOCALIZATION-AUDIT.md):
+ * Libellés des écrans relevés par l'audit de localisation (voir LOCALIZATION-AUDIT.md) :
  * états vides sans Dashboard, visage d'un bot, exemples des horaires, terminal et voix.
  *
- * Les caractères accentués et les gabarits `%1$s` sont vérifiés séparément: c'est ce qui casse
+ * Les caractères accentués et les gabarits `%1$s` sont vérifiés séparément : c'est ce qui casse
  * en premier quand une traduction est recopiée à la main.
  */
 class ScreenLabelsLocalizationTest {
@@ -75,7 +75,7 @@ class ScreenLabelsLocalizationTest {
 
     @Test
     fun `la phrase du gabarit d'horaire garde son mot et suit la langue`() {
-        // L'exemple affiché sous un préfixe parlé: le mot est à l'utilisateur, la phrase à Onyx.
+        // L'exemple affiché sous un préfixe parlé : le mot est à l'utilisateur, la phrase à Onyx.
         val english = "Claude" + OnyxLocalization.translate(", what's using port 8880?", Locale.ENGLISH)
         val french = "Claude" + OnyxLocalization.translate(", what's using port 8880?", fr)
         assertEquals("Claude, what's using port 8880?", english)
@@ -102,6 +102,20 @@ class ScreenLabelsLocalizationTest {
     }
 
     @Test
+    fun `les en tetes de section des Reglages parlent francais`() {
+        // Deux en-têtes de `OnyxFormSection` restaient en anglais au milieu des autres (« PHONE »,
+        // « ACCOUNT »), relevés sur 1.0.0+546, 411 dp.
+        assertEquals("TÉLÉPHONE", OnyxLocalization.translate("Phone", fr).uppercase())
+        assertEquals("COMPTE", OnyxLocalization.translate("Account", fr).uppercase())
+        // Et les autres en-têtes, déjà français, ne bougent pas.
+        assertEquals("PASSERELLE", OnyxLocalization.translate("Gateway", fr).uppercase())
+        assertEquals("VOIX", OnyxLocalization.translate("Voice", fr).uppercase())
+        // En anglais, rien ne change.
+        assertEquals("Phone", OnyxLocalization.translate("Phone", Locale.ENGLISH))
+        assertEquals("Account", OnyxLocalization.translate("Account", Locale.ENGLISH))
+    }
+
+    @Test
     fun `les accents arrivent intacts dans le texte rendu`() {
         // Chaque traduction porte ses accents écrits tels quels, pas une translittération ASCII.
         val fragments = linkedMapOf(
@@ -122,7 +136,7 @@ class ScreenLabelsLocalizationTest {
             assertTrue("« $fragment » attendu dans : $rendered", rendered.contains(fragment))
         }
 
-        // Aucune séquence d'octets mal décodée: les caractères sont rendus, pas aplatis.
+        // Aucune séquence d'octets mal décodée : les caractères sont rendus, pas aplatis.
         val all = fragments.keys.joinToString(" ") { OnyxLocalization.translate(it, fr) }
         listOf("Ã", "Â", "�").forEach { mojibake ->
             assertFalse("texte mal décodé ($mojibake) : $all", all.contains(mojibake))
@@ -134,7 +148,7 @@ class ScreenLabelsLocalizationTest {
         // Un libellé traduit doit garder le nombre et l'ordre de ses %n$s, sinon String.format lève.
         assertEquals(
             "Rien dans À faire",
-            OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["To do", fr], locale = fr),
+            OnyxLocalization.format("Nothing in %1\$s", OnyxLocalization["To do"], locale = fr),
         )
         assertEquals(
             "Enregistré sur le gateway sous my_secret",
@@ -162,7 +176,7 @@ class ScreenLabelsLocalizationTest {
         val source = form.readText()
         assertTrue(source.contains("localizeDescription: Boolean = true"))
         assertTrue(source.contains("localize = localizeDescription"))
-        // La description d'un état vide est un libellé de Onyx: elle ne doit plus être figée.
+        // La description d'un état vide est un libellé de Onyx : elle ne doit plus être figée.
         assertFalse(
             "la description de OnyxEmptyState est repassée en localize = false",
             source.contains("description?.let { text ->\n            BasicText(\n                text = text,\n                localize = false"),

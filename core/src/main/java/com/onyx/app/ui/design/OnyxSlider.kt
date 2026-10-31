@@ -15,9 +15,9 @@ import androidx.compose.ui.unit.dp
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Le curseur: une piste fine, et un pouce blanc qui glisse.
+ * Le curseur de la référence : une piste fine, et un pouce blanc qui glisse.
  *
- * Compose n'en a pas sans Material: celui-ci est dessiné, et se règle au glissement comme au tap.
+ * Compose n'en a pas sans Material : celui-ci est dessiné, et se règle au glissement comme au tap.
  */
 @Composable
 fun OnyxSlider(

@@ -18,14 +18,14 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * Le niveau tenu pendant qu'un synthétiseur parle: Android n'expose aucune amplitude de la voix
+ * Le niveau tenu pendant qu'un synthétiseur parle : Android n'expose aucune amplitude de la voix
  * qu'il fabrique, et une bouche fermée pendant qu'on entend une voix serait un mensonge. Quand la
  * voix est de l'audio (Kokoro, Hermes), c'est la **vraie** amplitude des échantillons qui décide.
  */
 private const val SYNTHESISED_SPEAKING_LEVEL = 0.62f
 
 /**
- * La lecture des réponses: voix Android, serveur Kokoro ou voix du Hermes configuré.
+ * La lecture des réponses : voix Android, serveur Kokoro ou voix du Hermes configuré.
  * Les deux voix distantes retombent sur le synthétiseur Android si le serveur ne répond pas.
  */
 class SpeechOutput(context: Context) {
@@ -42,7 +42,7 @@ class SpeechOutput(context: Context) {
     private var pendingLanguage: String? = null
     private var rate: Float = 1.0f
 
-    /** La vitesse de la réplique en cours: celle de son bot, sinon celle d'Onyx. */
+    /** La vitesse de la réplique en cours : celle de son bot, sinon celle d'Onyx. */
     private var speakingRate: Float = 1.0f
 
     /** Le bot dont la réplique se lit, pour qu'elle sorte de **sa** voix. */
@@ -61,7 +61,7 @@ class SpeechOutput(context: Context) {
     private var remoteActive = false
 
     /**
-     * Vrai quand la réponse se joue dans l'écouteur (téléphone levé à l'oreille): le
+     * Vrai quand la réponse se joue dans l'écouteur (téléphone levé à l'oreille) : le
      * synthétiseur prend alors les attributs d'un appel, comme la lecture distante.
      */
     var earRouting: Boolean = false
@@ -70,20 +70,22 @@ class SpeechOutput(context: Context) {
     private var replyVoice = ReplyVoice.ON_DEVICE
     private var kokoroBaseUrl = ""
     private var kokoroVoice = "am_onyx(2)+bm_george(1)"
+    /** Le jeton du service vocal protégé, vide quand il ne l'est pas (`KokoroSpeechClient`). */
+    private var kokoroToken = ""
     private var hermesServer: ServerConfig? = null
 
     /**
-     * La voix réglée pour chaque bot (`Settings.botVoices`) et les noms de la salle: c'est ce qui
+     * La voix réglée pour chaque bot (`Settings.botVoices`) et les noms de la salle : c'est ce qui
      * fait qu'un bot lit **de sa voix**, et que deux bots ne lisent pas de la même.
      */
     private var botVoices: Map<String, BotVoice> = emptyMap()
     private var botNames: List<String> = emptyList()
 
-    /** Les voix que le serveur Kokoro a données: ce parmi quoi un bot reçoit la sienne. */
+    /** Les voix que le serveur Kokoro a données : ce parmi quoi un bot reçoit la sienne. */
     private var kokoroVoices: List<String> = emptyList()
 
     /**
-     * Le niveau de la voix qui se lit, de 0 à 1: la vraie amplitude des échantillons quand la voix
+     * Le niveau de la voix qui se lit, de 0 à 1 : la vraie amplitude des échantillons quand la voix
      * est de l'audio (Kokoro, Hermes), un niveau tenu tant que le synthétiseur parle sinon — il
      * n'expose aucune mesure. C'est ce qui fait battre la bouche du visage de la scène vocale.
      */
@@ -131,6 +133,8 @@ class SpeechOutput(context: Context) {
         voice: ReplyVoice,
         kokoroUrl: String,
         kokoroVoice: String,
+        /** Le jeton du service vocal (Réglages → Voix → Jeton de la voix) ; vide : aucun en-tête. */
+        kokoroToken: String = "",
         hermesServer: ServerConfig?,
         /** La voix réglée pour chaque bot, et les voix que le serveur Kokoro a données. */
         botVoices: Map<String, BotVoice> = emptyMap(),
@@ -139,13 +143,14 @@ class SpeechOutput(context: Context) {
         replyVoice = voice
         kokoroBaseUrl = kokoroUrl
         this.kokoroVoice = kokoroVoice
+        this.kokoroToken = kokoroToken
         this.hermesServer = hermesServer
         this.botVoices = botVoices
         this.kokoroVoices = kokoroVoices
     }
 
     /**
-     * Les bots de la salle: leurs noms décident de quelle voix chacun reçoit
+     * Les bots de la salle : leurs noms décident de quelle voix chacun reçoit
      * ([com.onyx.app.voice.BotVoices]), pour que deux bots ne lisent pas de la même.
      */
     fun setBotRoster(names: List<String>) {
@@ -166,7 +171,7 @@ class SpeechOutput(context: Context) {
     /**
      * La réponse se joue dans l'écouteur (capteur de proximité) ou revient au haut-parleur.
      *
-     * `TextToSpeech` ne se réachemine pas en cours d'énoncé: le nouvel attribut s'applique à
+     * `TextToSpeech` ne se réachemine pas en cours d'énoncé : le nouvel attribut s'applique à
      * l'énoncé suivant, et c'est `VoiceSession` qui réémet le reste de la phrase s'il faut.
      */
     fun setEarRouting(atEar: Boolean) {
@@ -187,7 +192,7 @@ class SpeechOutput(context: Context) {
     }
 
     /**
-     * Les voix installées du synthétiseur, réduites à ce qui décide ([SpokenVoice]): c'est parmi
+     * Les voix installées du synthétiseur, réduites à ce qui décide ([SpokenVoice]) : c'est parmi
      * elles qu'un bot reçoit une voix de son cru.
      */
     fun installedVoices(): List<SpokenVoice> {
@@ -202,7 +207,7 @@ class SpeechOutput(context: Context) {
             SpokenVoice(
                 id = id,
                 language = runCatching { voice.locale?.toLanguageTag() }.getOrNull().orEmpty(),
-                // `Voice.QUALITY_HIGH` et au-dessus sont les voix « enhanced » d'Android: elles
+                // `Voice.QUALITY_HIGH` et au-dessus sont les voix « enhanced » d'Android : elles
                 // passent avant les autres dans la répartition.
                 quality = if (voice.quality >= android.speech.tts.Voice.QUALITY_HIGH) 2 else 1,
             )
@@ -210,18 +215,18 @@ class SpeechOutput(context: Context) {
     }
 
     /**
-     * La voix que le synthétiseur donne à une réplique sans bot (`defaultVoice` d'Android): c'est
+     * La voix que le synthétiseur donne à une réplique sans bot (`defaultVoice` d'Android) : c'est
      * la voix d'Onyx, celle que la répartition laisse à un bot qui n'a pas la sienne.
      */
     fun defaultVoiceId(): String? =
         runCatching { engine?.defaultVoice?.name }.getOrNull()?.takeIf { it.isNotEmpty() }
 
     /**
-     * La voix avec laquelle le synthétiseur lit à partir de maintenant: **celle du bot**
+     * La voix avec laquelle le synthétiseur lit à partir de maintenant : **celle du bot**
      * (`BotVoices`), ou la voix d'Onyx quand il n'en a pas.
      *
      * C'est ce qui fait que deux bots ne lisent pas de la même voix, et qu'aucune réplique n'est
-     * jamais lue avec une hauteur inventée: le réglage du bot décide, lui seul.
+     * jamais lue avec une hauteur inventée : le réglage du bot décide, lui seul.
      */
     private fun applyOnDeviceVoice(speaker: String?) {
         val device = engine ?: return
@@ -244,7 +249,7 @@ class SpeechOutput(context: Context) {
         }
     }
 
-    /** La langue de base dans laquelle on lit (« fr »): celle demandée, sinon celle du moteur. */
+    /** La langue de base dans laquelle on lit (« fr ») : celle demandée, sinon celle du moteur. */
     private fun voiceLanguage(): String {
         val tag = pendingLanguage
             ?: runCatching { engine?.voice?.locale?.toLanguageTag() }.getOrNull()
@@ -253,11 +258,11 @@ class SpeechOutput(context: Context) {
     }
 
     /**
-     * Lit un texte; la lecture précédente est interrompue.
+     * Lit un texte ; la lecture précédente est interrompue.
      *
-     * `speaker`: de qui sont ces mots — le profil d'un bot, lu **de sa voix** (`BotVoices`); rien
+     * `speaker` : de qui sont ces mots — le profil d'un bot, lu **de sa voix** (`BotVoices`) ; rien
      * pour Onyx, qui lit de la sienne. Une réplique de bot n'est jamais lue de la voix d'Onyx avec
-     * une hauteur inventée: c'est sa voix qui change.
+     * une hauteur inventée : c'est sa voix qui change.
      */
     fun speak(text: String, languageTag: String? = null, speaker: String? = null) {
         val clean = text.trim()
@@ -269,7 +274,7 @@ class SpeechOutput(context: Context) {
         playbackBase = 0
         paused = false
         speakingAs = speaker
-        // La vitesse du bot, quand il en a une: sinon celle d'Onyx, telle quelle.
+        // La vitesse du bot, quand il en a une : sinon celle d'Onyx, telle quelle.
         speakingRate = BotVoices.speed(speaker, botVoices, rate)
         if (replyVoice == ReplyVoice.ON_DEVICE) {
             applyOnDeviceVoice(speaker)
@@ -279,7 +284,7 @@ class SpeechOutput(context: Context) {
         }
     }
 
-    /** Met la lecture en pause sans perdre le texte; un téléchargement pas encore joué recommencera. */
+    /** Met la lecture en pause sans perdre le texte ; un téléchargement pas encore joué recommencera. */
     fun pause() {
         if (currentText == null || paused) return
         paused = true
@@ -322,7 +327,7 @@ class SpeechOutput(context: Context) {
     /** Coupe la lecture — c'est ce que fait l'interruption (« barge-in »). */
     fun stop() {
         cancelRemote()
-        // Invalider d'abord: certains moteurs envoient encore `onDone` depuis `stop`.
+        // Invalider d'abord : certains moteurs envoient encore `onDone` depuis `stop()`.
         activeUtterance = null
         currentText = null
         currentOffset = 0
@@ -351,13 +356,13 @@ class SpeechOutput(context: Context) {
         val token = ++remoteSequence
         _isSpeaking.value = true
         // Tant que rien n'est mesuré (une voix encodée n'expose pas ses échantillons, ou le
-        // premier morceau n'est pas encore écrit), le niveau tient: la bouche du visage ne reste
+        // premier morceau n'est pas encore écrit), le niveau tient : la bouche du visage ne reste
         // pas fermée pendant qu'une voix se fait entendre.
         _replyLevel.value = SYNTHESISED_SPEAKING_LEVEL
-        // La voix Kokoro de ce bot: la sienne, sinon celle d'Onyx. Hermes a la sienne, une pour
+        // La voix Kokoro de ce bot : la sienne, sinon celle d'Onyx. Hermes a la sienne, une pour
         // tous — son réglage est celui du serveur.
         val voice = if (replyVoice == ReplyVoice.KOKORO) {
-            BotVoices.kokoro(speakingAs, botVoices, kokoroVoice, kokoroVoices, botNames) ?: kokoroVoice
+            BotVoices.kokoroFor(speakingAs, botVoices, kokoroVoice, kokoroVoices, botNames)
         } else {
             kokoroVoice
         }
@@ -368,7 +373,7 @@ class SpeechOutput(context: Context) {
                         if (normalizedKokoroBase(kokoroBaseUrl) == null || voice.isBlank()) {
                             throw IllegalStateException("Kokoro is not configured")
                         }
-                        KokoroSpeechClient().speak(text, kokoroBaseUrl, voice, speakingRate)
+                        KokoroSpeechClient(token = kokoroToken).speak(text, kokoroBaseUrl, voice, speakingRate)
                     }
                     ReplyVoice.HERMES -> {
                         val server = hermesServer ?: throw IllegalStateException("Hermes is not configured")
@@ -445,9 +450,9 @@ class SpeechOutput(context: Context) {
         val id = "onyx.reply.$utteranceSequence"
         activeUtterance = id
         engine?.setSpeechRate(speakingRate)
-        // Le synthétiseur n'expose aucune amplitude: la bouche du visage bat sur ce niveau tenu.
+        // Le synthétiseur n'expose aucune amplitude : la bouche du visage bat sur ce niveau tenu.
         _replyLevel.value = SYNTHESISED_SPEAKING_LEVEL
-        // Les attributs suivent la sortie du moment: média, ou appel dans l'écouteur.
+        // Les attributs suivent la sortie du moment : média, ou appel dans l'écouteur.
         applyEarAttributes()
         _isSpeaking.value = true
         engine?.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)

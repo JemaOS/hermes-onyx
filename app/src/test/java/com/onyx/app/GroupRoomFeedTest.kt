@@ -29,10 +29,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le fil d'une salle de bots: ce qui y a été dit, ce que la personne y écrit, et les réponses que
+ * Le fil d'une salle de bots : ce qui y a été dit, ce que la personne y écrit, et les réponses que
  * les bots écrivent avant que la salle ne les ait.
  *
- * Le modèle est `GroupFeed`: le journal lu
+ * La référence est `GroupFeed` (Echo/Services/Transport/ServerGroups:647) : le journal lu
  * après un curseur, un message envoyé qui reste à l'écran tant que la salle ne l'a pas, et un refus
  * du serveur qui se lit au lieu de faire disparaître ce qui a été écrit.
  */
@@ -49,7 +49,7 @@ class GroupRoomFeedTest {
     private var retried: Pair<String, String>? = null
     private var approved: Triple<String, GroupApproval, String>? = null
     private var live: List<GroupLiveSession> = emptyList()
-    /** Ce que chaque session cachée a envoyé, dans l'ordre: `since` rogne, comme Hermes. */
+    /** Ce que chaque session cachée a envoyé, dans l'ordre : `since` rogne, comme Hermes. */
     private var sessionFeeds = mutableMapOf<String, List<JsonElement>>()
     private var desktop: List<GroupRoom> = emptyList()
     private val methods = mutableListOf<String>()
@@ -113,14 +113,14 @@ class GroupRoomFeedTest {
 
         override suspend fun sessionEvents(session: String, since: Int): GroupSessionSlice {
             methods += "session.events.since"
-            // Comme `session.events.since`: ce qui suit le dernier événement lu, et rien avant.
+            // Comme `session.events.since` : ce qui suit le dernier événement lu, et rien avant.
             val all = sessionFeeds[session] ?: emptyList()
             return GroupSessionSlice(events = all.drop(since), latest = all.size)
         }
     }
 
     private var status = GroupState()
-    /** L'horloge du fil: celle du téléphone, pour être d'accord avec `GroupDraft.read`. */
+    /** L'horloge du fil : celle du téléphone, pour être d'accord avec `GroupDraft.read`. */
     private var clockNow = System.currentTimeMillis()
 
     private val room = GroupRoom(
@@ -156,7 +156,7 @@ class GroupRoomFeedTest {
         assertEquals(2.0, state.seenMark!!, 0.0001)
         assertTrue("le premier journal est lu", state.loaded)
         assertNull(state.problem)
-        // Rien n'a été redemandé deux fois: le curseur est celui du journal.
+        // Rien n'a été redemandé deux fois : le curseur est celui du journal.
         assertEquals(2, state.rows.size)
 
         // Ce qui est plus ancien que le curseur ne revient pas.
@@ -178,7 +178,7 @@ class GroupRoomFeedTest {
         assertEquals(listOf(Triple("onyx-1", "Bonjour à tous", id)), sent)
         assertEquals("le journal ne l'a pas encore", 1, feed.state.value.sending.size)
 
-        // La salle l'a: il quitte l'attente, et il est là par le journal (son propre texte).
+        // La salle l'a : il quitte l'attente, et il est là par le journal (son propre texte).
         events += message(1, "message.user", "desktop", "Bonjour à tous")
         feed.look()
 
@@ -210,7 +210,7 @@ class GroupRoomFeedTest {
         assertTrue(state.problem!!.contains("unknown room onyx-1"))
         assertTrue("le fil est vide mais rien n'est inventé", state.events.isEmpty())
 
-        // Ce qui a été écrit reste à l'écran: il ne disparaît pas en silence.
+        // Ce qui a été écrit reste à l'écran : il ne disparaît pas en silence.
         val id = feed.beginSend("Bonjour")
         feed.deliver(id, "Bonjour")
         assertEquals(1, feed.state.value.sending.size)
@@ -241,7 +241,7 @@ class GroupRoomFeedTest {
         assertEquals("un bot écrit", writing, feed.state.value.writing)
         assertTrue("la salle travaille", feed.state.value.busy)
 
-        // La salle l'a maintenant: le brouillon part, la réponse est dans le fil.
+        // La salle l'a maintenant : le brouillon part, la réponse est dans le fil.
         events += message(2, "message.member", "scout", "Falls Loop est ouverte")
         status = GroupState()
         feed.look()
@@ -287,7 +287,7 @@ class GroupRoomFeedTest {
         feed.lookAtDrafts()
         assertEquals(1, feed.state.value.shownDrafts.size)
 
-        // La réponse arrive dans le journal: le brouillon a sa ligne dans le fil, une seule.
+        // La réponse arrive dans le journal : le brouillon a sa ligne dans le fil, une seule.
         events += message(2, "message.member", "scout", "Falls Loop est ouverte.")
         feed.look()
         feed.lookAtDrafts()
@@ -413,7 +413,7 @@ class GroupRoomFeedTest {
         val done = listOf(said.first(), message(2, "room.activity", null, ""))
         val drawn = done.filter { it.isMessage }
         assertEquals(1, roomItemCount(GroupRoomFeedState(room, events = done), roomPage(drawn, null), drawn))
-        // Rien dit: l'ouverture de la salle.
+        // Rien dit : l'ouverture de la salle.
         assertEquals(1, roomItemCount(GroupRoomFeedState(room), RoomPage(emptyList(), 0, 0), emptyList()))
 
         val approval = GroupApproval.from(
@@ -431,7 +431,7 @@ class GroupRoomFeedTest {
         )
         // La ligne, le message en route, la salle qui attend, la carte, la relance, le refus.
         assertEquals(6, roomItemCount(busy, page, said))
-        // Une carte répondue se range: sa ligne disparaît (la salle attend encore la personne).
+        // Une carte répondue se range : sa ligne disparaît (la salle attend encore la personne).
         assertEquals(4, roomItemCount(busy.copy(answering = setOf("req-1", "t9")), page, said))
     }
 }

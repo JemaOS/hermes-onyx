@@ -1,6 +1,6 @@
 package com.onyx.app.data.model
 
-/** Un tour envoyé au modèle: un rôle et un contenu. */
+/** Un tour envoyé au modèle : un rôle et un contenu. */
 data class ChatTurn(
     val role: Role,
     val text: String,
@@ -11,7 +11,7 @@ data class ChatTurn(
 /**
  * Demande de complétion, indépendante du transport.
  *
- * Le transport `CHAT_COMPLETIONS` est **sans état**: [history] doit contenir tout le fil.
+ * Le transport `CHAT_COMPLETIONS` est **sans état** : [history] doit contenir tout le fil.
  */
 data class ChatRequest(
     /** Tout l'historique utile, message système exclu (il vient de [instructions]). */
@@ -24,6 +24,6 @@ data class ChatRequest(
     val reasoningEffort: String? = null,
     /** Demande la progression de préremplissage (serveurs llama.cpp uniquement). */
     val returnProgress: Boolean = false,
-    /** API Hermes: demande le tier rapide pour ce tour de cette conversation. */
+    /** API Hermes : demande le tier rapide pour ce tour de cette conversation. */
     val fast: Boolean = false,
 )

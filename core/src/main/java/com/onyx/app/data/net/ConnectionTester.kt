@@ -15,7 +15,7 @@ import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** La sonde de , appliquée à la configuration qui vient d'être sauvée. */
+/** La sonde de `ConnectionTester`, appliquée à la configuration qui vient d'être sauvée. */
 object ConnectionTester {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -56,15 +56,22 @@ object ConnectionTester {
                         emptyList(),
                     )
                 }
+                // Le corps est lu **avant** les verdicts : un Dashboard qui refuse dit *pourquoi*
+                // dans son corps, et c'est cela qu'il faut montrer.
+                val refusal = response.body?.string().orEmpty()
                 if (response.code != 200) {
                     return@withContext ConnectionProbe(
                         false,
-                        "Hermes Dashboard answered HTTP ${response.code}.",
+                        ProbeFailure.message(
+                            address = base.host,
+                            reason = "Hermes Dashboard answered HTTP ${response.code}.",
+                            rawBody = refusal,
+                        ),
                         elapsed(started),
                         emptyList(),
                     )
                 }
-                val body = response.body?.string().orEmpty()
+                val body = refusal
                 val status = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
                 val version = (status?.get("version") as? JsonPrimitive)?.contentOrNull ?: "unknown version"
                 val authRequired = (status?.get("auth_required") as? JsonPrimitive)?.booleanOrNull == true

@@ -15,7 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le gateway remonte ses réessais provider en `hermes.status`: sans ce décodage, l'app restait
+ * Le gateway remonte ses réessais provider en `hermes.status` : sans ce décodage, l'app restait
  * sur « travaille » avec une bulle vide (le texte n'arrivait jamais).
  */
 class ChatCompletionsStatusTest {

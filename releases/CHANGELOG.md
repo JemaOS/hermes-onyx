@@ -57,3 +57,9 @@ Une ligne par build livré. `versionCode` est le nombre de commits au moment du 
 | 2026-10-25 04:56 | `app-v1.0.0_187-20261025-0456.apk` | app | 1.0.0+187 | 187 | 10 Mo | `4ad86abbad40` |
 | 2026-10-25 22:33 | `app-v1.0.0_263-20261025-2233.apk` | app | 1.0.0+263 | 263 | 10 Mo | `85783fc946ac` |
 | 2026-10-26 01:03 | `app-v1.0.0_275-20261026-0103.apk` | app | 1.0.0+275 | 275 | 11 Mo | `a66e399997c3` |
+| 2026-10-26 16:05 | `Hermes-Onyx-1.0.0+343.apk` | app | 1.0.0+343 | 343 | 11 Mo | `0e502fcfdc3d` |
+| 2026-10-26 19:28 | app-v1.0.0+375-20261026-1928.apk | app | 1.0.0+375 | 375 | 11438035 | 78c000bfaeaab95979520443f2eeee71d1eb6e06526e0cb88a8b6d202cd19885 |
+| 2026-10-27 17:46 | `app-v1.0.0+438-20261027-1746.apk` | app | 1.0.0+438 | 438 | 11688161 | 51ceb6b54e237600bc978d0119e4935224b4143bf0d2c5f772256117629c49fa |
+
+| app | 1.0.0+932 | 20261031-0259 | Pieces jointes durables : copie sous filesDir a l'instant du partage, APK  | 39bf4ae49c41 |
+| 2026-10-31 04:06 | `app-v1.0.0_961-20261031-0406.apk` | app | 1.0.0+961 | 961 | 12497904 | a9f1c2b94b74e6cf8d1c204af51912e222868834bcc57f420aa3557da0684c1b |

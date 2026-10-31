@@ -9,7 +9,7 @@ import org.junit.Test
 
 class RemoteSpeechTest {
     @Test
-    fun `les voix Kokoro sont groupees et triees comme `() {
+    fun `les voix Kokoro sont groupees et triees comme sur la référence`() {
         val groups = groupKokoroVoices(listOf("bm_george", "af_heart", "am_onyx", "bf_dora", "custom_voice"))
 
         assertEquals(listOf("af", "am", "bf", "bm", "cu"), groups.map { it.id })
@@ -56,7 +56,7 @@ class RemoteSpeechTest {
     }
 
     @Test
-    fun `les providers Hermes gardent les noms publics `() {
+    fun `les providers Hermes gardent les noms publics de la référence`() {
         assertEquals("your Hermes", hermesProviderName(""))
         assertEquals("Edge, Microsoft's online voice", hermesProviderName("EDGE"))
         assertEquals("ElevenLabs", hermesProviderName("elevenlabs"))

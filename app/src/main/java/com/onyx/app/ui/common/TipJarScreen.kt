@@ -1,5 +1,7 @@
 package com.onyx.app.ui.common
 
+import com.onyx.app.ui.design.onyxPage
+
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -48,7 +50,7 @@ private val TIP_IDS = listOf("tip_small" to "A coffee", "tip_medium" to "A lunch
 /**
  * Réglages → À propos → Soutenir Onyx (`TipJarView`).
  *
- * Un pourboire unique par la boutique. Il ne débloque rien: tout est déjà là.
+ * Un pourboire unique par la boutique. Il ne débloque rien : tout est déjà là.
  */
 @Composable
 fun TipJarScreen(
@@ -116,7 +118,7 @@ fun TipJarScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Support Onyx", onBack = onBack)
@@ -133,7 +135,7 @@ fun TipJarScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OnyxIcon(Symbols.HeartFill, tint = theme.accent, size = 34.dp)
+                OnyxIcon(Symbols.HeartFill, tint = theme.textColor, size = 34.dp)
                 BasicText(
                     text = "Onyx is made by one small company, with no ads, no accounts and no tracking. If it's useful to you, a tip helps keep it going.",
                     style = theme.subheadline.copy(color = theme.secondaryText, textAlign = TextAlign.Center),

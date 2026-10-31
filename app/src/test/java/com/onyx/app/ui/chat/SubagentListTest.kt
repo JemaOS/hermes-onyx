@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La liste des sous-agents: l'ordre, ce qu'une ligne dit, et la fusion du roster avec le fil.
+ * La liste des sous-agents : l'ordre, ce qu'une ligne dit, et la fusion du roster avec le fil.
  */
 class SubagentListTest {
 
@@ -71,7 +71,7 @@ class SubagentListTest {
             "1 tool · web_search",
             subagentDetail(agent("b", SubagentStatus.RUNNING, toolCount = 1, lastTool = "web_search"), 0),
         )
-        // Rien encore: « Working… », jamais une ligne vide.
+        // Rien encore : « Working… », jamais une ligne vide.
         assertEquals("Working…", subagentDetail(agent("c", SubagentStatus.RUNNING), 0))
     }
 
@@ -111,7 +111,7 @@ class SubagentListTest {
             "sa-1", SubagentStatus.RUNNING, startedAt = 5_000, toolCount = 3,
             childSessionId = "c1",
         )
-        // Le roster ne connaît pas les trames du fil en cours: il complète ce qui manque.
+        // Le roster ne connaît pas les trames du fil en cours : il complète ce qui manque.
         val rosterOnly = agent("sa-2", SubagentStatus.RUNNING, startedAt = 9_000, lastTool = "patch")
         val sameAsThread = agent("sa-1", SubagentStatus.RUNNING, startedAt = 4_000, lastTool = "grep")
 
@@ -148,7 +148,7 @@ class SubagentListTest {
             "12 s · Running in the background; results arrive in a later turn",
             subagentListDetail(agent("b", SubagentStatus.DISPATCHED, startedAt = 0), now = 12_000),
         )
-        // Une tâche finie garde la durée du serveur, et **une seule**: `subagentDetail` la porte
+        // Une tâche finie garde la durée du serveur, et **une seule** : `subagentDetail` la porte
         // déjà, la préfixer la dirait deux fois (vu en capture).
         assertEquals(
             "4 tools · 23 s · Three tiers.",

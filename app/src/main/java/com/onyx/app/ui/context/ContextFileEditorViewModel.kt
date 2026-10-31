@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Accès lecture/écriture dont le contrôleur a besoin; le fake de tests exerce le même contrat. */
+/** Accès lecture/écriture dont le contrôleur a besoin ; le fake de tests exerce le même contrat. */
 interface ContextFileStore {
     suspend fun home(profile: String?): String?
     suspend fun read(path: String): String?
@@ -47,7 +47,7 @@ data class ContextEditorState(
     val dirty: Boolean get() = content != original.orEmpty()
 }
 
-/** Le cycle complet de , indépendant de Compose et testable sur JVM. */
+/** Le cycle complet de `ContextFileEditorView`, indépendant de Compose et testable sur JVM. */
 class ContextFileEditorController(
     private val store: ContextFileStore,
     private val file: ContextFile,
@@ -101,7 +101,7 @@ class ContextFileEditorController(
             }
             _state.update {
                 // Si la personne a continué à écrire pendant la requête, seule la version réellement
-                // envoyée devient l'original: le nouveau brouillon reste à sauvegarder.
+                // envoyée devient l'original : le nouveau brouillon reste à sauvegarder.
                 it.copy(original = savedText, missing = false, saving = false, error = null)
             }
         } catch (error: CancellationException) {
@@ -123,7 +123,7 @@ class ContextFileEditorController(
     }
 }
 
-/** Propriétaire Android du contrôleur; les requêtes sont annulées avec l'écran. */
+/** Propriétaire Android du contrôleur ; les requêtes sont annulées avec l'écran. */
 class ContextFileEditorViewModel(
     config: ServerConfig,
     file: ContextFile,

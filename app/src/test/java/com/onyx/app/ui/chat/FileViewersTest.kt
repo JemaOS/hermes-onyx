@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Où chaque fichier joint s'ouvre: le lecteur de PDF de l'app, le visualiseur d'images, ou l'app
+ * Où chaque fichier joint s'ouvre : le lecteur de PDF de l'app, le visualiseur d'images, ou l'app
  * du système. Le compte des pages d'un PDF est vérifié ici aussi, puisqu'il décide de ce que la
  * barre du lecteur affiche.
  */
@@ -38,7 +38,7 @@ class FileViewersTest {
 
     @Test
     fun `une video va au lecteur de l app`() {
-        // Une vidéo partait à l'app du système comme un fichier quelconque: elle s'ouvre
+        // Une vidéo partait à l'app du système comme un fichier quelconque : elle s'ouvre
         // maintenant dans Onyx, comme le PDF et l'image, avec sa vignette dans le fil.
         assertEquals(FileViewerKind.VIDEO, FileViewers.kind("clip.mov", "video/quicktime"))
         assertEquals(FileViewerKind.VIDEO, FileViewers.kind("clip.mp4", ""))
@@ -56,7 +56,7 @@ class FileViewersTest {
     fun `le compte des pages part de un et reste dans les bornes`() {
         assertEquals("Page 1 of 3", PdfPaging.label(0, 3))
         assertEquals("Page 3 of 3", PdfPaging.label(2, 3))
-        // Une page hors bornes est ramenée: jamais « Page 0 » ni « Page 4 ».
+        // Une page hors bornes est ramenée : jamais « Page 0 » ni « Page 4 ».
         assertEquals("Page 1 of 3", PdfPaging.label(-1, 3))
         assertEquals("Page 3 of 3", PdfPaging.label(9, 3))
         // Un document pas encore ouvert se compte comme une page, sans mentir sur le reste.

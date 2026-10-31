@@ -7,11 +7,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Réglages → Outils: les titres et les descriptions que le serveur envoie doivent sortir en
+ * Réglages → Outils : les titres et les descriptions que le serveur envoie doivent sortir en
  * français, sans toucher aux identifiants d'outils.
  *
  * Les chaînes anglaises de ce test sont celles de la passerelle (`api/tools/toolsets`), copiées
- * telles quelles: c'est ce que l'écran reçoit, donc c'est ce que le dictionnaire doit couvrir.
+ * telles quelles : c'est ce que l'écran reçoit, donc c'est ce que le dictionnaire doit couvrir.
  */
 class ToolsPageLocalizationTest {
 
@@ -45,12 +45,12 @@ class ToolsPageLocalizationTest {
             "Cron Jobs" to "Tâches planifiées",
             "Discord (read/participate)" to "Discord (lire et participer)",
             "Discord Server Admin" to "Administration d’un serveur Discord",
-            "Computer Use (macOS/Windows/Linux)" to "Utilisation de l’ordinateur (macOS/Windows/Linux)",
+            "Computer Use (la référence/Windows/Linux)" to "Utilisation de l’ordinateur (la référence/Windows/Linux)",
         )
 
         /** Les descriptions, telles que le serveur les envoie. */
         val descriptions = linkedMapOf(
-            // Des identifiants d'API seuls: rien à traduire.
+            // Des identifiants d'API seuls : rien à traduire.
             "web_search, web_extract" to "web_search, web_extract",
             "execute_code" to "execute_code",
             "vision_analyze" to "vision_analyze",
@@ -97,8 +97,8 @@ class ToolsPageLocalizationTest {
         /**
          * Les mots qui ne peuvent être que de l'anglais.
          *
-         * On ignore les jetons d'identifiant (ceux qui portent un `_`), comme `web_search`: ce
-         * sont des noms d'API, pas de l'anglais à traduire. Le test reste volontairement étroit:
+         * On ignore les jetons d'identifiant (ceux qui portent un `_`), comme `web_search` : ce
+         * sont des noms d'API, pas de l'anglais à traduire. Le test reste volontairement étroit :
          * un mot français identique à l'anglais (« terminal », « agent », « messages ») n'y est
          * pas, seul ce qui n'a aucune chance d'être du français y figure.
          */
@@ -156,7 +156,7 @@ class ToolsPageLocalizationTest {
 
     @Test
     fun `une description en plusieurs paragraphes est traduite paragraphe par paragraphe`() {
-        // La fiche A2A telle que la passerelle l'envoie: des paragraphes, un retour à la ligne final.
+        // La fiche A2A telle que la passerelle l'envoie : des paragraphes, un retour à la ligne final.
         val english = "A2A (Agent-to-Agent) protocol v1.0 support for Hermes Agent — both directions of the open " +
             "Linux Foundation standard for inter-agent communication.\n" +
             "Pure stdlib transport (http.server + urllib) — no a2a-sdk dependency required.\n"
@@ -170,7 +170,7 @@ class ToolsPageLocalizationTest {
 
     @Test
     fun `les cles deja traduites gardent leur traduction`() {
-        // Le piège déjà rencontré: une entrée en double écrasait « Horaires » par « Programmes ».
+        // Le piège déjà rencontré : une entrée en double écrasait « Horaires » par « Programmes ».
         assertEquals("Horaires", OnyxLocalization.translate("Schedules", Locale.FRANCE))
         assertEquals("Nouvel horaire", OnyxLocalization.translate("New Schedule", Locale.FRANCE))
         assertEquals("Recherche web", OnyxLocalization.translate("Web search", Locale.FRANCE))

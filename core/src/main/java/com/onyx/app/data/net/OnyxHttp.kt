@@ -7,11 +7,12 @@ import java.util.concurrent.TimeUnit
 /**
  * Fabrique de clients OkHttp.
  *
- * Reproduit les deux sessions de l'app:
+ * Reproduit les deux sessions de l'app de référence
+ * (Echo/Services/Transport/HermesTransport:439) :
  * - délai de lecture = temps d'inactivité toléré entre deux octets du flux (120 s par défaut,
- * les appels d'outils d'un agent pouvant être lents);
+ *   les appels d'outils d'un agent pouvant être lents) ;
  * - délai d'appel global = plafond d'une requête entière (1 h par défaut pour les serveurs
- * OpenAI-compatibles auto-hébergés, qui peuvent préremplir un long contexte).
+ *   OpenAI-compatibles auto-hébergés, qui peuvent préremplir un long contexte).
  */
 object OnyxHttp {
 

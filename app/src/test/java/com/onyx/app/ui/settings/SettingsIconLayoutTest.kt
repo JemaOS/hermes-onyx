@@ -6,7 +6,7 @@ import org.junit.Test
 
 class SettingsIconLayoutTest {
     @Test
-    fun `les entrees des reglages reprennent les symboles `() {
+    fun `les entrees des reglages reprennent les symboles la référence`() {
         val source = File("src/main/java/com/onyx/app/ui/settings/SettingsScreen.kt").readText()
         listOf(
             "Symbols.Waveform",
@@ -26,7 +26,7 @@ class SettingsIconLayoutTest {
     }
 
     @Test
-    fun `la bague dune icone app mesure 66 points comme `() {
+    fun `la bague dune icone app mesure 66 points comme sur la référence`() {
         val source = File("src/main/java/com/onyx/app/ui/settings/AppIconSettings.kt").readText()
         assertTrue(source.contains("AppIconCellOuterSize = 66.dp"))
         assertTrue(source.contains(".size(AppIconCellOuterSize)"))
@@ -36,7 +36,7 @@ class SettingsIconLayoutTest {
     fun `la grille d icones d app reste repliee dans la carte d Apparence`() {
         val source = File("src/main/java/com/onyx/app/ui/settings/AppIconSettings.kt").readText()
         val appearance = File("src/main/java/com/onyx/app/ui/settings/SettingsScreen.kt").readText()
-        //: `@State private var expanded = false` — la grille reste
+        // `AppIconSettings` : `@State private var expanded = false` — la grille reste
         // **repliee** sur la rangée (le chevron ne fait que la déplier) et vit dans la carte
         // d'Apparence au lieu d'un écran poussé.
         assertTrue(source.contains("var expanded by remember { mutableStateOf(false) }"))

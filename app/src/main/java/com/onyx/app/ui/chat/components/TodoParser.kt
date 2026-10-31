@@ -8,9 +8,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /**
- * Lit la liste de tâches dans les appels d'outils d'une réponse (`TodoList` ).
+ * Lit la liste de tâches dans les appels d'outils d'une réponse (`TodoList` côté référence).
  *
- * Deux formes: un JSON de l'outil `todo` (`[{content, status}]`), et les cases à cocher en
+ * Deux formes : un JSON de l'outil `todo` (`[{content, status}]`), et les cases à cocher en
  * Markdown qu'un agent écrit parfois à la place.
  */
 fun todosFrom(tools: List<ToolActivity>): List<TodoItem> {

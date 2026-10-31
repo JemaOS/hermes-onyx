@@ -6,12 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La liste des mentions `@` du composeur: quand elle s'ouvre, ce qu'elle propose, ce qu'un tap
+ * La liste des mentions `@` du composeur : quand elle s'ouvre, ce qu'elle propose, ce qu'un tap
  * écrit dans le brouillon, et ce qu'une mention inconnue devient.
  *
- * Le modèle est `BotMentions` pour le mot en
+ * La référence est `BotMentions` (Echo/Services/Transport/ServerBots:302) pour le mot en
  * cours, le filtrage et l'insertion, et `ComposerView.mentionMenu`
- * pour la liste elle-même — les mêmes bots, dans le même
+ * (Echo/Views/ComposerView:306) pour la liste elle-même — les mêmes bots, dans le même
  * ordre, avec les mêmes bornes.
  */
 class BotMentionsTest {
@@ -24,7 +24,7 @@ class BotMentionsTest {
     /** Le roster du banc d'essai, dans l'ordre où la liste le reçoit. */
     private val roster = listOf(main, scout, quill, fixit)
 
-    /** Le bot sans nom amical: ce qu'un tap écrit est exactement sa poignée. */
+    /** Le bot sans nom amical : ce qu'un tap écrit est exactement sa poignée. */
     private val plainScout = BotProfile(name = "scout", lastActive = 500L)
 
     // MARK: Le déclencheur
@@ -36,14 +36,14 @@ class BotMentionsTest {
         assertEquals("", BotMentions.typing("Ask @"))
         assertEquals("sc", BotMentions.typing("Ask @sc"))
         assertEquals("sc", BotMentions.typing("Peux-tu demander à @sc"))
-        // Rien qui commence par « @ »: aucun mot en cours.
+        // Rien qui commence par « @ » : aucun mot en cours.
         assertNull(BotMentions.typing("Ask Onyx"))
         assertNull(BotMentions.typing("Ask @scout et la suite"))
     }
 
     @Test
     fun `une adresse ne propose rien`() {
-        // Le « @ » doit ouvrir le mot: dans une adresse, il est au milieu.
+        // Le « @ » doit ouvrir le mot : dans une adresse, il est au milieu.
         assertNull(BotMentions.typing("mail me at sam@example.com"))
         assertNull(BotMentions.typing("sam@example"))
         assertTrue(BotMentions.menu("mail me at sam@example.com", roster, "writer").isEmpty())
@@ -69,7 +69,7 @@ class BotMentionsTest {
 
     @Test
     fun `le filtrage suit ce qui suit le arobase`() {
-        // Sans rien après le « @ »: tout le roster, moins celui à qui l'on parle.
+        // Sans rien après le « @ » : tout le roster, moins celui à qui l'on parle.
         assertEquals(
             listOf("default", "scout", "fixit"),
             BotMentions.menu("Ask @", roster, "writer").map { it.name },
@@ -81,7 +81,7 @@ class BotMentionsTest {
 
     @Test
     fun `le filtrage prend la poignee, le nom du profil ou le nom amical`() {
-        // `BotMentions.forms`: la poignée, le nom du profil, et les formes du titre.
+        // `BotMentions.forms` : la poignée, le nom du profil, et les formes du titre.
         assertEquals(listOf("scout"), BotMentions.menu("Ask @res", roster, "writer").map { it.name })
         assertEquals(listOf("scout"), BotMentions.menu("Ask @research", roster, "writer").map { it.name })
         assertEquals(listOf("scout"), BotMentions.menu("Ask @researchbuddy", roster, "writer").map { it.name })
@@ -129,11 +129,11 @@ class BotMentionsTest {
 
     @Test
     fun `avec plusieurs mots, seul celui en cours est remplace et le curseur suit`() {
-        // Le mot déjà écrit ne bouge pas; le dernier est fini, et le curseur se pose après
+        // Le mot déjà écrit ne bouge pas ; le dernier est fini, et le curseur se pose après
         // l'espace finale, prêt pour la suite.
         assertEquals("Ask @wr and @fix-it ", BotMentions.complete("Ask @wr and @fi", fixit))
         assertEquals("Ask @scout and @fix-it ", BotMentions.complete("Ask @scout and @", fixit))
-        // Un mot fini plus haut garde la forme qu'on lui a donnée: rien d'autre n'est réécrit.
+        // Un mot fini plus haut garde la forme qu'on lui a donnée : rien d'autre n'est réécrit.
         assertEquals(
             "Ask @research-buddy et @hermes ",
             BotMentions.complete("Ask @research-buddy et @", main),
@@ -153,7 +153,7 @@ class BotMentionsTest {
     fun `Echap ferme la liste, et le mot suivant la rouvre`() {
         assertEquals(listOf("scout"), BotMentions.menu("Ask @sc", roster, "writer").map { it.name })
         assertTrue(BotMentions.menu("Ask @sc", roster, "writer", dismissed = "sc").isEmpty())
-        // Le mot a changé: la liste revient.
+        // Le mot a changé : la liste revient.
         assertEquals(listOf("scout"), BotMentions.menu("Ask @sco", roster, "writer", dismissed = "sc").map { it.name })
     }
 
@@ -184,7 +184,7 @@ class BotMentionsTest {
             listOf("default", "scout", "writer"),
             BotMentions.rosterForMentions(listOf(quiet, hidden, busy, main)).map { it.name },
         )
-        // Seul le principal: il n'y a personne à qui parler.
+        // Seul le principal : il n'y a personne à qui parler.
         assertTrue(BotMentions.rosterForMentions(listOf(main)).isEmpty())
         assertTrue(BotMentions.rosterForMentions(listOf(main, hidden)).isEmpty())
     }

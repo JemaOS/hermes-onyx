@@ -1,6 +1,6 @@
 package com.onyx.app.localization
 
-/** Libellés des écrans transverses: serveurs, modèles, erreurs, verrouillage et nouveautés. */
+/** Libellés des écrans transverses : serveurs, modèles, erreurs, verrouillage et nouveautés. */
 internal val onyxCommonFrench: Map<String, String> = linkedMapOf(
     // Serveurs et profils.
     "A new server can be filled in from a setup code: scan or paste one on its setup screen." to "Un nouveau serveur peut être configuré à partir d’un code : scannez-en un ou collez-le sur son écran de configuration.",
@@ -59,7 +59,7 @@ internal val onyxCommonFrench: Map<String, String> = linkedMapOf(
     // Nouveautés et remerciements.
     "Bots, with faces" to "Des bots avec un visage",
     "Code, diagrams and math" to "Code, diagrammes et mathématiques",
-    "Every Hermes profile shows up as a bot, with an orb or a face you pick. Group chats let several answer in turn." to "Chaque profil Hermes apparaît comme un bot, avec une orbe ou un visage de votre choix. Les discussions de groupe permettent à plusieurs bots de répondre à tour de rôle.",
+    "Every Hermes profile shows up as a bot, with an orb or a face you pick. Group chats let several answer in turn." to "Chaque profil Hermes apparaît comme un bot, avec une orbe ou un visage de votre choix. Les salons permettent à plusieurs bots de répondre à tour de rôle.",
     "Code is coloured and numbered, with a copy button; Mermaid and formulas are drawn on the phone, offline." to "Le code est coloré et numéroté, avec un bouton Copier ; Mermaid et les formules sont dessinés sur le téléphone, hors ligne.",
     "Voice that stops when you say so" to "Une voix qui s’arrête quand vous le demandez",
     "Hands-free listening ends on your own stop phrases, and reading a reply aloud stops the moment you speak." to "L’écoute mains libres s’arrête avec vos propres phrases d’arrêt, et la lecture d’une réponse s’interrompt dès que vous parlez.",
@@ -82,19 +82,40 @@ internal val onyxCommonFrench: Map<String, String> = linkedMapOf(
     "Opens your most recent conversation" to "Ouvre votre conversation la plus récente",
     "Go" to "Aller",
     "and" to "et",
-    // La queue d'une liste de trois noms et plus: met la virgule d'Oxford devant « and »,
+    // La queue d'une liste de trois noms et plus : référence met la virgule d'Oxford devant « and »,
     // là où le français n'en met pas devant « et » (« Onyx, Scout, and Quill » / « Onyx, Scout et
     // Quill », `formatted(.list(type: .and))`).
     ", and" to " et",
     "Couldn't connect." to "Impossible de se connecter.",
 
-    // « Tous vos serveurs dans une seule liste » (`AllServers`): le menu du serveur, l'étiquette
+    // « Tous vos serveurs dans une seule liste » (`AllServers`) : le menu du serveur, l'étiquette
     // d'une rangée et la ligne des serveurs qui n'ont pas répondu.
-    "All Servers" to "Tous les serveurs",
     "Server" to "Serveur",
     "%1\$s didn't answer, so its chats aren't here." to "%1\$s n’a pas répondu, donc ses conversations ne sont pas ici.",
     "%1\$s didn't answer, so their chats aren't here." to "%1\$s n’ont pas répondu, donc leurs conversations ne sont pas ici.",
     "Open on %1\$s" to "Ouvrir sur %1\$s",
     "· new chats on %1\$s" to "· nouvelles conversations sur %1\$s",
     "Opens it on %1\$s. Onyx moves to that server." to "L’ouvre sur %1\$s. Onyx bascule sur ce serveur.",
+
+    // ---------------------------------------------------------------------------------------------
+    // Les états de page que ce lot a comblés (chargement, vide, route serveur absente).
+    //
+    // Les phrases sont **courtes et vraies** : elles disent ce qui manque et pourquoi, jamais
+    // « aucun élément ». Les quatre états dits ici sont ceux de l'audit des routes (§2/§4/§5) —
+    // dossier vide, projet sans session, roster sans bot masqué, fiche d'usage sans route.
+    // ---------------------------------------------------------------------------------------------
+    "This folder has nothing Onyx can show. Files whose names start with a dot stay hidden unless you ask for them." to
+        "Ce dossier ne contient rien que Onyx puisse montrer. Les fichiers dont le nom commence par un point restent masqués tant que vous ne les demandez pas.",
+    "No conversations in this project yet" to "Aucune conversation dans ce projet pour le moment",
+    "Not available on this gateway yet" to "Pas encore disponible sur cette passerelle",
+    "This project's sessions come from the gateway route projects.project_sessions, which this gateway does not serve. Onyx shows nothing here rather than an empty project." to
+        "Les sessions de ce projet viennent de la route projects.project_sessions de la passerelle, que celle-ci n’expose pas. Onyx n’affiche rien ici plutôt qu’un projet vide.",
+    "Hidden bots are the gateway roster's own, shared with Hermes Desktop. Nothing is hidden right now, so there is nothing to bring back here." to
+        "Les bots masqués viennent du roster de la passerelle, partagé avec Hermes Desktop. Aucun bot n’est masqué en ce moment : il n’y a donc rien à réafficher ici.",
+    "The gateway's usage route didn't answer for this session, so these are the counts this phone kept. Reasoning tokens and cost come from the gateway alone and stay blank." to
+        "La route d’usage de la passerelle n’a pas répondu pour cette session : voici les compteurs que ce téléphone a conservés. Les jetons de raisonnement et le coût ne viennent que de la passerelle et restent vides.",
+    "The gateway's registry answered, but it holds no row for this session under the profile “%1\$s”, so these are the counts this phone kept. Reasoning tokens and cost come from the gateway alone and stay blank." to
+        "Le registre de la passerelle a répondu, mais il ne porte aucune ligne pour cette session sous le profil « %1\$s » : voici les compteurs que ce téléphone a conservés. Les jetons de raisonnement et le coût ne viennent que de la passerelle et restent vides.",
+    "Code sessions run against a repository on the Hermes gateway. Set up the Hermes Dashboard in Settings, then pick a repository here." to
+        "Les sessions de code s’exécutent sur un dépôt de la passerelle Hermes. Configurez le Dashboard Hermes dans les Réglages, puis choisissez un dépôt ici.",
 )

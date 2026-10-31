@@ -21,11 +21,11 @@ import kotlinx.coroutines.launch
 
 /** Les jeux d'outils et les compétences du bot que l'éditeur montre. */
 data class BotEditorUiState(
-    /** Tous les jeux que le serveur propose (`BotToolsList` ). */
+    /** Tous les jeux que le serveur propose (`BotToolsList` de la référence). */
     val toolsets: List<GatewayToolset> = emptyList(),
-    /** Ceux du profil principal: ce que le bot suit quand il n'a pas de liste à lui. */
+    /** Ceux du profil principal : ce que le bot suit quand il n'a pas de liste à lui. */
     val mainToolsets: Set<String> = emptySet(),
-    /** Ceux de ce bot; `null`: ceux du principal, comme `toolsets`. */
+    /** Ceux de ce bot ; `null` : ceux du principal, comme `toolsets` côté référence. */
     val toolsSelection: Set<String>? = null,
     /** Ses compétences, chacune allumée ou non. */
     val skills: List<DashboardSkill> = emptyList(),
@@ -37,20 +37,20 @@ data class BotEditorUiState(
 )
 
 /**
- * Les réglages d'un bot que l'éditeur écrit **au moment du geste**, comme l'éditeur:
- * ses jeux d'outils , ses compétences (`:214`).
+ * Les réglages d'un bot que l'éditeur écrit **au moment du geste**, comme l'éditeur de la référence :
+ * ses jeux d'outils (`BotEditor:203`), ses compétences (`:214`).
  *
- * écrit les compétences et les épingles sitôt touchées (`toggleSkill`, `setAlwaysLoadedSkills`
- * de `HermesServeClient`) et les jeux d'outils à l'enregistrement (`BotChange.toolsets`); ce port
+ * référence écrit les compétences et les épingles sitôt touchées (`toggleSkill`, `setAlwaysLoadedSkills`
+ * de `HermesServeClient`) et les jeux d'outils à l'enregistrement (`BotChange.toolsets`) ; ce port
  * écrit les jeux d'outils au geste aussi, comme il le fait déjà pour le modèle
  * (`BotsViewModel.setModel`), pour qu'un interrupteur ait un effet visible et durable.
  *
- * Aucune écriture ne se contente d'animer l'écran: chacune part au serveur, et un refus est
+ * Aucune écriture ne se contente d'animer l'écran : chacune part au serveur, et un refus est
  * remonté dans [BotEditorUiState.problem] avec l'état remis comme avant.
  */
 class BotEditorViewModel(
     private val config: ServerConfig,
-    /** Le profil du bot édité; `null`: un bot qui n'existe pas encore n'a rien à lire. */
+    /** Le profil du bot édité ; `null` : un bot qui n'existe pas encore n'a rien à lire. */
     private val profile: String?,
 ) : ViewModel() {
 
@@ -59,7 +59,7 @@ class BotEditorViewModel(
 
     private val skills = ServeSkillsApi(ServeClient(config))
 
-    /** Lecture unique à l'ouverture, comme le `loaded`: rouvrir ne doit rien réécrire. */
+    /** Lecture unique à l'ouverture, comme le `loaded` de la référence : rouvrir ne doit rien réécrire. */
     private var loaded = false
 
     init {
@@ -85,8 +85,8 @@ class BotEditorViewModel(
                 } finally {
                     rpc.close()
                 }
-                // Un bot qui a exactement les jeux du principal suit le principal: c'est `nil`
-                // , et la ligne « Same as … » reste cochée.
+                // Un bot qui a exactement les jeux du principal suit le principal : c'est `nil`
+                // côté référence, et la ligne « Same as … » reste cochée.
                 val selection = own?.enabled?.takeIf { it != main.enabled }
                 val list = profile?.let { skills.skills(it) } ?: emptyList()
                 val preloaded = profile?.let { skills.alwaysLoaded(it) }?.toSet() ?: emptySet()
@@ -112,9 +112,9 @@ class BotEditorViewModel(
 
     /**
      * Les jeux d'outils du bot, écrits au serveur tout de suite (`profiles.configure`
-     * `enabled_toolsets`, comme `BotChange.toolsets` ). `null`: ceux du principal.
+     * `enabled_toolsets`, comme `BotChange.toolsets` de la référence). `null` : ceux du principal.
      *
-     * Le geste n'est gardé que si le serveur l'a pris: sans Dashboard (ou sans liste à écrire),
+     * Le geste n'est gardé que si le serveur l'a pris : sans Dashboard (ou sans liste à écrire),
      * rien ne change à l'écran et l'écran le dit, plutôt que de montrer un choix qui n'existe pas.
      */
     fun setToolsSelection(selection: Set<String>?) {
@@ -125,7 +125,7 @@ class BotEditorViewModel(
         _state.update { it.copy(toolsSelection = selection, problem = null) }
         viewModelScope.launch {
             try {
-                // Sans Dashboard, l'écriture ne partirait nulle part: on le dit, plutôt que de
+                // Sans Dashboard, l'écriture ne partirait nulle part : on le dit, plutôt que de
                 // laisser l'interrupteur allumé sur un réglage que personne n'a.
                 if (!config.hasServeCredentials) {
                     throw TransportError.MissingApiKey
@@ -157,7 +157,7 @@ class BotEditorViewModel(
         _state.update { state ->
             state.copy(
                 skills = state.skills.map { if (it.name == skill.name) it.copy(enabled = enabled) else it },
-                // Éteinte, elle n'est de toute façon pas lue: l'épingle tombe avec elle.
+                // Éteinte, elle n'est de toute façon pas lue : l'épingle tombe avec elle.
                 alwaysLoaded = if (enabled) state.alwaysLoaded else state.alwaysLoaded - skill.name,
                 problem = null,
             )
@@ -165,8 +165,8 @@ class BotEditorViewModel(
         viewModelScope.launch {
             try {
                 skills.toggle(skill.name, enabled, bot)
-                // Elle était épinglée, elle ne peut plus l'être: la liste est réécrite, comme le
-                // `pin(skill, false)` après une compétence éteinte.
+                // Elle était épinglée, elle ne peut plus l'être : la liste est réécrite, comme le
+                // `pin(skill, false)` de la référence après une compétence éteinte.
                 if (!enabled && wasPinned) writeAlwaysLoaded(bot, _state.value.alwaysLoaded.toList())
             } catch (error: CancellationException) {
                 throw error
@@ -186,7 +186,7 @@ class BotEditorViewModel(
         }
     }
 
-    /** Épingle une compétence, ou la détache: tout la liste est écrite d'un coup. */
+    /** Épingle une compétence, ou la détache : tout la liste est écrite d'un coup. */
     fun pinSkill(skill: DashboardSkill, pinned: Boolean) {
         val bot = profile
         if (bot == null) return

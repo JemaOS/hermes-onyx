@@ -3,18 +3,18 @@ package com.onyx.app.voice
 import java.util.Locale
 
 /**
- * Le choix de la voix d'un bot (`BotVoicePicker` ), hors de l'écran: les entrées offertes,
+ * Le choix de la voix d'un bot (`BotVoicePicker` de la référence), hors de l'écran : les entrées offertes,
  * ce que dit « Automatique », quelles voix de l'appareil sont offertes, le résumé d'un choix, et
  * la fiche qu'un choix écrit.
  *
  * La feuille s'en sert telle quelle — la mise en page, elle, vit dans `BotVoicePickerScreen` — et
- * rien ici ne touche à un écran ni à un moteur: ce qui se vérifie se vérifie sans appareil.
+ * rien ici ne touche à un écran ni à un moteur : ce qui se vérifie se vérifie sans appareil.
  */
 object BotVoicePicker {
 
-    /** Une entrée de la liste: ce qu'elle montre, et la fiche [BotVoice] qu'elle règle. */
+    /** Une entrée de la liste : ce qu'elle montre, et la fiche [BotVoice] qu'elle règle. */
     data class Choice(
-        /** L'identifiant de la voix: `Voice.name` d'Android, ou l'identifiant Kokoro. */
+        /** L'identifiant de la voix : `Voice.name` d'Android, ou l'identifiant Kokoro. */
         val id: String,
         /** Son nom, tel qu'il se lit dans la rangée. */
         val name: String,
@@ -25,7 +25,7 @@ object BotVoicePicker {
     )
 
     /**
-     * Les voix offertes, dans l'ordre du modèle: celles de la langue d'Onyx d'abord — c'est avec
+     * Les voix offertes, dans l'ordre du modèle : celles de la langue d'Onyx d'abord — c'est avec
      * elles qu'une réplique dans cette langue se lit —, puis les autres par nom. Sur l'appareil,
      * les meilleures installées d'abord, et jamais une voix de démonstration.
      */
@@ -45,7 +45,7 @@ object BotVoicePicker {
                     Choice(
                         id = id,
                         name = kokoroName(id),
-                        // « La voix d'Onyx »: celle sur laquelle il lit déjà, dite en clair.
+                        // « La voix d'Onyx » : celle sur laquelle il lit déjà, dite en clair.
                         detail = if (id == kokoroMain) "$mainName's voice" else id,
                         voice = BotVoice(kokoro = id),
                     )
@@ -54,12 +54,12 @@ object BotVoicePicker {
 
         ReplyVoice.ON_DEVICE -> installed
             .filter { BotVoices.base(it.language) == listening && !it.novelty }
-            // 2: une voix « enhanced » d'Android, qui passe avant les autres, comme.
+            // 2 : une voix « enhanced » d'Android, qui passe avant les autres, comme sur la référence.
             .sortedWith(compareByDescending<SpokenVoice> { it.quality }.thenBy { it.id })
             .map { voice ->
                 Choice(
                     id = voice.id,
-                    // Android ne nomme pas ses voix: `Voice.name` est leur nom, et il se montre.
+                    // Android ne nomme pas ses voix : `Voice.name` est leur nom, et il se montre.
                     name = voice.id,
                     detail = qualityLabel(voice.quality) + " · " + voice.language,
                     voice = BotVoice(onDevice = voice.id),
@@ -70,11 +70,11 @@ object BotVoicePicker {
     }
 
     /**
-     * La voix que « Automatique » donne au bot maintenant: celle de son cru, ou `null` quand il
+     * La voix que « Automatique » donne au bot maintenant : celle de son cru, ou `null` quand il
      * n'y a rien à répartir — le serveur n'a pas d'autre voix dans sa langue, ou l'appareil n'en a
      * pas d'autre installée. C'est la voix d'Onyx qui lit alors.
      *
-     * [others] est ce qui est réglé pour les autres bots (celui-ci retiré); [names] les noms de la
+     * [others] est ce qui est réglé pour les autres bots (celui-ci retiré) ; [names] les noms de la
      * salle, qui décident de qui reçoit quoi (`BotVoices`).
      */
     fun automaticVoice(
@@ -126,7 +126,7 @@ object BotVoicePicker {
     }
 
     /**
-     * La fiche qu'un choix écrit: la voix choisie, sa vitesse gardée telle quelle (`set` du
+     * La fiche qu'un choix écrit : la voix choisie, sa vitesse gardée telle quelle (`set` du
      * modèle). Rien du tout — pas de voix, pas de vitesse — efface le réglage.
      */
     fun withVoice(voice: BotVoice?, current: BotVoice?): BotVoice? {
@@ -134,19 +134,19 @@ object BotVoicePicker {
         return record.takeUnless { it.isEmpty }
     }
 
-    /** La fiche qu'un changement de vitesse écrit: sa voix gardée, sa vitesse changée. */
+    /** La fiche qu'un changement de vitesse écrit : sa voix gardée, sa vitesse changée. */
     fun withSpeed(speed: Float?, current: BotVoice?): BotVoice? {
         val record = current?.copy(speed = speed) ?: BotVoice(speed = speed)
         return record.takeUnless { it.isEmpty }
     }
 
     /**
-     * Un identifiant Kokoro nommé: « am_adam » devient « Adam (American, male) » — `kokoroName`
+     * Un identifiant Kokoro nommé : « am_adam » devient « Adam (American, male) » — `kokoroName`
      * du modèle, mot pour mot. Ce qui n'a pas la forme `<langue><f|m>_<nom>` est rendu tel quel.
      */
     fun kokoroName(id: String): String {
         val underscore = id.indexOf('_')
-        // `<langue><f|m>_<nom>`: la lettre de langue, la lettre de genre, puis le nom.
+        // `<langue><f|m>_<nom>` : la lettre de langue, la lettre de genre, puis le nom.
         if (underscore != 2) return id
         val who = when (id[1]) {
             'f' -> "female"
@@ -159,7 +159,7 @@ object BotVoicePicker {
             if (about.isEmpty()) "" else " ($about)"
     }
 
-    /** La qualité d'une voix de l'appareil, dite: « Enhanced » ou « Default ». */
+    /** La qualité d'une voix de l'appareil, dite comme référence : « Enhanced » ou « Default ». */
     fun qualityLabel(quality: Int): String = if (quality >= 2) "Enhanced" else "Default"
 
     /** Les lettres de langue des voix Kokoro, comme `BotVoicePicker.kokoroName` du modèle. */

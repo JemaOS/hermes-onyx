@@ -6,12 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Le suivi du bas du fil: le défaut signalé deux fois — « quand il travaille en réflexion je ne
- * peux même pas descendre »; « quand l'IA réfléchit je peux pas remonter le fil de la discussion,
+ * Le suivi du bas du fil : le défaut signalé deux fois — « quand il travaille en réflexion je ne
+ * peux même pas descendre » ; « quand l'IA réfléchit je peux pas remonter le fil de la discussion,
  * ça me bloque ». Le défilement se recollait en bas à chaque jeton de raisonnement, chaque ligne
  * d'outil, chaque battement du compteur de durée.
  *
- * Vérifications de source: elles portent sur le câblage, pas sur le rendu — c'est la capture
+ * Vérifications de source : elles portent sur le câblage, pas sur le rendu — c'est la capture
  * d'émulateur qui juge le rendu. La décision elle-même est éprouvée par [ScrollFollowTest].
  */
 class ChatScrollFollowTest {
@@ -29,8 +29,8 @@ class ChatScrollFollowTest {
 
     @Test
     fun `le suivi ne se re-attache jamais au milieu d un geste`() {
-        assertTrue(screen.contains("ScrollFollow.atRest(scrolling, bottom, following)"))
-        // La règle retirée ré-attachait le suivi dès que la vue lisait « au bas »: cela arrivait à
+        assertTrue(screen.contains("ScrollFollow.atRest(scrolling, anchored, following)"))
+        // La règle retirée ré-attachait le suivi dès que la vue lisait « au bas » : cela arrivait à
         // chaque jeton, puisque le suivi venait justement de ramener la vue en bas.
         assertFalse(screen.contains("if (dragging) following = bottom"))
     }
@@ -38,8 +38,8 @@ class ChatScrollFollowTest {
     @Test
     fun `le bouton du dernier message parait des que le suivi est detache`() {
         assertTrue(
-            "offert sur « détaché et pas au bas », comme la référence",
-            screen.contains("val offersJump = state.messages.isNotEmpty() && !following && !atBottom"),
+            "offert sur « détaché et hors de la marge d'ancrage », comme la référence",
+            screen.contains("val offersJump = state.messages.isNotEmpty() && !following && !withinAnchor"),
         )
     }
 

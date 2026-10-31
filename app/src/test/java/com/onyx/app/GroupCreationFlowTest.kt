@@ -18,7 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * « New Group Chat » de bout en bout: la salle est **gardée** quand la connexion n'a pas de
+ * « New Group Chat » de bout en bout : la salle est **gardée** quand la connexion n'a pas de
  * Dashboard (et se retrouve après une relance), **ouverte sur le serveur** quand elle en a un, et
  * un échec se dit sans laisser de salle à moitié faite.
  *
@@ -41,12 +41,16 @@ class GroupCreationFlowTest {
         BotProfile(name = "scout", title = "Scout"),
         BotProfile(name = "quill", title = "Quill"),
         BotProfile(name = "kilo", title = "Kilo"),
+        // Trois de plus : de quoi dépasser le plafond de six membres (voir le refus du septième).
+        BotProfile(name = "vega", title = "Vega"),
+        BotProfile(name = "nova", title = "Nova"),
+        BotProfile(name = "iris", title = "Iris"),
     )
 
-    /** Une connexion sans Dashboard: la salle ne peut vivre que sur ce téléphone. */
+    /** Une connexion sans Dashboard : la salle ne peut vivre que sur ce téléphone. */
     private val noDashboard = ServerConfig(id = "s")
 
-    /** Une connexion dont le Dashboard est configuré: il tient la salle lui-même. */
+    /** Une connexion dont le Dashboard est configuré : il tient la salle lui-même. */
     private val dashboard = ServerConfig(
         id = "s",
         serveBaseUrl = "https://dash.test",
@@ -81,7 +85,7 @@ class GroupCreationFlowTest {
         assertEquals(listOf("Onyx", "Scout"), made.room.members.map { it.label() })
         assertEquals(listOf("default", "scout"), made.room.members.map { it.name })
 
-        // Une relance: un magasin neuf sur le même disque.
+        // Une relance : un magasin neuf sur le même disque.
         assertEquals(listOf("Weekend hike"), GroupRoomStore(disk).rooms("server-a").map { it.name })
     }
 
@@ -161,6 +165,27 @@ class GroupCreationFlowTest {
 
         assertEquals("onyx-old", made.room.id)
         assertTrue("rien de neuf n'est gardé ici non plus", GroupRoomStore(disk).rooms("server-a").isEmpty())
+    }
+
+    @Test
+    fun `plus de six bots ne fait pas de salon, et le dit`() = runBlocking {
+        val previous = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.FRANCE)
+            // Sept bots connus : un de trop pour la passerelle (le plafond du serveur est de six).
+            val made = create(
+                "Sept",
+                members = setOf("default", "scout", "quill", "kilo", "vega", "nova", "iris"),
+            )
+
+            assertTrue("sept ne passent pas", made is GroupCreation.Failed)
+            assertTrue(GroupRoomStore(disk).rooms("server-a").isEmpty())
+            val problem = (made as GroupCreation.Failed).problem
+            assertTrue("la raison se lit : $problem", problem.contains("au maximum"))
+            assertTrue("et dit combien en enlever : $problem", problem.contains("1"))
+        } finally {
+            Locale.setDefault(previous)
+        }
     }
 
     @Test

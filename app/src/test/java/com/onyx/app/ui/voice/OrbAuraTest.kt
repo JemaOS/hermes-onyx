@@ -1,22 +1,36 @@
 package com.onyx.app.ui.voice
 
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 /**
- * L'aura de l'orbe est un **cercle**, jamais un pavé.
+ * L'orbe de la voix solo : **un seul halo doux**, jamais des cercles concentriques tracés.
  *
- * Le défaut relevé sur la capture: derrière l'orbe, l'aura à bords droits et coins carrés. Elle
- * venait du calque carré du « nebula » (taches décalées qui débordaient de leur boîte, dégradé
- * encore vif au bord) et de l'anneau des halos qui sortait de la sienne. Ces tests tiennent les
- * deux: découpe au cercle — avant la rotation — et extinction du bord, halos qui restent dedans.
+ * Le défaut relevé sur la capture du propriétaire : des anneaux empilés visibles, avec leurs
+ * **raccords** et des **marches de couleur**, un **bord sombre franc** en bas à droite du disque
+ * intérieur et un **liseré double** dur autour du disque. Trois sources :
+ *
+ *  - `ic_dark_glass`, une **image** posée par-dessus la lumière : son dégradé porte sa propre
+ *    couture (le croissant bleu nuit en bas à droite), qu'aucun réglage d'alpha ne rattrape ;
+ *  - un `border(3.dp)` **collé au bord du disque**, doublé par les `VoiceHalos` (des
+ *    `drawCircle(style = Stroke)` empilés à faible opacité) : deux traits à quelques pixels l'un de
+ *    l'autre se lisent comme un liseré double ;
+ *  - l'**aura à plateau** (`startRadius: 66`), dont la rupture de pente se voit comme un bord.
+ *
+ * Ces tests tiennent les trois corrections : l'orbe est **dessiné** (aucune image), il n'y a plus
+ * qu'**un** dégradé radial à arrêts progressifs, et sa courbe est **monotone** — donc sans marche.
+ * Ce qui reste de l'ancien monde (les blobs de l'aura, les anneaux des faces-image) garde ses
+ * garde-fous.
  */
 class OrbAuraTest {
 
     private val blobs = File("src/main/java/com/onyx/app/ui/voice/DriftingBlobs.kt").readText()
     private val motion = File("src/main/java/com/onyx/app/ui/voice/VoiceLiveMotion.kt").readText()
+    private val glass = File("src/main/java/com/onyx/app/ui/voice/VoiceOrbGlass.kt").readText()
     private val screen = File("src/main/java/com/onyx/app/ui/voice/VoiceScreen.kt").readText()
 
     @Test
@@ -38,12 +52,12 @@ class OrbAuraTest {
     }
 
     @Test
-    fun `les halos s ouvrent au-dela de l orbe, sans arete droite`() {
+    fun `les halos des faces-image s ouvrent au-dela de l orbe, sans arete droite`() {
         val halos = motion.substringAfter("internal fun VoiceHalos(")
             .substringBefore("internal fun VoiceThinkingArc(")
-        // Découpés au cercle, mesurés **sans contrainte**: les anneaux débordent donc du carré de
-        // l'orbe — c'est ce que montre le modèle, deux cercles bien plus larges que le disque.
-        // Aucun ne touche le bord du cadre, où son opacité est nulle: jamais d'arête droite.
+        // Découpés au cercle, mesurés **sans contrainte** : les anneaux débordent donc du carré de
+        // l'orbe — c'est ce que montre la référence, deux cercles bien plus larges que le disque.
+        // Aucun ne touche le bord du cadre, où son opacité est nulle : jamais d'arête droite.
         assertTrue("les halos sont découpés au cercle", halos.contains(".clip(CircleShape)"))
         assertTrue(
             "le cadre se mesure sans contrainte",
@@ -57,45 +71,84 @@ class OrbAuraTest {
     }
 
     @Test
-    fun `l orbe solo porte ses trois anneaux`() {
+    fun `l orbe solo ne porte plus de cercles concentriques traces`() {
         val orb = screen.substringAfter("private fun VoiceOrb(").substringBefore("private fun phaseTitle(")
-        // Le premier: l'anneau de phase collé au bord du disque, `lineWidth: 3`, éteint au repos.
-        assertTrue(orb.contains(".size(OrbRingDiameter.dp)"))
-        assertTrue(
-            orb.contains("color = phaseColor.copy(alpha = if (phase == VoicePhase.IDLE) 0f else 0.8f)"),
-        )
-        // Les deux autres: les halos, à la base `GlassOrb.haloDiameter`.
-        assertTrue(orb.contains("diameter = OrbHaloDiameter.dp"))
-        // Le halo du visage-image est découpé au cercle, comme l'aura de la salle.
-        assertTrue(screen.contains("CircleShape,"))
+        // Le `border(3.dp)` dur et les `VoiceHalos` empilés : ce qui faisait le liseré double.
+        assertFalse("plus de liseré dur collé au disque", orb.contains(".border("))
+        assertFalse("plus d'anneaux tracés dans l'orbe dessiné", orb.contains("VoiceHalos("))
+        assertFalse("plus d'anneau de phase", orb.contains("OrbRingDiameter"))
+        // À la place : un unique halo doux, une ombre douce, le disque de verre.
+        assertTrue("l'orbe porte son halo unique", orb.contains("VoiceOrbHalo("))
+        assertTrue("l'orbe porte l'ombre douce de la sphère", orb.contains("OrbSoftShadow("))
+        assertTrue("l'orbe porte le disque de verre dessiné", orb.contains("LiquidOrbBody("))
+        // Les faces-image gardent leurs anneaux (`Halos` de la référence) : elles ne sont pas touchées.
+        val picture = screen.substringAfter("private fun OrbPictureFace(")
+            .substringBefore("private fun OrbChooserRow(")
+        assertTrue("la face-image garde ses anneaux", picture.contains("VoiceHalos("))
     }
 
     @Test
-    fun `l orbe solo porte le halo diffus de la reference`() {
-        // `OrbFace`: l'aura passe **avant** le choix de la face — un seul halo diffus, dans la
-        // couleur de la phase, large et vif à l'écoute (297 pt + la voix), ténu au repos (216 pt).
-        // La voix solo ne l'avait pas: il ne lui restait que ses cercles nets sur le noir.
-        val drawn = screen.substringAfter("private fun VoiceOrb(").substringBefore("private fun phaseTitle(")
-        val picture = screen.substringAfter("private fun OrbPictureFace(")
-            .substringBefore("private fun OrbChooserRow(")
-        for ((nom, bloc) in listOf("l'orbe dessiné" to drawn, "une face-image" to picture)) {
-            assertTrue("$nom porte l'aura", bloc.contains("Brush.radialGradient("))
-            assertTrue("$nom la découpe au cercle", bloc.contains("CircleShape,"))
-            assertTrue(
-                "$nom reprend les mesures de la référence",
-                bloc.contains("297f + amplitude * 55f else 216f") &&
-                    bloc.contains("143f + amplitude * 44f else 110f"),
-            )
-            assertTrue(
-                "$nom la laisse ténue hors écoute",
-                bloc.contains("if (listening) 0.45f else 0.16f"),
-            )
-            // `startRadius: 66`: la lueur tient jusqu'à 66 points avant de s'éteindre — sans ce
-            // plateau elle s'éteignait avant le bord du disque et ne laissait qu'un liseré.
-            assertTrue(
-                "$nom garde le plateau de la référence",
-                bloc.contains("VoiceAuraPlateau / auraRadius to"),
-            )
+    fun `le halo unique est un seul degrade radial a arrets calcules et lisses`() {
+        val halo = glass.substringAfter("internal fun VoiceOrbHalo(")
+            .substringBefore("internal fun OrbSoftShadow(")
+        assertTrue("un seul dégradé radial", halo.contains("Brush.radialGradient("))
+        // Les arrêts sont **calculés** en 32 pas d'une courbe lisse, pas écrits à la main : une
+        // poignée d'arrêts fait des **bandes de Mach** — l'œil y voit un anneau à chaque rupture de
+        // pente alors que la couleur est continue. C'était le dernier défaut visible, et il se
+        // mesurait : une marche de luminance en pleine courbe.
+        assertTrue("32 pas", glass.contains("private const val HaloSteps = 32"))
+        assertTrue("les arrêts sont calculés", halo.contains("orbHaloAlpha(t) * peak"))
+        assertTrue("échantillonnés sur le rayon", halo.contains("t = index.toFloat() / HaloSteps"))
+        assertTrue("la courbe s'annule sans pente", orbHaloAlpha(1f) == 0f)
+        // Le dégradé est **mémorisé** : la voix ne le reconstruit pas à chaque image, c'est le
+        // calque qui s'ouvre et s'éclaircit.
+        assertTrue("le dégradé est mémorisé", halo.contains("remember(stops)"))
+        assertTrue("c'est le calque qui suit la voix", halo.contains("graphicsLayer {"))
+        assertFalse("plus de `drawArc` d'anneau", halo.contains("drawArc"))
+    }
+
+    @Test
+    fun `la courbe du halo decroit sans marche`() {
+        // Une extinctions linéaire entre deux arrêts fait une **marche** perceptible ; on vérifie
+        // la propriété qui compte : décroissante, jamais de remontée, et pas d'à-coup supérieur à
+        // ce que l'œil tolère sur une ligne radiale.
+        var previous = Float.MAX_VALUE
+        var biggestStep = 0f
+        var t = 0f
+        while (t <= 1.0001f) {
+            val alpha = orbHaloAlpha(t)
+            assertTrue("le halo ne remonte jamais (t=$t)", alpha <= previous + 1e-4f)
+            if (previous != Float.MAX_VALUE) biggestStep = maxOf(biggestStep, previous - alpha)
+            previous = alpha
+            t += 0.002f
         }
+        assertTrue("le halo s'éteint complètement", abs(orbHaloAlpha(1f)) < 1e-4f)
+        assertTrue("le halo est plein au centre", orbHaloAlpha(0f) > 0.99f)
+        assertTrue("aucune marche dans la courbe (pas > 0,06 par pas de 0,2 %)", biggestStep < 0.06f)
+    }
+
+    @Test
+    fun `l orbe dessine n est plus une image`() {
+        // L'image portait la couture (son propre croissant sombre) : il n'y a plus de bitmap du
+        // tout dans l'orbe dessiné.
+        assertFalse("plus de décodage d'image", glass.contains("BitmapFactory"))
+        assertFalse("plus de dessin d'image", glass.contains("drawImage"))
+        assertFalse("plus de PNG de verre", motion.contains("ic_dark_glass"))
+        assertFalse("plus de découpe de barres figées", motion.contains("stripFrozenBars"))
+        assertFalse("plus de colonnes de barres figées", motion.contains("frozenBarColumns"))
+        // La face du disque suit la lumière allumée dedans (`GlassOrb.face`).
+        assertTrue("la face dépend de la lumière", glass.contains("internal fun orbFaceColour(light: OrbLight)"))
+    }
+
+    @Test
+    fun `le verre a sa finition, vignette, reflet speculaire et un seul lisere`() {
+        val finishing = glass.substringAfter("internal fun OrbGlassFinishing(")
+            .substringBefore("internal fun LiquidOrbBody(")
+        assertTrue("la vignette assombrit le bord", finishing.contains("Color.Black.copy(alpha = 0.48f)"))
+        assertTrue("le reflet spéculaire est en haut", finishing.contains("radius * 0.58f"))
+        assertTrue("un reflet ténu", finishing.contains("Color.White.copy(alpha = 0.13f)"))
+        // **Un seul** `drawCircle` en `Stroke` : un second à quelques pixels ferait le liseré double.
+        val strokes = Regex("style = Stroke\\(").findAll(finishing).count()
+        assertEquals("un seul trait de liseré", 1, strokes)
     }
 }

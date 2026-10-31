@@ -1,5 +1,7 @@
 package com.onyx.app.ui.common
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +23,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * D'où vient une ligne de remerciements, et donc comment la vérifier.
  *
- * La provenance n'est pas décorative: `AcknowledgementsPageTest` la relit dans le dépôt, ce qui
+ * La provenance n'est pas décorative : `AcknowledgementsPageTest` la relit dans le dépôt, ce qui
  * interdit de créditer un projet qui ne figure ni dans les dépendances ni dans les ressources
  * livrées — une page de remerciements fausse est pire qu'aucune page.
  */
@@ -32,17 +34,17 @@ sealed interface Provenance {
     /** Une ressource livrée dans les `assets` du module `core`. */
     data class Asset(val path: String) : Provenance
 
-    /** Du code de ce dépôt: il n'y a personne d'autre à créditer. */
+    /** Du code de ce dépôt : il n'y a personne d'autre à créditer. */
     data class Source(val path: String) : Provenance
 
-    /** Un service du poste; sa licence a été lue à la source ([licenceSource]). */
+    /** Un service du poste ; sa licence a été lue à la source ([licenceSource]). */
     data class Desktop(val licenceSource: String) : Provenance
 }
 
-/** Où tourne le composant: sur ce téléphone, ou sur le poste qui l'alimente. */
+/** Où tourne le composant : sur ce téléphone, ou sur le poste qui l'alimente. */
 enum class Where { PHONE, COMPUTER }
 
-/** Une ligne de remerciements: le nom technique (jamais traduit) et ce qu'il faut créditer. */
+/** Une ligne de remerciements : le nom technique (jamais traduit) et ce qu'il faut créditer. */
 data class Acknowledgement(
     val name: String,
     val where: Where,
@@ -51,7 +53,7 @@ data class Acknowledgement(
 )
 
 /**
- * La phrase d'introduction: ce que l'app utilise vraiment pour les mathématiques, les diagrammes
+ * La phrase d'introduction : ce que l'app utilise vraiment pour les mathématiques, les diagrammes
  * et le terminal. Aucune bibliothèque d'une autre plateforme n'y figure.
  */
 const val ACKNOWLEDGEMENTS_INTRO: String =
@@ -60,7 +62,7 @@ const val ACKNOWLEDGEMENTS_INTRO: String =
 /**
  * Ce que l'app embarque et ce qui tourne sur le poste, chacun avec sa licence et son attribution.
  *
- * Les trois moteurs que la phrase d'introduction nomme sont ici: KaTeX (mathématiques), Mermaid
+ * Les trois moteurs que la phrase d'introduction nomme sont ici : KaTeX (mathématiques), Mermaid
  * (diagrammes) et le terminal — ce dernier n'est **pas** un composant tiers, et la ligne le dit.
  */
 val ONYX_ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
@@ -199,7 +201,7 @@ val ONYX_ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
 )
 
 /**
- * Les remerciements: la phrase d'introduction, puis une section par composant — son nom en
+ * Les remerciements : la phrase d'introduction, puis une section par composant — son nom en
  * en-tête, sa licence dans le corps. Ce que l'app embarque d'un côté, ce que le poste fait
  * tourner de l'autre.
  */
@@ -213,7 +215,7 @@ fun AcknowledgementsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Acknowledgements", onBack = onBack)
@@ -255,7 +257,7 @@ private fun AcknowledgementsGroup(title: String) {
     )
 }
 
-/** Une section: le nom du composant en en-tête (nom propre, jamais traduit), sa licence dessous. */
+/** Une section : le nom du composant en en-tête (nom propre, jamais traduit), sa licence dessous. */
 @Composable
 private fun acknowledgementSection(entry: Acknowledgement) {
     val theme = LocalOnyxTheme.current

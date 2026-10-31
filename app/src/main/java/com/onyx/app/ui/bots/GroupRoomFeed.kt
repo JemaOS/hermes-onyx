@@ -10,6 +10,8 @@ import com.onyx.app.data.net.GroupRoomApi
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.strOrNull
 import com.onyx.app.localization.OnyxLocalization
+import com.onyx.app.voice.VoiceDiagnostics
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,26 +19,33 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Un message de la personne en route vers la salle: ce qui a été tapé, et les fichiers qui
+ * Un message de la personne en route vers la salle : ce qui a été tapé, et les fichiers qui
  * l'accompagnent, par leur nom.
  */
 data class GroupSending(
-    /** Son identifiant d'événement. */
+    /** Son identifiant d'événement : c'est aussi l'`event_id` du serveur, donc sa clé d'unicité. */
     val id: String,
     val text: String,
     val files: List<String> = emptyList(),
-    /** Ce qui part dans la salle: le texte, et une note par fichier une fois sur le serveur. */
+    /** Ce qui part dans la salle : le texte, et une note par fichier une fois sur le serveur. */
     val said: String? = null,
+    /** Combien d'essais ont échoué : le message est **encore** en route, il n'est pas perdu. */
+    val attempts: Int = 0,
+    /** L'envoi a définitivement échoué : le message reste à l'écran, marqué, avec sa raison. */
+    val failed: Boolean = false,
+    val problem: String? = null,
 ) {
-    /** Ce qui est vraiment dit: le texte envoyé, sinon celui qui a été tapé. */
+    /** Ce qui est vraiment dit : le texte envoyé, sinon celui qui a été tapé. */
     val delivered: String get() = said ?: text
 }
 
-/** Une salle suivie à l'écran: ce qui y a été dit, ce qu'elle attend, et ce qui s'écrit. */
+/** Une salle suivie à l'écran : ce qui y a été dit, ce qu'elle attend, et ce qui s'écrit. */
 data class GroupRoomFeedState(
     val room: GroupRoom,
     val events: List<GroupEvent> = emptyList(),
@@ -45,9 +54,9 @@ data class GroupRoomFeedState(
     val sending: List<GroupSending> = emptyList(),
     /** Les réponses en train d'être écrites, chacune jusqu'à ce que la salle l'ait. */
     val drafts: List<GroupDraft> = emptyList(),
-    /** Les approbations et les relances répondus ici et pas encore partis de l'état: leur carte se cache. */
+    /** Les approbations et les relances répondus ici et pas encore partis de l'état : leur carte se cache. */
     val answering: Set<String> = emptySet(),
-    /** Ce que le serveur a refusé, dit tel quel: jamais un message qui disparaît en silence. */
+    /** Ce que le serveur a refusé, dit tel quel : jamais un message qui disparaît en silence. */
     val problem: String? = null,
     /** Le dernier événement lu du journal. */
     val cursor: Int = 0,
@@ -55,7 +64,7 @@ data class GroupRoomFeedState(
     val loaded: Boolean = false,
 ) {
     /**
-     * Les bots parlent: un message de la personne n'a pas encore de fin de discussion après lui.
+     * Les bots parlent : un message de la personne n'a pas encore de fin de discussion après lui.
      * (La copie d'une salle Desktop ne dit rien de cela.)
      */
     val discussing: Boolean
@@ -65,7 +74,7 @@ data class GroupRoomFeedState(
             return sending.isNotEmpty() || events.none { it.seq > lastAsk && it.endsDiscussion }
         }
 
-    /** Quelque chose tourne: une discussion est en cours, ou la salle travaille. */
+    /** Quelque chose tourne : une discussion est en cours, ou la salle travaille. */
     val busy: Boolean get() = discussing || status.working
 
     /** Le dernier événement vu ici, comme `GroupRoom.activityMark` le compte. */
@@ -76,22 +85,22 @@ data class GroupRoomFeedState(
     val writing: GroupDraft? get() = drafts.lastOrNull { it.text.isNotEmpty() && it.finishedAtMillis == null }
 
     /**
-     * Les brouillons qui se dessinent: ceux qui ont commencé à écrire, comme la vue les
-     * filtre (`feed.drafts.filter { !$0.text.isEmpty }`) — une session ouverte dont rien n'est
-     * encore venu n'ajoute pas de ligne.
+     * Les brouillons qui se dessinent : ceux qui ont commencé à écrire, filtrés comme la vue de
+     * référence (`feed.drafts.filter { !$0.text.isEmpty() }`) — une session ouverte dont rien
+     * n'est encore venu n'ajoute pas de ligne.
      */
     val shownDrafts: List<GroupDraft> get() = drafts.filter { it.text.isNotEmpty() }
 
-    /** Les lignes du journal qui se dessinent: les messages, et les notes que vaut un tour. */
+    /** Les lignes du journal qui se dessinent : les messages, et les notes que vaut un tour. */
     val rows: List<GroupEvent> get() = events.filter { it.isMessage || it.note(room) != null }
 }
 
 /**
- * Le fil tel que la scène vocale le lit (`GroupVoiceThread.lines`): la question de la personne —
+ * Le fil tel que la scène vocale le lit (`GroupVoiceThread.lines`) : la question de la personne —
  * celle qui part, et celles du journal —, les réponses des bots, celles qui s'écrivent
  * (`drafts`) et celles en route (`sending`), dans l'ordre où le fil les dessine.
  *
- * C'est la matière du `VoiceView.groupExchange`: les événements du journal deviennent les
+ * C'est la matière du `VoiceView.groupExchange` de la référence : les événements du journal deviennent les
  * lignes d'une réponse (`message.member`) ou d'une question (`message.user`), un brouillon une
  * ligne vivante sous son bot, et un message en route la bulle de la personne qui attend encore.
  */
@@ -101,7 +110,7 @@ internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null })
         val text = AttachedFileNote.split(event.text)
         GroupVoiceLine(
             id = "voice-seq-" + event.seq,
-            // Le profil du bot (`room.member(id)?.profile`), pas l'identifiant du membre: c'est
+            // Le profil du bot (`room.member(id)?.profile`), pas l'identifiant du membre : c'est
             // lui qui choisit sa voix (`BotVoices`) et son visage dans l'orbe. L'identifiant, lui,
             // est gardé à part — le fil le dessine et le protocole le nomme.
             profile = if (event.kind == "message.user") null else member?.profile ?: event.actorID,
@@ -124,7 +133,10 @@ internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null })
             text = text.text,
             paths = text.paths,
             files = message.files,
-            waiting = true,
+            // Ce qui n'est pas arrivé dans la salle se **voit** : la bulle reste, marquée de son
+            // échec s'il est définitif. Un message qui disparaît en silence est un message perdu.
+            waiting = !message.failed,
+            failed = message.failed,
         )
     }
     val writing = shownDrafts.map { draft ->
@@ -146,15 +158,15 @@ internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null })
 }
 
 /**
- * Le fil d'une salle de bots: ce qui y a été dit, lu de son journal, et ce que la personne y dit.
+ * Le fil d'une salle de bots : ce qui y a été dit, lu de son journal, et ce que la personne y dit.
  *
- * Comme `GroupFeed`: le journal est lu après
+ * Miroir de `GroupFeed` (Echo/Services/Transport/ServerGroups:647) : le journal est lu après
  * un curseur (`groups.log`), l'état de la salle à chaque tour (`groups.state`), et les réponses des
  * bots là où Hermes les écrit d'abord — dans la session cachée « Group: <salle> » de chaque bot
  * (`session.events.since`). Un message envoyé reste à l'écran tant que la salle ne l'a pas, et un
  * refus du serveur se lit au lieu de faire disparaître ce qui a été écrit.
  *
- * Le fil d'une salle ne touche jamais au fil local de l'application (`GroupChatViewModel`): ce qui
+ * Le fil d'une salle ne touche jamais au fil local de l'application (`GroupChatViewModel`) : ce qui
  * est écrit ici part dans la salle, et ce qui s'affiche vient de la salle.
  */
 class GroupRoomFeed(
@@ -164,18 +176,42 @@ class GroupRoomFeed(
     private val clock: () -> Long = System::currentTimeMillis,
     /** Les membres d'une salle Desktop appelés comme le roster les appelle (`GroupRoom.naming`). */
     private val naming: (GroupRoom) -> GroupRoom = { it },
+    /** Les poses entre deux essais d'envoi — raccourcies dans une preuve. */
+    private val sendBackoffMs: List<Long> = GroupSendOutbox.SEND_BACKOFF_MS,
+    /** La pose elle-même, remplaçable pour ne pas attendre dans une preuve. */
+    private val waitSend: suspend (Long) -> Unit = { delay(it) },
 ) {
     private val _state = MutableStateFlow(GroupRoomFeedState(room = initialRoom))
     val state: StateFlow<GroupRoomFeedState> = _state.asStateFlow()
 
+    /**
+     * La file d'envoi de la salle : ce qui n'est **pas encore** arrivé au serveur. Le même
+     * identifiant n'y entre qu'une fois (`event_id`), et rien n'en sort sans que le serveur l'ait
+     * pris ou sans qu'on l'ait dit à la personne.
+     */
+    private val outbox = GroupSendOutbox(backoffMs = sendBackoffMs)
+
+    /** Les envois partent **dans l'ordre** : une reprise ne double jamais le message suivant. */
+    private val sendLock = Mutex()
+
+    private val _pendingSends = MutableStateFlow(false)
+
+    /** Un message de la personne est encore en route : le micro d'une scène vocale reste fermé. */
+    val pendingSends: StateFlow<Boolean> = _pendingSends.asStateFlow()
+
+    private val _problem = MutableStateFlow<String?>(null)
+
+    /** Ce que la salle a refusé, tel qu'il se lit (déjà dans la langue de l'app). */
+    val problem: StateFlow<String?> = _problem.asStateFlow()
+
     /** Chaque session vivante et son dernier événement lu. */
     private val draftSeen = mutableMapOf<String, Int>()
 
-    /** Les sessions des bots de cette salle, par identifiant gardé: à qui est une session vivante. */
+    /** Les sessions des bots de cette salle, par identifiant gardé : à qui est une session vivante. */
     private val memberSessions = mutableMapOf<String, String>()
     private var lookedForMembers: Long? = null
 
-    /** Le numéro de chaque message d'une salle Desktop ici, par sa clé: le même message garde sa ligne. */
+    /** Le numéro de chaque message d'une salle Desktop ici, par sa clé : le même message garde sa ligne. */
     private val desktopSeqs = mutableMapOf<String, Int>()
 
     /** Suit la salle jusqu'à l'annulation de la tâche (l'écran s'en va). */
@@ -183,7 +219,7 @@ class GroupRoomFeed(
         var tick = 0
         while (currentCoroutineContext().isActive) {
             val busy = state.value.busy
-            // Pendant que les bots parlent: le journal une fois par seconde, les réponses deux fois.
+            // Pendant que les bots parlent : le journal une fois par seconde, les réponses deux fois.
             if (!busy || tick % 2 == 0) look()
             lookAtDrafts()
             tick += 1
@@ -203,7 +239,7 @@ class GroupRoomFeed(
                         events = current.events + fresh,
                         cursor = fresh.last().seq,
                         // Un message de la personne maintenant dans le journal n'attend plus (Hermes
-                        // rogne ce qu'on lui donne: c'est le texte dit qui les fait se rejoindre).
+                        // rogne ce qu'on lui donne : c'est le texte dit qui les fait se rejoindre).
                         sending = current.sending.filterNot { pending ->
                             fresh.any { it.kind == "message.user" && it.text.trim() == pending.delivered.trim() }
                         },
@@ -231,8 +267,8 @@ class GroupRoomFeed(
         if (state.value.room.inDesktop) return
         val current = state.value
         val busy = current.busy
-        // Une réponse part une fois que la salle l'a; une finie que la salle n'a jamais écrite (un bot
-        // qui passe), après un moment; une en cours d'écriture, quand la salle s'arrête.
+        // Une réponse part une fois que la salle l'a ; une finie que la salle n'a jamais écrite (un bot
+        // qui passe), après un moment ; une en cours d'écriture, quand la salle s'arrête.
         val kept = current.drafts.filter { draft ->
             val landed = current.events.any { event ->
                 event.kind == "message.member" && event.seq > draft.after &&
@@ -269,7 +305,7 @@ class GroupRoomFeed(
             draft = draft.copy(memberID = memberSessions[session.key])
             val read = draft.read(slice.events)
             draft = read.draft
-            // Lu d'abord après que son début a été lâché (Hermes garde les 512 derniers): le reste.
+            // Lu d'abord après que son début a été lâché (Hermes garde les 512 derniers) : le reste.
             if (!read.started && first && slice.truncated && draft.text.isNotEmpty()) {
                 draft = draft.copy(text = "…" + draft.text)
             }
@@ -297,7 +333,7 @@ class GroupRoomFeed(
         }
     }
 
-    /** Une salle qu'Hermes Desktop tient: sa copie est relue (Desktop l'écrit un instant après). */
+    /** Une salle qu'Hermes Desktop tient : sa copie est relue (Desktop l'écrit un instant après). */
     private suspend fun lookInDesktop() {
         try {
             val current = api.desktopRooms().firstOrNull { it.id == state.value.room.id }
@@ -318,43 +354,131 @@ class GroupRoomFeed(
     }
 
     /**
-     * Ajoute un message de la personne, en route vers la salle: il s'affiche tout de suite, et
+     * Ajoute un message de la personne, en route vers la salle : il s'affiche tout de suite, et
      * reste là tant que le journal ne l'a pas. Rend son identifiant d'événement.
+     *
+     * L'identifiant peut être **imposé** : une question reconnue par la voix arrive avec le sien
+     * (`GroupAskLedger`), et c'est lui l'`event_id` — une question rejouée par l'écran ne peut donc
+     * pas entrer deux fois dans la salle.
      */
-    fun beginSend(text: String, files: List<String> = emptyList()): String {
-        val id = java.util.UUID.randomUUID().toString()
+    fun beginSend(
+        text: String,
+        files: List<String> = emptyList(),
+        id: String = java.util.UUID.randomUUID().toString(),
+    ): String {
+        if (_state.value.sending.any { it.id == id }) return id
         _state.update { it.copy(sending = it.sending + GroupSending(id = id, text = text, files = files)) }
+        outbox.offer(id, text, clock())
+        _pendingSends.value = outbox.isNotEmpty
         return id
     }
 
     /**
-     * Dit le message dans la salle (`groups.send`) et relit le journal. Refusé par le serveur, le
-     * message quitte l'écran et le refus se lit — jamais un message qui disparaît en silence.
+     * Dit le message dans la salle (`groups.send`) et relit le journal.
+     *
+     * **Un message ne se perd pas.** Un envoi qui échoue pour une raison passagère (réseau, 5xx,
+     * délai dépassé, erreur interne du serveur) **reste en file** et repart avec des poses
+     * croissantes — toujours sous le **même** `event_id`, si bien qu'un serveur qui avait déjà pris
+     * le message ne le garde qu'une fois. Épuisé, l'échec se **dit** : la bulle reste à l'écran,
+     * marquée, et le problème s'affiche dans la langue de l'app.
+     *
+     * Refusé pour de bon par le serveur (une question qui n'attend plus), le message quitte
+     * l'écran et le refus se lit — jamais un message qui disparaît en silence.
      */
     suspend fun deliver(id: String, said: String) {
         _state.update { state ->
             state.copy(sending = state.sending.map { if (it.id == id) it.copy(said = said) else it })
         }
-        try {
-            api.send(state.value.room.id, said, id)
-            look()
-        } catch (error: Exception) {
-            failSend(id, error)
+        sendLock.withLock {
+            var attempt = 0
+            while (true) {
+                try {
+                    api.send(state.value.room.id, said, id)
+                    outbox.sent(id)
+                    _pendingSends.value = outbox.isNotEmpty
+                    look()
+                    return
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    if (!sendIsWorthRetrying(error) || attempt >= sendBackoffMs.size) {
+                        failSend(id, error)
+                        return
+                    }
+                    attempt += 1
+                    val wait = sendBackoffMs[(attempt - 1).coerceAtMost(sendBackoffMs.lastIndex)]
+                    VoiceDiagnostics.note(
+                        "salle (${state.value.room.name}): envoi en échec ($attempt/${sendBackoffMs.size}), " +
+                            "reprise dans ${wait} ms — $id",
+                    )
+                    // Le message reste dans la file **et** à l'écran : il n'a pas disparu.
+                    _state.update { current ->
+                        current.copy(
+                            sending = current.sending.map { pending ->
+                                if (pending.id == id) pending.copy(attempts = attempt) else pending
+                            },
+                        )
+                    }
+                    waitSend(wait)
+                }
+            }
         }
     }
 
-    /** Un message qui n'a pas pu partir du tout (pièce jointe refusée, ou envoi refusé). */
+    /**
+     * Un message qui n'a pas pu partir (pièce jointe refusée, réseau mort, refus du serveur).
+     *
+     * Un refus **définitif** garde le message à l'écran, marqué : il ne s'évapore pas. Un refus de
+     * « question qui n'attend plus » (5118/5119) le retire, comme le fil du chat, parce que la
+     * salle l'a déjà traité ailleurs.
+     */
     fun failSend(id: String, error: Exception) {
+        val reason = reason(error)
+        val stale = (error as? TransportError.Rpc)?.code in GroupSendOutbox.STALE_CODES
+        outbox.giveUp(id)
+        _pendingSends.value = outbox.isNotEmpty
+        val message = if (stale) {
+            OnyxLocalization.format("Couldn't send: %1\$s", reason)
+        } else {
+            OnyxLocalization.format("Your message did not reach the room: %1\$s", reason)
+        }
+        _problem.value = message
         _state.update { state ->
             state.copy(
-                sending = state.sending.filterNot { it.id == id },
-                problem = OnyxLocalization.format("Couldn't send: %1\$s", reason(error)),
+                sending = if (stale) {
+                    state.sending.filterNot { it.id == id }
+                } else {
+                    state.sending.map { pending ->
+                        if (pending.id == id) pending.copy(failed = true, problem = reason) else pending
+                    }
+                },
+                problem = message,
             )
         }
+        VoiceDiagnostics.note("salle (${state.value.room.name}): envoi perdu — $reason")
     }
 
     /** Ce que le serveur a refusé, à l'écran, tel quel (un renommage, une suppression de salle). */
     fun report(error: Exception) = fail(error)
+
+    /**
+     * Une question reconnue entre dans la salle, **une seule fois**.
+     *
+     * C'est le chemin de la voix : `askId` est l'identifiant que lui a donné `GroupAskLedger`, et
+     * il sert d'`event_id`. Une question rejouée (l'écran se recompose, la phase repasse, le moteur
+     * rend sa transcription une fois de plus) porte le même identifiant et n'entre donc pas deux
+     * fois : la file d'envoi la refuse, en le journalisant.
+     */
+    suspend fun ask(question: String, askId: String) {
+        val clean = question.trim()
+        if (clean.isEmpty()) return
+        if (outbox.knows(askId) || _state.value.sending.any { it.id == askId }) {
+            VoiceDiagnostics.note("salle (${state.value.room.name}): question déjà posée — elle ne repart pas ($askId)")
+            return
+        }
+        beginSend(clean, emptyList(), askId)
+        deliver(askId, clean)
+    }
 
     /** Arrête les bots de la salle (`groups.stop`). */
     suspend fun stop() {
@@ -422,7 +546,7 @@ class GroupRoomFeed(
         /** Une session qui écrit, ou qui vient de commencer. */
         val BUSY_STATUSES = setOf("working", "starting")
 
-        /** Les codes d'un refus qui n'est pas une panne: la question n'attend plus de réponse. */
+        /** Les codes d'un refus qui n'est pas une panne : la question n'attend plus de réponse. */
         val STALE_CODES = setOf(5118, 5119)
 
         /** Le journal d'une salle Desktop, comme les entrées que l'écran dessine. */

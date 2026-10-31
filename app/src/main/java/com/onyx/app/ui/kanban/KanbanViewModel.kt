@@ -33,15 +33,15 @@ data class KanbanUiState(
     val assignees: List<String> = emptyList(),
     val loading: Boolean = true,
     val problem: String? = null,
-    /** « Needs the Hermes Dashboard »: le tableau vit sur le Dashboard, pas sur l'API seule. */
+    /** « Needs the Hermes Dashboard » : le tableau vit sur le Dashboard, pas sur l'API seule. */
     val needsDashboard: Boolean = false,
     val working: String? = null,
     val detail: KanbanCard? = null,
     val draft: KanbanDraft? = null,
     val saving: Boolean = false,
-    /** Le socket d'événements est ouvert: l'en-tête montre la diffusion, comme. */
+    /** Le socket d'événements est ouvert : l'en-tête montre la diffusion, comme la référence. */
     val live: Boolean = false,
-    /** Le curseur d'événements du dernier tableau lu: le socket reprend de là (`since=`). */
+    /** Le curseur d'événements du dernier tableau lu : le socket reprend de là (`since=`). */
     val latestEventId: Int = 0,
 ) {
     fun cardsIn(column: KanbanStatus): List<KanbanCard> =
@@ -51,10 +51,10 @@ data class KanbanUiState(
 /**
  * Le tableau kanban du Dashboard.
  *
- * Comme: une colonne à la fois (le sélecteur en haut), ses cartes, et
+ * Miroir de `KanbanView` : une colonne à la fois (le sélecteur en haut), ses cartes, et
  * l'éditeur d'une carte — avec les mêmes colonnes, les mêmes priorités, les mêmes actions, et le
- * même direct: le socket d'événements du plugin relit le tableau dès qu'une carte change, avec
- * l'interrogation périodique en repli (`LiveBoard` ).
+ * même direct : le socket d'événements du plugin relit le tableau dès qu'une carte change, avec
+ * l'interrogation périodique en repli (`LiveBoard` de la référence).
  */
 class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
 
@@ -74,7 +74,7 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
     /**
      * Le tableau se rafraîchit tout seul tant que l'écran l'affiche.
      *
-     * Le socket reprend au curseur du dernier tableau lu, comme `latestEventID`: les
+     * Le socket reprend au curseur du dernier tableau lu, comme `latestEventID` de la référence : les
      * changements déjà vus ne sont pas rejoués.
      */
     fun startLive() {
@@ -82,22 +82,22 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
         liveBoard.start(_state.value.latestEventId) { refresh(silent = true) }
     }
 
-    /** L'écran n'est plus visible: le socket se referme ( le fait en `onDisappear`). */
+    /** L'écran n'est plus visible : le socket se referme (la référence le fait en `onDisappear`). */
     fun stopLive() = liveBoard.stop()
 
     override fun onCleared() {
         liveBoard.close()
     }
 
-    /** Un rafraîchissement est en cours; les demandes reçues pendant se cumulent en un seul. */
+    /** Un rafraîchissement est en cours ; les demandes reçues pendant se cumulent en un seul. */
     private var refreshing = false
     private var againAfter = false
 
     /**
      * Relit le tableau.
      *
-     * Le **premier** chargement montre l'indicateur; ceux qui suivent (le direct du tableau qui
-     * signale un changement) se font **sans** lui: l'indicateur clignotait à chaque événement et
+     * Le **premier** chargement montre l'indicateur ; ceux qui suivent (le direct du tableau qui
+     * signale un changement) se font **sans** lui : l'indicateur clignotait à chaque événement et
      * donnait l'impression d'une boucle de chargement. Une seule lecture court à la fois.
      */
     fun refresh(silent: Boolean = false) {
@@ -121,7 +121,7 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
                     it.copy(
                         cards = board.cards,
                         assignees = assignees,
-                        // Le curseur ne recule jamais: un tableau lu en retard ne rejoue rien.
+                        // Le curseur ne recule jamais : un tableau lu en retard ne rejoue rien.
                         latestEventId = maxOf(board.latestEventId, it.latestEventId),
                         loading = false,
                     )
@@ -222,7 +222,7 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
         }
     }
 
-    /** Déplace une carte; `note` est la raison demandée avant le déplacement. */
+    /** Déplace une carte ; `note` est la raison qu'référence demande avant le déplacement. */
     fun move(card: KanbanCard, status: KanbanStatus, note: String? = null) = perform("Moving…") {
         kanban.update(id = card.id, status = status, note = note)
         _state.update { it.copy(detail = null) }

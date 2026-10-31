@@ -2,14 +2,14 @@
 # Certifie à l'écran que « Réduire les animations » change bien ce que l'app dessine.
 #
 # Deux enregistrements de la MÊME interaction, sur le même émulateur, à deux réglages système
-# près: `animator_duration_scale` à 1, puis à 0 (c'est le réglage qu'Android met à zéro pour
+# près : `animator_duration_scale` à 1, puis à 0 (c'est le réglage qu'Android met à zéro pour
 # « Supprimer les animations », celui que lit `ReduceMotion.kt`). Les images extraites des deux
 # vidéos se comparent ensuite à l'œil.
 #
-# Usage: tools/certify-motion-video.sh <serial> <sortie> [interaction]
-# interaction: « drawer » (défaut, glissement depuis le bord gauche) ou « tap »
+# Usage : tools/certify-motion-video.sh <serial> <sortie> [interaction]
+#   interaction : « drawer » (défaut, glissement depuis le bord gauche) ou « tap »
 #
-# Sortie: <sortie>/motion-scale1.mp4, <sortie>/motion-scale0.mp4, <sortie>/frames-*/, et deux
+# Sortie : <sortie>/motion-scale1.mp4, <sortie>/motion-scale0.mp4, <sortie>/frames-*/, et deux
 # planches-contact <sortie>/sheet-scale{1,0}.png.
 set -uo pipefail
 
@@ -43,7 +43,7 @@ record() {
     sleep 2
     case "$INTERACTION" in
         drawer)
-            # Glissement depuis le bord gauche: c'est le panneau latéral (`SwipeToOpen`, `.smooth(0.32)`).
+            # Glissement depuis le bord gauche : c'est le panneau latéral (`SwipeToOpen`, `.smooth(0.32)`).
             "$ADB" -s "$SERIAL" shell input swipe 4 1100 760 1100 180
             sleep 1
             "$ADB" -s "$SERIAL" shell input swipe 760 1100 4 1100 180
@@ -67,7 +67,7 @@ say "extraction des images et planches-contact"
 for scale in scale1 scale0; do
     rm -rf "$OUT/frames-$scale"
     mkdir -p "$OUT/frames-$scale"
-    # `-fps_mode passthrough`: une trame par trame encodée, aucune n'est jetée ni dupliquée.
+    # `-fps_mode passthrough` : une trame par trame encodée, aucune n'est jetée ni dupliquée.
     # (ffmpeg 9 a retiré `-vsync`.)
     "$FFMPEG" -v error -i "$OUT/motion-$scale.mp4" -fps_mode passthrough "$OUT/frames-$scale/%03d.png"
     "$FFMPEG" -y -v error -i "$OUT/motion-$scale.mp4" -vf "fps=6,scale=240:-1,tile=4x3" -frames:v 1 "$OUT/sheet-$scale.png"
@@ -88,7 +88,7 @@ for scale in scale1 scale0; do
     "$FFMPEG" -v error -i "$OUT/motion-$scale.mp4" -hide_banner -f null - 2>&1 | tail -1
 done
 
-# Remet l'émulateur comme il était: les animations allumées.
+# Remet l'émulateur comme il était : les animations allumées.
 "$ADB" -s "$SERIAL" shell settings put global animator_duration_scale 1
 "$ADB" -s "$SERIAL" shell settings put global transition_animation_scale 1
 "$ADB" -s "$SERIAL" shell settings put global window_animation_scale 1

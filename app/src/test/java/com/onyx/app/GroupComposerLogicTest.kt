@@ -1,6 +1,8 @@
 package com.onyx.app.ui.bots
 
 import com.onyx.app.data.model.serve.BotProfile
+import com.onyx.app.ui.design.ComposerFieldInvite
+import com.onyx.app.ui.design.composerFieldInvite
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -36,7 +38,7 @@ class GroupComposerLogicTest {
         assertEquals("texte", replaceTagToken("texte", "kilo"))
     }
 
-    // hasDraft: texte qui n'est pas que du blanc, ou au moins une pièce jointe.
+    // hasDraft de la référence : texte qui n'est pas que du blanc, ou au moins une pièce jointe.
     @Test
     fun `le champ a un brouillon avec du texte ou une piece jointe`() {
         assertFalse(groupComposerHasDraft("", 0))
@@ -46,23 +48,31 @@ class GroupComposerLogicTest {
         assertTrue(groupComposerHasDraft("salut", 2))
     }
 
-    // Le bouton rond suit exactement la cascade: Stop, Talk, sinon Send.
+    // Le bouton rond n'est plus dessiné par la salle : la cascade d'états (send / steer / stop)
+    // vit dans le compositeur de la maison (`OnyxComposer`). Ce qui reste propre au groupe est son
+    // **invite**, et elle vient de la source unique (`composerFieldInvite`).
     @Test
-    fun `le bouton rond arrete, parle ou envoie selon l etat`() {
-        assertEquals(GroupComposerAction.STOP, groupComposerAction(hasDraft = false, isStreaming = true, canTalk = true))
-        assertEquals(GroupComposerAction.STOP, groupComposerAction(hasDraft = false, isStreaming = true, canTalk = false))
-        // Un brouillon pendant le tour: le groupe envoie (pas de file d'attente).
-        assertEquals(GroupComposerAction.SEND, groupComposerAction(hasDraft = true, isStreaming = true, canTalk = true))
-        // Champ vide, rien ne coule: Talk quand la scène vocale est offerte…
-        assertEquals(GroupComposerAction.TALK, groupComposerAction(hasDraft = false, isStreaming = false, canTalk = true))
-        // …et sinon Send, désactivé (comme `Send.disabled(!hasDraft)`).
-        assertEquals(GroupComposerAction.SEND, groupComposerAction(hasDraft = false, isStreaming = false, canTalk = false))
-        assertEquals(GroupComposerAction.SEND, groupComposerAction(hasDraft = true, isStreaming = false, canTalk = true))
+    fun `l invite de la salle vient de la table de la maison`() {
+        assertEquals(
+            ComposerFieldInvite.GROUP,
+            composerFieldInvite(draftBlank = true, dictating = false, streaming = false, canSteer = false, offline = false, group = true),
+        )
+        // Un brouillon est la couche : aucune invite ne s'écrit avec lui.
+        assertEquals(
+            ComposerFieldInvite.NONE,
+            composerFieldInvite(draftBlank = false, dictating = false, streaming = false, canSteer = false, offline = false, group = true),
+        )
     }
 
     @Test
     fun `l invite du champ dit la dictee quand elle ecoute`() {
-        assertEquals("Listening…", groupComposerPlaceholder(dictating = true))
-        assertEquals("Message the group", groupComposerPlaceholder(dictating = false))
+        assertEquals(
+            ComposerFieldInvite.DICTATION,
+            composerFieldInvite(draftBlank = true, dictating = true, streaming = false, canSteer = false, offline = false, group = true),
+        )
+        assertEquals(
+            ComposerFieldInvite.GROUP,
+            composerFieldInvite(draftBlank = true, dictating = false, streaming = false, canSteer = false, offline = false, group = true),
+        )
     }
 }

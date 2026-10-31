@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,21 +39,23 @@ import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
+import com.onyx.app.ui.design.navigationBarClearance
+import com.onyx.app.ui.design.statusBarClearance
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.delay
 
-/** La vidéo à lire: son adresse, et son nom, pour la barre du haut. */
+/** La vidéo à lire : son adresse, et son nom, pour la barre du haut. */
 data class VideoSource(val uri: Uri, val name: String)
 
 /**
  * Lecteur d'une vidéo jointe.
  *
  * Fond noir, la vidéo au milieu, et une barre de transport de la maison — pas de `MediaController`
- * du système (il dessine du Material au milieu d'une app entièrement habillée à la main): le
+ * du système (il dessine du Material au milieu d'une app entièrement habillée à la main) : le
  * rond lecture/pause, la piste qu'on fait glisser, et le temps écoulé sur la durée.
  *
- * La première image est celle de la vignette du fil: rien ne se lit avant l'appui sur lecture.
+ * La première image est celle de la vignette du fil : rien ne se lit avant l'appui sur lecture.
  */
 @Composable
 fun VideoPlayerScreen(
@@ -72,17 +72,17 @@ fun VideoPlayerScreen(
     var dragging by remember(source.uri) { mutableStateOf(false) }
     var dragFraction by remember(source.uri) { mutableFloatStateOf(0f) }
     var track by remember { mutableStateOf(IntSize.Zero) }
-    // Le lecteur vit ici, tenu par l'écran: il se libère en partant, comme le `PdfRenderer`.
+    // Le lecteur vit ici, tenu par l'écran : il se libère en partant, comme le `PdfRenderer`.
     var view by remember(source.uri) { mutableStateOf<VideoView?>(null) }
 
-    // Ce que la vignette a déjà lu est la durée: on l'annonce sans attendre la préparation,
+    // Ce que la vignette a déjà lu est la durée : on l'annonce sans attendre la préparation,
     // puis le lecteur affine. Sert aussi de repli quand la préparation ne dit rien.
     LaunchedEffect(source.uri) {
         val known = VideoPoster.durationMillis(context, source.uri)
         if (known > 0L && duration.intValue <= 0) duration.intValue = known.toInt()
     }
 
-    // Le temps avance tout seul pendant la lecture: le seul état relu par l'écran.
+    // Le temps avance tout seul pendant la lecture : le seul état relu par l'écran.
     LaunchedEffect(playing, view) {
         while (playing) {
             view?.let { position.intValue = it.currentPosition }
@@ -99,7 +99,14 @@ fun VideoPlayerScreen(
             .fillMaxSize()
             .background(android.graphics.Color.BLACK.let { androidx.compose.ui.graphics.Color(it) }),
     ) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // La barre du haut et la barre de transport passent par l'utilitaire commun :
+                // rien ne mord sur la bande haute ni sur la zone de navigation.
+                .statusBarClearance()
+                .navigationBarClearance(),
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -147,7 +154,7 @@ fun VideoPlayerScreen(
                         update = { video ->
                             if (view !== video) {
                                 view = video
-                                // Aucune barre du système: la nôtre est dessous.
+                                // Aucune barre du système : la nôtre est dessous.
                                 video.setMediaController(null)
                                 video.setOnPreparedListener { player ->
                                     player.isLooping = false
@@ -170,7 +177,7 @@ fun VideoPlayerScreen(
                             }
                         },
                     )
-                    // La surface de la vidéo reste touchable: un appui démarre, un appui pendant
+                    // La surface de la vidéo reste touchable : un appui démarre, un appui pendant
                     // la lecture met en pause. Le grand rond n'est peint que quand rien ne joue —
                     // c'est la vignette qui invite à appuyer, pas un contrôle qui reste collé.
                     Box(
@@ -256,7 +263,7 @@ fun VideoPlayerScreen(
     }
 }
 
-/** La barre du bas: temps écoulé, piste, durée, et les deux pas de quinze secondes. */
+/** La barre du bas : temps écoulé, piste, durée, et les deux pas de quinze secondes. */
 @Composable
 private fun TransportBar(
     position: Int,
@@ -288,7 +295,7 @@ private fun TransportBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Le rond lecture/pause de la barre: le seul contrôle qui reste pendant la lecture.
+        // Le rond lecture/pause de la barre : le seul contrôle qui reste pendant la lecture.
         Box(
             modifier = Modifier
                 .width(30.dp)
@@ -309,7 +316,7 @@ private fun TransportBar(
             localize = false,
             style = theme.caption.copy(color = theme.secondaryText),
         )
-        // La piste: fine, dessinée ici, et on y pose le doigt pour se déplacer.
+        // La piste : fine, dessinée ici, et on y pose le doigt pour se déplacer.
         var width by remember { mutableStateOf(0) }
         Box(
             modifier = Modifier

@@ -1,5 +1,7 @@
 package com.onyx.app.ui.capture
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,12 +42,12 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * « Capture rapide »: une note prise en passant, que l'agent range.
+ * « Capture rapide » : une note prise en passant, que l'agent range.
  *
- * C'est l'écran de la capture du modèle: on écrit une note (deux gestes depuis n'importe
+ * C'est l'écran de la capture de la référence : on écrit une note (deux gestes depuis n'importe
  * où — le raccourci de l'illustration, ou le menu de la liste), la note est **gardée tout de
  * suite**, et classée par Hermes dans sa mémoire, une liste, un rappel ou le calendrier. **Rien ne
- * se dit en retour**: la réponse de l'agent n'est pas lue à voix haute et ne s'invite pas dans la
+ * se dit en retour** : la réponse de l'agent n'est pas lue à voix haute et ne s'invite pas dans la
  * conversation ouverte.
  *
  * Les notes pas encore classées restent là, visibles, avec leur heure.
@@ -67,7 +69,7 @@ fun QuickCaptureScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor)
+            .onyxPage(theme)
             .imePadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
@@ -97,7 +99,7 @@ fun QuickCaptureScreen(
                     )
                 }
                 OnyxRowDivider(inset = 0.dp)
-                // Le bouton de la note: un appui, et elle est prise.
+                // Le bouton de la note : un appui, et elle est prise.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -123,7 +125,7 @@ fun QuickCaptureScreen(
                 }
             }
 
-            // L'issue du dernier appui: jamais muet, comme le veut le contrat de l'app.
+            // L'issue du dernier appui : jamais muet, comme le veut le contrat de l'app.
             val line = when {
                 filing -> OnyxLocalization["Filing…"]
                 outcome == CaptureOutcome.FILED -> OnyxLocalization["Filed."]

@@ -1,5 +1,6 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.localization.OnyxLanguage
 import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
@@ -13,9 +14,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Ce que la vignette d'une vidéo affiche: sa durée et son poids.
+ * Ce que la vignette d'une vidéo affiche : sa durée et son poids.
  *
- * Les mêmes libellés que le modèle (`AttachmentTile` / `VideoTile`): la durée en `m:ss`, et le
+ * Les mêmes libellés que la référence (`AttachmentTile` / `VideoTile`) : la durée en `m:ss`, et le
  * poids en unités décimales (ko, Mo, Go), arrondi à une décimale.
  */
 object VideoMeta {
@@ -35,11 +36,11 @@ object VideoMeta {
     }
 
     /**
-     * Le poids d'un fichier, comme le dit le modèle: `820 o`, `12,4 Mo`.
+     * Le poids d'un fichier, comme le dit la référence : `820 o`, `12,4 Mo`.
      *
      * La langue de l'appareil donne le séparateur décimal — c'est un nombre, pas un identifiant.
      */
-    fun sizeLabel(bytes: Long, locale: java.util.Locale = java.util.Locale.getDefault()): String {
+    fun sizeLabel(bytes: Long, locale: java.util.Locale = OnyxLanguage.preferred): String {
         if (bytes <= 0L) return ""
         val units = listOf("o", "ko", "Mo", "Go", "To")
         var value = bytes.toDouble()
@@ -52,13 +53,13 @@ object VideoMeta {
     }
 
     /**
-     * Ce qu'un lecteur d'écran annonce pour une vignette de vidéo: « Vidéo: son nom, son poids »,
-     * mot pour mot la phrase du modèle.
+     * Ce qu'un lecteur d'écran annonce pour une vignette de vidéo : « Vidéo : son nom, son poids »,
+     * mot pour mot la phrase de la référence.
      */
     fun accessibilityLabel(
         name: String,
         bytes: Long,
-        locale: java.util.Locale = java.util.Locale.getDefault(),
+        locale: java.util.Locale = OnyxLanguage.preferred,
     ): String {
         val size = sizeLabel(bytes, locale)
         return if (size.isEmpty()) "Video: $name" else "Video: $name, $size"
@@ -66,7 +67,7 @@ object VideoMeta {
 }
 
 /**
- * La vignette d'une vidéo: la première image du film.
+ * La vignette d'une vidéo : la première image du film.
  *
  * `MediaMetadataRetriever` lit un plan-clé sans décoder tout le film, et se contente d'un
  * descripteur de fichier — le même chemin que pour le lecteur, donc aucun fichier temporaire.
@@ -115,7 +116,7 @@ object VideoPoster {
         }.getOrDefault(0L)
     }
 
-    /** Ouvre l'adresse en lecture: le fichier directement, sinon par le fournisseur de contenu. */
+    /** Ouvre l'adresse en lecture : le fichier directement, sinon par le fournisseur de contenu. */
     private fun open(context: Context, uri: Uri): ParcelFileDescriptor? = runCatching {
         when (uri.scheme) {
             ContentResolver.SCHEME_FILE -> ParcelFileDescriptor.open(
@@ -127,7 +128,7 @@ object VideoPoster {
         }
     }.getOrNull()
 
-    /** Ramène l'image sous [maxPixel] sur son plus grand côté: une vignette n'a pas besoin de plus. */
+    /** Ramène l'image sous [maxPixel] sur son plus grand côté : une vignette n'a pas besoin de plus. */
     private fun scale(bitmap: Bitmap, maxPixel: Int): Bitmap {
         val longest = maxOf(bitmap.width, bitmap.height)
         if (longest <= maxPixel || longest == 0) return bitmap

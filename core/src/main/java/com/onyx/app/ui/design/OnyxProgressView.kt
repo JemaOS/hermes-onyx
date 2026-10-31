@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.dp
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Le `ProgressView`: un arc qui tourne, dessiné à la main — aucun composant Material n'a sa
- * place ici. Partagé par les écrans qui attendent le serveur, comme le `ProgressView`.
+ * Le `ProgressView` de la référence : un arc qui tourne, dessiné à la main — aucun composant Material n'a sa
+ * place ici. Partagé par les écrans qui attendent le serveur, comme le `ProgressView` de la référence.
  */
 @Composable
 fun OnyxProgressView(size: Dp = 20.dp, tint: Color? = null, modifier: Modifier = Modifier) {

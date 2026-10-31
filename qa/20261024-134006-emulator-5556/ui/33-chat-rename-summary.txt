@@ -1,6 +1,0 @@
-rotation=0
-text='Rename conversation' | class='android.widget.TextView' | bounds='[158,1103][620,1157]' | enabled='true'
-class='android.widget.EditText' | bounds='[179,1171][901,1297]' | clickable='true' | long-clickable='true' | enabled='true'
-class='android.view.View' | bounds='[630,1280][775,1406]' | clickable='true' | enabled='true'
-text='Cancel' | class='android.widget.TextView' | bounds='[630,1316][775,1370]' | enabled='true'
-text='Save' | class='android.widget.TextView' | bounds='[807,1280][933,1406]' | clickable='true' | enabled='true'

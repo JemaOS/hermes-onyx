@@ -27,7 +27,7 @@ class MarkdownTasksTest {
 
     @Test
     fun `le libelle dune tache cochee s arrete a la fin de sa ligne`() {
-        // « - [x] Permits approved\n- [ ] Countertop template »: le barré ne doit pas déborder.
+        // « - [x] Permits approved\n- [ ] Countertop template » : le barré ne doit pas déborder.
         val markdown = "- [x] Permits approved\n- [ ] Countertop template"
         val marker = markdown.indexOf("[x]")
 
@@ -43,7 +43,7 @@ class MarkdownTasksTest {
 
     @Test
     fun `la puce nest plus dessinee devant une case`() {
-        // La case remplace le marqueur: ne dessine aucune puce devant elle.
+        // La case remplace le marqueur : référence ne dessine aucune puce devant elle.
         val markdown = "Intro\n- [x] Permits approved\n- [ ] Plumbing rough-in"
 
         val demoted = demoteTaskListMarkers(markdown)

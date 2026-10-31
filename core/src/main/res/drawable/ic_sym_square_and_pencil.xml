@@ -4,26 +4,25 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Carré net, coins arrondis, avec crayon diagonal: silhouette square.and.pencil. -->
     <path
         android:pathData="M5.5,3.5 H18.5 C19.6,3.5 20.5,4.4 20.5,5.5 V18.5 C20.5,19.6 19.6,20.5 18.5,20.5 H5.5 C4.4,20.5 3.5,19.6 3.5,18.5 V5.5 C3.5,4.4 4.4,3.5 5.5,3.5 Z"
+        android:fillColor="@android:color/transparent"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.55"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent" />
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M8.2,16.2 L8.8,12.9 L16.8,4.9 C17.2,4.5 17.8,4.5 18.2,4.9 L19.1,5.8 C19.5,6.2 19.5,6.8 19.1,7.2 L11.1,15.2 Z"
+        android:fillColor="@android:color/transparent"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.55"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent" />
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M15.2,6.5 L17.7,9 M9.1,13.2 L10.8,14.9"
+        android:fillColor="@android:color/transparent"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.35"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent" />
+        android:strokeLineJoin="round" />
 </vector>

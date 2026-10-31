@@ -7,11 +7,11 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 
 /**
- * Les polices embarquées, copiées depuis: Inter lorsque la palette nomme
+ * Les polices embarquées, copiées depuis `Echo/Resources/Fonts` : Inter lorsque la palette nomme
  * cette police (Hermes), Source Code Pro lorsqu'elle nomme la monospace (Terminal et Amber).
- * Sans nom explicite, le thème conserve les familles système comme.
+ * Sans nom explicite, le thème conserve les familles système comme `Theme`.
  *
- * Les fichiers vivent dans `assets/fonts/`; [forAssets] construit les familles au démarrage.
+ * Les fichiers vivent dans `assets/fonts/` ; [forAssets] construit les familles au démarrage.
  */
 class OnyxFonts private constructor(assets: AssetManager?) {
     val inter: FontFamily = if (assets == null) {

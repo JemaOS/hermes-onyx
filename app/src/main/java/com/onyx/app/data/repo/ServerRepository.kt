@@ -20,8 +20,8 @@ import java.util.UUID
 /**
  * Les serveurs connus de l'app et celui qui est actif.
  *
- * Comme `HermesServer` + du serveur actif (`Settings.activeServer`).
- * La liste est écrite en JSON dans les préférences; les clés API n'y figurent jamais: elles
+ * Équivalent Android de `HermesServer` + du serveur actif côté référence (`Settings.activeServer`).
+ * La liste est écrite en JSON dans les préférences ; les clés API n'y figurent jamais : elles
  * vont dans le Keystore ([SecretStore]) et sont recomposées à la lecture.
  */
 class ServerRepository(
@@ -53,16 +53,28 @@ class ServerRepository(
                 .orEmpty()
             decoded to preferences[SettingsKeys.ACTIVE_SERVER_ID]
         }
-        val servers = stored.first.ifEmpty { listOf(DEFAULT_SERVER) }.map { withSecret(it) }
+        // Le nom par défaut a changé avec le renommage : un serveur encore appelé « Onyx » est
+        // l'ancien nom par défaut, pas un choix — il devient « Onyx » au chargement, pas seulement
+        // quand on rouvre sa fiche.
+        val migrated = stored.first.ifEmpty { listOf(DEFAULT_SERVER) }.map { server ->
+            if (server.name.trim().equals("Onyx", ignoreCase = true)) server.copy(name = "Onyx") else server
+        }
+        val servers = migrated.map { withSecret(it) }
+        if (migrated != stored.first) {
+            _servers.value = migrated.map { withSecret(it) }
+            runCatching { persist() }
+        }
         _servers.value = servers
         _activeId.value = stored.second?.takeIf { id -> servers.any { it.id == id } } ?: servers.first().id
         refreshActive()
     }
 
-    /** Ajoute ou remplace un serveur; la clé API part dans le Keystore. */
+    /** Ajoute ou remplace un serveur ; la clé API part dans le Keystore. */
     suspend fun upsert(config: ServerConfig) {
         val clean = config.copy(
-            name = config.name.trim(),
+            // Le nom par défaut a changé avec le renommage : un serveur encore appelé « Onyx »
+            // est l'ancien nom par défaut, pas un choix — il s'affiche « Onyx » dans Réglages.
+            name = config.name.trim().let { if (it.equals("Onyx", ignoreCase = true)) "Onyx" else it },
             apiKey = config.apiKey.trim(),
             profileKey = config.profileKey.trim(),
             accessSecret = config.accessSecret.trim(),
@@ -77,7 +89,7 @@ class ServerRepository(
         persist()
     }
 
-    /** Supprime un serveur; s'il était actif, l'actif devient le premier restant. */
+    /** Supprime un serveur ; s'il était actif, l'actif devient le premier restant. */
     suspend fun remove(id: String) {
         val remaining = _servers.value.filterNot { it.id == id }
         _servers.value = remaining.ifEmpty { listOf(DEFAULT_SERVER) }
@@ -86,7 +98,7 @@ class ServerRepository(
         persist()
     }
 
-    /** Définit le serveur actif; sans effet si l'identifiant est inconnu. */
+    /** Définit le serveur actif ; sans effet si l'identifiant est inconnu. */
     suspend fun setActive(id: String) {
         if (_servers.value.none { it.id == id }) return
         _activeId.value = id
@@ -99,7 +111,7 @@ class ServerRepository(
 
     /**
      * Oublie **tous** les serveurs, leurs clés et leurs identifiants, et revient au serveur
-     * d'usine: le « Erase everything » des Réglages, qui ne touche à rien sur les serveurs.
+     * d'usine : le « Erase everything » des Réglages, qui ne touche à rien sur les serveurs.
      */
     suspend fun eraseAll() {
         secrets.clearAll()
@@ -164,9 +176,9 @@ class ServerRepository(
             kotlinx.serialization.builtins.ListSerializer(ServerConfig.serializer())
 
         /**
-         * Le serveur d'une installation neuve: pas d'adresse.
+         * Le serveur d'une installation neuve : pas d'adresse.
          *
-         * part de même — rien n'est prérempli, et `SetupView` demande l'adresse. Une adresse
+         * référence part de même — rien n'est prérempli, et `SetupView` demande l'adresse. Une adresse
          * d'émulateur (`10.0.2.2`) serait de toute façon injoignable depuis un téléphone.
          */
         val DEFAULT_SERVER = ServerConfig(

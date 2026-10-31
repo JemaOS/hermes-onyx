@@ -34,6 +34,7 @@ import com.onyx.app.ui.common.mutedMark
 import com.onyx.app.ui.conversations.BotActivity
 import com.onyx.app.ui.conversations.rowTime
 import com.onyx.app.ui.design.BotLook
+import com.onyx.app.ui.design.BadgeGeometry
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxTappable
@@ -44,19 +45,19 @@ import kotlin.math.roundToInt
 /**
  * Les sources des pastilles d'une ligne de la section « Bots ».
  *
- * Comme (`ChatActivity`), elles ne viennent pas toutes du même endroit:
- * - « au travail » et « en attente de vous »: `session.active_list`, que le serveur tient à jour
- * (`liveKinds`, par id de chat; `roomKinds`, par id de salle);
- * - « pas encore lu »: ce que **ce téléphone** a vu de la ligne, contre la date que le serveur
- * donne pour son dernier mot — Hermes ne tient pas de marque de lecture pour le chat d'un bot ni
- * pour une salle (`seenMarks`, par id de ligne de `BotListItem`).
+ * Comme référence (`ChatActivity`), elles ne viennent pas toutes du même endroit :
+ * - « au travail » et « en attente de vous » : `session.active_list`, que le serveur tient à jour
+ *   (`liveKinds`, par id de chat ; `roomKinds`, par id de salle) ;
+ * - « pas encore lu » : ce que **ce téléphone** a vu de la ligne, contre la date que le serveur
+ *   donne pour son dernier mot — Hermes ne tient pas de marque de lecture pour le chat d'un bot ni
+ *   pour une salle (`seenMarks`, par id de ligne de `BotListItem`).
  */
 data class BotBadges(
     val liveKinds: Map<String, ActivityKind> = emptyMap(),
     val roomKinds: Map<String, ActivityKind> = emptyMap(),
     val seenMarks: Map<String, Double?> = emptyMap(),
 ) {
-    /** Ce qu'un bot montre: son chat ouvert ici, la session vivante que le serveur signale, son worker. */
+    /** Ce qu'un bot montre : son chat ouvert ici, la session vivante que le serveur signale, son worker. */
     fun forBot(
         bot: BotProfile,
         isOpen: Boolean,
@@ -71,7 +72,7 @@ data class BotBadges(
         muted = muted,
     )
 
-    /** Ce qu'une salle montre: ses bots au travail, l'un d'eux qui attend, ou du nouveau depuis la dernière fois. */
+    /** Ce qu'une salle montre : ses bots au travail, l'un d'eux qui attend, ou du nouveau depuis la dernière fois. */
     fun forRoom(id: String, activityMark: Double?, isOpen: Boolean, muted: Boolean): BotActivity = roomActivity(
         markSeconds = activityMark,
         seen = seenMarks[BotListItem.Room(GroupRoom(id = id, name = id)).id],
@@ -87,8 +88,8 @@ internal val ARRANGE_ROW_HEIGHT: Dp = 58.dp
 /**
  * La ligne visée par un glissement de `dy` depuis `from`.
  *
- * Le mode « Reorder Bots » déplace une ligne à la fois (`List.onMove`), au rythme du
- * glissement: c'est donc le déplacement, divisé par la hauteur d'une ligne, qui dit de combien de
+ * Le mode « Reorder Bots » de la référence déplace une ligne à la fois (`List.onMove`), au rythme du
+ * glissement : c'est donc le déplacement, divisé par la hauteur d'une ligne, qui dit de combien de
  * rangs elle descend ou monte.
  */
 internal fun arrangeTarget(from: Int, dy: Float, rowHeight: Float, count: Int): Int {
@@ -98,7 +99,7 @@ internal fun arrangeTarget(from: Int, dy: Float, rowHeight: Float, count: Int): 
 }
 
 /**
- * Les lignes de la section pendant « Reorder Bots », comme `botsSection` en `arrangingBots`:
+ * Les lignes de la section pendant « Reorder Bots », comme `botsSection` en `arrangingBots` :
  * chaque ligne se glisse par sa poignée et n'ouvre rien, l'en-tête dit « Bots », et le pied de
  * section explique le geste.
  */
@@ -115,7 +116,7 @@ fun BotsArrangeList(
     onOpenRoom: ((GroupRoom) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    // La ligne qu'on glisse, et de combien: le déplacement ne quitte pas l'écran.
+    // La ligne qu'on glisse, et de combien : le déplacement ne quitte pas l'écran.
     var dragging by remember { mutableStateOf<Pair<Int, Float>?>(null) }
     val rowHeight = with(LocalDensity.current) { ARRANGE_ROW_HEIGHT.toPx() }
 
@@ -177,16 +178,16 @@ fun BotsArrangeList(
             }
         }
 
-        // Le pied de section , tel quel.
+        // Le pied de section de la référence, tel quel.
         BasicText(
             text = "Drag bots and group chats by their handles into the order you want.",
             style = LocalOnyxTheme.current.footnote.copy(color = LocalOnyxTheme.current.secondaryText),
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 }
 
-/** Une ligne qu'on met en ordre: son fond, et sa poignée à droite; elle n'ouvre rien. */
+/** Une ligne qu'on met en ordre : son fond, et sa poignée à droite ; elle n'ouvre rien. */
 @Composable
 private fun ArrangeRow(
     isDragging: Boolean,
@@ -208,8 +209,8 @@ private fun ArrangeRow(
 }
 
 /**
- * La poignée d'une ligne (`line.3.horizontal`): elle seule bouge la ligne, et rien d'autre ne
- * répond au toucher pendant qu'on met la section en ordre (`allowsHitTesting(false)` ).
+ * La poignée d'une ligne (`line.3.horizontal`) : elle seule bouge la ligne, et rien d'autre ne
+ * répond au toucher pendant qu'on met la section en ordre (`allowsHitTesting(false)` côté référence).
  */
 @Composable
 private fun DragHandle(onShift: (Float) -> Unit, onRelease: () -> Unit) {
@@ -239,7 +240,7 @@ private fun DragHandle(onShift: (Float) -> Unit, onRelease: () -> Unit) {
 }
 
 /**
- * Un bot pendant « Reorder Bots », comme le `botRow`: son visage, son nom, la marque du
+ * Un bot pendant « Reorder Bots », comme le `botRow` de la référence : son visage, son nom, la marque du
  * silence, l'heure de son dernier mot — ou le rond qui tourne —, puis sa dernière ligne.
  */
 @Composable
@@ -257,7 +258,7 @@ private fun BotArrangeRow(
         modifier = Modifier
             .fillMaxWidth()
             .onyxTappable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -268,7 +269,7 @@ private fun BotArrangeRow(
                     text = label,
                     localize = false,
                     style = theme.body.copy(color = theme.textColor, fontWeight = FontWeight.SemiBold),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (muted) {
@@ -288,7 +289,7 @@ private fun BotArrangeRow(
                     Box(
                         modifier = Modifier
                             .background(theme.warning, CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 1.dp),
+                            .padding(horizontal = 6.dp, vertical = BadgeGeometry.PadVertical),
                     ) {
                         BasicText(text = "Needs you", style = theme.caption2.copy(color = theme.userText))
                     }
@@ -299,7 +300,7 @@ private fun BotArrangeRow(
                         ?: "@" + bot.handle,
                     localize = false,
                     style = theme.subheadline.copy(color = theme.secondaryText),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -311,7 +312,7 @@ private fun BotArrangeRow(
 }
 
 /**
- * Une discussion de groupe pendant « Reorder Bots », comme le `groupRow`: les visages de
+ * Un salon pendant « Reorder Bots », comme le `groupRow` de la référence : les visages de
  * ses membres, son nom, et qui en fait partie.
  */
 @Composable
@@ -327,7 +328,7 @@ private fun RoomArrangeRow(
         modifier = Modifier
             .fillMaxWidth()
             .onyxTappable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -347,7 +348,7 @@ private fun RoomArrangeRow(
                     text = room.name,
                     localize = false,
                     style = theme.body.copy(color = theme.textColor, fontWeight = FontWeight.SemiBold),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (muted) {
@@ -367,7 +368,7 @@ private fun RoomArrangeRow(
                     Box(
                         modifier = Modifier
                             .background(theme.warning, CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 1.dp),
+                            .padding(horizontal = 6.dp, vertical = BadgeGeometry.PadVertical),
                     ) {
                         BasicText(text = "Needs you", style = theme.caption2.copy(color = theme.userText))
                     }
@@ -384,7 +385,7 @@ private fun RoomArrangeRow(
                     text = room.members.joinToString(", ") { it.label },
                     localize = false,
                     style = theme.subheadline.copy(color = theme.secondaryText),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

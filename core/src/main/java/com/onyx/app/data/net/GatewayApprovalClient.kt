@@ -16,8 +16,8 @@ import java.io.IOException
  * Répond à une demande d'approbation d'un run Hermes
  * (`POST /v1/runs/{run_id}/approval`).
  *
- * Comme `HermesSessionsTransport.respondApproval` 
- *: le corps porte le `choice`
+ * Miroir de `HermesSessionsTransport.respondApproval` côté référence
+ * (Echo/Services/Transport/HermesSessionsTransport:489) : le corps porte le `choice`
  * (`once` | `session` | `always` | `deny`) et, quand on l'a, le `request_id` d'origine.
  */
 class GatewayApprovalClient(

@@ -1,5 +1,6 @@
 package com.onyx.app.ui.common
 
+import com.onyx.app.localization.OnyxLanguage
 import android.content.Context
 import androidx.annotation.DrawableRes
 import com.onyx.app.ui.design.MenuItem
@@ -11,11 +12,11 @@ enum class MuteSpan(val millis: Long, val title: String) {
     EIGHT_HOURS(8 * 60 * 60_000L, "For 8 Hours"),
     /** Demain à 8 h, comme `MuteSpan.untilTomorrow`. */
     TOMORROW(0L, "Until Tomorrow"),
-    /** Jusqu'à ce qu'on le rallume: Hermes le note comme un silence sans fin. */
+    /** Jusqu'à ce qu'on le rallume : Hermes le note comme un silence sans fin. */
     FOREVER(0L, "Until I Turn It Back On"),
     ;
 
-    /** Le moment où le silence s'arrête; [now] sert à calculer « demain 8 h ». */
+    /** Le moment où le silence s'arrête ; [now] sert à calculer « demain 8 h ». */
     fun until(now: Long = System.currentTimeMillis()): Long = when (this) {
         HOUR -> now + millis
         EIGHT_HOURS -> now + millis
@@ -33,7 +34,7 @@ enum class MuteSpan(val millis: Long, val title: String) {
     }
 
     companion object {
-        /** La durée d'un silence qui court jusqu'à [until], dans les mots. */
+        /** La durée d'un silence qui court jusqu'à [until], dans les mots de la référence. */
         fun describe(until: Long): String {
             if (until >= Long.MAX_VALUE / 2) return "Muted"
             val now = System.currentTimeMillis()
@@ -41,7 +42,7 @@ enum class MuteSpan(val millis: Long, val title: String) {
             val calendar = java.util.Calendar.getInstance().apply { timeInMillis = until }
             val today = java.util.Calendar.getInstance()
             val tomorrow = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, 1) }
-            val time = java.text.SimpleDateFormat("H:mm", java.util.Locale.getDefault())
+            val time = java.text.SimpleDateFormat("H:mm", OnyxLanguage.preferred)
                 .format(java.util.Date(until))
 
             fun sameDay(a: java.util.Calendar, b: java.util.Calendar) =
@@ -51,7 +52,7 @@ enum class MuteSpan(val millis: Long, val title: String) {
             return when {
                 sameDay(today, calendar) -> "Muted until $time"
                 sameDay(tomorrow, calendar) -> "Muted until tomorrow, $time"
-                else -> "Muted until " + java.text.SimpleDateFormat("MMM d, H:mm", java.util.Locale.getDefault())
+                else -> "Muted until " + java.text.SimpleDateFormat("MMM d, H:mm", OnyxLanguage.preferred)
                     .format(java.util.Date(until))
             }
         }
@@ -83,9 +84,9 @@ class Mutes(context: Context) {
     }
 }
 
-/** Ce qu'une ligne du sous-menu du silence est: « Unmute », l'échéance, ou une des durées. */
+/** Ce qu'une ligne du sous-menu du silence est : « Unmute », l'échéance, ou une des durées. */
 sealed interface MuteRow {
-    /** « Unmute »: on le rallume. */
+    /** « Unmute » : on le rallume. */
     data object Unmute : MuteRow
 
     /** La ligne qui dit jusqu'à quand il est tu (« Silencieux jusqu'à 21:30 »). */
@@ -97,8 +98,8 @@ sealed interface MuteRow {
 
 /**
  * Les lignes du sous-menu du silence (« Mute › ») à partir de l'échéance [until] (`null` quand rien
- * n'est tu): « Unmute » et l'échéance quand il est déjà tu, puis **les quatre durées**. Jamais
- * vide: aucune durée ne disparaît du sous-menu.
+ * n'est tu) : « Unmute » et l'échéance quand il est déjà tu, puis **les quatre durées**. Jamais
+ * vide : aucune durée ne disparaît du sous-menu.
  */
 fun muteSubmenuRows(until: Long?): List<MuteRow> = buildList {
     if (until != null) {
@@ -111,7 +112,7 @@ fun muteSubmenuRows(until: Long?): List<MuteRow> = buildList {
 }
 
 /**
- * Les entrées du sous-menu du silence (`MuteMenu`, ouvert par « Mute › »): « Unmute » et son
+ * Les entrées du sous-menu du silence (`MuteMenu`, ouvert par « Mute › ») : « Unmute » et son
  * échéance quand il est tu, puis les quatre durées — chacune son action.
  */
 fun muteSubmenuItems(mutes: Mutes, item: String): List<MenuItem> =
@@ -135,7 +136,7 @@ fun muteSubmenuItems(mutes: Mutes, item: String): List<MenuItem> =
 fun muteMenuItems(mutes: Mutes, item: String): List<MenuItem> {
     val until = mutes.until(item)
     return if (until != null) {
-        // Déjà tu: « Unmute », puis la ligne qui dit jusqu'à quand.
+        // Déjà tu : « Unmute », puis la ligne qui dit jusqu'à quand.
         listOf(
             MenuItem(label = "Unmute", symbol = Symbols.Bell) { mutes.unmute(item) },
             MenuItem(label = MuteSpan.describe(until), symbol = null) { },

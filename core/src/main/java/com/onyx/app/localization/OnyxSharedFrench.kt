@@ -3,7 +3,7 @@ package com.onyx.app.localization
 /**
  * Traductions partagées, reprises à clé identique de Conduit/Localizable.xcstrings.
  *
- * Généré mécaniquement: ne pas renommer les clés, qui sont les chaînes anglaises de Onyx.
+ * Généré mécaniquement : ne pas renommer les clés, qui sont les chaînes anglaises de Onyx.
  * Les ajouts et adaptations propres à Onyx sont dans OnyxFrench.kt.
  */
 internal val onyxSharedFrench: Map<String, String> = linkedMapOf(
@@ -24,6 +24,17 @@ internal val onyxSharedFrench: Map<String, String> = linkedMapOf(
     "Approve" to "Approuver",
     "Archive" to "Archiver",
     "Archived" to "Archivé",
+    // Les gestes d'une conversation : la feuille d'appui long, son sous-titre, et le bandeau
+    // d'annulation qui suit une action appliquée tout de suite.
+    "Active %1\$s" to "Actif %1\$s",
+    "Create thread" to "Créer un fil",
+    "Undo" to "Annuler",
+    "Unarchived" to "Désarchivée",
+    "Unpinned" to "Détachée",
+    "Deleted" to "Supprimée",
+    "Delete this conversation?" to "Supprimer cette conversation ?",
+    "It leaves this phone and your server. This can't be undone."
+        to "Elle quitte ce téléphone et le serveur. C’est définitif.",
     "Assignee" to "Responsable",
     "Automatic" to "Automatique",
     "Back" to "Retour",
@@ -86,7 +97,7 @@ internal val onyxSharedFrench: Map<String, String> = linkedMapOf(
     "Loading models…" to "Chargement des modèles…",
     "Local" to "Local",
     "Low" to "Faible",
-    "Max" to "Maximal",
+    "Max" to "Max",
     "Medium" to "Moyen",
     "Memory" to "Mémoire",
     "Message" to "Message",
@@ -96,7 +107,7 @@ internal val onyxSharedFrench: Map<String, String> = linkedMapOf(
     "Move" to "Déplacer",
     "Name" to "Nom",
     "New Bot" to "Nouveau bot",
-    "New Group Chat" to "Nouvelle discussion de groupe",
+    "New Group Chat" to "Nouveau salon",
     "New conversation" to "Nouvelle conversation",
     "New job" to "Nouvelle tâche",
     "Next run" to "Prochaine exécution",

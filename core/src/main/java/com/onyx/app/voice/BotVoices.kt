@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 /**
  * La voix qu'un bot lit ses répliques, telle qu'elle a été réglée pour lui (`Settings.botVoices`).
  *
- * Rien de réglé, c'est « Automatique »: une voix de son cru parmi celles dont Onyx lit, comme un
+ * Rien de réglé, c'est « Automatique » : une voix de son cru parmi celles dont Onyx lit, comme un
  * bot a un visage de son cru (`BotVoices`).
  */
 @Serializable
@@ -17,39 +17,39 @@ data class BotVoice(
     /** Lue avec la voix d'Onyx, comme avant que les bots aient une voix. */
     val sameAsMain: Boolean? = null,
     /**
-     * Sa vitesse (1 = celle de la voix), quelle que soit sa voix; rien lit à la vitesse d'Onyx
+     * Sa vitesse (1 = celle de la voix), quelle que soit sa voix ; rien lit à la vitesse d'Onyx
      * (Réglages → Voix → Voice speed).
      */
     val speed: Float? = null,
 ) {
-    /** Aucune voix réglée: il en reçoit une des siennes ([BotVoices]). */
+    /** Aucune voix réglée : il en reçoit une des siennes ([BotVoices]). */
     val isAutomatic: Boolean get() = onDevice == null && kokoro == null && sameAsMain != true
 
-    /** Rien de réglé du tout, voix ni vitesse: autant dire aucune fiche. */
+    /** Rien de réglé du tout, voix ni vitesse : autant dire aucune fiche. */
     val isEmpty: Boolean get() = isAutomatic && speed == null
 }
 
 /**
- * Une voix installée, réduite à ce qui décide (`SpokenLanguage.AppleVoice` , transposé au
+ * Une voix installée, réduite à ce qui décide (`SpokenLanguage.AppleVoice` de la référence, transposé au
  * `android.speech.tts.Voice` d'Android).
  */
 data class SpokenVoice(
-    /** L'identifiant de la voix (`Voice.name`): « fr-fr-x-frd-local ». */
+    /** L'identifiant de la voix (`Voice.name`) : « fr-fr-x-frd-local ». */
     val id: String,
     /** Sa langue, « fr-FR ». */
     val language: String,
-    /** 2: une voix de meilleure qualité (enhanced/premium ), 1: les autres. */
+    /** 2 : une voix de meilleure qualité (enhanced/premium de la référence), 1 : les autres. */
     val quality: Int,
-    /** Une voix de démonstration: jamais donnée à un bot. */
+    /** Une voix de démonstration : jamais donnée à un bot. */
     val novelty: Boolean = false,
 )
 
 /**
- * Quelle voix lit les mots d'un bot: celle qui lui a été réglée, sinon une des siennes, dans la
+ * Quelle voix lit les mots d'un bot : celle qui lui a été réglée, sinon une des siennes, dans la
  * langue de la voix d'Onyx et jamais celle d'Onyx, **deux bots jamais pareils** tant qu'il y a des
  * voix à répartir. Le principal lit de la voix d'Onyx.
  *
- * Aucune hauteur n'est inventée nulle part: ce qui décide, c'est la voix du bot — son réglage, ou
+ * Aucune hauteur n'est inventée nulle part : ce qui décide, c'est la voix du bot — son réglage, ou
  * celle que cette répartition lui donne.
  */
 object BotVoices {
@@ -57,15 +57,15 @@ object BotVoices {
     /**
      * La voix Kokoro des mots de `profile`, ou `null` pour celle d'Onyx (`main`).
      *
-     * `available` vide (le serveur n'a pas donné sa liste): rien n'est promis, la voix réglée est
-     * prise telle quelle et la répartition se tait — c'est ce que fait.
+     * `available` vide (le serveur n'a pas donné sa liste) : rien n'est promis, la voix réglée est
+     * prise telle quelle et la répartition se tait — c'est ce que fait la référence.
      */
     fun kokoro(
         forProfile: String?,
         picked: Map<String, BotVoice>,
         main: String,
         available: List<String>,
-        /** Les noms de la salle: deux bots n'ont pas la même voix tant qu'il y en a assez. */
+        /** Les noms de la salle : deux bots n'ont pas la même voix tant qu'il y en a assez. */
         names: List<String> = emptyList(),
     ): String? {
         val profile = forProfile?.takeIf { it.isNotEmpty() && it != "default" } ?: return null
@@ -79,10 +79,24 @@ object BotVoices {
     }
 
     /**
+     * La voix Kokoro qu'une réplique envoie au service : **celle de son bot** quand il en a une
+     * (`kokoro`), sinon **celle d'Onyx** (`main`) — c'est ce que « Automatique » donne, et c'est le
+     * comportement d'avant les voix par bot. La lecture s'en sert telle quelle
+     * (`SpeechOutput.startRemote`), donc c'est **cette** valeur qui part dans la requête.
+     */
+    fun kokoroFor(
+        forProfile: String?,
+        picked: Map<String, BotVoice>,
+        main: String,
+        available: List<String> = emptyList(),
+        names: List<String> = emptyList(),
+    ): String = kokoro(forProfile, picked, main, available, names) ?: main
+
+    /**
      * La voix du synthétiseur des mots de `profile`, dans `language` (« fr »), ou `null` pour celle
      * d'Onyx (`main`, l'identifiant de la voix avec laquelle Onyx lit cette langue).
      *
-     * Les meilleures voix installées passent d'abord (qualité 2), les autres ensuite: un bot qu'on
+     * Les meilleures voix installées passent d'abord (qualité 2), les autres ensuite : un bot qu'on
      * entend à part des autres vaut mieux qu'une voix plus fine.
      */
     fun onDevice(
@@ -108,9 +122,9 @@ object BotVoices {
     }
 
     /**
-     * La voix de `name`: celle sur laquelle tombe son nom dans la première des `tiers` qui en a
+     * La voix de `name` : celle sur laquelle tombe son nom dans la première des `tiers` qui en a
      * une de libre, sinon la suivante de libre là — les noms passant dans l'ordre, pour que deux
-     * bots n'en partagent pas tant qu'il y en a assez; au-delà, celle sur laquelle son nom tombe
+     * bots n'en partagent pas tant qu'il y en a assez ; au-delà, celle sur laquelle son nom tombe
      * parmi toutes. `taken` sont les voix réglées, qu'aucun ne reçoit.
      */
     fun assign(name: String, names: List<String>, tiers: List<List<String>>, taken: List<String>): String? {
@@ -135,7 +149,7 @@ object BotVoices {
         return null
     }
 
-    /** La vitesse à laquelle `profile` est lu: la sienne si elle est réglée, sinon celle d'Onyx. */
+    /** La vitesse à laquelle `profile` est lu : la sienne si elle est réglée, sinon celle d'Onyx. */
     fun speed(forProfile: String?, picked: Map<String, BotVoice>, main: Float): Float {
         val profile = forProfile?.takeIf { it.isNotEmpty() && it != "default" } ?: return main
         val own = picked[profile]?.speed ?: return main
@@ -143,7 +157,8 @@ object BotVoices {
     }
 
     /**
-     * La langue de base d'un code (« fr » de « fr-FR », « en » de « en_US »): `SpokenLanguage.base`
+     * La langue de base d'un code (« fr » de « fr-FR », « en » de « en_US ») : `SpokenLanguage.base`
+     * de la référence.
      */
     fun base(code: String): String =
         code.split('-', '_').firstOrNull()?.lowercase().orEmpty()
@@ -176,7 +191,7 @@ object BotVoices {
         picked[name]?.let { voice -> of(voice) != null || voice.sameAsMain == true } != true
     }
 
-    /** FNV-1a: la même voix pour le même nom sur tout appareil et à chaque lancement. */
+    /** FNV-1a : la même voix pour le même nom sur tout appareil et à chaque lancement. */
     fun hash(text: String): ULong {
         var hash = 14_695_981_039_346_656_037uL
         for (byte in text.toByteArray(Charsets.UTF_8)) {

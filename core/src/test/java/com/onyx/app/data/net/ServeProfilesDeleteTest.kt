@@ -15,10 +15,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La suppression d'un bot: `DELETE api/profiles/{name}`, sans corps, et jamais le profil
+ * La suppression d'un bot : `DELETE api/profiles/{name}`, sans corps, et jamais le profil
  * principal.
  *
- * Comme `HermesServeClient.deleteProfile` / `deleteBot`: Hermes n'a aucun appel socket
+ * Miroir de `HermesServeClient.deleteProfile` / `deleteBot` de la référence : Hermes n'a aucun appel socket
  * pour supprimer un profil, la route REST fait le travail, et un refus doit remonter — sans quoi
  * l'app dirait « supprimé » d'un bot qui vit toujours.
  */
@@ -31,7 +31,7 @@ class ServeProfilesDeleteTest {
 
         val call = calls.single { it.method == "DELETE" }
         assertEquals("/api/profiles/scout", call.path)
-        assertNull("aucun corps, comme le `rest(\"DELETE\", …)` ", call.body)
+        assertNull("aucun corps, comme le `rest(\"DELETE\", …)` de la référence", call.body)
         assertNull("la route ne prend aucun profil en plus du nom du chemin", call.query["profile"])
     }
 

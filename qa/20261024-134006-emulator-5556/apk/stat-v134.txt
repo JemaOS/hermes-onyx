@@ -1,3 +1,0 @@
-/home/john/r132/onyx-android/releases/app-v1.0.0_134-20261024-1332.apk
-size=8776352
-mtime=2026-10-24 13:32:14.070909112 +0200

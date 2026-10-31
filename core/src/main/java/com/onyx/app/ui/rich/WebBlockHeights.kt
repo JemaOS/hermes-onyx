@@ -5,7 +5,7 @@ import android.content.Context
 /**
  * La hauteur qu'un bloc riche a prise la dernière fois.
  *
- * Comme `WebBlockHeights`: un diagramme ou une page mesuré une fois garde sa
+ * Miroir de `WebBlockHeights` côté référence : un diagramme ou une page mesuré une fois garde sa
  * hauteur, si bien qu'il ne saute pas quand le fil se redessine ou qu'on remonte le lire.
  */
 object WebBlockHeights {

@@ -12,8 +12,8 @@ import kotlinx.serialization.json.put
 /**
  * Les tâches planifiées du gateway, par le Dashboard.
  *
- * Comme `CronBackend` pour sa moitié
- * `hermes serve`: `api/cron/jobs`, avec `profile=all` — une tâche peut viser n'importe quel
+ * Miroir de `CronBackend` côté référence (Echo/Services/HermesAutomation:142) pour sa moitié
+ * `hermes serve` : `api/cron/jobs`, avec `profile=all` — une tâche peut viser n'importe quel
  * profil, et la liste les montre toutes.
  */
 class ServeCronApi(private val client: ServeClient) {
@@ -96,7 +96,7 @@ class ServeCronApi(private val client: ServeClient) {
         )
     }
 
-    /** `POST api/cron/jobs/{id}/trigger` — 10 min: la tâche tourne pour de vrai. */
+    /** `POST api/cron/jobs/{id}/trigger` — 10 min : la tâche tourne pour de vrai. */
     suspend fun trigger(id: String, profile: String? = null) {
         client.request(
             "api/cron/jobs/$id/trigger",
@@ -146,7 +146,7 @@ class ServeCronApi(private val client: ServeClient) {
 internal fun cronProfileQuery(profile: String?, extra: Map<String, String> = emptyMap()): Map<String, String> =
     extra + profile?.takeIf { it.isNotEmpty() }?.let { mapOf("profile" to it) }.orEmpty()
 
-/** Normalise les trois formes renvoyées par le Dashboard, comme `CronJob.init`. */
+/** Normalise les trois formes renvoyées par le Dashboard, comme `CronJob.init` côté référence. */
 internal fun parseCronJobs(payload: JsonElement): List<CronJob> {
     val rows = payload.asObject()?.array("jobs") ?: payload.asArray()
     return rows.orEmpty().mapNotNull { element ->

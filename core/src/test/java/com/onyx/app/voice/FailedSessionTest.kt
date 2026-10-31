@@ -6,15 +6,15 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Une session que le moteur a refusée n'est pas une phrase: **rien ne part**.
+ * Une session que le moteur a refusée n'est pas une phrase : **rien ne part**.
  *
  * C'était la cause des tours renvoyés plusieurs fois. `onError` passait `isFinal` à vrai sans
- * toucher à la dictée en cours; la branche d'écoute voyait « finale, texte non vide » et reposait
+ * toucher à la dictée en cours ; la branche d'écoute voyait « finale, texte non vide » et reposait
  * le partiel comme un tour. En parlant plus longtemps, chaque refus renvoyait un partiel un peu
  * plus long — « peux-tu m'aider » puis « est-ce que tu peux m'aider aujourd'hui » — et l'agent
  * répondait à chacune.
  *
- * L'écoute passe par un `SpeechRecognizer` Android: ces deux fichiers ne se testent pas sur JVM.
+ * L'écoute passe par un `SpeechRecognizer` Android : ces deux fichiers ne se testent pas sur JVM.
  * Ce que l'on vérifie ici, c'est donc l'articulation exacte qui portait le défaut.
  */
 class FailedSessionTest {
@@ -26,21 +26,26 @@ class FailedSessionTest {
 
     @Test
     fun `un echec du moteur jette la dictee partielle`() {
-        // L'état d'un échec n'est pas celui d'une phrase terminée: le partiel est jeté.
+        // L'état d'un échec n'est pas celui d'une phrase terminée : le partiel est jeté.
         assertTrue("le partiel ne survit pas à un refus", onError.contains("transcript = \"\""))
         assertTrue("un échec n'est pas une finale", onError.contains("isFinal = silence"))
         assertTrue("l'échec est signalé comme tel", onError.contains("failed = !silence"))
-        // Le silence, lui, termine bien l'écoute: c'est ce qui la relance.
+        // Le silence, lui, termine bien l'écoute : c'est ce qui la relance.
         assertTrue(onError.contains("val silence = error == SpeechRecognizer.ERROR_NO_MATCH"))
     }
 
     @Test
     fun `un echec ne relance pas l ecoute dans la foulee`() {
-        // L'ancien chemin: l'échec sortait par la branche du silence et relançait aussitôt.
+        // L'ancien chemin : l'échec sortait par la branche du silence et relançait aussitôt.
         assertFalse("plus de relance par la branche du silence", onError.contains("finishLater()"))
-        // Et la reprise est unique et espacée.
-        assertTrue(session.contains("if (engine.canRetry) retryListening() else _phase.value = VoicePhase.IDLE"))
-        assertTrue(session.contains("delay(ENGINE_RETRY_DELAY_MS)"))
+        // Et la reprise est unique et espacée : un échec sans reprise restante **close l'écoute** au
+        // lieu de la laisser ouverte (l'écran le dit, avec « Réessayer »).
+        assertTrue(session.contains("if (engine.canRetry) {"))
+        assertTrue(session.contains("retryListening()"))
+        assertTrue(session.contains("_failure.value = speech.problem ?: ENGINE_STOPPED_KEY"))
+        assertTrue(session.contains("_phase.value = VoicePhase.IDLE"))
+        // L'attente s'allonge avec les refus (plus de délai fixe).
+        assertTrue(session.contains("delay(engineRetryDelayMs(engine.attempts))"))
         assertTrue("la reprise ne remet pas le compteur à zéro", session.contains("startListening(fresh = false)"))
     }
 
@@ -54,13 +59,13 @@ class FailedSessionTest {
         val send = listening.indexOf("ask(speech.transcript)")
         assertTrue("la branche d'échec existe", failed >= 0)
         assertTrue("elle passe avant l'envoi", failed < send)
-        // Un échec n'est plus pris pour une phrase: plus de bandeau posé par cette branche.
+        // Un échec n'est plus pris pour une phrase : plus de bandeau posé par cette branche.
         assertFalse(listening.contains("speech.isFinal && speech.problem != null"))
     }
 
     @Test
     fun `le brouillon est efface quand la phase repasse a pret`() {
-        // Le brouillon (la dictée en cours) n'a de sens que pendant l'écoute: ce qui n'a été
+        // Le brouillon (la dictée en cours) n'a de sens que pendant l'écoute : ce qui n'a été
         // qu'entendu à moitié ne doit pas rester sous les yeux au retour à PRÊT — c'était le
         // « brouillon partiel resté affiché » des captures.
         val finish = session.substringAfter("private fun finishSpeaking()")

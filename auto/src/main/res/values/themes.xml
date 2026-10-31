@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- La voiture impose son propre thème: le nôtre n'y est pas dessiné. -->
+    <!-- La voiture impose son propre thème : le nôtre n'y est pas dessiné. -->
     <style name="Theme.OnyxCar" parent="android:Theme.DeviceDefault">
         <item name="android:windowBackground">@android:color/black</item>
     </style>

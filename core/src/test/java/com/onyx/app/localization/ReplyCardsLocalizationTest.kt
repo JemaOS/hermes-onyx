@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les mots des cartes d'une réponse en français: chaque libellé que les cartes affichent a sa
+ * Les mots des cartes d'une réponse en français : chaque libellé que les cartes affichent a sa
  * traduction, et les phrases qu'elles composent (une humidité, un écart d'heure) passent par les
  * gabarits et les motifs de [OnyxLocalization].
  */
@@ -67,7 +67,7 @@ class ReplyCardsLocalizationTest {
     fun `l heure d une carte se dit en francais`() {
         assertEquals("Votre heure", OnyxLocalization.translate("Your time", fr))
         assertEquals("Même heure", OnyxLocalization.translate("Same time", fr))
-        // Une phrase que la carte compose elle-même: le motif la traduit, le nombre reste.
+        // Une phrase que la carte compose elle-même : le motif la traduit, le nombre reste.
         assertEquals("8 h d’avance", OnyxLocalization.translate(ReplyCard.Clock.difference(28_800), fr))
         assertEquals("4 h de retard", OnyxLocalization.translate(ReplyCard.Clock.difference(-14_400), fr))
         assertEquals("12 min", OnyxLocalization.format("%1\$d min", 12, locale = fr))
@@ -76,7 +76,7 @@ class ReplyCardsLocalizationTest {
     }
 
     @Test
-    fun `en anglais les cartes gardent les mots d `() {
+    fun `en anglais les cartes gardent les mots d référence`() {
         assertEquals("Open in Maps", OnyxLocalization.translate("Open in Maps", us))
         assertEquals("Directions", OnyxLocalization.translate("Directions", us))
         assertEquals("8 hr ahead", OnyxLocalization.translate(ReplyCard.Clock.difference(28_800), us))

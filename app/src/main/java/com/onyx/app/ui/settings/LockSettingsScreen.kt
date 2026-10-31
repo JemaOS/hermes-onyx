@@ -1,5 +1,7 @@
 package com.onyx.app.ui.settings
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,8 +45,8 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * Réglages → Lock.
  *
- * Comme `LockSettings`: on demande la biométrie au retour dans l'app, après le délai choisi.
- * Le code est le secours d'Android, absent du réglage mais nécessaire ici quand le téléphone
+ * Port de `LockSettings` : on demande la biométrie au retour dans l'app, après le délai choisi.
+ * Le code est le secours d'Android, absent du réglage référence mais nécessaire ici quand le téléphone
  * n'a ni visage ni doigt.
  */
 @Composable
@@ -60,7 +62,7 @@ fun LockSettingsScreen(
     var delay by remember { mutableStateOf(lock.delay) }
     var pin by remember { mutableStateOf("") }
     var showDelay by remember { mutableStateOf(false) }
-    // L'état du code est tenu ici autant que dans les préférences: sans cet état, supprimer le code
+    // L'état du code est tenu ici autant que dans les préférences : sans cet état, supprimer le code
     // laissait la ligne et le pied de page dire encore qu'il était conservé.
     var hasPin by remember { mutableStateOf(lock.hasPin) }
 
@@ -84,9 +86,9 @@ fun LockSettingsScreen(
                 footer = "Onyx asks for your face or fingerprint when it comes back, once the delay has passed.",
             ) {
                 OnyxToggleRow(
-                    // Comme le modèle: le libellé générique « Face or fingerprint » quand le
+                    // Comme la référence : le libellé générique « Face or fingerprint » quand le
                     // téléphone n'annonce pas de nom de biométrie (« a passcode » ne s'affichait
-                    // là que sur un appareil sans visage ni empreinte, seul cas où le modèle
+                    // là que sur un appareil sans visage ni empreinte, seul cas où la référence
                     // montre ce libellé).
                     label = "Require ${lock.biometryLabel(context) ?: "Face or fingerprint"}",
                     checked = enabled,
@@ -176,7 +178,7 @@ fun LockSettingsScreen(
 /**
  * Réglages → Set up another device.
  *
- * Comme: le lien de connexion en QR code, à scanner sur l'autre
+ * Miroir de `SetupCodeView` : le lien de connexion en QR code, à scanner sur l'autre
  * appareil, et l'inverse — scanner un code pour reprendre une connexion.
  */
 @Composable
@@ -222,7 +224,7 @@ fun ConnectQrScreen(
                 Box(
                     modifier = Modifier
                         .padding(18.dp)
-                        .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+                        .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(OnyxSpace.CardCorner))
                         .padding(14.dp),
                 ) {
                     Image(

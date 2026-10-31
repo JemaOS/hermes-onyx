@@ -13,6 +13,11 @@ internal val onyxSetupTerminalFrench: Map<String, String> = linkedMapOf(
     "Onyx couldn't start the camera. Close other camera apps and try again." to "Onyx n’a pas pu démarrer la caméra. Fermez les autres apps qui l’utilisent et réessayez.",
     "Paste a setup link" to "Coller un lien de configuration",
     "That isn't a Onyx setup link." to "Ce n’est pas un lien de configuration Onyx.",
+    // La feuille de scan : le bouton qui colle le lien, et le retour quand rien n'est décodé.
+    "Paste the link" to "Coller le lien",
+    "I can't see a code yet — bring it closer, and avoid the glare." to "Je ne vois encore aucun code — approchez-le, et évitez le reflet.",
+    "A code is in view, but I can't read it — move closer, and avoid the glare." to "Un code est bien dans le champ, mais je n’arrive pas à le lire — approchez-vous, et évitez le reflet.",
+    "Paste the link instead." to "Collez plutôt le lien.",
 
     // Lecture et confirmation du code.
     "Setup code" to "Code de configuration",
@@ -30,6 +35,10 @@ internal val onyxSetupTerminalFrench: Map<String, String> = linkedMapOf(
     "no password" to "aucun mot de passe",
     "key included" to "clé incluse",
     "no key" to "aucune clé",
+    "no token" to "aucun jeton",
+    "Also set up" to "Également configuré",
+    "Voice server" to "Serveur de voix",
+    "Kokoro-compatible" to "Compatible Kokoro",
     "Client ID only" to "ID client uniquement",
     "Service token included" to "jeton de service inclus",
     "Custom header" to "En-tête personnalisé",
@@ -95,7 +104,12 @@ internal val onyxSetupTerminalFrenchPatterns: List<Pair<Regex, (MatchResult) -> 
     },
     Regex("^Add it as one line to ~/\\.ssh/authorized_keys for (.+) on (.+)\\. The key was made on this phone and never leaves it\\.$") to { match ->
         val who = match.groupValues[1].let { if (it == "that user") "cet utilisateur" else it }
-        "Ajoutez-la sur une ligne dans ~/.ssh/authorized_keys pour $who sur ${match.groupValues[2]}. La clé a été créée sur ce téléphone et ne le quitte jamais."
+        // Le nom d'hôte **est** la deuxième capture : quand le compte n'en a pas encore, l'app
+        // écrit le mot « the server » à sa place (`host.ifEmpty { "the server" }`), et la phrase
+        // française le reprenait tel quel — « … pour cet utilisateur sur the server. » (relevé à
+        // 411 dp). Ce n'est pas un nom d'hôte : c'est « le serveur ».
+        val host = match.groupValues[2].let { if (it == "the server") "le serveur" else it }
+        "Ajoutez-la sur une ligne dans ~/.ssh/authorized_keys pour $who sur $host. La clé a été créée sur ce téléphone et ne le quitte jamais."
     },
     Regex("^This is the first time this phone connects to (.+)\\. Its key's fingerprint is (.+)\\. If you can, check it on the server with ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key\\.pub\\.$") to { match ->
         "C’est la première connexion de ce téléphone à ${match.groupValues[1]}. L’empreinte de sa clé est ${match.groupValues[2]}. Si possible, vérifiez-la sur le serveur avec ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub."

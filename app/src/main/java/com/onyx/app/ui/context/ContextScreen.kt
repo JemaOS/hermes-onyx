@@ -1,5 +1,7 @@
 package com.onyx.app.ui.context
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +31,7 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 /**
  * Réglages → Contexte et mémoire.
  *
- * Comme la section « Context files » / « Memory » d'`AgentSettings`: les quatre fichiers, leur
+ * Port de la section « Context files » / « Memory » d'`AgentSettings` : les quatre fichiers, leur
  * phrase, et le chemin où ils vivent sur l'hôte.
  */
 @Composable
@@ -50,7 +52,7 @@ fun ContextScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(
@@ -121,5 +123,5 @@ fun ContextScreen(
     }
 }
 
-/** Les deux pages que l'écran sert: le contexte de l'agent, ou sa mémoire. */
+/** Les deux pages que l'écran sert : le contexte de l'agent, ou sa mémoire. */
 enum class Mode { CONTEXT, MEMORY }

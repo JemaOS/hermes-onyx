@@ -1,5 +1,6 @@
 package com.onyx.app.ui.design
 
+import com.onyx.app.localization.OnyxLanguage
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -9,10 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -58,19 +61,19 @@ import kotlin.random.Random
 /**
  * La forme d'un visage de bot.
  *
- * Les identifiants suivent ceux (`BotFace.Shape`): `round`, `egg`, `pill`, `capsule`,
+ * Les identifiants suivent ceux de la référence (`BotFace.Shape`) : `round`, `egg`, `pill`, `capsule`,
  * `burst`, `pick`, `hex`, `diamond`, `ghost`, `square`, `star`, `blob`, `bubble`. Trois formes plus
  * anciennes (`circle`, `squircle`, `bubble`) restent dans l'énumération pour qu'un code enregistré
- * avant ce implémentation se relise encore; `circle` et `squircle` dessinent la même créature que `round`
+ * avant ce portage se relise encore ; `circle` et `squircle` dessinent la même créature que `round`
  * et `square`.
  */
 enum class FaceShape(val id: String, val frLabel: String) {
-    // Les formes écrites avant le implémentation: gardées pour relire les anciens codes.
+    // Les formes écrites avant le portage : gardées pour relire les anciens codes.
     CIRCLE("circle", "rond"),
     SQUIRCLE("squircle", "carré arrondi"),
-    // La bulle de Onyx, sa queue rentrée en bas à gauche: personne d'autre ne l'a.
+    // La bulle de Onyx, sa queue rentrée en bas à gauche : personne d'autre ne l'a.
     BUBBLE("bubble", "bulle"),
-    // Les formes , dans leur ordre de première écriture.
+    // Les formes de la référence, dans leur ordre de première écriture.
     ROUND("round", "rond"),
     EGG("egg", "œuf"),
     PILL("pill", "pilule"),
@@ -86,7 +89,7 @@ enum class FaceShape(val id: String, val frLabel: String) {
     BLOB("blob", "blob"),
     ;
 
-    /** Les anciennes formes gardent leur rendu; toute écriture serveur utilise le nom. */
+    /** Les anciennes formes gardent leur rendu ; toute écriture serveur utilise le nom la référence. */
     val server: FaceShape
         get() = when (this) {
             CIRCLE -> ROUND
@@ -95,18 +98,18 @@ enum class FaceShape(val id: String, val frLabel: String) {
         }
 
     companion object {
-        /** Ordre figé pour les visages donnés par un nom. */
+        /** Ordre figé de la référence pour les visages donnés par un nom. */
         val seeded = listOf(ROUND, EGG, PILL, CAPSULE, BURST, PICK, HEX, DIAMOND)
 
-        /** Formes proposées au picker; la bulle reste exclusive au profil principal. */
+        /** Formes proposées au picker ; la bulle reste exclusive au profil principal. */
         val given = listOf(ROUND, EGG, PILL, CAPSULE, BURST, PICK, HEX, DIAMOND, GHOST, SQUARE, STAR, BLOB)
 
-        /** `BotFacePicker`: la bulle en premier pour Onyx seulement. */
+        /** `BotFacePicker` : la bulle en premier pour Onyx seulement. */
         fun offered(isDefault: Boolean): List<FaceShape> = if (isDefault) listOf(BUBBLE) + given else given
 
         fun fromId(raw: String?): FaceShape? = entries.firstOrNull { it.id == raw }
 
-        /** Un code v1 ne reconnaît que les identifiants , jamais les anciens alias. */
+        /** Un code v1 ne reconnaît que les identifiants de la référence, jamais les anciens alias. */
         fun fromServerId(raw: String?): FaceShape? = entries.firstOrNull { it == it.server && it.id == raw }
     }
 }
@@ -114,8 +117,8 @@ enum class FaceShape(val id: String, val frLabel: String) {
 /**
  * Ses yeux.
  *
- * Le connaît `round`, `mismatched`, `sleepy`, `happy`, `sparkle`. `line` et `wide` sont deux
- * yeux plus anciens, gardés pour relire les anciens codes; l'humeur `WORKING` s'en sert encore.
+ * Le la référence connaît `round`, `mismatched`, `sleepy`, `happy`, `sparkle`. `line` et `wide` sont deux
+ * yeux plus anciens, gardés pour relire les anciens codes ; l'humeur `WORKING` s'en sert encore.
  */
 enum class FaceEyes(val id: String, val frLabel: String) {
     ROUND("round", "ronds"),
@@ -135,7 +138,7 @@ enum class FaceEyes(val id: String, val frLabel: String) {
         }
 
     companion object {
-        /** `Eyes.allCases`, dans l'ordre. */
+        /** `Eyes.allCases`, dans l'ordre de la référence. */
         val ordered = listOf(ROUND, MISMATCHED, SLEEPY, HAPPY, SPARKLE)
 
         fun fromId(raw: String?): FaceEyes? = entries.firstOrNull { it.id == raw }
@@ -146,8 +149,8 @@ enum class FaceEyes(val id: String, val frLabel: String) {
 /**
  * Sa bouche.
  *
- * Le connaît `none`, `smile`, `oh`, `grin`. `line` et `open` sont plus anciennes, gardées pour
- * relire les anciens codes; l'humeur `WORKING` et `WAITING` s'en sert encore.
+ * Le la référence connaît `none`, `smile`, `oh`, `grin`. `line` et `open` sont plus anciennes, gardées pour
+ * relire les anciens codes ; l'humeur `WORKING` et `WAITING` s'en sert encore.
  */
 enum class FaceMouth(val id: String, val frLabel: String) {
     SMILE("smile", "sourire"),
@@ -166,7 +169,7 @@ enum class FaceMouth(val id: String, val frLabel: String) {
         }
 
     companion object {
-        /** `Mouth.allCases`, dans l'ordre. */
+        /** `Mouth.allCases`, dans l'ordre de la référence. */
         val ordered = listOf(NONE, SMILE, OH, GRIN)
 
         fun fromId(raw: String?): FaceMouth? = entries.firstOrNull { it.id == raw }
@@ -174,7 +177,7 @@ enum class FaceMouth(val id: String, val frLabel: String) {
     }
 }
 
-/** La marque d'un visage: rien, une antenne, une étincelle, un fard, des taches. */
+/** La marque d'un visage : rien, une antenne, une étincelle, un fard, des taches. */
 enum class FaceMark(val id: String, val frLabel: String) {
     NONE("none", "rien"),
     ANTENNA("antenna", "antenne"),
@@ -184,7 +187,7 @@ enum class FaceMark(val id: String, val frLabel: String) {
     ;
 
     companion object {
-        /** `Mark.allCases`, dans l'ordre. */
+        /** `Mark.allCases`, dans l'ordre de la référence. */
         val ordered = listOf(NONE, ANTENNA, SPARK, FRECKLES, BLUSH)
 
         fun fromId(raw: String?): FaceMark? = entries.firstOrNull { it.id == raw }
@@ -193,10 +196,10 @@ enum class FaceMark(val id: String, val frLabel: String) {
 }
 
 /**
- * Le visage d'un bot: une forme, deux yeux, une bouche, une marque, une couleur.
+ * Le visage d'un bot : une forme, deux yeux, une bouche, une marque, une couleur.
  *
- * Comme `BotFace`. Le code serveur est
- * `1:forme:yeux:bouche:marque:couleur:regard:inclinaison`; les anciens codes à tirets restent
+ * Miroir de `BotFace` côté référence. Le code serveur est
+ * `1:forme:yeux:bouche:marque:couleur:regard:inclinaison` ; les anciens codes à tirets restent
  * lisibles et sont normalisés vers ce format à la prochaine écriture.
  */
 data class BotFace(
@@ -218,9 +221,9 @@ data class BotFace(
 
     /**
      * Les couleurs qu'une conversation avec ce bot prend quand « Bot colors in their chats » est
-     * allumé (`BotFace.chatColors` ): vos bulles et l'accent dans le profond de sa couleur.
+     * allumé (`BotFace.chatColors` de la référence) : vos bulles et l'accent dans le profond de sa couleur.
      *
-     * Rien pour un visage de la couleur du thème, qui est déjà celle du thème; blanc et noir ne
+     * Rien pour un visage de la couleur du thème, qui est déjà celle du thème ; blanc et noir ne
      * colorent que les bulles (un accent dans l'un ou l'autre disparaîtrait sur une des pages).
      */
     fun chatColors(): ThemeColors? = when (colour) {
@@ -235,12 +238,12 @@ data class BotFace(
     }
 
     /**
-     * Le visage décrit en français, pour qui ne le voit pas: « Visage bleu, yeux ronds, sourire ».
+     * Le visage décrit en français, pour qui ne le voit pas : « Visage bleu, yeux ronds, sourire ».
      *
-     * Même intention que `BotFacePicker.describe`: la bouche et la marque se taisent
+     * Même intention que `BotFacePicker.describe` côté référence : la bouche et la marque se taisent
      * quand il n'y en a pas.
      */
-    fun describe(locale: Locale = Locale.getDefault()): String {
+    fun describe(locale: Locale = OnyxLanguage.preferred): String {
         val french = locale.language.equals("fr", ignoreCase = true)
         val index = colour.coerceIn(0, colourNamesFr.lastIndex)
         val colourName = if (french) colourNamesFr[index] else colourNames[index]
@@ -255,7 +258,7 @@ data class BotFace(
     }
 
     companion object {
-        /** Chaque couleur , déjà exprimée en dégradé clair → profond. */
+        /** Chaque couleur de la référence, déjà exprimée en dégradé clair → profond. */
         private val palette = listOf(
             Color(0.66f, 0.83f, 1.00f) to Color(0.30f, 0.55f, 0.96f),
             Color(1.00f, 0.89f, 0.54f) to Color(0.96f, 0.68f, 0.22f),
@@ -275,7 +278,7 @@ data class BotFace(
             Color(1.00f, 0.87f, 0.93f) to Color(0.96f, 0.64f, 0.80f),
         )
 
-        /** Conservé pour les anciens appels; le dessin utilise désormais [gradient]. */
+        /** Conservé pour les anciens appels ; le dessin utilise désormais [gradient]. */
         val colours: List<Color> = palette.map { it.second } + listOf(
             Color(0xFF7C7C88),
             Color(0.796f, 0.941f, 1.0f),
@@ -296,7 +299,7 @@ data class BotFace(
         fun offeredColors(isDefault: Boolean): List<Int> =
             (if (isDefault) listOf(themed, codeBlue) else emptyList()) + pickable
 
-        /** « Surprise Me »: une créature quelconque, jamais la bulle, en gardant regard et lean. */
+        /** « Surprise Me » : une créature quelconque, jamais la bulle, en gardant regard et lean. */
         fun random(keeping: BotFace, random: Random = Random.Default): BotFace = BotFace(
             shape = FaceShape.given.random(random),
             eyes = FaceEyes.ordered.random(random),
@@ -317,10 +320,10 @@ data class BotFace(
             return own.lighten(0.14f) to own
         }
 
-        /** Le blanc: dessiné avec un liseré, sinon il disparaîtrait sur une page blanche. */
+        /** Le blanc : dessiné avec un liseré, sinon il disparaîtrait sur une page blanche. */
         const val white = 11
 
-        /** Les noms des couleurs, dans l'ordre. */
+        /** Les noms des couleurs, dans l'ordre de la référence. */
         val colourNames = listOf(
             "Blue", "Amber", "Pink", "Indigo", "Teal", "Violet", "Green", "Orange",
             "Sky", "Coral", "Lime", "White", "Black", "Theme", "Code Blue", "Soft Pink",
@@ -353,7 +356,27 @@ data class BotFace(
             tilt = -3,
         )
 
-        /** Ordre combiné figé de `BotFace.all`: 8 × 5 × 4 × 5 = 800 créatures. */
+        /**
+         * Le visage d'un auteur que l'on **ne connaît pas** — la personne, un outil, le système —,
+         * quand aucun nom de profil ne le décrit : un rond **gris**, deux yeux ronds, aucune bouche
+         * et aucune marque.
+         *
+         * C'est le seul visage générique. Il ne sert **jamais** à un bot dont le profil est chargé :
+         * celui-là montre la créature de **son** profil (voir `botFace`). Rien de coloré, donc rien
+         * qui se lise comme un bot : la teinte `12` est le gris→noir de la palette, et l'absence de
+         * bouche et de marque l'empêche de ressembler à une créature.
+         */
+        val unknown = BotFace(
+            shape = FaceShape.CIRCLE,
+            eyes = FaceEyes.ROUND,
+            mouth = FaceMouth.NONE,
+            mark = FaceMark.NONE,
+            colour = 12,
+            glance = 0,
+            tilt = 0,
+        )
+
+        /** Ordre combiné figé de `BotFace.all` : 8 × 5 × 4 × 5 = 800 créatures. */
         private val allFaces: List<BotFace> = FaceShape.seeded.flatMap { shape ->
             FaceEyes.ordered.flatMap { eyes ->
                 FaceMouth.ordered.flatMap { mouth ->
@@ -364,7 +387,7 @@ data class BotFace(
             }
         }
 
-        /** Le visage qu'un nom donne, avec le FNV-1a 64 bits sur ses octets UTF-8. */
+        /** Le visage qu'un nom donne, avec le FNV-1a 64 bits de la référence sur ses octets UTF-8. */
         fun forName(name: String): BotFace {
             if (name == "default") return main
             val hash = fnv1a(name)
@@ -385,7 +408,7 @@ data class BotFace(
         }
 
         /**
-         * Un visage par profil, sans deux créatures identiques: les choix d'abord, puis le visage
+         * Un visage par profil, sans deux créatures identiques : les choix d'abord, puis le visage
          * du nom ou le prochain libre. Les formes sont réparties et les couleurs restent uniques
          * tant que les onze couleurs semées suffisent, exactement comme `faces(for:picked:)`.
          */
@@ -395,7 +418,7 @@ data class BotFace(
             val taken = mutableListOf<BotFace>()
             val out = linkedMapOf<String, BotFace>()
 
-            // Le principal est placé avant les autres: sa bulle et ses deux couleurs sont réservées.
+            // Le principal est placé avant les autres : sa bulle et ses deux couleurs sont réservées.
             if ("default" in unique) {
                 val face = allowed["default"] ?: main
                 taken += if (face.colour == themed || face.colour == codeBlue) face.copy(colour = 0) else face
@@ -489,82 +512,82 @@ data class BotFace(
     }
 }
 
-/** L'humeur d'un bot: ce qu'il fait, et ce que son visage en montre. */
+/** L'humeur d'un bot : ce qu'il fait, et ce que son visage en montre. */
 enum class BotMood {
-    /** Au repos: son visage ordinaire. */
+    /** Au repos : son visage ordinaire. */
     IDLE,
 
-    /** En train de répondre: les yeux s'ouvrent, la bouche se ferme. */
+    /** En train de répondre : les yeux s'ouvrent, la bouche se ferme. */
     WORKING,
 
-    /** Il vient de finir: les yeux sourient. */
+    /** Il vient de finir : les yeux sourient. */
     PLEASED,
 
-    /** Il attend une réponse: sourcils rapprochés, bouche plate. */
+    /** Il attend une réponse : sourcils rapprochés, bouche plate. */
     WAITING,
 
-    /** Il écoute: attentif — sourcils hauts, regard vers vous, paupières ouvertes. */
+    /** Il écoute : attentif — sourcils hauts, regard vers vous, paupières ouvertes. */
     LISTENING,
 
-    /** Il réfléchit: sourcils rapprochés, paupières basses, regard de côté. */
+    /** Il réfléchit : sourcils rapprochés, paupières basses, regard de côté. */
     THINKING,
 
-    /** Quelque chose s'est mal passé: sourcils froncés, moue. */
+    /** Quelque chose s'est mal passé : sourcils froncés, moue. */
     ERROR,
 }
 
 /**
  * Les micro-expressions qu'une humeur pose sur un visage, en plus de ses yeux et de sa bouche.
  *
- * Ce sont des **nombres**, pas des dessins: ils se posent sur le visage ordinaire du bot (sourcils
+ * Ce sont des **nombres**, pas des dessins : ils se posent sur le visage ordinaire du bot (sourcils
  * de `-1` froncés à `+1` relevés, paupières de `0` à `1` mi-closes) et un regard propre, sans
- * remplacer sa forme ni sa couleur. Un visage au repos (humeur `IDLE`) n'en porte aucun: sa
+ * remplacer sa forme ni sa couleur. Un visage au repos (humeur `IDLE`) n'en porte aucun : sa
  * créature ne change pas, et rien ne se dessine.
  */
 internal data class BotExpression(
     val brow: Float = 0f,
     val squint: Float = 0f,
-    /** Un regard tenu, quand l'état en demande un (`THINKING` voit de côté); `null`: celui du visage. */
+    /** Un regard tenu, quand l'état en demande un (`THINKING` voit de côté) ; `null` : celui du visage. */
     val look: Offset? = null,
 )
 
-/** Ce que cette humeur ajoute au visage: ses sourcils, ses paupières, son regard. */
+/** Ce que cette humeur ajoute au visage : ses sourcils, ses paupières, son regard. */
 internal val BotMood.expression: BotExpression
     get() = when (this) {
         BotMood.IDLE -> BotExpression()
-        // Il compose sa réponse: sourcils un peu rapprochés, paupières basses.
+        // Il compose sa réponse : sourcils un peu rapprochés, paupières basses.
         BotMood.WORKING -> BotExpression(brow = -0.30f, squint = 0.10f)
-        // Content de lui: sourcils levés, les yeux s'en chargent déjà.
+        // Content de lui : sourcils levés, les yeux s'en chargent déjà.
         BotMood.PLEASED -> BotExpression(brow = 0.30f)
-        // Il attend: léger doute.
+        // Il attend : léger doute.
         BotMood.WAITING -> BotExpression(brow = -0.15f)
-        // Il écoute: sourcils hauts, regard vers vous.
+        // Il écoute : sourcils hauts, regard vers vous.
         BotMood.LISTENING -> BotExpression(brow = 0.45f, squint = -0.08f, look = Offset(0.05f, 0.35f))
-        // Il réfléchit: sourcils rapprochés, paupières basses, regard de côté et vers le haut.
+        // Il réfléchit : sourcils rapprochés, paupières basses, regard de côté et vers le haut.
         BotMood.THINKING -> BotExpression(brow = -0.45f, squint = 0.20f, look = Offset(0.85f, -0.45f))
-        // Mauvaise nouvelle: sourcils froncés.
+        // Mauvaise nouvelle : sourcils froncés.
         BotMood.ERROR -> BotExpression(brow = -0.70f, squint = 0.05f, look = Offset(-0.20f, 0.10f))
     }
 
 /**
- * Un instant d'un visage qui bouge — celui d'Onyx dans la scène vocale: où il regarde, à quel
+ * Un instant d'un visage qui bouge — celui d'Onyx dans la scène vocale : où il regarde, à quel
  * point ses yeux sont fermés, quelle est l'ouverture de sa bouche. Ce qui est `null` reste au
- * visage (`BotPose` ).
+ * visage (`BotPose` de la référence).
  */
 data class BotPose(
-    /** De -1 à 1 dans chaque sens: la droite et le bas sont positifs. */
+    /** De -1 à 1 dans chaque sens : la droite et le bas sont positifs. */
     val look: Offset? = null,
     /** 0 ouvert … 1 fermé. */
     val blink: Float = 0f,
-    /** 0 … 1: une bouche qui parle. `null` garde la bouche du visage. */
+    /** 0 … 1 : une bouche qui parle. `null` garde la bouche du visage. */
     val mouth: Float? = null,
-    /** Une inclinaison qui bouge; `null` garde celle du visage. */
+    /** Une inclinaison qui bouge ; `null` garde celle du visage. */
     val tilt: Float? = null,
-    /** Sourcils: -1 froncés … 0 rien … +1 relevés. Rien ne se dessine à zéro. */
+    /** Sourcils : -1 froncés … 0 rien … +1 relevés. Rien ne se dessine à zéro. */
     val brow: Float = 0f,
-    /** Paupières: 0 ouvertes … 1 mi-closes (l'œil se referme sans cligner). */
+    /** Paupières : 0 ouvertes … 1 mi-closes (l'œil se referme sans cligner). */
     val squint: Float = 0f,
-    /** Respiration: -1 … +1, une lente oscillation verticale du corps. 0: rien. */
+    /** Respiration : -1 … +1, une lente oscillation verticale du corps. 0 : rien. */
     val breath: Float = 0f,
 )
 
@@ -572,7 +595,7 @@ data class BotPose(
  * Les visages de bots, allumés ou non (`Settings.botFaces`, Réglages → Apparence → « Bot faces »).
  *
  * Éteint, chaque bot — Onyx compris — est son initiale sur un disque de sa couleur, comme
- * `BotAvatar` le fait quand le réglage est éteint.
+ * `BotAvatar` le fait côté référence quand le réglage est éteint.
  */
 val LocalBotFaces = staticCompositionLocalOf { true }
 
@@ -580,19 +603,19 @@ val LocalBotFaces = staticCompositionLocalOf { true }
  * Les photos de bots récupérées de Hermes Desktop, par nom de profil
  * (`Settings.botPictures`, Réglages → Apparence → « Pictures from Hermes »).
  *
- * Vide quand le réglage est éteint ou qu'aucune photo n'a été obtenue: le visage est alors dessiné.
+ * Vide quand le réglage est éteint ou qu'aucune photo n'a été obtenue : le visage est alors dessiné.
  */
 val LocalBotPictures = staticCompositionLocalOf<Map<String, ImageBitmap>> { emptyMap() }
 
 /**
- * Le visage d'un bot, dessiné; `faceCode` l'emporte sur ce que le nom donnerait.
+ * Le visage d'un bot, dessiné ; `faceCode` l'emporte sur ce que le nom donnerait.
  *
- * L'humeur change son expression sans changer son visage: c'est le même bot, qui travaille, qui
+ * L'humeur change son expression sans changer son visage : c'est le même bot, qui travaille, qui
  * vient de finir, ou qui attend. Ses yeux se ferment un court instant toutes les quatre à sept
- * secondes (sauf pendant qu'il travaille), comme la créature. `contentDescription` dit ce
- * qu'il est à qui ne le voit pas; sans lui, le visage se décrit lui-même.
+ * secondes (sauf pendant qu'il travaille), comme la créature de la référence. `contentDescription` dit ce
+ * qu'il est à qui ne le voit pas ; sans lui, le visage se décrit lui-même.
  *
- * Un bot dont la photo a été obtenue de Hermes Desktop prend sa photo; avec « Bot faces » éteint
+ * Un bot dont la photo a été obtenue de Hermes Desktop prend sa photo ; avec « Bot faces » éteint
  * et `showsInitial`, c'est son initiale qui le représente. Les aperçus qui doivent toujours montrer
  * un visage (le choix d'un visage, l'orbe de Onyx) passent `showsInitial = false`.
  */
@@ -605,11 +628,11 @@ fun BotAvatar(
     mood: BotMood = BotMood.IDLE,
     contentDescription: String? = null,
     showsInitial: Boolean = true,
-    /** `false`: le visage ne cligne pas — la barre du haut le veut à plat et immobile. */
+    /** `false` : le visage ne cligne pas — la barre du haut le veut à plat et immobile. */
     blinks: Boolean = true,
     /**
-     * Un instant du visage, quand il bouge (la scène vocale): le regard, le clignement, la
-     * bouche, l'inclinaison. `null`: le visage ordinaire, qui cligne tout seul.
+     * Un instant du visage, quand il bouge (la scène vocale) : le regard, le clignement, la
+     * bouche, l'inclinaison. `null` : le visage ordinaire, qui cligne tout seul.
      */
     pose: BotPose? = null,
 ) {
@@ -627,20 +650,20 @@ fun BotAvatar(
         }
         return
     }
-    // Le visage de l'humeur **et** ses micro-expressions, tenus ensemble: c'est ce couple qui se
+    // Le visage de l'humeur **et** ses micro-expressions, tenus ensemble : c'est ce couple qui se
     // fond d'un état à l'autre, pour que le regard et les sourcils ne sautent jamais d'un coup.
     val stage = remember(name, faceCode, mood) { BotStage.face(name, faceCode, mood) }
     val face = stage.face
     val blinking = rememberBlink(pose == null && blinks && mood != BotMood.WORKING)
     val description = contentDescription ?: face.describe()
     val theme = LocalOnyxTheme.current
-    // « Bot faces » éteint: le bot est son initiale, sur un disque de sa couleur.
+    // « Bot faces » éteint : le bot est son initiale, sur un disque de sa couleur.
     val initial = if (showsInitial && !LocalBotFaces.current) BotFace.initialFor(name) else null
-    // Sans pose, c'est le clignement d'ici (un battement franc); avec, c'est l'appelant — la
+    // Sans pose, c'est le clignement d'ici (un battement franc) ; avec, c'est l'appelant — la
     // scène vocale — qui donne l'instant du visage.
     val shown = pose ?: BotPose(blink = if (blinking) 1f else 0f)
-    // Les transitions d'humeur sont **fondues**, jamais instantanées: l'ancien visage reste dessous
-    // et le nouveau se pose par-dessus en 0,35 s; sous Reduce Motion, la bascule est nette.
+    // Les transitions d'humeur sont **fondues**, jamais instantanées : l'ancien visage reste dessous
+    // et le nouveau se pose par-dessus en 0,35 s ; sous Reduce Motion, la bascule est nette.
     val reduceMotion = LocalReduceMotion.current
     val progress = remember { Animatable(1f) }
     val previous = remember { mutableStateOf(stage) }
@@ -676,8 +699,40 @@ fun BotAvatar(
     }
 }
 
+/** Une image sur trente suffit à un visage qui vit (`TimelineView` de la référence). */
+private const val BOT_FRAME_NANOS = 33_333_333L
+
 /**
- * Le visage d'une humeur: sa forme, ses yeux, sa bouche ([face]) et les micro-expressions que
+ * Le temps d'un visage qui vit : les secondes écoulées depuis son entrée à l'écran, écrites à une
+ * image sur trente — **la même horloge que la scène vocale** (`VoiceFace`), pour que les deux
+ * respirent au même rythme sans se marcher dessus.
+ *
+ * `null` sous « Réduire les animations » : aucun instant ne passe, donc l'appelant garde la pose de
+ * repos ([BotPose]) et le visage reste **figé**, comme le `TimelineView(…, paused: true)` de la
+ * référence.
+ */
+@Composable
+fun rememberBotSeconds(): Float? {
+    if (LocalReduceMotion.current) return null
+    var seconds by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val started = withFrameNanos { it }
+        var shown = -1L
+        while (true) {
+            withFrameNanos { now ->
+                val frame = (now - started) / BOT_FRAME_NANOS
+                if (frame != shown) {
+                    shown = frame
+                    seconds = frame / 30f
+                }
+            }
+        }
+    }
+    return seconds
+}
+
+/**
+ * Le visage d'une humeur : sa forme, ses yeux, sa bouche ([face]) et les micro-expressions que
  * l'humeur y pose ([expression]). Deux humeurs ne diffèrent que par là, donc deux [BotStage] se
  * composent par fondu — le corps, lui, est identique d'un état à l'autre.
  */
@@ -695,19 +750,21 @@ private data class BotStage(val face: BotFace, val expression: BotExpression) {
     )
 
     companion object {
-        /** Le visage d'un bot pour une humeur: les yeux et la bouche de l'état, et ses sourcils. */
+        /** Le visage d'un bot pour une humeur : les yeux et la bouche de l'état, et ses sourcils. */
         fun face(name: String, faceCode: String?, mood: BotMood): BotStage {
-            val base = BotFace.parse(faceCode) ?: BotFace.forName(name)
+            // La résolution est **unique** : `botFace` (voir BotLook.kt) — le même appel pour la
+            // barre du haut, le Flux, les listes, les cartes, les salons et la voix.
+            val base = botFace(name, faceCode)
             val shaped = when (mood) {
                 BotMood.IDLE -> base
                 BotMood.WORKING -> base.copy(eyes = FaceEyes.WIDE, mouth = FaceMouth.LINE)
                 BotMood.PLEASED -> base.copy(eyes = FaceEyes.HAPPY, mouth = FaceMouth.SMILE)
                 BotMood.WAITING -> base.copy(eyes = FaceEyes.SLEEPY, mouth = FaceMouth.LINE)
-                // Il écoute: son visage reste le sien, seulement attentif (sourcils hauts).
+                // Il écoute : son visage reste le sien, seulement attentif (sourcils hauts).
                 BotMood.LISTENING -> base
-                // Il réfléchit: paupières basses, bouche plate, regard de côté.
+                // Il réfléchit : paupières basses, bouche plate, regard de côté.
                 BotMood.THINKING -> base.copy(eyes = FaceEyes.SLEEPY, mouth = FaceMouth.LINE)
-                // Il a échoué: la moue se dessine sous ses yeux.
+                // Il a échoué : la moue se dessine sous ses yeux.
                 BotMood.ERROR -> base.copy(mouth = FaceMouth.OH)
             }
             return BotStage(shaped, mood.expression)
@@ -716,9 +773,9 @@ private data class BotStage(val face: BotFace, val expression: BotExpression) {
 }
 
 /**
- * L'initiale d'un nom, comme `BotAvatar.initial(of:)`: sa première lettre ou son premier chiffre
+ * L'initiale d'un nom, comme `BotAvatar.initial(of:)` : sa première lettre ou son premier chiffre
  * en capitale (« @scout » donne S), sinon son premier caractère non blanc et non ponctuation
- * (un émoji); rien pour un nom vide.
+ * (un émoji) ; rien pour un nom vide.
  */
 fun BotFace.Companion.initialFor(name: String): String {
     val first = name.firstOrNull { it.isLetterOrDigit() }
@@ -726,7 +783,7 @@ fun BotFace.Companion.initialFor(name: String): String {
     return first?.uppercase() ?: ""
 }
 
-/** `Char.isPunctuation` de: les catégories `P*` d'Unicode. */
+/** `Char.isPunctuation` de la référence : les catégories `P*` d'Unicode. */
 private fun isPunctuation(char: Char): Boolean = when (char.category) {
     CharCategory.CONNECTOR_PUNCTUATION,
     CharCategory.DASH_PUNCTUATION,
@@ -740,7 +797,7 @@ private fun isPunctuation(char: Char): Boolean = when (char.category) {
 }
 
 /**
- * Le monogramme d'un bot dont les visages sont éteints: un disque de sa couleur profonde, un
+ * Le monogramme d'un bot dont les visages sont éteints : un disque de sa couleur profonde, un
  * liseré sur les teintes claires, et son initiale — encre sombre sur clair, blanc sur foncé.
  */
 private fun DrawScope.drawMonogram(face: BotFace, initial: String, theme: ResolvedTheme) {
@@ -780,7 +837,7 @@ private fun DrawScope.drawMonogram(face: BotFace, initial: String, theme: Resolv
 
 
 /**
- * Le clignement: toutes les quatre à sept secondes, les yeux se ferment 120 ms.
+ * Le clignement : toutes les quatre à sept secondes, les yeux se ferment 120 ms.
  *
  * Le temps d'attente est tiré au sort à chaque fois, pour que plusieurs visages ne clignent pas
  * ensemble. Rien quand `enabled` est faux (un bot qui travaille garde les yeux ouverts).
@@ -804,7 +861,7 @@ private fun rememberBlink(enabled: Boolean): Boolean {
 }
 
 /**
- * Une palette de dessin: la couleur du visage, son dégradé de surface, son encre, et de quoi savoir
+ * Une palette de dessin : la couleur du visage, son dégradé de surface, son encre, et de quoi savoir
  * si le corps est pâle (les yeux reçoivent alors un liseré) ou noir (les traits passent au blanc).
  */
 private data class FaceInk(
@@ -819,11 +876,11 @@ private data class FaceInk(
 /** Où sont les yeux d'une forme, et le point le plus haut de son corps, dans une boîte de 100. */
 private data class FaceGeometry(val eyeY: Float, val eyeGap: Float, val top: Offset)
 
-/** Le coin de la queue: le rayon du coin dessiné presque net, en unités de 100. */
+/** Le coin de la queue : le rayon du coin dessiné presque net, en unités de 100. */
 private const val tailCorner = 6.5f
 
 /**
- * Dessine la créature dans la boîte de 100 points: dégradé, queue, regard et inclinaison.
+ * Dessine la créature dans la boîte de 100 points de la référence : dégradé, queue, regard et inclinaison.
  * Aucun décor propre à Android (notamment aucune ombre) ne vient changer sa silhouette.
  */
 private fun DrawScope.drawFace(face: BotFace, pose: BotPose, theme: ResolvedTheme) {
@@ -844,12 +901,12 @@ private fun DrawScope.drawFace(face: BotFace, pose: BotPose, theme: ResolvedThem
 
     val body = faceBody(face.shape, theme.bubbleRadius.value)
     val geometry = faceGeometry(face.shape)
-    // L'inclinaison suit la pose quand elle en donne une: c'est ainsi que le regard fait pencher
-    // la tête (`OnyxVoiceFace.pose` ).
+    // L'inclinaison suit la pose quand elle en donne une : c'est ainsi que le regard fait pencher
+    // la tête (`OnyxVoiceFace.pose` de la référence).
     val tilt = pose.tilt ?: face.tilt.toFloat()
 
     scale(unit, unit, pivot = Offset.Zero) {
-        // La respiration: un lent va-et-vient vertical, avec un rien d'expansion à l'inspiration.
+        // La respiration : un lent va-et-vient vertical, avec un rien d'expansion à l'inspiration.
         // Le canevas a une taille fixe, donc rien de tout cela ne bouge dans la mise en page.
         val breath = pose.breath.coerceIn(-1f, 1f)
         translate(0f, -breath * 1.4f) {
@@ -879,7 +936,7 @@ private fun DrawScope.drawCreature(
     palette: FaceInk,
     pose: BotPose,
 ) {
-    // L'antenne: derrière le bord du corps, une tige et sa bille.
+    // L'antenne : derrière le bord du corps, une tige et sa bille.
     if (face.mark == FaceMark.ANTENNA) {
         val stalk = Path().apply {
             moveTo(geometry.top.x + 4f, geometry.top.y + 4f)
@@ -898,7 +955,7 @@ private fun DrawScope.drawCreature(
             end = Offset(84f, 90f),
         ),
     )
-    // Le blanc ne se lit que sur une page teintée: un liseré le détache.
+    // Le blanc ne se lit que sur une page teintée : un liseré le détache.
     if (face.colour == BotFace.white && face.shape != FaceShape.BUBBLE) {
         drawPath(body, palette.ink.copy(alpha = 0.2f), style = Stroke(width = 1.6f))
     }
@@ -918,7 +975,7 @@ private fun DrawScope.drawCreature(
         drawPath(star, if (palette.pale) palette.ink.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.92f))
     }
 
-    // Le reflet: une tache de lumière en haut à gauche, découpée aux bords du corps.
+    // Le reflet : une tache de lumière en haut à gauche, découpée aux bords du corps.
     clipPath(body) {
         rotate(degrees = -28f, pivot = Offset(geometry.top.x - 17f, geometry.top.y + 13f)) {
             drawOval(
@@ -930,11 +987,11 @@ private fun DrawScope.drawCreature(
     }
 
     drawEyes(face, geometry, palette, pose)
-    // Les sourcils: au-dessus des yeux, ils ne se dessinent que quand l'humeur en demande
+    // Les sourcils : au-dessus des yeux, ils ne se dessinent que quand l'humeur en demande
     // (un visage au repos n'en porte pas, donc sa créature reste exactement celle d'avant).
     drawBrows(geometry, palette, pose.brow)
 
-    // Les marques du bas: les taches et le fard, sous les yeux.
+    // Les marques du bas : les taches et le fard, sous les yeux.
     val cheekY = geometry.eyeY + 10f
     val leftX = 51f - geometry.eyeGap
     val rightX = 51f + geometry.eyeGap
@@ -966,7 +1023,7 @@ private fun DrawScope.drawCreature(
 }
 
 /**
- * Les yeux: blancs, pupilles dirigées par `glance` — ou par la pose, quand le visage
+ * Les yeux de la référence : blancs, pupilles dirigées par `glance` — ou par la pose, quand le visage
  * suit quelque chose —, et clignement par compression.
  */
 private fun DrawScope.drawEyes(face: BotFace, geometry: FaceGeometry, palette: FaceInk, pose: BotPose) {
@@ -978,11 +1035,11 @@ private fun DrawScope.drawEyes(face: BotFace, geometry: FaceGeometry, palette: F
         Offset(-1.4f, -1.2f),
         Offset(1.4f, -1.2f),
     )
-    // `pose.look` va de -1 à 1; les pupilles du visage vont à ±1,9 sur ±1,4.
+    // `pose.look` va de -1 à 1 ; les pupilles du visage vont à ±1,9 sur ±1,4 (la référence).
     val look = pose.look
         ?.let { Offset(it.x.coerceIn(-1f, 1f) * 1.9f, it.y.coerceIn(-1f, 1f) * 1.4f) }
         ?: glances[Math.floorMod(face.glance, 4)]
-    // Le clignement ferme l'œil; les paupières (`squint`) le rétrécissent sans le fermer —
+    // Le clignement ferme l'œil ; les paupières (`squint`) le rétrécissent sans le fermer —
     // c'est la demi-paupière de l'attention et de la réflexion.
     val open = (1f - pose.blink.coerceIn(0f, 1f) * 0.9f) * (1f - pose.squint.coerceIn(0f, 1f) * 0.35f)
 
@@ -1010,7 +1067,7 @@ private fun DrawScope.drawEyes(face: BotFace, geometry: FaceGeometry, palette: F
         FaceEyes.SLEEPY -> {
             for (centre in listOf(left, right)) {
                 drawEye(centre, 7.2f, 3.6f, palette, look, open)
-                // La paupière: le haut de l'œil dans la couleur du corps, son bord d'un trait.
+                // La paupière : le haut de l'œil dans la couleur du corps, son bord d'un trait.
                 val lid = Path().apply {
                     addOval(Rect(centre.x - 7.4f, centre.y - 7.8f, centre.x + 7.4f, centre.y + 7.8f))
                 }
@@ -1053,9 +1110,9 @@ private fun DrawScope.drawEyes(face: BotFace, geometry: FaceGeometry, palette: F
 }
 
 /**
- * Les sourcils, au-dessus des yeux: de `-1` froncés (les bouts descendent vers le nez) à `+1`
+ * Les sourcils, au-dessus des yeux : de `-1` froncés (les bouts descendent vers le nez) à `+1`
  * relevés (les deux bouts montent, l'intérieur plus haut). Rien n'est tracé près de zéro, pour
- * qu'un visage ordinaire reste **exactement** celui du modèle.
+ * qu'un visage ordinaire reste **exactement** celui de la référence.
  */
 private fun DrawScope.drawBrows(geometry: FaceGeometry, palette: FaceInk, brow: Float) {
     val b = brow.coerceIn(-1f, 1f)
@@ -1075,7 +1132,7 @@ private fun DrawScope.drawBrows(geometry: FaceGeometry, palette: FaceInk, brow: 
     }
 }
 
-/** Un œil: un blanc, sa pupille dirigée, et éventuellement la lumière d'un œil étincelant. */
+/** Un œil : un blanc, sa pupille dirigée, et éventuellement la lumière d'un œil étincelant. */
 private fun DrawScope.drawEye(
     centre: Offset,
     radius: Float,
@@ -1107,7 +1164,7 @@ private fun DrawScope.drawEye(
 
 /**
  * La bouche, sous les yeux. Avec une pose qui parle, c'est **une bouche qui s'ouvre avec la voix**
- * — un ovale arrondi, large de 7 + 3·ouverture et haut de 1,6 + 8·ouverture, comme;
+ * — un ovale arrondi, large de 7 + 3·ouverture et haut de 1,6 + 8·ouverture, comme la référence ;
  * sinon la bouche du visage.
  */
 private fun DrawScope.drawMouth(face: BotFace, geometry: FaceGeometry, palette: FaceInk, talking: Float? = null) {
@@ -1168,7 +1225,7 @@ private fun DrawScope.drawMouth(face: BotFace, geometry: FaceGeometry, palette: 
     }
 }
 
-/** Où sont les yeux d'une forme, et son sommet, dans la boîte de 100 (comme le `Layout` ). */
+/** Où sont les yeux d'une forme, et son sommet, dans la boîte de 100 (comme le `Layout` de la référence). */
 private fun faceGeometry(shape: FaceShape): FaceGeometry = when (shape) {
     FaceShape.CIRCLE -> FaceGeometry(44f, 11f, Offset(50f, 2f))
     FaceShape.SQUIRCLE -> FaceGeometry(45f, 12f, Offset(50f, 2f))
@@ -1252,7 +1309,7 @@ private fun faceBody(shape: FaceShape, bubbleRadius: Float = 18f): Path = when (
         )
     }
 
-    // La bulle de Onyx: le rectangle inégal du thème, agrandi de 1,45 et rentré en bas à gauche.
+    // La bulle de Onyx : le rectangle inégal du thème, agrandi de 1,45 et rentré en bas à gauche.
     FaceShape.BUBBLE -> tuckedPath(
         left = 12f,
         top = 13f,
@@ -1309,7 +1366,7 @@ private fun tuckedPath(
     }
 }
 
-/** Un œuf: plus étroit au-dessus qu'en dessous, avec la queue en bas à gauche. */
+/** Un œuf : plus étroit au-dessus qu'en dessous, avec la queue en bas à gauche. */
 private fun eggPath(): Path {
     val tail = tailCorner
     return Path().apply {
@@ -1324,7 +1381,7 @@ private fun eggPath(): Path {
     }
 }
 
-/** Un fantôme: un dôme au-dessus, des flancs droits, et un ourlet de trois festons. */
+/** Un fantôme : un dôme au-dessus, des flancs droits, et un ourlet de trois festons. */
 private fun ghostPath(): Path = Path().apply {
     moveTo(18f, 50f)
     cubicTo(18f, 28f, 32f, 11f, 51f, 11f)
@@ -1339,7 +1396,7 @@ private fun ghostPath(): Path = Path().apply {
     close()
 }
 
-/** Un soleil: onze pointes, dont celle en bas à gauche un peu plus longue et plus nette. */
+/** Un soleil : onze pointes, dont celle en bas à gauche un peu plus longue et plus nette. */
 private fun burstPath(): Path {
     val points = ringPoints(11, Offset(51f, 47f), 38f, 31f).toMutableList()
     val tip = nearestBottomLeft(points, outerOnly = true)
@@ -1347,7 +1404,7 @@ private fun burstPath(): Path {
     return roundedPolygon(points, sharp = tip, sharpness = 0.04f)
 }
 
-/** Une suite de points sur un anneau: le rayon alterne entre `outer` et `inner`. */
+/** Une suite de points sur un anneau : le rayon alterne entre `outer` et `inner`. */
 private fun ringPoints(count: Int, center: Offset, outer: Float, inner: Float, turn: Double = -90.0): List<Offset> =
     List(count * 2) { i ->
         val radius = if (i % 2 == 0) outer else inner
@@ -1362,7 +1419,7 @@ private fun nearestBottomLeft(points: List<Offset>, outerOnly: Boolean = false):
         .minByOrNull { hypot(points[it].x, 100f - points[it].y) } ?: 0
 
 /**
- * Un polygone aux coins adoucis: chaque coin est coupé par une courbe qui le traverse; celui de la
+ * Un polygone aux coins adoucis : chaque coin est coupé par une courbe qui le traverse ; celui de la
  * queue, moins.
  */
 private fun roundedPolygon(
@@ -1388,7 +1445,7 @@ private fun roundedPolygon(
     return path
 }
 
-/** Luminance linéaire sRGB, comme `Color.Resolved.linearRed/Green/Blue`. */
+/** Luminance linéaire sRGB, comme `Color.Resolved.linearRed/Green/Blue` sur la référence. */
 private fun Color.linearLuminance(): Float {
     fun linear(channel: Float): Float =
         if (channel <= 0.04045f) channel / 12.92f

@@ -1,5 +1,7 @@
 package com.onyx.app.ui.tools
 
+import com.onyx.app.ui.design.onyxPage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,11 +45,11 @@ import kotlinx.coroutines.launch
  *
  * Les jeux d'outils que la passerelle peut activer, ceux qui le sont d'abord, et la bascule.
  *
- * Les libellés et les descriptions viennent du serveur, en anglais: ils passent par le
+ * Les libellés et les descriptions viennent du serveur, en anglais : ils passent par le
  * dictionnaire (`onyxToolsPageFrench`) pour être lisibles en français. Les identifiants d'outils
  * (`a2a_call`, `execute_code`…) restent tels quels — ce sont des noms d'API.
  *
- * Le compteur qui s'affichait devant l'interrupteur (« A2A 5 ») a été retiré: le propriétaire
+ * Le compteur qui s'affichait devant l'interrupteur (« A2A 5 ») a été retiré : le propriétaire
  * — « les chiffres à côté du bouton ça veut rien dire, supprime ». Il ne disait que le nombre
  * d'outils du jeu, que la ligne des noms juste en dessous donne déjà.
  */
@@ -81,7 +83,7 @@ fun ToolsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.pageColor),
+            .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Tools", onBack = onBack)
@@ -186,12 +188,27 @@ private fun ToolsetRow(
     val theme = LocalOnyxTheme.current
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Le libellé vient du serveur: il est traduit, comme dans l'éditeur de bot.
-            BasicText(toolset.title, localize = true, style = theme.body.copy(color = theme.textColor), modifier = Modifier.weight(1f))
+            // Le libellé vient du serveur : il est traduit, comme dans l'éditeur de bot.
+            //
+            // **Deux lignes au plus, coupées au mot** : sur le volet étroit du pliable replié
+            // (340 dp), un titre de jeu d'outils long — celui du poste de travail, avec ses trois
+            // systèmes entre parenthèses — prenait trois lignes et allongeait la rangée sans fin.
+            // Un titre de rangée se lit d'un coup d'œil ; ce qui est plus long s'abrège par des points.
+            BasicText(
+                toolset.title,
+                localize = true,
+                style = theme.body.copy(color = theme.textColor),
+                modifier = Modifier.weight(1f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (canToggle) {
+                // L'interrupteur **entier**, avec sa marge : il ne se rogne jamais et ne touche
+                // jamais le bord du volet (51 dp fixes, plus 12 dp d'écart avec le libellé).
                 OnyxSwitch(
                     checked = toolset.enabled,
                     onCheckedChange = { if (!busy) onToggle(it) },
+                    modifier = Modifier.padding(start = 12.dp),
                 )
             }
         }

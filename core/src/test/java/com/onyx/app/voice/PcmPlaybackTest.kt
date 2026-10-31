@@ -8,8 +8,8 @@ import org.junit.Test
 /**
  * La lecture du PCM de Kokoro.
  *
- * Le défaut d'origine: le tampon du flux était taillé sur la **phrase entière**, donc la boucle
- * d'écriture ne bloquait jamais et rendait la main en quelques millisecondes; le lecteur coupait
+ * Le défaut d'origine : le tampon du flux était taillé sur la **phrase entière**, donc la boucle
+ * d'écriture ne bloquait jamais et rendait la main en quelques millisecondes ; le lecteur coupait
  * alors la piste — tête de lecture encore à zéro — et la phrase entière était jetée. Le bouton
  * affichait « en lecture » et aucun son ne sortait, sur l'appareil comme sur l'émulateur.
  */
@@ -19,7 +19,7 @@ class PcmPlaybackTest {
 
     @Test
     fun `le tampon du flux ne fait pas la taille de la phrase`() {
-        // Taillé sur la phrase, le tampon l'avale d'un coup: `write` ne bloque plus et tout part
+        // Taillé sur la phrase, le tampon l'avale d'un coup : `write` ne bloque plus et tout part
         // avant qu'un seul échantillon ne sonne.
         assertFalse(player.contains("bytes.size.coerceAtMost(BUFFER_CAP)"))
         assertTrue(player.contains("STREAM_BUFFERS"))
@@ -55,13 +55,13 @@ class PcmPlaybackTest {
 
     @Test
     fun `on n attend pas une piste arretee ou en pause`() {
-        // Une piste qui ne joue plus ne rattrapera rien: attendre serait une boucle sans fin.
+        // Une piste qui ne joue plus ne rattrapera rien : attendre serait une boucle sans fin.
         assertFalse(pcmStillPlaying(headFrames = 0, totalFrames = 1_000, playing = false, nowMs = 10, deadlineMs = 500))
     }
 
     @Test
     fun `on abandonne l attente passe le delai`() {
-        // Tête immobile et marge épuisée: on rend la main au lieu de bloquer le fil.
+        // Tête immobile et marge épuisée : on rend la main au lieu de bloquer le fil.
         assertFalse(pcmStillPlaying(headFrames = 0, totalFrames = 1_000, playing = true, nowMs = 501, deadlineMs = 500))
     }
 }

@@ -8,9 +8,9 @@ import kotlinx.serialization.json.JsonObject
 /**
  * DTO du protocole OpenAI-compatible `/v1/chat/completions`.
  *
- * Les noms de champs sont ceux du fil: ne pas les renommer.
- * Comme `ChatCompletionsTransport.Body` / `Chunk`
- * (et:89).
+ * Les noms de champs sont ceux du fil : ne pas les renommer.
+ * Miroir de `ChatCompletionsTransport.Body` / `Chunk`
+ * (Echo/Services/Transport/ChatCompletionsTransport:9 et :89).
  */
 @Serializable
 internal data class ChatRequestBody(
@@ -19,7 +19,7 @@ internal data class ChatRequestBody(
     /**
      * AUCUNE valeur par défaut ici, volontairement.
      *
-     * Le Json du client est configuré en `encodeDefaults = false`: un défaut ferait
+     * Le Json du client est configuré en `encodeDefaults = false` : un défaut ferait
      * **disparaître le champ de la requête** (et `stream_options` aussi, puisqu'une valeur
      * égale au défaut n'est pas encodée). Le serveur croyait alors recevoir une demande
      * **non streamée**, répondait un JSON complet (`choices[].message.content`) au lieu du
@@ -33,8 +33,8 @@ internal data class ChatRequestBody(
     /** Options de l'API Hermes, notamment `fast` pour le tier prioritaire. */
     @SerialName("model_options") val modelOptions: JsonObject? = null,
     /**
-     * Le gabarit de conversation: les endpoints auto-hébergés (vLLM, llama.cpp) s'en servent
-     * pour activer le raisonnement, comme le fait l'app.
+     * Le gabarit de conversation : les endpoints auto-hébergés (vLLM, llama.cpp) s'en servent
+     * pour activer le raisonnement, comme le fait l'app de référence.
      */
     @SerialName("chat_template_kwargs") val chatTemplateKwargs: JsonElement? = null,
 ) {
@@ -62,7 +62,7 @@ internal data class ChatChunk(
     data class Choice(
         val delta: WireDelta? = null,
         /**
-         * Réponse **complète**: un serveur qui ignore `stream` (ou une demande sans
+         * Réponse **complète** : un serveur qui ignore `stream` (ou une demande sans
          * `stream`) répond `choices[].message.content` et non un flux `delta`. Sans ce
          * champ, le texte était perdu et la bulle restait vide.
          */
@@ -137,6 +137,6 @@ internal data class WireModelList(
 /**
  * Un sous-agent délégué, tel que le gateway le décrit.
  *
- * Voir [com.onyx.app.data.model.SubagentUpdate]: la lecture des trames `subagent.*` vit avec le
+ * Voir [com.onyx.app.data.model.SubagentUpdate] : la lecture des trames `subagent.*` vit avec le
  * modèle, pas ici — ce fichier ne garde que ce qui est propre au fil OpenAI.
  */

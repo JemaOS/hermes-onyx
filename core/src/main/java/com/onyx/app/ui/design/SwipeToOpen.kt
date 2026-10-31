@@ -6,16 +6,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 
 /**
- * Un glissement vers la droite n'importe où sur l'écran (`SwipeToOpen`): c'est le geste du
- * `SidePanel` , qui prend la surface entière — la liste des conversations arrive alors par la
+ * Un glissement vers la droite n'importe où sur l'écran (`SwipeToOpen`) : c'est le geste du
+ * `SidePanel` de la référence, qui prend la surface entière — la liste des conversations arrive alors par la
  * gauche.
  *
  * Le bord de l'écran, lui, appartient au retour système d'Android (une app ne peut s'en soustraire
- * qu'en partie: le plafond est de 200 dp par bord, et le système rogne le reste). Le geste du bord
- * gauche ne passe donc pas par ici: c'est le retour, traité dans la mise en page, qui révèle la
+ * qu'en partie : le plafond est de 200 dp par bord, et le système rogne le reste). Le geste du bord
+ * gauche ne passe donc pas par ici : c'est le retour, traité dans la mise en page, qui révèle la
  * liste au lieu de fermer l'app — le même effet, par le chemin que la plateforme laisse ouvert.
  *
- * Seul un geste franchement latéral compte, pour que le fil continue de défiler; un glissement
+ * Seul un geste franchement latéral compte, pour que le fil continue de défiler ; un glissement
  * vers la gauche ne dit rien. `onEnded` reçoit la distance et la vitesse horizontale réelle du
  * geste (pixels par seconde, vers la droite positif), pour décider sur l'élan et pas seulement sur
  * la distance parcourue.

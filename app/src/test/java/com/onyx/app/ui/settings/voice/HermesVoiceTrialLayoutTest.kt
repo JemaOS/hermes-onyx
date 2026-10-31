@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * La rangée « Dire une phrase de test » garde une valeur courte; le détail du serveur vit dans un
+ * La rangée « Dire une phrase de test » garde une valeur courte ; le détail du serveur vit dans un
  * pied de section sous la carte, et un serveur muet fait parler la voix de l'appareil.
  */
 class HermesVoiceTrialLayoutTest {
@@ -26,7 +26,7 @@ class HermesVoiceTrialLayoutTest {
 
     @Test
     fun `la rangee ne montre qu une valeur courte, jamais l erreur brute`() {
-        // Le défaut constaté: le message HTTP dans la colonne de valeur, sur plusieurs lignes.
+        // Le défaut constaté : le message HTTP dans la colonne de valeur, sur plusieurs lignes.
         assertFalse(rows.contains("maxLines = 3"))
         assertFalse(rows.contains("HermesTrial.Failed"))
         assertFalse(rows.contains("text = state.reason"))

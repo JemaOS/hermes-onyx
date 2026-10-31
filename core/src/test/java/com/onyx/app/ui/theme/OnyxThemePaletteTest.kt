@@ -16,7 +16,11 @@ private fun dyn(light: Triple<Double, Double, Double>, dark: Triple<Double, Doub
 
 private val expectedPalettes = mapOf(
     OnyxTheme.STANDARD to Palette(
-        accent = dyn(Triple(0.180, 0.545, 0.961), Triple(0.180, 0.545, 0.961)),
+        accent = DynColor(ReferencePalette.Accent),
+        accentText = DynColor(
+            light = ReferencePalette.AccentTextLight,
+            dark = ReferencePalette.AccentTextDark,
+        ),
         flatReplies = true,
         usesGlass = true,
     ),
@@ -106,7 +110,7 @@ private val expectedPalettes = mapOf(
 
 class OnyxThemePaletteTest {
     @Test
-    fun `chaque palette et chaque token resolu correspondent a Theme swift`() {
+    fun `chaque palette et chaque token resolu correspondent a Theme référence`() {
         assertEquals(OnyxTheme.entries.toSet(), expectedPalettes.keys)
 
         expectedPalettes.forEach { (theme, expected) ->

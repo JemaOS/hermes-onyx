@@ -4,11 +4,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * L'ordre de la section « Bots »: les lignes telles qu'elles s'affichent, l'ordre qu'un glissement
+ * L'ordre de la section « Bots » : les lignes telles qu'elles s'affichent, l'ordre qu'un glissement
  * enregistre, et ce qu'un ordre devenu faux (un bot renommé, un nouveau venu, une salle terminée)
  * devient.
  *
- * Le modèle est `BotListItem`.
+ * La référence est `BotListItem` (Echo/Services/Transport/ServerBots:165).
  */
 class BotListItemTest {
 
@@ -75,7 +75,7 @@ class BotListItemTest {
             order = emptyList(),
         )
 
-        // La dernière ligne montée en tête: les lignes gardées mais non montrées suivent.
+        // La dernière ligne montée en tête : les lignes gardées mais non montrées suivent.
         val order = BotListItem.orderAfter(
             shown = shown,
             from = 2,

@@ -1,5 +1,7 @@
 package com.onyx.app.ui.common
 
+import com.onyx.app.ui.design.OnyxSpace
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,25 +36,36 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 fun ConnectionProblemCard(
     message: String,
     onRetry: () -> Unit,
-    onOpenSettings: () -> Unit,
+    /**
+     * Le chemin vers les Réglages — la seule action qui répare une **adresse** ou une clé.
+     *
+     * Facultatif : un écran qui n'a pas ce chemin (une page portée par le volet, par exemple) ne
+     * l'affiche pas, plutôt que d'offrir un bouton qui ne mène nulle part. Le fil, lui, le passe
+     * toujours — rien ne change de son côté.
+     */
+    onOpenSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
     var showDetails by remember { mutableStateOf(false) }
     val kind = kindOf(message)
+    // Les Réglages ne se proposent que s'ils existent **et** que le problème s'y répare : sur un
+    // refus inattendu (`OTHER`), ou depuis un écran sans chemin vers les Réglages, il ne reste que
+    // « Réessayer » — et c'est lui, alors, qui porte l'accent, comme le seul geste utile.
+    val showSettings = needsSettings(kind) && onOpenSettings != null
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
-            .background(theme.surfaceColor, RoundedCornerShape(14.dp))
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .background(theme.warning.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
+                .background(theme.warning.copy(alpha = 0.14f), RoundedCornerShape(OnyxSpace.FormCorner)),
             contentAlignment = Alignment.Center,
         ) {
             OnyxIcon(symbol = symbolOf(kind), tint = theme.warning, size = 22.dp)
@@ -68,25 +81,25 @@ fun ConnectionProblemCard(
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (needsSettings(kind)) {
+            if (showSettings) {
                 BasicText(
                     text = "Open Settings",
                     style = theme.body.copy(color = theme.userText, fontWeight = FontWeight.SemiBold),
                     modifier = Modifier
                         .background(theme.accent, RoundedCornerShape(50))
-                        .onyxClickable(onClick = onOpenSettings)
+                        .onyxClickable(onClick = onOpenSettings!!)
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
             BasicText(
                 text = "Try Again",
                 style = theme.body.copy(
-                    color = if (needsSettings(kind)) theme.accent else theme.userText,
+                    color = if (showSettings) theme.accent else theme.userText,
                     fontWeight = FontWeight.SemiBold,
                 ),
                 modifier = Modifier
                     .then(
-                        if (needsSettings(kind)) Modifier
+                        if (showSettings) Modifier
                         else Modifier.background(theme.accent, RoundedCornerShape(50)),
                     )
                     .onyxClickable(onClick = onRetry)
@@ -109,6 +122,53 @@ fun ConnectionProblemCard(
                 ),
             )
         }
+    }
+}
+
+/**
+ * Ce que le fil montre quand aucun serveur n'est configuré.
+ *
+ * L'app reste utilisable — « Ignorer » sur l'écran de configuration ne bloque rien — mais sans
+ * adresse il n'y a personne à qui parler : le dire, et donner le chemin pour la poser.
+ */
+@Composable
+fun NoServerCard(
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val theme = LocalOnyxTheme.current
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(theme.accent.copy(alpha = 0.14f), RoundedCornerShape(OnyxSpace.FormCorner)),
+            contentAlignment = Alignment.Center,
+        ) {
+            OnyxIcon(symbol = Symbols.ServerRack, tint = theme.textColor, size = 22.dp)
+        }
+        BasicText(
+            text = "No server set up yet",
+            style = theme.title3.copy(color = theme.textColor, fontWeight = FontWeight.Bold),
+        )
+        BasicText(
+            text = "Onyx needs a server address before it can talk. You can add one whenever you like under Settings › Connection.",
+            style = theme.subheadline.copy(color = theme.secondaryText),
+        )
+        BasicText(
+            text = "Open Settings",
+            style = theme.body.copy(color = theme.userText, fontWeight = FontWeight.SemiBold),
+            modifier = Modifier
+                .background(theme.accent, RoundedCornerShape(50))
+                .onyxClickable(onClick = onOpenSettings)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        )
     }
 }
 

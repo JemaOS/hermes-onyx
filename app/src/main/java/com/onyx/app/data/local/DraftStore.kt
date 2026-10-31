@@ -8,9 +8,9 @@ import kotlinx.serialization.json.Json
 /**
  * Le brouillon de chaque conversation.
  *
- * Comme: le texte en cours est gardé par conversation — donc quand
+ * Miroir de `Drafts` côté référence : le texte en cours est gardé par conversation — donc quand
  * on en rouvre une, ce qu'on était en train d'écrire est encore là. Les plus anciens brouillons
- * s'effacent au-delà de [limit], comme.
+ * s'effacent au-delà de [limit], comme sur la référence.
  */
 class DraftStore(context: Context) {
 
@@ -42,7 +42,7 @@ class DraftStore(context: Context) {
     }
 
     private fun store(drafts: Map<String, String>) {
-        // Au-delà de la limite, on garde les derniers écrits: la carte n'a pas d'ordre, on
+        // Au-delà de la limite, on garde les derniers écrits : la carte n'a pas d'ordre, on
         // élague donc arbitrairement — un brouillon oublié n'est pas une perte.
         val capped = if (drafts.size <= limit) {
             drafts

@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Aucun écran orphelin: chacune des destinations portées est déclarée dans l'énum `Route`,
+ * Aucun écran orphelin : chacune des destinations portées est déclarée dans l'énum `Route`,
  * dessinée par la branche `when` du routeur, **et** ouverte par une entrée réelle de l'interface —
  * un réglage, une tuile de la grille, une ligne de menu, une rangée de projet.
  */
@@ -14,7 +14,8 @@ class AbsentRoutesReachabilityTest {
     private val app = File("src/main/java/com/onyx/app/ui/OnyxApp.kt").readText()
     private val settings = File("src/main/java/com/onyx/app/ui/settings/SettingsScreen.kt").readText()
     private val bots = File("src/main/java/com/onyx/app/ui/bots/BotsScreen.kt").readText()
-    private val conversations = File("src/main/java/com/onyx/app/ui/conversations/ConversationsScreen.kt").readText()
+    private val volet = File("src/main/java/com/onyx/app/ui/sidebar/ChatSidebar.kt").readText()
+    private val sheet = File("src/main/java/com/onyx/app/ui/conversations/ConversationActionSheet.kt").readText()
 
     /** La branche complète d'une route dans le `when (presentedRoute)`. */
     private fun branch(name: String): String =
@@ -40,8 +41,8 @@ class AbsentRoutesReachabilityTest {
     fun `chaque route a un chemin de retour`() {
         assertTrue(branch("CONNECTION_DETAILS").contains("navTo(Route.SETTINGS.name)"))
         assertTrue(branch("HIDDEN_BOTS").contains("navTo(Route.BOTS.name)"))
-        assertTrue(branch("SESSION_USAGE").contains("navTo(Route.CONVERSATIONS.name)"))
-        assertTrue(branch("PROJECT_SESSIONS").contains("navTo(Route.CONVERSATIONS.name)"))
+        assertTrue(branch("SESSION_USAGE").contains("navTo(Route.CHAT.name)"))
+        assertTrue(branch("PROJECT_SESSIONS").contains("navTo(Route.CHAT.name)"))
     }
 
     @Test
@@ -59,15 +60,18 @@ class AbsentRoutesReachabilityTest {
 
     @Test
     fun `Usage et cout s ouvre depuis le menu d une conversation`() {
-        assertTrue(conversations.contains("\"Usage & cost\""))
-        assertTrue(app.contains("onOpenUsage = { conversation ->"))
+        // « Usage & cost » vit maintenant dans **la feuille du bas** de la conversation (le menu de
+        // l'appui long) : il reste atteignable depuis une rangée du volet, et ouvre l'écran.
+        assertTrue(sheet.contains("\"Usage & cost\""))
+        assertTrue("la rangée du volet ouvre la feuille", volet.contains("ConversationActionSheet("))
+        assertTrue(app.contains("onOpenUsageConversation = { conversation ->"))
         assertTrue(app.contains("navTo(Route.SESSION_USAGE.name)"))
     }
 
     @Test
     fun `le menu d une rangee s ouvre vraiment, par un appui long`() {
         // Sans ce geste, le menu — et « Usage & cost » avec lui — serait un écran orphelin.
-        assertTrue(conversations.contains(".onyxTappable(onLongPress = onMenu) { onClick(bounds) }"))
+        assertTrue(volet.contains("onLongPress = onLongPress?.let { press -> { bounds?.let(press) } }"))
         val interactions = File("../core/src/main/java/com/onyx/app/ui/design/Interactions.kt").readText()
         assertTrue(interactions.contains("onLongClick = onLongPress"))
         assertTrue(interactions.contains("combinedClickable("))
@@ -75,14 +79,16 @@ class AbsentRoutesReachabilityTest {
 
     @Test
     fun `les sessions d un projet s ouvrent depuis la section Projects`() {
-        assertTrue(conversations.contains("private fun ServerProjectsSection("))
+        assertTrue(volet.contains("SidebarProjects("))
         assertTrue(app.contains("onOpenProject = { project ->"))
         assertTrue(app.contains("navTo(Route.PROJECT_SESSIONS.name)"))
     }
 
     @Test
     fun `New Group Chat ouvre la salle avec les bots choisis`() {
-        assertTrue(app.contains("onNewGroupChat = { picked, name ->"))
+        // La création d'une salle vit dans l'écran des bots ; la salle choisie s'ouvre par la
+        // pile, et c'est `groupPicked` que la route de la salle relit.
+        assertTrue(app.contains("onGroupChat = {"))
         assertTrue(app.contains("groupPicked = picked"))
         assertTrue(app.contains("groupViewModel.setSelected(picked)"))
         assertTrue(app.contains("title = groupTitle"))
@@ -98,18 +104,21 @@ class AbsentRoutesReachabilityTest {
 
     @Test
     fun `le retour du systeme n est jamais avale`() {
-        // Sur Réglages en deux panneaux, la pile vide faisait rendre faux à `navBack` et le geste
+        // Sur Réglages en deux panneaux, la pile vide faisait rendre faux à `navBack()` et le geste
         // du bord ne faisait rien. Le retour remonte désormais toujours quelque part.
         val source = File("src/main/java/com/onyx/app/ui/OnyxApp.kt").readText()
-        assertTrue("une condition de retour explicite", source.contains("val backHandled = if (layout.twoPanes)"))
+        assertTrue("une condition de retour explicite", source.contains("val backHandled = routeBackHandled("))
+        // Le repli à pile vide passe par **une seule** règle (`repliDeRetour`) : le repli déclaré
+        // de la route dans la table des retours, et `rootRouteBehind` en dernier recours — la même
+        // cible que la flèche de la page (voir `FlecheInterneVerrouTest`).
         assertTrue(
             "le retour remonte au lieu de ne rien faire",
-            source.contains("if (!navBack()) {") &&
-                Regex("navTo\\(\\s*\\n?\\s*rootRouteBehind\\(").containsMatchIn(source),
+            source.contains("if (!navBack()) {") && source.contains("navTo(repliDeRetour())"),
         )
         assertTrue(
             "l'écran de repli vient de la règle partagée",
-            source.contains("rootRouteBehind(\n                            currentRoute = route,"),
+            source.contains("TableDesRetours.de(route)?.repli") &&
+                source.contains("?: rootRouteBehind(currentRoute = route, chatRoute = Route.CHAT.name)"),
         )
     }
 }

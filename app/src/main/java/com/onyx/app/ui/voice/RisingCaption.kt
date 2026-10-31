@@ -23,20 +23,20 @@ import com.onyx.app.ui.design.OnyxMotion
 import com.onyx.app.ui.localization.BasicText
 
 /**
- * Ce qu'on est en train de dire, **mot à mot** (`RisingCaption`, ).
+ * Ce qu'on est en train de dire, **mot à mot** (`RisingCaption`, `VoiceView:1173-1234`).
  *
- * Le ne peut pas faire ça avec un `Text`: chaque mot est une sous-vue à part, qui arrive
+ * Le la référence ne peut pas faire ça avec un `Text` : chaque mot est une sous-vue à part, qui arrive
  * sur un `Transition` — d'un cran plus bas (`offset(y: 8)`) et de rien — pendant que les autres
- * ne bougent pas. C'est ce qui donne à la transcription vivante son air parlé: le dernier mot
+ * ne bougent pas. C'est ce qui donne à la transcription vivante son air parlé : le dernier mot
  * monte, le reste tient. Le flux qui porte ces mots est centré, rempli ligne à ligne comme du
  * texte centré (`CenteredFlow`, `:1195-1234`).
  *
- * Implémentation: chaque mot porte son propre état d'apparition (`key` sur l'index, comme le `ForEach`
- * ), et le temps de cette apparition est le même `easeOut(0,25)` posé sur le nombre de
- * mots. Sous **Reduce Motion**, garde le fondu et perd l'offset
- * (`reduceMotion ? .opacity: .offset(y: 8).combined(with: .opacity)`): ici [lift] tombe à zéro.
+ * Portage : chaque mot porte son propre état d'apparition (`key` sur l'index, comme le `ForEach`
+ * de la référence), et le temps de cette apparition est le même `easeOut(0,25)` posé sur le nombre de
+ * mots. Sous **Reduce Motion**, la référence garde le fondu et perd l'offset
+ * (`reduceMotion ? .opacity : .offset(y: 8).combined(with: .opacity)`) : ici [lift] tombe à zéro.
  *
- * Ce qui reste approximatif: quand un mot de plus oblige la légende à se replier, anime
+ * Ce qui reste approximatif : quand un mot de plus oblige la légende à se replier, la référence anime
  * le déplacement des mots déjà posés (`.animation(…, value: words.count)`), Compose les replace
  * d'un coup — la même limite que les `LazyColumn` de cette app.
  */
@@ -62,7 +62,7 @@ fun RisingCaption(
         } else {
             UnboundedCaptionWidth.roundToPx()
         }
-        // `.sizeThatFits(.unspecified)`: chaque mot se mesure sans contrainte.
+        // `.sizeThatFits(.unspecified)` de la référence : chaque mot se mesure sans contrainte.
         val places = measurables.map { it.measure(Constraints()) }
         val gap = spacing.roundToPx()
         val lineGap = lineSpacing.roundToPx()
@@ -85,7 +85,7 @@ fun RisingCaption(
     }
 }
 
-/** Un mot de la légende: il monte de 8 pt en apparaissant, en fondu de 0,25 s. */
+/** Un mot de la légende : il monte de 8 pt en apparaissant, en fondu de 0,25 s. */
 @Composable
 private fun CaptionWord(word: String, style: TextStyle) {
     val reduceMotion = LocalReduceMotion.current
@@ -97,7 +97,7 @@ private fun CaptionWord(word: String, style: TextStyle) {
         animationSpec = OnyxMotion.Sites.CaptionWord,
         label = "captionWord",
     )
-    // `reduceMotion ? .opacity: .offset(y: 8).combined(with: .opacity)`.
+    // `reduceMotion ? .opacity : .offset(y: 8).combined(with: .opacity)`.
     val lift = if (reduceMotion) 0f else with(density) { (1f - progress) * CaptionWordRise.toPx() }
     BasicText(
         text = word,
@@ -111,14 +111,14 @@ private fun CaptionWord(word: String, style: TextStyle) {
 }
 
 /**
- * Les mots de la légende: `Text(split(separator: " "))` , c'est-à-dire les espaces seuls
+ * Les mots de la légende : `Text(split(separator: " "))` de la référence, c'est-à-dire les espaces seuls
  * et les vides écartés.
  */
 internal fun captionWords(text: String): List<String> = text.split(' ').filter { it.isNotEmpty() }
 
 /**
- * Les lignes du flux centré: on remplit tant que le mot tient, sinon on ouvre une ligne
- * (`CenteredFlow.rows`, ).
+ * Les lignes du flux centré : on remplit tant que le mot tient, sinon on ouvre une ligne
+ * (`CenteredFlow.rows`, `VoiceView:1199-1209`).
  */
 internal fun captionRows(widths: List<Int>, available: Int, spacing: Int): List<List<Int>> {
     val rows = mutableListOf<MutableList<Int>>()
@@ -142,5 +142,5 @@ internal val CaptionLineSpacing = 2.dp
 /** `.offset(y: 8)`. */
 internal val CaptionWordRise = 8.dp
 
-/** Le repli quand la largeur proposée est indéfinie: `proposal.width ?? 320`. */
+/** Le repli de la référence quand la largeur proposée est indéfinie : `proposal.width ?? 320`. */
 private val UnboundedCaptionWidth = 320.dp

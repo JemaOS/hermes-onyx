@@ -7,7 +7,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="com.onyx.app.permission.AUTO_SETTINGS" />
+    <uses-permission android:name="${onyxNamespace}.permission.AUTO_SETTINGS" />
 
     <application
         android:allowBackup="false"
@@ -21,8 +21,8 @@
             android:value="1" />
 
         <!--
-          La voiture: uniquement la voix. On dit « demande à Onyx … », la réponse s'affiche et
-          se lit. C'est le Comme l'app CarPlay voix seule.
+          La voiture : uniquement la voix. On dit « demande à Onyx … », la réponse s'affiche et
+          se lit. C'est le pendant Android de la conduite voix seule de la référence.
         -->
         <service
             android:name=".OnyxCarAppService"
@@ -31,11 +31,11 @@
             <intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
                 <!--
-                  `androidx.car.app.category.ASSISTANT` n'existe pas: Android Auto ne liste que
+                  `androidx.car.app.category.ASSISTANT` n'existe pas : Android Auto ne liste que
                   NAVIGATION, POI, IOT, WEATHER, MEDIA, MESSAGING, CALLING, SETTINGS
                   (developer.android.com/training/cars/apps/library/set-up-project). Une catégorie
                   inventée = app jamais proposée dans la voiture. Un agent à qui on parle et qui
-                  répond est un échange de messages courts: MESSAGING est la catégorie qui porte
+                  répond est un échange de messages courts : MESSAGING est la catégorie qui porte
                   les gabarits de conversation (et la relecture à voix haute).
                 -->
                 <category android:name="androidx.car.app.category.MESSAGING" />

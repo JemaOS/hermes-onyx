@@ -1,5 +1,6 @@
 package com.onyx.app.ui.localization
 
+import com.onyx.app.localization.OnyxLanguage
 import com.onyx.app.localization.OnyxLocalization
 import java.util.Locale
 
@@ -7,5 +8,5 @@ import java.util.Locale
 fun resolveOnyxText(
     text: String,
     localize: Boolean = true,
-    locale: Locale = Locale.getDefault(),
+    locale: Locale = OnyxLanguage.preferred,
 ): String = if (localize) OnyxLocalization.translate(text, locale) else text

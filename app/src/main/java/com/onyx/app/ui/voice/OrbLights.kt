@@ -31,7 +31,7 @@ import com.onyx.app.ui.design.ambientLoop
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Les trois lumières de `OrbLight`. */
+/** Les trois lumières de `OrbLight` (`VoiceOrbSettings:77-101`). */
 enum class OrbLight(val id: String, val label: String, val detail: String) {
     NEBULA("nebula", "Nebula", "Colour drifting and turning"),
     AURORA("aurora", "Aurora", "Ribbons of light sweeping across"),
@@ -39,7 +39,7 @@ enum class OrbLight(val id: String, val label: String, val detail: String) {
     ;
 
     companion object {
-        /** La lumière enregistrée, ou Nebula quand rien ne correspond (défaut ). */
+        /** La lumière enregistrée, ou Nebula quand rien ne correspond (défaut de la référence). */
         fun fromId(raw: String?): OrbLight = entries.firstOrNull { it.id == raw } ?: NEBULA
     }
 }
@@ -48,12 +48,12 @@ private fun argb(color: Color, alpha: Float): Int =
     color.copy(alpha = alpha.coerceIn(0f, 1f)).toArgb()
 
 private fun additivePaint(): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-    // `blendMode(.plusLighter)`: addition des canaux, sans remplacement.
+    // `blendMode(.plusLighter)` de la référence : addition des canaux, sans remplacement.
     xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
 }
 
 /**
- * `AuroraLight`: trois capsules de 300 pt de large, floues à 9 pt,
+ * `AuroraLight` (VoiceView:770-815) : trois capsules de 300 pt de large, floues à 9 pt,
  * en dégradé horizontal transparent → teinte → autre teinte → transparent, avec leurs offsets,
  * opacités et durées exactes. Les shaders sont ceux d'Android pour éviter une réécriture
  * approximative du flou et du mode de fusion.
@@ -71,7 +71,7 @@ fun AuroraLight(color: Color, strength: Float, swirling: Boolean, modifier: Modi
         animation = tween<Float>((seconds * 1000).toInt(), easing = OnyxMotion.EaseInOut),
         repeatMode = RepeatMode.Reverse,
     )
-    // `AuroraLight.start { guard !reduceMotion else { return } }`:
+    // `AuroraLight.start() { guard !reduceMotion else { return } }` (`VoiceView:798-805`) :
     // les rubans restent à leur repos (offsets de départ, inclinaison +10°).
     val a = ambientLoop(0f) { ambient.animateFloat(0f, 1f, loop(4.0f * speed), label = "auroraA").value }
     val b = ambientLoop(0f) { ambient.animateFloat(0f, 1f, loop(5.5f * speed), label = "auroraB").value }
@@ -79,11 +79,14 @@ fun AuroraLight(color: Color, strength: Float, swirling: Boolean, modifier: Modi
     val tilt = ambientLoop(0f) { ambient.animateFloat(0f, 1f, loop(7f * speed), label = "auroraTilt").value }
     val rotation = 10f - 20f * tilt
 
+    // Les trois rubans ne se distinguent plus par une **teinte** (un violet, un vert pâle) mais par
+    // leur **clair** : la maison n'admet qu'un accent, et un ruban violet dans une orbe bleue est
+    // exactement le « trop de couleur » relevé. La lumière garde son mouvement et son sens.
     data class Ribbon(val y: Float, val height: Float, val alpha: Float, val from: Color, val to: Color, val x: Float)
     val ribbons = listOf(
         Ribbon(-36f, 56f, minOf(0.85f, 0.65f * animatedStrength), color, lerp(color, Color.White, 0.12f), -70f + 140f * a),
-        Ribbon(6f, 50f, minOf(0.9f, 0.7f * animatedStrength), lerp(color, Color(0xFF800080), 0.5f), color, 62f - 124f * b),
-        Ribbon(44f, 42f, minOf(0.8f, 0.55f * animatedStrength), lerp(color, Color(0xFF98FB98), 0.45f), color, -54f + 108f * c),
+        Ribbon(6f, 50f, minOf(0.9f, 0.7f * animatedStrength), lerp(color, Color.White, 0.28f), color, 62f - 124f * b),
+        Ribbon(44f, 42f, minOf(0.8f, 0.55f * animatedStrength), lerp(color, Color.White, 0.20f), color, -54f + 108f * c),
     )
 
     Canvas(modifier = modifier.graphicsLayer { rotationZ = rotation }) {
@@ -116,8 +119,8 @@ fun AuroraLight(color: Color, strength: Float, swirling: Boolean, modifier: Modi
 }
 
 /**
- * `CoreLight`: noyau radial de 124 pt, étincelles sur deux orbites
- * inverses (66 et 54 pt) et trois particules montantes avec délai de 1,1 s. Durées reprises:
+ * `CoreLight` (VoiceView:820-866) : noyau radial de 124 pt, étincelles sur deux orbites
+ * inverses (66 et 54 pt) et trois particules montantes avec délai de 1,1 s. Durées reprises :
  * pulse 2,2 s, orbites 9 s / 2,2 s en réflexion, montées 3,4 s en `easeIn`.
  */
 @Composable
@@ -128,7 +131,7 @@ fun CoreLight(color: Color, strength: Float, swirling: Boolean, modifier: Modifi
         animationSpec = OnyxMotion.easeOut(OnyxMotion.MS_250),
         label = "coreStrength",
     )
-    // `CoreLight.onAppear { guard !reduceMotion else { return } }`:
+    // `CoreLight.onAppear { guard !reduceMotion else { return } }` (`VoiceView:851-856`) :
     // rien ne tourne — le pulse, les orbites et les montées restent à leur repos.
     val pulse = ambientLoop(0f) {
         ambient.animateFloat(
@@ -160,7 +163,7 @@ fun CoreLight(color: Color, strength: Float, swirling: Boolean, modifier: Modifi
     val nucleusScale = 0.94f + 0.24f * pulse
     val nucleusTint = lerp(color, Color.White, 0.2f)
     val sparkTint = lerp(color, Color.White, 0.6f)
-    val secondSparkTint = lerp(color, Color(0xFF800080), 0.5f)
+    val secondSparkTint = lerp(color, Color.White, 0.30f)
 
     Canvas(modifier = modifier) {
         drawIntoCanvas { canvas ->

@@ -21,12 +21,14 @@ class VoiceAndAutoSettingsTest {
         settings.load()
         assertEquals(ReplyVoice.ON_DEVICE, settings.replyVoice.value)
         assertEquals(SettingsRepository.DEFAULT_KOKORO_VOICE, settings.kokoroVoice.value)
+        assertEquals(SettingsRepository.DEFAULT_KOKORO_TOKEN, settings.kokoroToken.value)
         assertEquals(AutoCardLook.COLOR, settings.autoCardLook.value)
         assertEquals(AutoVoiceLook.BARS, settings.autoVoiceLook.value)
 
         settings.setReplyVoice(ReplyVoice.KOKORO)
         settings.setKokoroUrl("http://tts.test:8880/")
         settings.setKokoroVoice("am_onyx(2)+bm_george(1)")
+        settings.setKokoroToken("jeton-de-test")
         settings.setAutoCardLook(AutoCardLook.GLOW)
         settings.setAutoVoiceLook(AutoVoiceLook.KITT)
 
@@ -35,6 +37,7 @@ class VoiceAndAutoSettingsTest {
         assertEquals(ReplyVoice.KOKORO, restored.replyVoice.value)
         assertEquals("http://tts.test:8880/", restored.kokoroUrl.value)
         assertEquals("am_onyx(2)+bm_george(1)", restored.kokoroVoice.value)
+        assertEquals("jeton-de-test", restored.kokoroToken.value)
         assertEquals(AutoCardLook.GLOW, restored.autoCardLook.value)
         assertEquals(AutoVoiceLook.KITT, restored.autoVoiceLook.value)
     }

@@ -13,7 +13,7 @@ import java.security.KeyPair
 import java.security.PublicKey
 import java.util.Base64
 
-/** Clé Ed25519 de ce téléphone; la seed privée est chiffrée par le Keystore Android. */
+/** Clé Ed25519 de ce téléphone ; la seed privée est chiffrée par le Keystore Android. */
 class SshIdentity(context: Context) {
     private val secrets = SecretStore(context.applicationContext)
 
@@ -30,7 +30,7 @@ class SshIdentity(context: Context) {
         val seed = (generated.private as EdDSAPrivateKey).seed
         val encoded = Base64.getEncoder().encodeToString(seed)
         secrets.put(KEY_ID, encoded)
-        // SecretStore ne fait pas semblant d'avoir écrit: une clé non conservée n'est pas utilisée.
+        // SecretStore ne fait pas semblant d'avoir écrit : une clé non conservée n'est pas utilisée.
         if (secrets.get(KEY_ID) != encoded) return null
         return generated
     }

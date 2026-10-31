@@ -1,26 +1,15 @@
 package com.onyx.app.ui.design
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.onyx.app.ui.localization.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.onyx.app.ui.theme.LocalOnyxTheme
+import com.onyx.app.ui.theme.ResolvedTheme
 
-/** Un bouton d'alerte: son libellé, et s'il est destructeur. */
+/** Un bouton d'alerte : son libellé, et s'il est destructeur. */
 data class AlertAction(
     val label: String,
     val destructive: Boolean = false,
@@ -28,11 +17,29 @@ data class AlertAction(
 )
 
 /**
- * L'alerte: un panneau au centre, un titre, un message, puis une ligne par bouton.
+ * **L'alerte héritée — une confirmation, mais une seule surface : celle de la maison.**
  *
- * Compose n'a pas d'alerte qui ressemble à celle — et rien de Material ne doit apparaître —
- * d'où ce panneau dessiné à la main, avec le même ordre de boutons (l'annulation d'abord, comme
- * quand il y a deux choix).
+ * Ce que le propriétaire a vu : « la partie restaurer message n'est pas cohérente avec le reste du
+ * thème, et les boutons collent trop au bord ». Sa capture le montrait : un panneau **gris clair**
+ * au milieu d'une appli sombre, un titre **centré** en deux lignes, une **ligne de séparation**
+ * interne au-dessus de chaque action, et surtout des actions **nues, bord à bord** — le libellé
+ * touchait le bord gauche et le bord droit, sans marge ni écart. C'était la boîte du système :
+ * Compose n'a pas d'alerte qui ressemble à celle de la référence, et ce panneau-ci était une
+ * **seconde** surface, dessinée à la main à côté de la confirmation de la maison.
+ *
+ * Depuis, il n'y a **qu'un** panneau : [OnyxConfirmSurface] — le verre de la table, le rayon 28 de
+ * la famille des panneaux, l'arête claire de la lumière de tête, le grand titre du socle **aligné à
+ * gauche**, le corps du socle, et des actions **pleines largeur** posées à **16 dp du bord** et
+ * séparées de **16 dp**. Cette fonction n'est plus qu'un adaptateur : elle garde son API (une liste
+ * d'actions libre, la sortie facultative) et rend les formes de la maison par [houseActions].
+ *
+ * Ce que ce fichier **ne fait plus** : aucune ligne de séparation interne héritée du système (le
+ * filet de rangée n'y est plus appelé), aucun texte nu centré comme seule action, aucun panneau
+ * dessiné ici. Une correction de rayon, de vitre ou de marge dans [OnyxConfirmSurface] vaut désormais
+ * pour **toutes** les alertes de l'app.
+ *
+ * L'ordre des actions est celui de la maison : celle qui ne se rattrape pas **d'abord**, la sortie
+ * ensuite — quelle que soit la place qu'elles occupaient dans la liste de l'appelant.
  */
 @Composable
 fun OnyxAlert(
@@ -40,8 +47,8 @@ fun OnyxAlert(
     message: String? = null,
     actions: List<AlertAction>,
     /**
-     * La sortie par le dehors (le toucher à côté, le retour); `null`: il n'y en a pas, comme une
-     * `UIAlertController` , à qui seule une de ses actions répond. Un `{}` laisserait un
+     * La sortie par le dehors (le toucher à côté, le retour) ; `null` : il n'y en a pas, comme une
+     * `UIAlertController` d'la référence, à qui seule une de ses actions répond. Un `{}` laisserait un
      * geste qui ne fait rien.
      */
     onDismiss: (() -> Unit)? = null,
@@ -59,59 +66,23 @@ fun OnyxAlert(
             dismissOnClickOutside = dismissable,
         ),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
-                .padding(horizontal = 44.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 300.dp)
-                    .background(theme.surfaceColor, RoundedCornerShape(14.dp)),
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    BasicText(
-                        text = title,
-                        style = theme.headline.copy(color = theme.textColor, textAlign = TextAlign.Center),
-                    )
-                    message?.takeIf { it.isNotBlank() }?.let {
-                        BasicText(
-                            text = it,
-                            localize = localizeMessage,
-                            style = theme.footnote.copy(
-                                color = theme.textColor,
-                                textAlign = TextAlign.Center,
-                            ),
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
-                    }
-                }
-
-                actions.forEach { action ->
-                    OnyxRowDivider(inset = 0.dp)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onyxTappable { action.onSelect() }
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        BasicText(
-                            text = action.label,
-                            style = theme.body.copy(
-                                color = when {
-                                    action.destructive -> theme.error
-                                    actions.size > 1 && action == actions.last() -> theme.secondaryText
-                                    else -> theme.accent
-                                },
-                                fontWeight = if (action == actions.last() && actions.size > 2) FontWeight.SemiBold else FontWeight.Normal,
-                                textAlign = TextAlign.Center,
-                            ),
+        DialogWindowBlur(FrostSurface.SHEET)
+        ConfirmScrim {
+            // **Le panneau de la maison** — le même que celui de [OnyxConfirm], et il arrive par la
+            // même famille de mouvement ([MotionFamily.Open], dans [OnyxConfirmSurface]).
+            OnyxConfirmSurface {
+                OnyxConfirmHeading(title)
+                OnyxConfirmBody(message, localizeMessage)
+                OnyxConfirmActions {
+                    val ordered = houseActions(actions)
+                    val exit = ordered.indexOfLast { !it.destructive }
+                    ordered.forEachIndexed { index, action ->
+                        val (ground, ink) = actionGrounds(theme, action.destructive, index == exit)
+                        OnyxConfirmAction(
+                            label = action.label,
+                            ground = ground,
+                            ink = ink,
+                            onClick = action.onSelect,
                         )
                     }
                 }
@@ -119,3 +90,29 @@ fun OnyxAlert(
         }
     }
 }
+
+/**
+ * Les actions d'une alerte **dans l'ordre de la maison** : l'action qui ne se rattrape pas d'abord,
+ * la sortie ensuite. La liste de l'appelant n'est pas modifiée — c'est une nouvelle liste.
+ */
+internal fun houseActions(actions: List<AlertAction>): List<AlertAction> =
+    actions.filter { it.destructive } + actions.filterNot { it.destructive }
+
+/**
+ * **Le ton d'une action d'alerte — un seul par rôle.**
+ *
+ *  - une action **destructrice** : l'encre de danger de la maison sur le gris de capsule
+ *    ([OnyxConfirmTone]) — jamais un aplat rouge ;
+ *  - la **sortie** (la dernière action non destructrice) : la même pastille, en encre de texte ;
+ *  - une **action principale** (« Se fier », « Laisser », « Déplacer ») : la pilule d'accent de la
+ *    maison, avec l'encre qui s'y lit le mieux.
+ */
+internal fun actionGrounds(theme: ResolvedTheme, destructive: Boolean, exit: Boolean): Pair<Color, Color> =
+    when {
+        destructive -> OnyxConfirmTone.destructiveGround(theme) to OnyxConfirmTone.destructiveInk(theme)
+        exit -> OnyxConfirmTone.cancelGround(theme) to OnyxConfirmTone.cancelInk(theme)
+        else -> {
+            val fill = OnyxContrast.filled(theme.accent)
+            fill to OnyxContrast.inkOn(fill)
+        }
+    }

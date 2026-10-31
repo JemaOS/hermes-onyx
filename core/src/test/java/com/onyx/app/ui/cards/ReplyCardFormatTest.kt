@@ -9,14 +9,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Les mots et les chiffres des cartes d'une réponse: heures et jours écrits selon la langue du
+ * Les mots et les chiffres des cartes d'une réponse : heures et jours écrits selon la langue du
  * téléphone, températures, durées et distances, et où ouvrir l'app de cartes.
  */
 class ReplyCardFormatTest {
 
     @Test
     fun `une heure s ecrit comme le telephone l ecrit`() {
-        // L'heure seule, dans la langue du téléphone: l'heure d'Europe se lit « 14 » (17 sur
+        // L'heure seule, dans la langue du téléphone : l'heure d'Europe se lit « 14 » (17 sur
         // Android, où ICU donne « 14 h »), celle des États-Unis « 2 PM ».
         assertTrue(ReplyCardFormat.hourLabel("14:00", Locale.FRANCE).startsWith("14"))
         assertTrue(ReplyCardFormat.hourLabel("14:00", Locale.US).startsWith("2"))
@@ -52,7 +52,7 @@ class ReplyCardFormatTest {
     }
 
     @Test
-    fun `un temps se nomme  le nomme`() {
+    fun `un temps se nomme comme référence le nomme`() {
         assertEquals("Clear skies", ReplyCardFormat.conditionName(ReplyCard.Condition.CLEAR))
         assertEquals("Partly cloudy", ReplyCardFormat.conditionName(ReplyCard.Condition.PARTLY_CLOUDY))
         assertEquals("Thunderstorms", ReplyCardFormat.conditionName(ReplyCard.Condition.THUNDERSTORM))
@@ -71,7 +71,7 @@ class ReplyCardFormatTest {
     fun `une duree et une distance s abregent`() {
         assertTrue(ReplyCardFormat.duration(720).contains("12"))
         assertTrue(ReplyCardFormat.duration(4_800).contains("1"))
-        // À la route, comme `Measurement(.road)`: des mètres, puis des kilomètres.
+        // À la route, comme `Measurement(.road)` : des mètres, puis des kilomètres.
         assertEquals("600 m", ReplyCardFormat.distance(600.0, Locale.US))
         assertEquals("1,2 km", ReplyCardFormat.distance(1_234.0, Locale.FRANCE))
         assertEquals("1.2 km", ReplyCardFormat.distance(1_234.0, Locale.US))
@@ -79,7 +79,7 @@ class ReplyCardFormatTest {
 
     @Test
     fun `deux points se mesurent a vol d oiseau`() {
-        // Le bureau et Rossio Roasters, à Lisbonne: un peu plus d'un kilomètre.
+        // Le bureau et Rossio Roasters, à Lisbonne : un peu plus d'un kilomètre.
         val meters = ReplyCardFormat.straightLineMeters(38.7076, -9.1365, 38.7176, -9.1404)
         assertTrue("attendu ~1,2 km, obtenu $meters", meters in 1_000.0..1_400.0)
         assertEquals(0.0, ReplyCardFormat.straightLineMeters(38.7, -9.1, 38.7, -9.1), 0.001)
