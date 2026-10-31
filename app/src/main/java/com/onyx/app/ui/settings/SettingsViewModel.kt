@@ -7,6 +7,7 @@ import com.onyx.app.data.model.Transport
 import com.onyx.app.data.net.ChatCompletionsClient
 import com.onyx.app.data.net.ConnectionProbe
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.repo.ServerRepository
 import com.onyx.app.data.repo.SettingsRepository
 import com.onyx.app.localization.OnyxLocalization
@@ -119,7 +120,7 @@ class SettingsViewModel(
             } catch (error: TransportError) {
                 ConnectionProbe(false, error.userMessage(), 0L, emptyList())
             } catch (error: Exception) {
-                ConnectionProbe(false, error.message ?: OnyxLocalization["Server unreachable. Check the address in Settings."], 0L, emptyList())
+                ConnectionProbe(false, humanFailure(error, OnyxLocalization["Server unreachable. Check the address in Settings."]), 0L, emptyList())
             } finally {
                 _gatewayVerifying.value = false
             }

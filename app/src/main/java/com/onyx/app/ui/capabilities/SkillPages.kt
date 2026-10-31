@@ -1,5 +1,6 @@
 package com.onyx.app.ui.capabilities
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxSpace
 
 import androidx.compose.foundation.background
@@ -72,7 +73,7 @@ internal fun SkillDetailPage(
         busy = true
         runCatching { ServeSkillsApi(ServeClient(server)).content(skill.name) }
             .onSuccess { content = it }
-            .onFailure { problem = (it as? TransportError)?.userMessage() ?: it.message }
+            .onFailure { problem = humanFailure(it) }
         busy = false
     }
 
@@ -194,7 +195,7 @@ internal fun CatalogPage(
     LaunchedEffect(server.id, server.configSignature) {
         runCatching { ServeSkillsApi(ServeClient(server)).catalog() }
             .onSuccess { onLoad(it, null) }
-            .onFailure { onLoad(null, (it as? TransportError)?.userMessage() ?: it.message) }
+            .onFailure { onLoad(null, humanFailure(it)) }
     }
 
     Column(
@@ -250,7 +251,7 @@ internal fun CatalogPage(
                             }.onFailure {
                                 actionProblem = OnyxLocalization.format(
                                     "Couldn't install it",
-                                ) + " — " + ((it as? TransportError)?.userMessage() ?: it.message.orEmpty())
+                                ) + " — " + (humanFailure(it))
                             }
                             busy = busy - entry.name
                         }
@@ -271,7 +272,7 @@ internal fun CatalogPage(
                             }.onFailure {
                                 actionProblem = OnyxLocalization.format(
                                     "Couldn't remove it",
-                                ) + " — " + ((it as? TransportError)?.userMessage() ?: it.message.orEmpty())
+                                ) + " — " + (humanFailure(it))
                             }
                             busy = busy - entry.name
                         }

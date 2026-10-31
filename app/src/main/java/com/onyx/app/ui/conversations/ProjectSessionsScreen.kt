@@ -1,5 +1,6 @@
 package com.onyx.app.ui.conversations
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxSocle
 import com.onyx.app.ui.design.OnyxSpace
 
@@ -138,7 +139,7 @@ class ProjectSessionsViewModel(
                 _state.update {
                     it.copy(
                         loading = false,
-                        error = error.message ?: OnyxLocalization["Couldn't load the project"],
+                        error = humanFailure(error, OnyxLocalization["Couldn't load the project"]),
                         routeMissing = looksLikeMissingRoute(error),
                     )
                 }
@@ -230,7 +231,7 @@ fun ProjectSessionsScreen(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                problem = (error as? TransportError)?.userMessage() ?: error.message
+                problem = humanFailure(error)
             }
             viewModel.refresh()
         }

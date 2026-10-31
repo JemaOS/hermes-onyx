@@ -15,6 +15,7 @@ import com.onyx.app.data.net.ServeGroupsRpc
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServerAttachment
 import com.onyx.app.data.net.ServerAttachments
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.chat.PendingAttachment
 import com.onyx.app.ui.conversations.GroupChat
 import kotlinx.coroutines.CancellationException
@@ -155,7 +156,7 @@ class GroupRoomViewModel(
                 feed.rename(name)
                 onDone(null)
             } catch (error: Exception) {
-                onDone((error as? com.onyx.app.data.net.TransportError)?.userMessage() ?: error.message)
+                onDone(humanFailure(error))
             }
         }
     }

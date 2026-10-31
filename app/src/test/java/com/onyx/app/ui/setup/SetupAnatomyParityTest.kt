@@ -164,6 +164,6 @@ class SetupAnatomyParityTest {
         // Une adresse mal formée ne laisse plus le bouton estompé pour toujours : la sonde est
         // enveloppée et l'échec devient un verdict avec sa raison.
         assertTrue(source.contains("catch (error: Exception) {"))
-        assertTrue(source.contains("message = error.message ?: OnyxLocalization[\"Couldn't connect.\"]"))
+        assertTrue(source.contains("message = humanFailure(error, OnyxLocalization[\"Couldn't connect.\"])"))
     }
 }

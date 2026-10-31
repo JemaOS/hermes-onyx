@@ -50,11 +50,13 @@ internal fun ChatSidebarHost(
     reachable: Boolean?,
     agentName: String,
     /**
-     * **L'identité d'une conversation**, par identifiant de serveur : le **nom de profil de son
-     * bot**, la clé sur laquelle se résout la marque (`IdentityMark`). Absent, toutes les lignes
-     * portent celle du bot principal — jamais une marque muette.
+     * **L'identité d'une conversation**, reçue **par conversation** : le **nom de profil de son
+     * bot**, la clé unique de la maison pour résoudre son visage (`BotLook`). Elle est calculée par
+     * l'appelant (`OnyxApp`, via `conversationProfile`) — **jamais par serveur** : trois
+     * conversations du même serveur et de bots différents doivent montrer trois visages (le défaut
+     * de synchro relevé par le propriétaire). Absente, toutes les lignes portent le bot principal.
      */
-    identityOf: (String) -> String = { agentName },
+    identityOf: (Conversation) -> String = { agentName },
     conversations: List<Conversation>,
     /** L'activité que le serveur signale, par id de session (`session.active_list`). */
     liveKinds: Map<String, ActivityKind>,

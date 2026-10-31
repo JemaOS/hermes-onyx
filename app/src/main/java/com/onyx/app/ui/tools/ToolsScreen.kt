@@ -1,5 +1,6 @@
 package com.onyx.app.ui.tools
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.onyxPage
 
 import androidx.compose.foundation.background
@@ -71,7 +72,7 @@ fun ToolsScreen(
     suspend fun load() {
         runCatching { ServeToolsetsApi(ServeClient(server)).toolsets() }
             .onSuccess { toolsets = it; problem = null }
-            .onFailure { problem = (it as? TransportError)?.userMessage() ?: it.message }
+            .onFailure { problem = humanFailure(it) }
         loading = false
     }
 
@@ -143,7 +144,7 @@ fun ToolsScreen(
                             toolsets = toolsets.map { if (it.name == toolset.name) it.copy(enabled = on) else it }
                             scope.launch {
                                 runCatching { ServeToolsetsApi(ServeClient(server)).setEnabled(toolset.name, on) }
-                                    .onFailure { problem = (it as? TransportError)?.userMessage() ?: it.message }
+                                    .onFailure { problem = humanFailure(it) }
                                 load()
                                 busy = busy - toolset.name
                             }
@@ -165,7 +166,7 @@ fun ToolsScreen(
                                 toolsets = toolsets.map { if (it.name == toolset.name) it.copy(enabled = on) else it }
                                 scope.launch {
                                     runCatching { ServeToolsetsApi(ServeClient(server)).setEnabled(toolset.name, on) }
-                                        .onFailure { problem = (it as? TransportError)?.userMessage() ?: it.message }
+                                        .onFailure { problem = humanFailure(it) }
                                     load()
                                     busy = busy - toolset.name
                                 }

@@ -30,7 +30,7 @@ data class BotVoice(
 }
 
 /**
- * Une voix installée, réduite à ce qui décide (`SpokenLanguage.AppleVoice` de la référence, transposé au
+ * Une voix installée, réduite à ce qui décide (l'énumération de voix de la référence, transposée au
  * `android.speech.tts.Voice` d'Android).
  */
 data class SpokenVoice(

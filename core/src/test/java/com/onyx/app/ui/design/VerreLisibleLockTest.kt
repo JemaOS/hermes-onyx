@@ -52,6 +52,17 @@ class VerreLisibleLockTest {
     /** Et il doit être **uniforme** : l'écart entre son maximum et son minimum reste sous le pixel. */
     private val displacementSpreadMaxPx = 0.75f
 
+    /**
+     * **La porte des PLAQUES — elle est plus haute, et c'est mesuré.** Le propriétaire demande
+     * maintenant une **lentille d'arête visible** sur les plaques (« il doit y avoir l'effet liquid
+     * glass ») : le déplacement y vaut [GlassPlateRefractionDisplacementDp], soit 5 dp → 13,1 px à
+     * 2,625. La porte des petites surfaces (0,75 px) reste où elle est, parce que c'est **leur**
+     * défaut qui a été signalé (« réfraction et déformation de ce qui se passe derrière », la tuile
+     * « Capacités »). Ce qui empêchait de dupliquer l'étiquette voisine — la **réinjection de
+     * détail** — vaut toujours 0, et la corrélation de doublon reste vérifiée à 0,10.
+     */
+    private val plateDisplacementMaxPx = 5f * 2.75f
+
     /** Au-delà, le verre montre une **seconde copie** du fond. */
     private val duplicateCorrMax = 0.10f
 
@@ -78,6 +89,7 @@ class VerreLisibleLockTest {
         val chroma: Float,
         val edgeDp: Float,
         val displacementSource: String,
+        val legacyRatio: Float,
     )
 
     private fun source(): String = read("core/src/main/java/com/onyx/app/ui/design/LiquidGlass.kt")
@@ -96,25 +108,23 @@ class VerreLisibleLockTest {
     }
 
     /**
-     * La recette appliquée à une surface : le flou vient de la **fonction compilée** (donc de la
-     * table), le reste est lu dans le fichier — et le déplacement suit **l'expression de la source**,
-     * qu'elle dérive du flou (l'ancienne faute) ou qu'elle soit absolue (la correction).
+     * La recette appliquée à une surface : le flou **et le déplacement** viennent des **fonctions
+     * compilées** (donc de la table et de la porte par surface), le reste est lu dans le fichier.
+     *
+     * **Re-pointé par le lot « liquid glass ».** Le déplacement a cessé d'être une constante unique :
+     * il est **par surface** ([glassRefractionDisplacementDp]) — sub-pixel (0,2 dp) pour les petites
+     * surfaces, où la lentille gauchissait vraiment, et **visible et borné** (5 dp) pour les plaques
+     * ([GlassSurface.plateEdge]), où le propriétaire demande aujourd'hui l'effet inverse : « il doit y
+     * avoir l'effet liquid glass ». Ce qui a été figé là où c'était la faute : le déplacement ne se
+     * dérive **toujours pas** du flou (assertion plus bas), et la réfraction réinjecte **toujours
+     * zéro** haute fréquence — donc un fond déplacé reste un fond **flou**, sans seconde copie.
      */
     private fun recipeFor(surface: GlassSurface): Recipe {
         val src = source()
         val blurDp = glassPaintBlurDp(surface)
         val expr = displacementExpression(src)
         val ratio = const(src, "GlassRefractionDisplacementRatio")
-        val absolute = Regex("const val GlassRefractionDisplacementDp: Float = ([0-9.]+)f")
-            .find(src)?.groupValues?.get(1)?.toFloat()
-        // La forme **dérivée du flou** est celle qui a produit la lentille : elle se reconnaît à la
-        // référence explicite au flou.
-        val fromBlur = expr.contains("blurDp")
-        val displacementDp = when {
-            fromBlur -> blurDp * ratio
-            absolute != null -> absolute
-            else -> ratio
-        }
+        val displacementDp = glassRefractionDisplacementDp(surface)
         return Recipe(
             blurDp = blurDp,
             displacementDp = displacementDp,
@@ -122,6 +132,7 @@ class VerreLisibleLockTest {
             chroma = const(src, "GlassChromaticAberration"),
             edgeDp = const(src, "GlassRefractionEdgeDp"),
             displacementSource = expr,
+            legacyRatio = ratio,
         )
     }
 
@@ -217,6 +228,17 @@ class VerreLisibleLockTest {
         val nonUniform: Boolean get() = displacementSpreadPx > 0.75f
         val duplicated: Boolean get() = duplicateCorr > 0.10f
         val ok: Boolean get() = !readableEdge && !nonUniform && !duplicated
+
+        /**
+         * **La porte, surface par surface.** Le déplacement maximal toléré n'est pas le même pour
+         * toutes : voir [recipeFor] — une petite surface gauchissait à la moindre lentille, une
+         * plaque a besoin d'un déplacement **visible** pour se lire comme du verre. La porte reste
+         * donc **chiffrée et nommée**, elle n'est pas retirée.
+         */
+        fun okFor(displacementDoorPx: Float): Boolean = !readableEdge &&
+            displacementMaxPx <= displacementDoorPx &&
+            displacementSpreadPx <= displacementDoorPx &&
+            !duplicated
     }
 
     private fun measure(surface: GlassSurface): Measurement {
@@ -267,6 +289,7 @@ class VerreLisibleLockTest {
         GlassSurface.SIDEBAR_TILE -> "la tuile « Capacités » du volet RACCOURCIS"
         GlassSurface.SIDEBAR_PANEL -> "le panneau du volet"
         GlassSurface.LIST_ROW -> "une rangée de liste du volet"
+        GlassSurface.CONVERSATION_CARD -> "un bloc de conversation du volet"
         GlassSurface.BOT_CARD -> "une carte de bot"
         GlassSurface.TAB_BAR -> "la barre d'onglets"
         GlassSurface.THREAD_TOP_BAR -> "la barre du haut du fil"
@@ -316,15 +339,18 @@ class VerreLisibleLockTest {
         val failures = mutableListOf<String>()
         GlassSurface.entries.forEach { surface ->
             val m = measure(surface)
+            // La porte du déplacement est **par surface** : sub-pixel pour les petites (leur défaut
+            // est chiffré), visible et bornée pour les plaques (la demande du propriétaire).
+            val door = if (surface.plateEdge) plateDisplacementMaxPx else displacementMaxPx
             report.append(
                 String.format(
                     "%-18s %7.1f %9.2f %9.2f %9.3f %9.3f %7.3f  %s%n",
                     surface.name, m.blurPx, m.displacementMaxPx, m.displacementSpreadPx,
-                    m.energyRatio, m.duplicateCorr, m.chroma, if (m.ok) "ok" else "ÉCHEC",
+                    m.energyRatio, m.duplicateCorr, m.chroma, if (m.okFor(door)) "ok" else "ÉCHEC",
                 ),
             )
             checked++
-            if (!m.ok) failures += explain(m)
+            if (!m.okFor(door)) failures += explain(m)
         }
         report.append("surfaces vérifiées : $checked\n")
         print(report)

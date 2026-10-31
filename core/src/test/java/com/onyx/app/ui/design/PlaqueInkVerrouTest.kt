@@ -157,12 +157,49 @@ class PlaqueInkVerrouTest {
                 )
                 val activeInk = plaqueInk(t, selected = true, isFace = isFace)
                 val activeExpected = if (isFace) t.textColor else t.accentInk
-                assertEquals(
-                    "PLAQUE / $mark ACTIF ($appearance) : l'encre posée ${name(activeInk)} n'est pas " +
-                        "celle du thème ${name(activeExpected)}. " +
-                        "core/src/main/java/com/onyx/app/ui/design/ChatTabBar.kt:493 (plaqueInk)",
-                    activeExpected, activeInk,
-                )
+                // **RE-POINTÉ par le lot « liquid glass ».** L'égalité exacte tient quand l'encre du
+                // thème passe son seuil sur la plaque **telle qu'elle est peinte** — et c'est le cas
+                // ordinaire (mesuré : 6,20:1 en clair). Sur la plaque **sombre** d'un thème à page
+                // médiane, le fond composé vaut `#414146` (relevé) et l'accent en encre du thème
+                // (`#7AA5FF`) y tombe à **4,18:1** : la règle de la maison est alors que l'encre
+                // **se dérive de la sienne**, vers le pôle qui se détache le mieux — jamais une
+                // couleur étrangère. Le cas exige donc : l'encre du thème quand elle passe, et
+                // **son propre éclaircissement** (`lerp(encre, pôle, t)`, t exactement retrouvé)
+                // quand elle ne passe pas, avec le seuil tenu dans les deux cas.
+                val ground = plaqueGround(t, selected = true)
+                if (OnyxContrast.ratio(activeExpected, ground) >= OnyxContrast.TEXT_MIN) {
+                    assertEquals(
+                        "PLAQUE / $mark ACTIF ($appearance) : l'encre posée ${name(activeInk)} n'est pas " +
+                            "celle du thème ${name(activeExpected)} alors qu'elle tient son seuil " +
+                            "(${OnyxContrast.ratio(activeExpected, ground)}:1 sur ${name(ground)}). " +
+                            "core/src/main/java/com/onyx/app/ui/design/ChatTabBar.kt:493 (plaqueInk)",
+                        activeExpected, activeInk,
+                    )
+                } else {
+                    val pole = if (
+                        OnyxContrast.ratio(Color.White, ground) >= OnyxContrast.ratio(Color.Black, ground)
+                    ) {
+                        Color.White
+                    } else {
+                        Color.Black
+                    }
+                    val t0 = ((activeInk.red - activeExpected.red) / (pole.red - activeExpected.red))
+                        .takeIf { pole.red != activeExpected.red }
+                    assertTrue(
+                        "PLAQUE / $mark ACTIF ($appearance) : l'accent du thème " +
+                            "${name(activeExpected)} tombe à ${OnyxContrast.ratio(activeExpected, ground)}:1 " +
+                            "sur la plaque peinte (${name(ground)}) — l'encre posée " +
+                            "${name(activeInk)} doit alors être SON éclaircissement vers ${name(pole)} " +
+                            "(même canal rouge), pas une couleur étrangère (relevé t=$t0).",
+                        t0 != null && t0 > 0f && t0 < 1f,
+                    )
+                    assertTrue(
+                        "PLAQUE / $mark ACTIF ($appearance) : l'encre dérivée ${name(activeInk)} doit " +
+                            "tenir le seuil sur la plaque peinte " +
+                            "(${OnyxContrast.ratio(activeInk, ground)}:1).",
+                        OnyxContrast.ratio(activeInk, ground) >= OnyxContrast.TEXT_MIN,
+                    )
+                }
             }
         }
     }

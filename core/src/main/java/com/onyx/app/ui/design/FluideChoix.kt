@@ -70,8 +70,42 @@ data class ChoixCouverture(
         /** Les six teintes de la maison, dans l'ordre de [Fluide.plan]. */
         val TEINTES = listOf("ambre", "jade", "bois", "bleu", "rose", "mousse")
 
-        /** **Le choix du propriétaire**, tel quel : filaments, graine de la planche, teinte bleu. */
-        val DEFAUT = ChoixCouverture()
+        // ---------------------------------------------------------------------------------------
+        // Les trois compositions abstraites — les candidates mesurées du lot
+        // `qa/20261031-cartes-abstraites/` (voir `render.py` : mêmes constantes, mêmes graines).
+        // ---------------------------------------------------------------------------------------
+
+        /** **Volumes** — un seul volume lumineux, à dégradé doux. */
+        const val VARIANTE_VOLUME = "volume"
+
+        /** **Plans** — deux ou trois plans de couleur qui se touchent. La direction retenue. */
+        const val VARIANTE_PLANS = "plans"
+
+        /** **Trames** — une trame géométrique très douce. Mesurée, écartée (périodicité). */
+        const val VARIANTE_TRAME = "trame"
+
+        /** Les trois candidates, dans l'ordre de préférence mesuré. */
+        val VARIANTES_ABSTRAITES = listOf(VARIANTE_PLANS, VARIANTE_VOLUME, VARIANTE_TRAME)
+
+        /**
+         * **Le matériau de la planche** — les filaments, graine `3417634283`, teinte bleu. C'est
+         * ce qu'était le choix par défaut ; il reste **entier** et mesurable ([Fluide] garde son
+         * programme de rendu), mais il n'est plus ce que la carte montre par défaut : c'est le
+         * propriétaire qui l'a jugé « une brume bleu-gris terne, sale et pas assez dessinée ».
+         */
+        val MATERIAU_PLANCHE = ChoixCouverture(
+            variante = VARIANTE_FILAMENTS,
+            graine = GRAINE_PLANCHE,
+            teinte = TEINTE_BLEU,
+        )
+
+        /**
+         * **Le choix du propriétaire** : la composition **Plans** — celle que le lot a retenue (la
+         * plus propre et la plus dessinée des trois, et la plus fortement variée d'une conversation
+         * à l'autre ; les chiffres sont dans `qa/20261031-cartes-abstraites/RAPPORT.md`), sous la
+         * graine et la teinte de la planche, qui restent celles qu'il a enregistrées.
+         */
+        val DEFAUT = ChoixCouverture(variante = VARIANTE_PLANS)
 
         /** L'ancienne règle : la graine vient de l'identifiant de la conversation. */
         fun identite(): ChoixCouverture = ChoixCouverture(graine = GRAINE_IDENTITE)
@@ -89,7 +123,11 @@ data class ChoixCouverture(
             graine: Long? = null,
             teinte: String? = null,
         ): ChoixCouverture = ChoixCouverture(
-            variante = variante?.takeIf { it.isNotBlank() } ?: VARIANTE_FILAMENTS,
+            // **Le défaut de la MAISON, jamais l'ancien nom en dur** : un enregistrement qui ne
+            // porte pas encore de variante (une installation d'avant ce lot) doit rendre la
+            // composition retenue — c'est le défaut que la carte montre, et le laisser sur
+            // « filaments » ferait diverger la lecture du démarrage de ce que l'app affiche.
+            variante = variante?.takeIf { it.isNotBlank() } ?: DEFAUT.variante,
             graine = graine ?: GRAINE_PLANCHE,
             teinte = teinte?.takeIf { it.isNotBlank() } ?: TEINTE_BLEU,
         )

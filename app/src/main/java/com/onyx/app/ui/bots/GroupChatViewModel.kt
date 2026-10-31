@@ -17,6 +17,7 @@ import com.onyx.app.data.net.ServerAttachment
 import com.onyx.app.data.net.ServerAttachments
 import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.data.net.TurnEvent
 import com.onyx.app.di.AppContainer
@@ -280,7 +281,7 @@ class GroupChatViewModel(
                 throw error
             } catch (error: Exception) {
                 _state.update {
-                    it.copy(loading = false, error = (error as? TransportError)?.userMessage() ?: error.message)
+                    it.copy(loading = false, error = humanFailure(error))
                 }
             }
         }
@@ -440,7 +441,7 @@ class GroupChatViewModel(
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        val reason = (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["No answer."]
+                        val reason = humanFailure(error, OnyxLocalization["No answer."])
                         updateMessage(messageId) { it.copy(isStreaming = false, failed = true, text = reason) }
                     }
 
@@ -454,7 +455,7 @@ class GroupChatViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                val reason = (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["unknown error"]
+                val reason = humanFailure(error, OnyxLocalization["unknown error"])
                 _state.update {
                     it.copy(
                         messages = it.messages.filterNot { message -> message.id == userId },

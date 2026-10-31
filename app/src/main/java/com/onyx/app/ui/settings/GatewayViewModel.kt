@@ -9,6 +9,7 @@ import com.onyx.app.data.model.serve.McpServer
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeGatewayApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,7 +74,7 @@ class GatewayViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: TransportError) {
                 _state.update { it.copy(loading = false, problem = error.userMessage()) }
             } catch (error: Exception) {
-                _state.update { it.copy(loading = false, problem = error.message ?: OnyxLocalization["Couldn't reach the gateway."]) }
+                _state.update { it.copy(loading = false, problem = humanFailure(error, OnyxLocalization["Couldn't reach the gateway."])) }
             }
         }
     }
@@ -105,7 +106,7 @@ class GatewayViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                McpProbe(ok = false, summary = "", error = (error as? TransportError)?.userMessage() ?: error.message)
+                McpProbe(ok = false, summary = "", error = humanFailure(error))
             }
             _state.update {
                 it.copy(probes = it.probes + (name to probe), testing = it.testing - name)
@@ -160,7 +161,7 @@ class GatewayViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                val message = (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["It didn't finish."]
+                val message = humanFailure(error, OnyxLocalization["It didn't finish."])
                 _state.update { it.copy(working = null, outcome = message) }
             }
         }

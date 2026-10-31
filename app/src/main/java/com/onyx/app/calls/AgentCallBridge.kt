@@ -3,6 +3,7 @@ package com.onyx.app.calls
 import android.content.Context
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.model.ServerConfig
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.repo.ServerRepository
 import com.onyx.app.data.repo.SettingsRepository
 import com.onyx.app.notifications.CallRinger
@@ -151,7 +152,7 @@ class AgentCallBridge(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _status.value = Status(Status.State.Failed, e.message)
+            _status.value = Status(Status.State.Failed, humanFailure(e))
         }
     }
 

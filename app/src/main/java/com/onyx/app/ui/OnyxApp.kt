@@ -1,4 +1,5 @@
 package com.onyx.app.ui
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.LocalBackdrop
 import com.onyx.app.ui.design.recordBackdrop
 
@@ -110,6 +111,7 @@ import com.onyx.app.ui.bots.botChatToOpen
 import com.onyx.app.ui.bots.BotMenuHandlers
 import com.onyx.app.ui.bots.botRecentConversation
 import com.onyx.app.ui.bots.botOfConversation
+import com.onyx.app.ui.bots.conversationProfile
 import com.onyx.app.ui.bots.freshConversationForPencil
 import com.onyx.app.ui.bots.BotEditorViewModel
 import com.onyx.app.ui.bots.BotVoicePickerScreen
@@ -432,14 +434,13 @@ fun OnyxApp() {
     val settingsRepo = AppContainer.settings
     val conversationRepo = AppContainer.conversations
 
-    // **L'identité d'une conversation, par identifiant de serveur** : le **nom de profil** de son
-    // bot — la clé unique de la maison pour résoudre un visage et sa marque (`BotLook`). Un serveur
-    // sans profil nommé est le bot principal (`default`), jamais un libellé : c'est le libellé qui
-    // faisait « deux visages pour le même bot » (le profil s'appelle `default`, le libellé « Onyx »).
-    val serverList by servers.servers.collectAsStateWithLifecycle()
-    val identityByServer = remember(serverList) {
-        serverList.associate { server -> server.id to (server.effectiveProfile ?: "default") }
-    }
+    // **L'identité d'une conversation, PAR CONVERSATION** : le **nom de profil de son bot** — la clé
+    // unique de la maison pour résoudre un visage (`BotLook`). C'est `conversationProfile`
+    // (conversation → bot → profil du serveur → `default`) qui la rend, **le même calcul que
+    // l'en-tête et les onglets**. La version d'avant la résolvait **par serveur** (une table
+    // id de serveur → profil), si bien que trois conversations de bots différents du même serveur
+    // montraient le **même** visage tiré du nom — le défaut « mauvaise synchro » du propriétaire.
+    // (Câblage lu plus bas, dans `chatSidebar` : `identityOf = { conversation -> … }`.)
 
     val theme by settingsRepo.theme.collectAsStateWithLifecycle()
     val appearance by settingsRepo.appearance.collectAsStateWithLifecycle()
@@ -866,7 +867,7 @@ fun OnyxApp() {
                     runCatching {
                         context.startActivity(android.content.Intent.createChooser(intent, name))
                     }.onFailure { error ->
-                        chatViewModel.showProblem(error.message ?: OnyxLocalization["Couldn't open it."])
+                        chatViewModel.showProblem(humanFailure(error, OnyxLocalization["Couldn't open it."]))
                     }
                 }
             }
@@ -1723,6 +1724,10 @@ fun OnyxApp() {
         // serveur. Les sessions s'écrivent par profil ; sans lui, la fiche d'usage interroge la
         // base `default` et n'y trouve pas la ligne d'un bot (le défaut signalé).
         var usageProfile by remember { mutableStateOf<String?>(null) }
+        // Le modèle **en vigueur** de la conversation dont on regarde l'usage : la même source que
+        // l'en-tête (`ModelInForce`). Sans lui, la fiche d'usage nommait le modèle figé de la
+        // session (`session.usage.model`), qui ne suit pas un changement de modèle.
+        var usageModel by remember { mutableStateOf<String?>(null) }
         // Les bots choisis dans « New Group Chat », posés sur la salle à son ouverture.
         var groupPicked by remember { mutableStateOf<Set<String>?>(null) }
         /** Le nom donné à la salle dans la feuille (`NewGroupChatView`), ou celui d'une salle gardée ici. */
@@ -2649,9 +2654,17 @@ fun OnyxApp() {
                     else -> null
                 },
                 agentName = displayName.trim().ifEmpty { "Onyx" },
-                // La marque d'identité d'une ligne se résout sur le **nom de profil de son bot** :
-                // la même clé que la liste des bots, la fiche, l'en-tête et le volet.
-                identityOf = { id -> identityByServer[id] ?: "default" },
+                // La marque **et le visage** d'une conversation se résolvent sur le **nom de profil de
+                // son bot** — le même calcul que l'en-tête et les onglets (`conversationProfile`) :
+                // par conversation, jamais par serveur.
+                identityOf = { conversation ->
+                    conversationProfile(
+                        conversation = conversation,
+                        bots = (botsState.bots + botsState.hidden).distinctBy { it.name },
+                        server = state.server,
+                        mainName = displayName.trim().ifEmpty { "Onyx" },
+                    )
+                },
                 conversations = history,
                 liveKinds = botsState.liveKinds,
                 seenMarks = unreadMarks,
@@ -2764,6 +2777,14 @@ fun OnyxApp() {
                         bots,
                         state.server,
                         state.server.displayName,
+                    )
+                    // Le modèle EN VIGUEUR de cette conversation (`ModelInForce`) : celui de son
+                    // bot, sinon celui du serveur — la même décision que l'en-tête. Une seule
+                    // source pour le nom affiché, le prix cherché et les compteurs.
+                    usageModel = com.onyx.app.ui.design.ModelInForce.inForce(
+                        null,
+                        botOfConversation(conversation, bots, state.server.displayName)?.model,
+                        state.server.effectiveModel,
                     )
                     navTo(Route.SESSION_USAGE.name)
                     sidebarState.close()
@@ -3692,6 +3713,7 @@ fun OnyxApp() {
                         server = state.server,
                         fetchId = usageFetchId,
                         profile = usageProfile,
+                        model = usageModel,
                         onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                     )
                 }
@@ -3716,6 +3738,14 @@ fun OnyxApp() {
                             usageSummary = session
                             usageFetchId = null
                             usageProfile = null
+                            // Une session lue du projet : pas de conversation locale à qui demander
+                            // son bot, donc le modèle en vigueur est celui du serveur — jamais un
+                            // reste de la fiche précédente.
+                            usageModel = com.onyx.app.ui.design.ModelInForce.inForce(
+                                null,
+                                null,
+                                state.server.effectiveModel,
+                            )
                             navTo(Route.SESSION_USAGE.name)
                         },
                         onBack = { if (!navBack()) navTo(Route.CHAT.name) },
@@ -4090,6 +4120,9 @@ fun OnyxApp() {
                 openConversation = history.firstOrNull { it.id == state.conversationId },
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                 standIn = ledgerStandIn,
+                // La rangée « Model » et le prix cherché suivent le modèle **en vigueur** de la
+                // conversation ouverte — la même source que l'en-tête et la fiche d'usage.
+                openModelInForce = state.modelInForce,
             )
 
             // « Aperçus » : ce que ce profil a consommé sur 7, 30 ou 90 jours. La période est

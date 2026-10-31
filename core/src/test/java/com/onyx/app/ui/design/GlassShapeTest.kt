@@ -44,6 +44,10 @@ class GlassShapeTest {
         GlassSurface.SIDEBAR_TILE to RoundedCornerShape(OnyxSpace.TileCorner),
         GlassSurface.BOT_CARD to RoundedCornerShape(OnyxSpace.CardCorner),
         GlassSurface.LIST_ROW to RoundedCornerShape(OnyxSpace.CardCorner),
+        // Le bloc de conversation : il porte le **coin des plaques** (22 dp, comme l'en-tête et le
+        // compositeur) — c'est une plaque de verre, pas une rangée : sa forme vient de la même
+        // famille que les trois plaques flottantes.
+        GlassSurface.CONVERSATION_CARD to RoundedCornerShape(22.dp),
         GlassSurface.RESPONSE_BLOCK to RoundedCornerShape(OnyxSpace.CardCorner),
         GlassSurface.SEGMENTED to RoundedCornerShape(50),
         // La grande carte de matière (fil vide, carte d'un écran de contenu) : le rayon des

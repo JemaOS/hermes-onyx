@@ -55,20 +55,38 @@ class FluideChoixVerrouTest {
     // -----------------------------------------------------------------------------------------
 
     @Test
-    fun `le choix enregistre est filaments, graine 3417634283, teinte bleu`() {
+    fun `le choix enregistre est la composition « plans », graine 3417634283, teinte bleu`() {
         val choix = ChoixCouverture.DEFAUT
-        assertEquals("la variante retenue est « filaments »", ChoixCouverture.VARIANTE_FILAMENTS, choix.variante)
+        // **Le choix a CHANGE, et c'est le lot qui le change** : la couverture par défaut est
+        // désormais la composition abstraite **« plans »**, celle que le propriétaire a demandée
+        // (« des designs d'image plus abstraits, plus propres ») et que le lot a retenue après
+        // mesure (propreté, variation par conversation, contraste du titre — voir
+        // `qa/20261031-cartes-abstraites/RAPPORT.md`). La graine et la teinte qu'il avait
+        // enregistrées ne bougent pas.
+        assertEquals("la variante retenue est « plans »", ChoixCouverture.VARIANTE_PLANS, choix.variante)
         assertEquals("la graine retenue est celle de la planche", 3_417_634_283L, choix.graine)
         assertEquals("la teinte retenue est le bleu", ChoixCouverture.TEINTE_BLEU, choix.teinte)
         assertTrue("le choix enregistré est cohérent avec lui-même", choix.coherent)
         // La teinte nommée est bien celle que la graine produit : (graine & MAX) % 6 = 3.
         assertEquals("la graine de la planche donne la teinte bleu", "bleu", ChoixCouverture.teinteDe(3417634283L))
         assertEquals("l'indice de teinte du bleu est 3", 3, choix.teinteIndex)
+        // **Le matériau de la planche est CONSERVÉ, et nommé** : les verrous des lots précédents
+        // (isotropie du champ, courant, couture, harnais) sont re-pointés sur cette constante — un
+        // verrou re-pointé, jamais désarmé.
+        assertEquals("le matériau de la planche reste les filaments",
+            ChoixCouverture.VARIANTE_FILAMENTS, ChoixCouverture.MATERIAU_PLANCHE.variante)
+        assertEquals("le matériau de la planche garde la graine de la planche",
+            3_417_634_283L, ChoixCouverture.MATERIAU_PLANCHE.graine)
+        // Et les trois candidates sont toutes enregistrables (elles se choisissent à la main).
+        assertEquals("les trois compositions abstraites sont déclarées",
+            3, ChoixCouverture.VARIANTES_ABSTRAITES.size)
+        assertTrue("la variante du défaut est une composition abstraite",
+            choix.variante in ChoixCouverture.VARIANTES_ABSTRAITES)
     }
 
     @Test
     fun `la carte rend EXACTEMENT la variante enregistree, et pas un defaut du code`() {
-        val choix = ChoixCouverture.DEFAUT
+        val choix = ChoixCouverture.MATERIAU_PLANCHE
         for (dark in listOf(true, false)) {
             val plan = Fluide.plan(TITRE, ID, dark = dark, choix = choix)
             assertEquals("la graine du dessin est celle du choix (${if (dark) "sombre" else "clair"})",
@@ -176,7 +194,7 @@ class FluideChoixVerrouTest {
 
     @Test
     fun `le fond est un brouillard LUMINEUX et BLEU, et le ruban ECLAIRE`() {
-        val choix = ChoixCouverture.DEFAUT
+        val choix = ChoixCouverture.MATERIAU_PLANCHE
 
         val (moyS, lumS, bleuS) = brumeMoyenne(Fluide.plan(TITRE, ID, dark = true, choix = choix))
         val (moyC, lumC, bleuC) = brumeMoyenne(Fluide.plan(TITRE, ID, dark = false, choix = choix))
@@ -287,7 +305,7 @@ class FluideChoixVerrouTest {
         )
 
         // 3) Mesuré : la part de pixels qui change d'un instant à l'autre — non nulle, et régulière.
-        val plan = Fluide.plan(TITRE, ID, dark = true, choix = ChoixCouverture.DEFAUT)
+        val plan = Fluide.plan(TITRE, ID, dark = true, choix = ChoixCouverture.MATERIAU_PLANCHE)
         val phases = listOf(0f, 0.125f, 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1f)
         val parts = ArrayList<Float>()
         for (k in 0 until phases.size - 1) {
@@ -318,7 +336,7 @@ class FluideChoixVerrouTest {
 
     @Test
     fun `la boucle est invisible — la fin du cycle rend le dessin du debut`() {
-        val plan = Fluide.plan(TITRE, ID, dark = true, choix = ChoixCouverture.DEFAUT)
+        val plan = Fluide.plan(TITRE, ID, dark = true, choix = ChoixCouverture.MATERIAU_PLANCHE)
         // La phase est périodique : 0 et 1 sont le même point du cycle.
         assertEquals("la phase se referme", 0f, Fluide.phase(Fluide.DELAY_MS + Fluide.CYCLE_MS.toLong()), 0f)
         // Et le souffle aussi — trois respirations par cycle.

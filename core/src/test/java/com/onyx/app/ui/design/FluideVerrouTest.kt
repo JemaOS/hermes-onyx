@@ -29,6 +29,12 @@ import org.junit.Test
  * Les vérifications de source sont là pour que la morsure **nomme** `fichier:ligne` : c'est ce que
  * le rapport du lot doit citer, et c'est aussi ce qui attrape le cas où une garde serait contournée
  * ailleurs (un appelant qui anime la carte sans passer par [Fluide.level]).
+ *
+ * **Re-pointé par le lot « blocs-verre ».** Le fluide n'est **plus peint par une carte de
+ * conversation** (le propriétaire a refusé les trois compositions et demandé une plaque de verre avec
+ * le visage du bot) : les dents 1 à 4 portent donc désormais sur le **matériau de la planche**, et
+ * celle qui exigeait l'appel du fluide par la carte exige maintenant l'inverse — **plus peinte sur
+ * les cartes**, matériau déclaré. Aucune dent n'a été supprimée, aucune désarmée.
  */
 class FluideVerrouTest {
 
@@ -200,18 +206,47 @@ class FluideVerrouTest {
     }
 
     @Test
-    fun `la carte de conversation appelle bien le fluide`() {
-        val (f, l) = sourceDe("src/main/java/com/onyx/app/ui/design/Galerie.kt", "FluideConversationCover(")!!
-        assertTrue("la carte doit appeler le fluide — $f:$l", l > 0)
+    fun `la carte de conversation NE peint plus la couverture, et le materiau reste declare`() {
+        // =========================================================================================
+        // **VERROU RE-POINTÉ — lot « blocs-verre », jamais désarmé.**
+        //
+        // Cette dent exigeait l'**appel** du fluide par la carte (« la carte de conversation appelle
+        // bien le fluide »). Le propriétaire a refusé les trois compositions — la troisième comprise —
+        // et remplacé la direction, capture à l'appui : « pour les blocs de conversation tu vas pas
+        // mettre d'images, ça va être très simple : une plaque de verre avec liquid glass, le visage
+        // du bot… ». La dent exige donc **l'inverse**, et elle exige **plus** qu'avant : que le
+        // matériau reste **déclaré et documenté** comme matériau de la planche, sans quoi le prochain
+        // lot le remettrait sur une carte en croyant le réveiller.
+        // =========================================================================================
+        val galerie = File("src/main/java/com/onyx/app/ui/design/Galerie.kt")
+            .takeIf { it.isFile } ?: File("../core/src/main/java/com/onyx/app/ui/design/Galerie.kt")
+        assertTrue("la carte de conversation est introuvable : ${galerie.path}", galerie.isFile)
+        val carte = galerie.readText()
+        val appels = listOf("FluideConversationCover(", "ConversationCover(", "ConversationCoverCard(")
+            .filter { carte.contains(it) }
+        assertTrue(
+            "la carte peint encore une couverture générée : $appels — le propriétaire a refusé les " +
+                "trois compositions et demandé une plaque de verre (voir Galerie.kt, BlocConversation)",
+            appels.isEmpty(),
+        )
+        // Le matériau, lui, doit rester vivant et **nommé comme non peint** : un composable supprimé
+        // en silence serait perdu ; un composable dont on a oublié qu'il est retiré serait remis.
+        val (f, l) = sourceDe("src/main/java/com/onyx/app/ui/design/FluideCover.kt", "fun FluideConversationCover(")!!
+        assertTrue("le composable du fluide doit rester déclaré (matériau de la planche) — $f:$l", l > 0)
+        val (f2, l2) = sourceDe(
+            "src/main/java/com/onyx/app/ui/design/FluideCover.kt",
+            "PLUS PEINTE SUR LES CARTES",
+        )!!
+        assertTrue("le fichier du fluide doit dire qu'il n'est plus peint par les cartes — $f2:$l2", l2 > 0)
         // Et le visage ne grossit pas : le disque d'état vient des **constantes de la maison**, et il
         // n'est plus dessiné à la main dans le volet. La pastille de la carte est la **marque
         // d'identité** (`IdentityMark`, lot marques-identite) : son diamètre est une constante
         // publique, et l'état s'y pose en point de présence — la géométrie ne peut plus dériver d'un
         // site d'appel à l'autre.
-        val (f2, l2) = sourceDe("src/main/java/com/onyx/app/ui/design/IdentityMark.kt", "val Diameter: Dp = 32.dp")!!
-        assertTrue("le diamètre de la marque d'identité est une constante de la maison — $f2:$l2", l2 > 0)
-        val (f3, l3) = sourceDe("src/main/java/com/onyx/app/ui/design/IdentityMark.kt", "val PresenceDiameter: Dp = 11.dp")!!
-        assertTrue("le point d'état a, lui aussi, sa constante — $f3:$l3", l3 > 0)
+        val (f3, l3) = sourceDe("src/main/java/com/onyx/app/ui/design/IdentityMark.kt", "val Diameter: Dp = 32.dp")!!
+        assertTrue("le diamètre de la marque d'identité est une constante de la maison — $f3:$l3", l3 > 0)
+        val (f4, l4) = sourceDe("src/main/java/com/onyx/app/ui/design/IdentityMark.kt", "val PresenceDiameter: Dp = 11.dp")!!
+        assertTrue("le point d'état a, lui aussi, sa constante — $f4:$l4", l4 > 0)
     }
 
     // -----------------------------------------------------------------------------------------

@@ -94,7 +94,7 @@ object ConnectionTester {
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
-                    val why = (error as? TransportError)?.userMessage() ?: error.message.orEmpty()
+                    val why = humanFailure(error)
                     ConnectionProbe(
                         false,
                         "Hermes Dashboard $version reachable, but login failed: $why",

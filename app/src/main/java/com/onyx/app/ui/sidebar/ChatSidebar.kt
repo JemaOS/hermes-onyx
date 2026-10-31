@@ -109,7 +109,6 @@ import com.onyx.app.ui.design.BadgeGeometry
 import com.onyx.app.ui.design.flatActivePillColor
 import com.onyx.app.ui.design.flatActivePillInk
 import com.onyx.app.ui.design.FlatChipHeight
-import com.onyx.app.ui.design.ConversationCover
 import com.onyx.app.ui.design.OnyxSocle
 import com.onyx.app.ui.design.FlatHairlineDp
 import com.onyx.app.ui.design.flatIconInk
@@ -119,7 +118,7 @@ import com.onyx.app.ui.design.sidebarPaneSurface
 import com.onyx.app.ui.design.sidebarTileSurface
 import com.onyx.app.ui.design.haloBackdrop
 import com.onyx.app.ui.design.matiereBackdrop
-import com.onyx.app.ui.design.ConversationCoverCard
+import com.onyx.app.ui.design.BlocConversation
 import com.onyx.app.ui.design.GalerieSectionLabel
 import com.onyx.app.ui.design.socleDisplayStyle
 import com.onyx.app.ui.design.socleTitleInk
@@ -2282,22 +2281,25 @@ private fun ConversationRow(
                 )
             }
         } else {
-            // **La carte de conversation**, et non plus un disque de 26 px : une couverture
-            // générative **pleine largeur** en tête de carte, le titre à 15 sp, l'aperçu tronqué,
-            // l'épingle et la méta en monospace. L'état (en cours, en attente, non lue) n'est pas
-            // retiré : il passe **sur** la couverture. Voir [ConversationCoverCard].
-            ConversationCoverCard(
+            // **LE BLOC DE CONVERSATION : une plaque de verre, et le visage de son bot.** Plus aucune
+            // image générée — la couverture (fluide et compositions) reste le **matériau de la
+            // planche**, mais aucune carte ne la peint. Le visage vient de l'identité **vivante** du
+            // bot de la conversation (`row.identity` : le nom de profil ; `row.identityFace` : le
+            // visage enregistré, que le volet relit à chaque composition) — donc changer le visage
+            // d'un bot change le visage de sa carte. **La marque d'identité du coin haut-droit n'est
+            // plus peinte sur une carte** : le propriétaire l'a refusée (ronde, redondante avec le
+            // visage déjà présent à gauche, et moche — « supprime la petite partie avec le cercle »).
+            // Le composant `IdentityMark` et son site `ToneDisc` restent **déclarés** (plus bas) :
+            // ils ne sont pas supprimés en silence, et le prochain lot sait que sa présence sur une
+            // carte est **interdite**.
+            BlocConversation(
                 title = row.title,
-                id = row.id,
+                identity = row.identity,
+                faceCode = row.identityFace,
                 preview = row.subtitle,
                 metaLeft = row.projectLabel,
                 metaRight = sidebarAgeLabel(row.age).takeIf { it.isNotEmpty() },
                 pinned = row.pinned,
-                // **La marque d'identité du bot de cette conversation**, dans le coin haut-droit :
-                // le disque de sa couleur, son initiale (ou la rune de la maison) à l'encre mesurée,
-                // et l'état posé sur la marque. La géométrie et l'écart viennent des constantes de
-                // la maison (`IdentityMark`) — aucun nombre n'est écrit ici.
-                state = { ToneDisc(row.tone, row.identity, row.identityFace) },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -2565,13 +2567,17 @@ private fun SelectionMark(selected: Boolean) {
 }
 
 /**
- * **La marque d'identité d'une conversation — la pastille du coin haut-droit de sa carte.**
+ * **La marque d'identité d'une conversation — PLUS PEINTE SUR LES CARTES.**
  *
- * Le propriétaire a vu, sur sa capture, deux ronds de teintes différentes sans règle apparente : un
- * rond ambre sur une carte, un rond bleu-violet sur une autre. Ce n'étaient pas des identités — la
- * pastille portait **l'état** (l'ambre d'une question qui attend, l'accent d'un tour en cours), et le
- * **même bot** montrait donc autre chose ici que dans la liste des bots, la fiche, l'en-tête ou le
- * volet. Deux marques pour une identité : la divergence que la maison interdit.
+ * Elle peignait la pastille du coin haut-droit d'une carte de conversation. Le propriétaire l'a
+ * **refusée** sur sa capture : « supprime la petite partie avec le cercle, le visage c'est moche » —
+ * la marque est ronde et redondante (le visage est déjà à gauche de la carte). Le site d'appel de la
+ * carte ne la pose donc plus ; le composant reste **déclaré** ici et [IdentityMark] n'est pas
+ * supprimé en silence.
+ *
+ * Le défaut historique qu'elle corrigeait, à garder en tête : la pastille du coin portait
+ * l'**ÉTAT** (l'ambre d'une question qui attend, l'accent d'un tour en cours), si bien que le **même
+ * bot** montrait une marque ici et une autre dans la liste des bots, la fiche, l'en-tête ou le volet.
  *
  * Le disque est maintenant **celui du bot** (`IdentityMark`), son glyphe est son initiale — la rune
  * de la maison pour le bot principal —, et l'état ne se perd pas : il passe **sur** la marque, dans

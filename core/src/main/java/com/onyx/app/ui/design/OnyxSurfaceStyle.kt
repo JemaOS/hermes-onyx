@@ -167,6 +167,44 @@ fun Modifier.surfaceRole(role: SurfaceRole): Modifier {
     return surfaceRole(role, theme)
 }
 
+/**
+ * **LA COQUE D'UNE SURFACE QUI PORTE DU VERRE — la forme, l'ombre et le filet, SANS le fond.**
+ *
+ * C'est le correctif du défaut qui rendait la plaque de l'en-tête **opaque** : l'en-tête appelait
+ * `surfaceRole(SurfaceRole.Bar)`, qui pose un **fond opaque** ([OnyxSurfaces.surfaceHigh] : `#FFFFFF`
+ * en clair, le barreau sombre en sombre) **sous** la vitre. Une vitre posée sur un aplat opaque n'a
+ * rien à révéler : elle transporte l'aplat, et la plaque se lit comme une **carte blanche**, quel que
+ * soit le réglage du flou. Mesuré sur la capture du propriétaire : le corps de l'en-tête valait la
+ * surface `#FFFFFF` à quelques niveaux près, quelle que soit la position de défilement.
+ *
+ * Un rôle de **barre** garde donc ici tout ce qui fait sa forme — le rayon de la famille, **l'**ombre
+ * ([OnyxShadow.Float]) et **le** filet ([OnyxSurfaces.hairline]) — et **pas le fond** : c'est la
+ * **vitre** qui peint la matière, et elle seule. Le filet et l'ombre sont ce qui détache la barre ;
+ * un aplat sous la vitre n'ajoute rien, il retire le verre.
+ *
+ * Le rôle doit porter **une ombre et un filet** (c'est le cas de [SurfaceRole.Bar] et de
+ * [SurfaceRole.Float]) : une surface sans filet ni ombre n'aurait plus que son verre, et sa forme se
+ * lirait floue.
+ */
+@Composable
+fun Modifier.glassBarShell(role: SurfaceRole): Modifier {
+    val theme = LocalOnyxTheme.current
+    return glassBarShell(role, theme)
+}
+
+/** Le même, avec le thème fourni (aperçus, mesures). */
+fun Modifier.glassBarShell(role: SurfaceRole, theme: ResolvedTheme): Modifier {
+    var modifier = this
+    if (role.hasShadow) {
+        modifier = modifier.shadow(OnyxShadow.Float, role.shape, clip = false)
+    }
+    modifier = modifier.clip(role.shape)
+    if (role.hasHairline) {
+        modifier = modifier.border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), role.shape)
+    }
+    return modifier
+}
+
 /** Le même, avec le thème fourni : les appelants hors composition (aperçus, mesures) l'emploient. */
 fun Modifier.surfaceRole(role: SurfaceRole, theme: ResolvedTheme): Modifier {
     if (role == SurfaceRole.Page) return this

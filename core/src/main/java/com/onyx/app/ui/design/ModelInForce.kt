@@ -50,4 +50,37 @@ object ModelInForce {
         sequenceOf(conversation, bot, server)
             .map { it?.trim().orEmpty() }
             .firstOrNull { it.isNotEmpty() && !ModelName.isAlias(it) }
+
+    /**
+     * **Le modèle d'une fiche d'usage** : le modèle EN VIGUEUR de la conversation, jamais le nom
+     * **figé** que la passerelle a consigné à l'ouverture de la session.
+     *
+     * Le défaut fermé ici, et que le propriétaire a vu : l'en-tête nommait le modèle en vigueur
+     * (`deepseek/deepseek-v4.1-flash`, celui qu'il venait de choisir) pendant que la fiche
+     * d'usage nommait un **autre** modèle (`sage-a1.5`) — parce que la fiche lisait le `model` que
+     * `session.usage` avait consigné pour la session, et que ce champ **ne bouge pas** quand on
+     * change de modèle. Une seule décision ([inForce]) doit donc alimenter l'en-tête **et** la
+     * fiche : le nom consigné par le serveur n'est qu'un **repli**, quand rien n'est en vigueur.
+     *
+     * Les trois étages sont ceux de [inForce] (conversation → bot → serveur → rien), l'alias de
+     * passerelle écarté comme partout.
+     */
+    fun usageModel(conversation: String?, bot: String?, server: String?, recorded: String?): String? =
+        preferInForce(inForce(conversation, bot, server), recorded)
+
+    /**
+     * **Le nom en vigueur d'abord, le nom consigné ensuite** — jamais l'inverse.
+     *
+     * C'est la règle unique que l'en-tête, la fiche d'usage, la fiche par bot et le relevé d'agent
+     * lisent dès qu'ils doivent nommer (et tarifer) le modèle d'une conversation : prendre
+     * [inForce] quand il y en a un, et ne retomber sur [recorded] (le `model` du registre ou de
+     * `session.usage`) que lorsque **rien** n'est en vigueur. Un alias de passerelle ne s'écrit
+     * jamais, ni d'un côté ni de l'autre.
+     */
+    fun preferInForce(inForce: String?, recorded: String?): String? {
+        val live = inForce?.trim().orEmpty()
+        if (live.isNotEmpty() && !ModelName.isAlias(live)) return live
+        val kept = recorded?.trim().orEmpty()
+        return kept.takeIf { it.isNotEmpty() && !ModelName.isAlias(it) }
+    }
 }

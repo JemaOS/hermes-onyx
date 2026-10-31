@@ -1,5 +1,6 @@
 package com.onyx.app.ui.chat.components
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.MotionFamily
@@ -80,6 +81,7 @@ import com.onyx.app.ui.design.FrostSurface
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.LocalReduceMotion
 import com.onyx.app.ui.design.MenuItem
+import com.onyx.app.ui.design.ModelInForce
 import com.onyx.app.ui.design.OnyxContrast
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.bodyInk
@@ -118,6 +120,14 @@ fun ChatActionSheet(
     modifier: Modifier = Modifier,
     /** Le repli déclaré du tour : le panneau de coût en tient compte (un repli local n'a pas de prix). */
     fallback: com.onyx.app.ui.design.FallbackDeclaration? = null,
+    /**
+     * Le modèle **en vigueur** pour cette conversation — exactement celui que l'en-tête affiche
+     * (`ChatUiState.modelInForce`). Le panneau « Consommation et coût » le nomme : sans lui, il
+     * nommait le `model` **figé** que `session.usage` a consigné à l'ouverture, qui ne bouge pas
+     * quand on change de modèle (le défaut signalé : en-tête « deepseek/deepseek-v4.1-flash », fiche
+     * « sage-a1.5 »). Une seule source : [ModelInForce].
+     */
+    modelInForce: String? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val reduceMotion = LocalReduceMotion.current
@@ -155,7 +165,7 @@ fun ChatActionSheet(
             runCatching {
                 clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("session", id)))
             }.onFailure { error ->
-                notice = OnyxLocalization.format("Couldn't copy it: %1\$s", error.message ?: error.toString())
+                notice = OnyxLocalization.format("Couldn't copy it: %1\$s", humanFailure(error))
                 return@launch
             }
             copied = true
@@ -258,7 +268,12 @@ fun ChatActionSheet(
                 modifier = modifier,
             ) {
                 when (panel) {
-                    ChatSheetAction.USAGE -> UsagePanel(usageState, onRetry = { reload += 1 }, fallback = fallback)
+                    ChatSheetAction.USAGE -> UsagePanel(
+                        usageState,
+                        onRetry = { reload += 1 },
+                        fallback = fallback,
+                        modelInForce = modelInForce,
+                    )
 
                     ChatSheetAction.PROCESSES -> ProcessPanel(
                         state = processState,
@@ -305,7 +320,7 @@ fun ChatActionSheet(
  * code brut — et jamais un motif muet.
  */
 internal fun readingFailure(error: Throwable): String =
-    ServeChatActions.failureReason(error.message ?: error.toString())
+    ServeChatActions.failureReason(humanFailure(error))
 
 // ---------------------------------------------------------------------------------------------
 // Les lignes de la feuille : le modèle, la famille de teinte, et l'ordre d'affichage
@@ -1080,6 +1095,7 @@ private fun UsagePanel(
     state: LoadState<UsageRead>,
     onRetry: () -> Unit,
     fallback: com.onyx.app.ui.design.FallbackDeclaration? = null,
+    modelInForce: String? = null,
 ) {
     val theme = LocalOnyxTheme.current
     when (state) {
@@ -1097,7 +1113,10 @@ private fun UsagePanel(
         is LoadState.Ready -> {
             val usage = state.value.usage
             val account = state.value.account
-            val model = usage.model?.takeIf { it.isNotBlank() }
+            // **Le modèle vient de l'UNIQUE source** (`ModelInForce`) : le modèle EN VIGUEUR, celui
+            // que l'en-tête affiche — jamais le `model` figé de `session.usage`, qui ne bouge pas
+            // quand on change de modèle. Le nom consigné par le serveur ne sert que de repli.
+            val model = ModelInForce.preferInForce(modelInForce, usage.model)
             PanelHeadline(
                 if (model != null) OnyxLocalization["This conversation"] + " · " + model
                 else OnyxLocalization["This conversation"],
@@ -1132,6 +1151,15 @@ private fun UsagePanel(
                         "Costs are the server's own estimate from provider pricing."
                     },
                 )
+                // **Les zéros s'expliquent, ils ne se taisent pas.** Le serveur a mesuré un contexte
+                // mais n'a compté aucun jeton : les tuiles restent à zéro (ou « — ») sous un
+                // contexte rempli — la contradiction que le propriétaire a lue (« Entrée 0 » sur un
+                // contexte à 21,3k). Elle se dit ici, au lieu de se contredire en silence.
+                if (usage.reportsContextWithoutTokens) {
+                    DetailNote(
+                        "This server counted no tokens for this conversation; the only thing it measured is the window below.",
+                    )
+                }
                 // Un tour servi par le **repli local** : le tarif par million du modèle configuré ne
                 // s'applique pas — on le dit, au lieu de laisser lire un prix qui ne vaut pas.
                 if (fallback?.servedIsLocal == true) {

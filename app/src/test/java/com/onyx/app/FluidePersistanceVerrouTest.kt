@@ -60,9 +60,11 @@ class FluidePersistanceVerrouTest {
         assertEquals(null, store.state.value[cleGraine("fluideGraine")])
         assertEquals(null, store.state.value[cleVar("fluideVariante")])
         assertEquals(null, store.state.value[cleVar("fluideTeinte")])
-        // …et pourtant la carte rend SON choix comme défaut visible : filaments, graine, teinte bleu.
+        // …et pourtant la carte rend SON choix comme défaut visible : **la composition retenue par
+        // ce lot** (l'abstrait « plans » — le défaut de la maison, celui que la carte dessine), la
+        // graine et la teinte que le propriétaire avait enregistrées.
         assertEquals(ChoixCouverture.DEFAUT, settings.fluideChoix.value)
-        assertEquals("filaments", settings.fluideChoix.value.variante)
+        assertEquals(ChoixCouverture.DEFAUT.variante, settings.fluideChoix.value.variante)
         assertEquals(3_417_634_283L, settings.fluideChoix.value.graine)
         assertEquals("bleu", settings.fluideChoix.value.teinte)
         assertEquals(3, settings.fluideChoix.value.teinteIndex)
@@ -78,7 +80,7 @@ class FluidePersistanceVerrouTest {
         // **LE GESTE** : le tap sur la variante — activer la couverture de fluide, c'est choisir les
         // filaments. À cet instant, et à lui seul, le choix s'enregistre.
         settings.setFluideCover(true)
-        assertEquals("le geste écrit le choix", "filaments", store.state.value[cleVar("fluideVariante")])
+        assertEquals("le geste écrit le choix", ChoixCouverture.DEFAUT.variante, store.state.value[cleVar("fluideVariante")])
         assertEquals("le geste écrit la graine", 3_417_634_283L, store.state.value[cleGraine("fluideGraine")])
         assertEquals("le geste écrit la teinte", "bleu", store.state.value[cleVar("fluideTeinte")])
 

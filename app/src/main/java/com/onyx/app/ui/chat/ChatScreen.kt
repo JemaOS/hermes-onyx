@@ -132,7 +132,6 @@ import com.onyx.app.ui.design.TabSwipeEdgeGuards
 import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.BotLook
 import com.onyx.app.ui.design.PlaqueGeometry
-import com.onyx.app.ui.design.panePlate
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
 import com.onyx.app.ui.design.GlassSurface
@@ -773,7 +772,19 @@ fun ChatScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .matierePage(theme)
+            // **LA MATIÈRE DE LA PAGE N'EST PLUS PEINTE ICI : elle est DANS la source Haze.**
+            //
+            // Mesuré au repos sur l'appareil (`sonde2.py`, APK 991) : la page au-dessus de la
+            // plaque vaut `#D3DCD7` (clair) / `#181818` (sombre) — c'est la matière, qui teinte et
+            // assombrit la couleur de page. La plaque, elle, valait `#FCFCFD` / `#707072`, un
+            // **aplat neutre** qui ne portait **aucune** trace de la page (ni la teinte, ni le
+            // grain du fond). La cause : la source Haze ne contenait que le **contenu du pageur** ;
+            // la matière, peinte sur cette `Box` (donc **au-dessus** de la source dans l'arbre),
+            // n'était pas échantillonnée, et Haze remplissait le vide avec `theme.pageColor` —
+            // un blanc (clair) ou un graphite (sombre) qui n'est pas ce qu'on voit.
+            //
+            // La matière descend donc **dans** la source (voir juste plus bas), pour qu'elle soit
+            // ce que la vitre échantillonne : la plaque montre alors la page qu'elle recouvre.
             // Un glissement franc vers la droite révèle la liste, n'importe où sur l'écran —
             // c'est le geste du `SidePanel` d'la référence (`Echo/Views/SwipeToOpen`), qui part du
             // bord comme du reste de la surface. Le bouton et le geste disparaissent quand la
@@ -830,6 +841,12 @@ fun ChatScreen(
                     .fillMaxSize()
                     .then(glassState?.let { Modifier.onyxHazeSource(it) } ?: Modifier),
             ) {
+            // **LA MATIÈRE DE LA PAGE, DANS LA SOURCE HAZE.** Elle était sur la `Box` racine de
+            // l'écran ; la source Haze, posée **sous** elle, ne la capturait donc pas, et la
+            // plaque remplissait le vide d'une couleur de page supposée (mesuré : un aplat
+            // `#FCFCFD`/`#707072`, indifférent à la page). Posée ici, elle est **ce que la vitre
+            // échantillonne** : la plaque montre la page qu'elle recouvre, teinte et grain compris.
+            Box(Modifier.matchParentSize().matierePage(theme))
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
@@ -1092,15 +1109,14 @@ fun ChatScreen(
                 },
                 onDiscuss = { card -> discussAbout(card.title) },
                 onCompose = { openChatTab() },
-                // **LE CONTENU DE L'ONGLET EST POSÉ SUR UNE PLAQUE DE VERRE** qui se déplace avec
-                // lui : c'est la demande du propriétaire — « quand je clique par exemple Flux ou
-                // Fichiers je devrais avoir comme une plaque en verre que je peux faire glisser de
-                // gauche a droite ». La plaque vit **dans** la page du pageur, donc c'est le pageur
-                // qui la translate : elle suit le doigt sans geste à elle, et son arête reste visible
-                // **pendant** le mouvement (voir les images prises à mi-course dans le rapport).
+                // **LE CONTENU DE L'ONGLET REPOSE SUR LA PAGE — la plaque de verre a été RETIRÉE.**
+                // Un lot précédent posait ici une plaque (`panePlate`) derrière le contenu ; le
+                // propriétaire l'a refusée sur capture (« un encadré gris transparent, je veux pas
+                // ça »). Le contenu est donc **directement sur la page**, sans encadré derrière lui.
+                // **Le glissement, lui, reste** : c'est le `HorizontalPager` qui translate le
+                // contenu sous le doigt — la plaque s'en va, le geste non.
                 modifier = Modifier.fillMaxSize()
-                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane)
-                    .panePlate(theme),
+                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane),
             )
 
             2 -> ChatFilesPane(
@@ -1116,10 +1132,9 @@ fun ChatScreen(
                         file.mime.ifBlank { FileViewers.mimeFor(file.name) },
                     )
                 },
-                // La même plaque de verre, sur l'onglet Fichiers.
+                // Le contenu de l'onglet Fichiers repose sur la page, lui aussi : aucune plaque.
                 modifier = Modifier.fillMaxSize()
-                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane)
-                    .panePlate(theme),
+                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane),
             )
 
             }
@@ -1618,6 +1633,10 @@ fun ChatScreen(
                 // « Consommation et coût » dit quand le tour a été servi en local : un tarif par
                 // million de jetons n'y a alors aucun sens.
                 fallback = state.fallback,
+                // Et il NOMME le modèle **en vigueur** — celui de l'en-tête, la même source
+                // (`ModelInForce`) : sans ça il nommait le modèle figé de `session.usage`, qui ne
+                // suit pas un changement de modèle (le défaut signalé).
+                modelInForce = state.modelInForce,
             )
         }
         projectDirectory?.let { directory ->

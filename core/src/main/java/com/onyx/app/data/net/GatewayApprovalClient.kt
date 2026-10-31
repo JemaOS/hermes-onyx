@@ -28,7 +28,7 @@ class GatewayApprovalClient(
 
     /** Transmet la décision. Lève une [TransportError] si le gateway refuse. */
     suspend fun respond(runId: String, requestId: String?, choice: String) = withContext(Dispatchers.IO) {
-        if (!config.isUsable) throw TransportError.BadUrl(OnyxLocalization["empty base URL"])
+        if (config.apiBaseUrl.isBlank()) throw TransportError.BadUrl(OnyxLocalization["empty base URL"])
 
         val payload = ApprovalBody(
             choice = choice,

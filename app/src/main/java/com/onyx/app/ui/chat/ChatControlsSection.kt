@@ -26,6 +26,7 @@ import com.onyx.app.data.net.ChatControls
 import com.onyx.app.data.net.ChatControlsApi
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.OnyxActionSheet
 import com.onyx.app.ui.design.OnyxFormSection
@@ -221,7 +222,7 @@ fun ChatControlsSection(
 }
 
 private fun transportReason(error: Exception): String =
-    (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["unknown error"]
+    humanFailure(error, OnyxLocalization["unknown error"])
 
 /**
  * **Un interrupteur et sa sous-ligne courte** — la rangée du mode rapide.

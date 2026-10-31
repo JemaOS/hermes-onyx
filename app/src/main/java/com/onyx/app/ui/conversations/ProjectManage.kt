@@ -14,6 +14,7 @@ import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServerProject
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.projectFolderName
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.AlertAction
@@ -84,7 +85,7 @@ object ProjectManage {
 
     /** La raison d'un échec, dans les mots de l'app : le message d'un transport, sinon le sien. */
     fun reason(error: Throwable): String =
-        (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["unknown error"]
+        humanFailure(error, OnyxLocalization["unknown error"])
 }
 
 /**

@@ -51,6 +51,7 @@ import com.onyx.app.ui.bots.conversationProfile
 import com.onyx.app.ui.bots.ledgerProfiles
 import com.onyx.app.ui.common.AdaptiveSegmented
 import com.onyx.app.ui.design.IdentifierText
+import com.onyx.app.ui.design.ModelInForce
 import com.onyx.app.ui.design.ProfileInForce
 import com.onyx.app.ui.design.OnyxEmptyState
 import com.onyx.app.ui.design.OnyxFormSection
@@ -97,6 +98,12 @@ fun AgentLedgerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     standIn: LedgerStandIn? = null,
+    /**
+     * Le modèle **en vigueur** de la conversation ouverte (`ChatUiState.modelInForce`) : la même
+     * source que l'en-tête et que la fiche d'usage. Il alimente la rangée « Model » et le prix
+     * qu'on cherche sous ce nom — le registre des sessions, lui, fige le modèle à l'ouverture.
+     */
+    openModelInForce: String? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val locale = OnyxLanguage.preferred
@@ -125,6 +132,22 @@ fun AgentLedgerScreen(
 
     val botChat = remember(open, roster, mainName) {
         open?.let { conversation -> botOfConversation(conversation, roster, mainName) }
+    }
+
+    /**
+     * **Le modèle EN VIGUEUR d'une conversation** — la même décision que l'en-tête et que la fiche
+     * d'usage ([ModelInForce]). La conversation **ouverte** apporte son modèle vif
+     * ([openModelInForce], l'état du fil) ; les autres, celui de leur **bot**, sinon celui du
+     * **serveur**. C'est ce nom qui alimente la rangée « Model » **et** sous lequel le prix est
+     * cherché : le registre des sessions, lui, fige le modèle à l'ouverture et ne suit pas un
+     * changement de modèle — le défaut signalé.
+     */
+    val inForceModelOf: (Conversation) -> String? = { conversation ->
+        ModelInForce.inForce(
+            if (conversation == open) openModelInForce else null,
+            botOfConversation(conversation, roster, mainName)?.model,
+            server.effectiveModel,
+        )
     }
 
     /**
@@ -199,12 +222,12 @@ fun AgentLedgerScreen(
         LedgerScope.BOT.name -> AgentLedger.cumulative(
             subject = subject,
             ledgers = scopeConversations.map { conversation ->
-                ledgerOf(conversation, server, answer, registry != null, priceTable, priceSource, priceReadAt)
+                ledgerOf(conversation, server, answer, registry != null, priceTable, priceSource, priceReadAt, inForceModelOf(conversation))
             },
         )
 
         else -> open?.let { conversation ->
-            ledgerOf(conversation, server, answer, registry != null, priceTable, priceSource, priceReadAt)
+            ledgerOf(conversation, server, answer, registry != null, priceTable, priceSource, priceReadAt, inForceModelOf(conversation))
         } ?: AgentLedger(scope = LedgerScope.CONVERSATION, subject = subject)
     }
 
@@ -219,7 +242,7 @@ fun AgentLedgerScreen(
                 bot.name to AgentLedger.cumulative(
                     subject = bot.label(mainName),
                     ledgers = mine.map { conversation ->
-                        ledgerOf(conversation, server, answer, registry != null, priceTable, priceSource, priceReadAt)
+                        ledgerOf(conversation, server, answer, registry != null, priceTable, priceSource, priceReadAt, inForceModelOf(conversation))
                     },
                 )
             }.sortedByDescending { (_, ledger) -> ledger.workSeconds ?: 0.0 }
@@ -551,9 +574,13 @@ private fun ledgerOf(
     prices: Map<String, ServerPrice>,
     priceSource: String?,
     priceReadAt: Long?,
+    inForceModel: String?,
 ): AgentLedger {
     val row = conversation.serverSessionId?.takeIf { it.isNotBlank() }?.let { id -> registry?.firstOrNull { it.id == id } }
-    val model = row?.model?.takeIf { it.isNotBlank() }
+    // **Une seule valeur** décide du nom et du prix : le modèle EN VIGUEUR d'abord, le nom consigné
+    // par le registre ensuite. Le prix se cherche donc **sous le nom affiché** — les deux ne peuvent
+    // pas diverger, et un changement de modèle fait suivre les deux.
+    val model = ModelInForce.preferInForce(inForceModel, row?.model)
     return AgentLedger.of(
         conversation = conversation,
         registry = row,
@@ -563,6 +590,7 @@ private fun ledgerOf(
         price = model?.let { prices[it] },
         priceSource = priceSource,
         priceReadAt = priceReadAt,
+        inForceModel = model,
     )
 }
 

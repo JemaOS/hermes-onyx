@@ -53,6 +53,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.onyx.app.data.model.ToolActivity
 import com.onyx.app.data.model.ToolStatus
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.DialogWindowBlur
 import com.onyx.app.ui.design.FrostSurface
@@ -300,7 +301,7 @@ fun ToolCallDetailSheet(tool: ToolActivity, onDismiss: () -> Unit) {
             runCatching {
                 clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(what, text)))
             }.onFailure { error ->
-                notice = OnyxLocalization.format("Couldn't copy it: %1\$s", error.message ?: error.toString())
+                notice = OnyxLocalization.format("Couldn't copy it: %1\$s", humanFailure(error))
                 return@launch
             }
             notice = OnyxLocalization.format("Copied (%1\$d characters)", text.length)

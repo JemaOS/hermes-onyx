@@ -17,12 +17,12 @@ import org.junit.Test
  *
  * Il tient trois choses, et chacune est mesurée plutôt que jugée :
  *
- *  1. **la même identité montre la même marque partout.** La pastille du coin d'une carte de
- *     conversation se résout sur `IdentityMark`, donc sur le **nom de profil** du bot — la clé unique
- *     de la maison (`BotLook`). Une pastille teintée par l'**état** de la ligne (l'ambre d'une
- *     question, l'accent d'un tour) ferait deux marques pour la même identité : c'est exactement le
- *     défaut relevé, et ce test le nomme — le fichier, la ligne, et les **deux valeurs divergentes**
- *     (la teinte de l'état peinte sur la carte, la teinte de l'identité montrée ailleurs) ;
+ *  1. **la marque du coin n'est plus peinte sur les cartes de conversation**, et l'identité d'une
+ *     ligne se résout **par conversation** — sur le **nom de profil de son bot**, la clé unique de la
+ *     maison (`BotLook` / `conversationProfile`). Deux défauts sont nommés ici : la marque refusée par
+ *     le propriétaire (« supprime la petite partie avec le cercle »), et l'identité résolue par
+ *     **serveur** — qui donnait le **même** visage à trois conversations de bots différents d'un même
+ *     serveur (« trois cartes, un seul visage ») ;
  *  2. **le contraste ne tombe pas sous le seuil**, dans **les deux apparences** : le glyphe sur son
  *     disque (4,5:1 — c'est du texte), le point de présence sur le disque (3:1 — c'est un trait) ;
  *  3. **aucune géométrie ni teinte n'est écrite à la main** sur un site d'appel : les valeurs vivent
@@ -100,7 +100,7 @@ class IdentityMarkLockTest {
     // =============================================================================================
 
     @Test
-    fun `une identite, une marque — la carte de la liste ne teinte plus par l etat`() {
+    fun `la marque du coin N EST PLUS peinte sur les cartes, et l identite se resout par conversation`() {
         val disc = bodyOf(sidebar, "private fun ToneDisc(")
         assertTrue(
             "la pastille du coin d'une carte de conversation a disparu du volet",
@@ -144,22 +144,45 @@ class IdentityMarkLockTest {
                 " — `$faute`\n" + divergence,
             faute == null,
         )
+        // **Le composant reste déclaré** : la marque n'est pas supprimée en silence (le volet porte
+        // encore son site `ToneDisc`, qui peint `IdentityMark`) — mais il n'est plus **peint sur une
+        // carte**.
         assertTrue(
-            "la pastille du coin ne passe plus par le composant unique (`IdentityMark`) : " +
-                "géométrie et teinte seraient recopiées au site d'appel",
+            "la marque du coin a disparu du composant unique (`IdentityMark`) : géométrie et teinte " +
+                "seraient recopiées au site d'appel",
             disc.contains("IdentityMark("),
         )
-        assertTrue(
-            "la pastille du coin ne se résout plus sur l'identité du bot (`row.identity`)",
-            sidebar.contains("ToneDisc(row.tone, row.identity"),
+        // **Ce que le propriétaire a demandé** : la retirer des cartes. La dent exige donc maintenant
+        // le contraire de ce qu'elle exigeait — la marque **n'est plus peinte** au coin d'une carte.
+        assertFalse(
+            "la marque du coin est ENCORE peinte sur une carte de conversation : le propriétaire l'a " +
+                "refusée (« supprime la petite partie avec le cercle, le visage c'est moche »). " +
+                "Fautif : app/src/main/java/com/onyx/app/ui/sidebar/ChatSidebar.kt" +
+                (where(sidebar, "ToneDisc(row.tone, row.identity")?.let { ":$it" } ?: "") +
+                " — `ToneDisc(row.tone, row.identity…)`",
+            sidebar.contains("state = { ToneDisc(") || sidebar.contains("ToneDisc(row.tone, row.identity"),
         )
-        // L'identité d'une ligne est le **nom de profil** de son bot, et la clé du visage la suit.
+        assertTrue(
+            "le site de la marque ne dit pas qu'elle n'est plus peinte sur les cartes : le prochain " +
+                "lot la remettrait sans savoir que c'est interdit",
+            sidebar.contains("PLUS PEINTE SUR LES CARTES"),
+        )
+        // L'identité d'une ligne est le **nom de profil** de son bot, résolue **par conversation**.
         assertTrue(
             "la ligne du volet ne porte plus l'identité de son bot",
             model.contains("val identity: String = \"\","),
         )
         assertTrue(
-            "l'identité d'une ligne n'est plus résolue par serveur",
+            "l'identité d'une ligne n'est plus résolue PAR CONVERSATION — c'est le défaut de synchro " +
+                "« trois cartes, un seul visage » (une identité par serveur donne le même visage à " +
+                "trois bots du même serveur). Fautif : ChatSidebarModel.kt" +
+                (where(model, "identityOf(conversation.serverId)")?.let { ":$it" } ?: ""),
+            model.contains("identityOf(conversation)"),
+        )
+        assertFalse(
+            "l'identité d'une ligne est encore résolue par serveur (`conversation.serverId`) : les " +
+                "cartes d'un même serveur partagent leur visage. Fautif : ChatSidebarModel.kt" +
+                (where(model, "identityOf(conversation.serverId)")?.let { ":$it" } ?: ""),
             model.contains("identityOf(conversation.serverId)"),
         )
         assertTrue(
@@ -170,15 +193,18 @@ class IdentityMarkLockTest {
             "le volet ne passe plus l'identité de chaque conversation",
             host.contains("identityOf = identityOf,"),
         )
-        // Le profil, jamais le libellé : le libellé « Onyx » donnerait le soleil ambre là où le
-        // profil `default` donne la bulle — « le même bot a deux visages » (`BotLook`).
+        // Le profil, jamais le libellé, et **par conversation** : `conversationProfile` est le calcul
+        // de la maison (conversation → bot → profil du serveur → `default`).
         assertTrue(
-            "l'identité d'une conversation n'est plus le NOM DE PROFIL de son bot",
-            app.contains("server.effectiveProfile ?: \"default\""),
+            "l'identité d'une conversation n'est plus résolue sur le profil de SON bot " +
+                "(`conversationProfile`, le calcul de l'en-tête et des onglets). Fautif : OnyxApp.kt",
+            app.contains("conversationProfile("),
         )
-        assertTrue(
-            "le volet n'est plus branché sur l'identité par serveur",
-            app.contains("identityOf = { id -> identityByServer[id] ?: \"default\" },"),
+        assertFalse(
+            "l'identité d'une conversation est ENCORE résolue par serveur (`identityByServer`) : un " +
+                "seul profil pour toutes les conversations du serveur. Fautif : OnyxApp.kt" +
+                (where(app, "identityByServer")?.let { ":$it" } ?: ""),
+            app.contains("identityByServer"),
         )
     }
 
@@ -204,14 +230,21 @@ class IdentityMarkLockTest {
             val theme = theme(OnyxTheme.STANDARD, dark = dark)
             for (identity in identities) {
                 val disc = IdentityMark.discFor(identity, null, theme)
-                val glyphe = IdentityMark.glyphContrast(disc)
+                val encre = IdentityMark.markInkContrast(disc)
+                val (corpsClair, corpsProfond) = IdentityMark.faceBodyFor(identity, null, theme)
+                val visage = IdentityMark.faceContrast(
+                    disc, corpsClair, corpsProfond, IdentityMark.featuresFor(corpsProfond),
+                )
                 rapport.append(
-                    "%-10s apparence=%-5s disque=%s glyphe=%s %.2f:1 (min %.1f)\n".format(
+                    ("%-10s apparence=%-5s disque=%s encre=%s %.2f:1 (min %.1f) · " +
+                        "visage %.2f:1 (min %.1f, corps↔disque %.2f:1)\n").format(
                         identity, if (dark) "sombre" else "clair", rgb(disc), rgb(IdentityMark.inkFor(disc)),
-                        glyphe, IdentityMark.GlyphMin,
+                        encre, IdentityMark.GlyphMin, visage, IdentityMark.EdgeMin,
+                        IdentityMark.bodyOnDisc(corpsProfond, disc),
                     ),
                 )
-                if (glyphe < IdentityMark.GlyphMin - 0.01f) fautes++
+                if (encre < IdentityMark.GlyphMin - 0.01f) fautes++
+                if (visage < IdentityMark.EdgeMin - 0.01f) fautes++
                 for (tone in SidebarRowTone.entries) {
                     val presence = presenceOf(tone) ?: continue
                     val point = IdentityMark.presenceInk(presence, disc, theme) ?: continue
@@ -260,7 +293,7 @@ class IdentityMarkLockTest {
     fun `la geometrie est celle de la maison et rien n est ecrit a la main sur un site d appel`() {
         assertTrue("le diamètre n'est plus une constante de la maison", mark.contains("val Diameter: Dp = 32.dp"))
         assertTrue("l'épaisseur du trait n'est plus une constante", mark.contains("val StrokeWidth: Dp = 1.dp"))
-        assertTrue("la taille du glyphe n'est plus une constante", mark.contains("val Glyph: Dp = 15.dp"))
+        assertTrue("le diamètre du visage n'est plus dérivé du disque et du trait", mark.contains("val Face: Dp get() = Diameter - StrokeWidth * 4"))
         assertTrue("l'écart au bord n'est plus la marche de la maison", mark.contains("val Inset: Dp = OnyxSocle.Tight"))
         assertTrue("le rayon de coin n'est plus dérivé du diamètre", mark.contains("fun CornerOf(diameter: Dp): Dp = diameter / 2"))
         assertTrue(
@@ -315,21 +348,69 @@ class IdentityMarkLockTest {
     }
 
     @Test
-    fun `le glyphe du bot principal est la rune de la maison, celui des autres est leur initiale`() {
-        assertEquals(
-            "le bot principal ne porte plus le signe de la maison",
-            IdentityMark.Sign.House,
-            IdentityMark.glyphFor("default"),
+    fun `la marque porte le VISAGE du bot, la meme resolution que partout ailleurs`() {
+        // **Ce que le propriétaire a demandé** : « le petit logo en haut à droite, mets plutôt le
+        // visage du bot en question ». La marque ne peint donc plus de glyphe monochrome : elle
+        // résout le visage à la **même clé** que la fiche, l'en-tête et le volet (`botFace` sur le
+        // nom de profil et le code enregistré), et c'est ce visage qui est posé dans le disque.
+        for ((nom, code) in listOf("default" to null, "coder" to null, "QA-tester" to null)) {
+            assertEquals(
+                "la marque de $nom ne montre pas le visage de son profil",
+                botFace(nom, code),
+                IdentityMark.faceFor(nom, code),
+            )
+        }
+        // Le visage est peint par la MÊME pièce que partout (aucune seconde version du dessin).
+        assertTrue(
+            "la marque ne peint plus le visage par le composant unique (`BotLook`)",
+            mark.contains("BotLook("),
         )
-        assertEquals(
-            "un bot ordinaire ne porte plus son initiale",
-            IdentityMark.Sign.Initial("C"),
-            IdentityMark.glyphFor("coder"),
+        assertTrue(
+            "le glyphe monochrome (initiale ou rune) est encore peint par la marque",
+            !mark.contains("drawText(") && !mark.contains("OnyxRune.placed("),
         )
-        assertEquals(
-            "un nom sans lettre doit porter le signe de la maison, pas une pastille vide",
-            IdentityMark.Sign.House,
-            IdentityMark.glyphFor(""),
+    }
+
+    @Test
+    fun `le visage se detache de son disque — la dent MORD sans le lisere, et passe avec`() {
+        val rapport = StringBuilder()
+        var pire = Float.MAX_VALUE
+        var pireSansLisere = Float.MAX_VALUE
+        for (dark in listOf(false, true)) {
+            val theme = theme(OnyxTheme.STANDARD, dark = dark)
+            for (colour in listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, BotFace.themed)) {
+                val (corpsClair, corpsProfond) = BotFace.gradient(colour, theme)
+                val disc = OnyxContrast.filled(corpsProfond, IdentityMark.GlyphMin)
+                val sansLisere = IdentityMark.bodyOnDisc(corpsProfond, disc)
+                val avec = IdentityMark.faceContrast(
+                    disc, corpsClair, corpsProfond, IdentityMark.featuresFor(corpsProfond),
+                )
+                pireSansLisere = minOf(pireSansLisere, sansLisere)
+                pire = minOf(pire, avec)
+                rapport.append(
+                    ("  %-6s couleur %2d · corps↔disque SANS liséré %.2f:1 · AVEC liséré %.2f:1%n")
+                        .format(if (dark) "sombre" else "clair", colour, sansLisere, avec),
+                )
+            }
+        }
+        println("lisibilité du visage dans son disque :\n$rapport")
+        // **LA MORSure ROUGE** : le visage SANS liséré ne se détache pas de son disque (il est peint
+        // dans la même couleur) — c'est le défaut que le liséré intérieur corrige, et il est mesuré.
+        assertTrue(
+            ("un visage SANS liséré devrait se confondre avec son disque : mesuré %.2f:1, " +
+                "attendu sous %.1f:1 — la dent ne mord donc pas").format(pireSansLisere, IdentityMark.EdgeMin),
+            pireSansLisere < IdentityMark.EdgeMin,
+        )
+        // **VERT APRÈS** : avec le liséré, toutes les couleurs passent.
+        assertTrue(
+            "le visage ne se détache pas de son disque : pire rapport %.2f:1, seuil %.1f:1\n%s"
+                .format(pire, IdentityMark.EdgeMin, rapport),
+            pire >= IdentityMark.EdgeMin - 0.01f,
+        )
+        // Et la preuve de couverture reste celle de la maison (le disque contre la couverture).
+        assertTrue(
+            "le disque ne se détache plus de la couverture : %.2f:1".format(IdentityMark.coverageProof()),
+            IdentityMark.coverageProof() >= IdentityMark.EdgeMin - 0.01f,
         )
     }
 }

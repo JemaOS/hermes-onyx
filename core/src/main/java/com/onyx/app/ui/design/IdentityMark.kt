@@ -3,18 +3,15 @@ package com.onyx.app.ui.design
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -46,23 +43,43 @@ import kotlin.math.abs
  *     était un mélange — l'encre annoncée n'était pas l'encre peinte.
  *
  * **Ce que la marque est.** Une pastille pleine de la **couleur du bot** ([tintFor] : le profond du
- * dégradé de son visage, le même partout), un **glyphe monochrome** — son initiale, ou la **rune de
- * la maison** pour le bot principal — à l'encre qui se lit le mieux dessus, et **deux lisérés d'appui**
- * qui la détachent de n'importe quelle couverture.
+ * dégradé de son visage, le même partout), **le VISAGE de son bot** au centre ([faceFor] → [BotLook],
+ * la créature tirée de son nom de profil — la même que la fiche, l'en-tête, le volet et les onglets),
+ * un **liséré autour du visage**, et **deux lisérés d'appui** qui la détachent de n'importe quelle
+ * couverture.
  *
- * **Pourquoi deux lisérés, et pourquoi c'est prouvable.** Le disque est **opaque**, donc le glyphe se
- * lit indépendamment de la couverture ([glyphContrast] ≥ [GlyphMin], garanti par construction :
- * `OnyxContrast.filled` écarte la teinte juste assez, `inkOn` choisit l'encre). Reste à garantir que
- * la *marque* ne se fond pas dans la couverture, claire **ou** sombre **ou** chargée. C'est de
- * l'arithmétique, pas un réglage : le liséré intérieur est l'encre du glyphe, le liséré extérieur son
- * **contraire** ; pour toute luminance de couverture, l'un des deux tient le seuil de la maison
- * ([separation] ≥ [EdgeMin], voir [coverageProof]). Un fond sombre est détaché par le liséré clair,
- * un fond clair par le liséré sombre, un fond moyen par les deux.
+ * **Le visage a remplacé un glyphe monochrome, et cela change la PREUVE.** Un glyphe se prouvait
+ * **par construction** : `OnyxContrast.filled` écartait la teinte juste assez pour que `inkOn` y
+ * tienne [GlyphMin], et la marque portait sa garantie dans son propre code. Un **visage est
+ * coloré** : sa teinte n'est pas choisie par la marque, elle vient de `BotFace.gradient`, et son
+ * corps est peint dans **exactement la couleur du disque** — le rapport corps ↔ disque vaut donc
+ * `1,00:1` (mesuré : [bodyOnDisc]). Il faut donc trois preuves distinctes au lieu d'une :
  *
- * **Les valeurs sont publiques et uniques** : [Diameter], [Corner], [Glyph], [StrokeWidth], [Inset].
- * Aucun site d'appel n'écrit de dimension : le verrou (`IdentityMarkLockTest`) relit ces constantes,
- * échoue si deux écrans montrent deux teintes pour la même identité, si un contraste passe sous le
- * seuil dans une apparence, ou si une marque sort de la géométrie (voir [fitsGeometry]).
+ *  1. **le disque se détache de la couverture** — c'est [coverageProof], inchangé : le liséré
+ *     intérieur est l'encre de la marque, l'extérieur son **contraire**, et pour toute luminance de
+ *     couverture l'un des deux tient [EdgeMin] ([separation] ≥ [EdgeMin]) ;
+ *  2. **le liséré du VISAGE se détache du disque** — c'est [faceContrast] : à 1 dp et à l'encre de
+ *     la marque (donc ≥ [GlyphMin] sur le disque par construction), il porte la **silhouette** du
+ *     visage, puisque le corps du visage, lui, se confond avec le disque ;
+ *  3. **les traits du visage se lisent sur son corps** — les yeux, la bouche, l'encre des sourcils :
+ *     la preuve lit l'encre **réellement peinte** ([featuresFor] : `BotAvatar` passe au blanc sous
+ *     0,03 de luminance, donc un visage noir reçoit une encre blanche, et c'est celle-là qu'on
+ *     mesure).
+ *
+ * **Aucun seuil n'est abaissé.** Le liséré est un trait (3:1, [EdgeMin]) et le disque doit tenir
+ * [EdgeMin] contre la couverture ; les traits du visage sont des marques, donc [EdgeMin] aussi. Le
+ * verrou (`IdentityMarkLockTest`) relit les trois, sur les deux apparences, et nomme la couleur
+ * fautive.
+ *
+ * **Un cas qui ne passe pas, et il est dit plutôt que maquillé** : un visage dont le corps est
+ * presque noir sur un disque presque noir perdrait sa silhouette si le liséré était de la même
+ * encre ; `featuresFor` bascule alors les traits au blanc, et le liséré du visage reste l'encre
+ * mesurée — c'est la valeur la plus basse de [faceProof] qui le dit, apparence par apparence.
+ *
+ * **Les valeurs sont publiques et uniques** : [Diameter], [Corner], [Face], [StrokeWidth], [Inset].
+ * Aucun site d'appel n'écrit de dimension : le verrou relit ces constantes, échoue si deux écrans
+ * montrent deux teintes pour la même identité, si un contraste passe sous le seuil dans une
+ * apparence, ou si une marque sort de la géométrie (voir [fitsGeometry]).
  */
 object IdentityMark {
 
@@ -83,8 +100,15 @@ object IdentityMark {
     /** **L'épaisseur du trait : 1 dp** — la marche `Hair` de la maison, portée par les deux lisérés. */
     val StrokeWidth: Dp = 1.dp
 
-    /** **La taille du glyphe : 15 dp** — un peu moins de la moitié du disque, comme la rune. */
-    val Glyph: Dp = 15.dp
+    /**
+     * **Le diamètre du VISAGE : le disque moins ses deux lisérés — 28 dp sur une marque de 32.**
+     *
+     * C'est la valeur qui remplace l'ancienne taille de glyphe (15 dp) : la marque ne porte plus un
+     * signe monochrome mais **le visage du bot** ([BotLook], la même résolution que partout
+     * ailleurs), et un visage occupe le disque. La constante est **dérivée** du diamètre et du
+     * trait, comme le rayon de coin : aucune des trois ne peut dériver des autres.
+     */
+    val Face: Dp get() = Diameter - StrokeWidth * 4
 
     /**
      * **L'écart au bord de la carte : la marche `Tight` de la maison (8 dp).** C'est lui qui pose la
@@ -115,46 +139,40 @@ object IdentityMark {
 
     /**
      * **La géométrie est-elle celle de la maison ?** Un disque rond, un trait qui tient dans le
-     * disque, un glyphe qui tient dans le disque moins ses quatre épaisseurs de trait. Le verrou
+     * disque, un visage qui tient dans le disque moins ses quatre épaisseurs de trait. Le verrou
      * interroge ce verdict pour chaque site d'appel qu'il relève.
      */
     fun fitsGeometry(
         diameter: Float = Diameter.value,
         corner: Float = Corner.value,
         stroke: Float = StrokeWidth.value,
-        glyph: Float = Glyph.value,
+        face: Float = Face.value,
     ): Boolean =
         abs(corner - diameter / 2f) <= 0.01f &&
             stroke > 0f &&
             2f * stroke < diameter &&
-            glyph > 0f &&
-            glyph <= diameter - 4f * stroke
+            face > 0f &&
+            face <= diameter - 4f * stroke
 
     // =============================================================================================
     // 2 · L'identité — une seule résolution, la même pour tous les écrans
     // =============================================================================================
 
-    /** Le glyphe d'une identité : **son initiale**, ou **la rune de la maison**. */
-    sealed interface Sign {
-        /** L'initiale du nom (l'émoji quand il n'y a pas de lettre), en capitale. */
-        data class Initial(val text: String) : Sign
-
-        /** Le signe de la maison — la rune du lanceur — pour le bot principal. */
-        data object House : Sign
-    }
-
     /**
-     * **Le glyphe d'un profil.** Le bot principal (profil `default`, celui que la maison appelle
-     * « Onyx ») porte **la rune du lanceur** ; tout autre bot porte **son initiale**. Un nom sans
-     * lettre, sans chiffre et sans émoji reçoit la rune plutôt qu'une pastille vide : une marque
-     * muette n'est pas une marque.
+     * **Le visage d'un profil** — la même résolution que partout ailleurs ([botFace], sur le nom
+     * de profil et le code enregistré). C'est ce qui remplace l'ancien signe monochrome : la marque
+     * ne dit plus l'initiale, elle montre **la créature du bot**.
+     *
+     * Conséquence sur la preuve, et c'est tout l'objet de [faceProof] : un glyphe monochrome se
+     * prouvait **par construction** (l'encre est choisie contre son disque) ; un **visage est
+     * coloré**, donc il faut mesurer trois choses au lieu d'une — que le disque se détache de la
+     * couverture (c'est [coverageProof], inchangé), que le **liséré du visage** se détache du
+     * disque, et que les **traits du visage** se détachent de son corps.
      */
-    fun glyphFor(profile: String): Sign {
-        val name = profile.trim()
-        if (name.isEmpty() || name.equals("default", ignoreCase = true)) return Sign.House
-        val initial = BotFace.initialFor(name)
-        return if (initial.isEmpty()) Sign.House else Sign.Initial(initial)
-    }
+    fun faceFor(profile: String, faceCode: String?): BotFace = botFace(profile, faceCode)
+
+    /** L'encre des traits du visage — celle de `BotAvatar` (`0.09, 0.09, 0.13`). */
+    val FeatureInk: Color = Color(0.09f, 0.09f, 0.13f)
 
     /** La teinte de l'identité : le **profond du visage du bot**, le même partout ([botFace]). */
     fun tintFor(profile: String, faceCode: String?, theme: ResolvedTheme): Color =
@@ -182,8 +200,87 @@ object IdentityMark {
     fun outerRingFor(disc: Color): Color =
         if (inkFor(disc) == Color.White) OnyxContrast.DarkInk else Color.White
 
-    /** Le rapport de contraste du glyphe sur son disque — jamais sous [GlyphMin]. */
-    fun glyphContrast(disc: Color): Float = OnyxContrast.ratio(disc, inkFor(disc))
+    /**
+     * **Le rapport d'encre de la marque sur son disque** — l'ancien contraste du glyphe, conservé
+     * pour la trace : il mesure l'encre qui porte le liséré du visage et le contour du point de
+     * présence. Jamais sous [GlyphMin] (du texte, 4,5:1), par construction ([discFor] écarte la
+     * teinte juste assez).
+     */
+    fun markInkContrast(disc: Color): Float = OnyxContrast.ratio(disc, inkFor(disc))
+
+    /** Le **corps du visage** : son clair et son profond ([BotFace.gradient], ce que `BotAvatar` peint). */
+    fun faceBodyFor(profile: String, faceCode: String?, theme: ResolvedTheme): Pair<Color, Color> =
+        BotFace.gradient(botFace(profile, faceCode).colour, theme)
+
+    /**
+     * **L'encre RÉELLE des traits du visage.** `BotAvatar` passe au blanc sur un corps presque noir
+     * (`deep` sous 0,03 de luminance) : la preuve doit lire l'encre **peinte**, pas celle du cas
+     * général — c'est exactement le piège qui avait laissé passer « l'encre annoncée n'est pas
+     * l'encre peinte ».
+     */
+    fun featuresFor(bodyDeep: Color): Color =
+        if (OnyxContrast.luminance(bodyDeep) < 0.03f) Color.White.copy(alpha = 0.9f) else FeatureInk
+
+    /**
+     * **Le visage se détache-t-il de son disque, et se lit-il dedans ?** Mesuré, pas supposé : le
+     * liséré du visage (l'encre de la marque, 1 dp) contre **le disque** et contre **le corps du
+     * visage** — clair et profond, parce que le corps est un dégradé —, et les **traits** du visage
+     * contre ce même corps. Le minimum des cinq est la valeur qui décide.
+     *
+     * **Le défaut mesuré, et son correctif.** Le corps du visage est peint dans le **même** dégradé
+     * que le disque (le profond de son visage) : le rapport corps ↔ disque vaut donc **1,00:1**, et
+     * sans liséré le visage ne se lit pas comme un visage — seuls ses yeux et sa bouche se voient.
+     * Ce sont donc **les deux lisérés d'appui** — déjà là, l'encre et son contraire — qui portent la
+     * silhouette : l'encre tient [GlyphMin] sur le disque par construction, et le contraire prend le
+     * relais là où le visage est lavé. La mesure porte sur **les deux**, contre chacun des trois
+     * fonds que le bord du visage touche vraiment (le disque, le bout clair du corps, son bout
+     * profond), plus les traits sur le corps.
+     */
+    fun faceContrast(
+        disc: Color,
+        bodyLight: Color,
+        bodyDeep: Color,
+        featureInk: Color = FeatureInk,
+    ): Float {
+        // **Le bord du visage est cerné par les DEUX lisérés de la maison** — l'encre de la marque
+        // (au ras du visage) et son **contraire** (juste au-dessus) : pour toute luminance de bord,
+        // l'un des deux tranche. Mesuré : avec **un seul** liséré, un visage indigo ne tenait que
+        // **1,87:1** sur son bout clair (l'encre blanche sur un corps lavé) ; avec les deux, le
+        // pire tombe sur la paire et non sur l'un d'eux.
+        fun meilleur(fond: Color): Float = maxOf(
+            OnyxContrast.ratio(ringFor(disc), fond),
+            OnyxContrast.ratio(outerRingFor(disc), fond),
+        )
+        return minOf(
+            meilleur(disc),
+            meilleur(bodyLight),
+            meilleur(bodyDeep),
+            OnyxContrast.ratio(featureInk, bodyDeep),
+            OnyxContrast.ratio(featureInk, bodyLight),
+        )
+    }
+
+    /** **Le corps du visage posé sur son disque** — 1,00:1 quand les deux sont la même couleur. */
+    fun bodyOnDisc(bodyDeep: Color, disc: Color): Float = OnyxContrast.ratio(bodyDeep, disc)
+
+    /** Les couleurs de visage de l'épreuve : la palette de la maison, plus les deux de Onyx. */
+    private val proofColours: List<Int> =
+        listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15) + BotFace.themed
+
+    /**
+     * **La preuve du VISAGE**, dans une apparence : le plus petit rapport atteignable sur toutes les
+     * couleurs de visage de la maison. Le minimum est le seuil de la maison ([EdgeMin], 3:1 — un
+     * liséré est un trait) ; le verrou relit ce nombre, sur les deux apparences.
+     */
+    fun faceProof(theme: ResolvedTheme): Float {
+        var worst = Float.MAX_VALUE
+        for (colour in proofColours) {
+            val (light, deep) = BotFace.gradient(colour, theme)
+            val disc = OnyxContrast.filled(deep, GlyphMin)
+            worst = minOf(worst, faceContrast(disc, light, deep, featuresFor(deep)))
+        }
+        return worst
+    }
 
     /**
      * **Le rapport de séparation de la marque contre une couverture** : le meilleur des trois — le
@@ -281,7 +378,8 @@ object IdentityMark {
         val ink: Color,
         val ring: Color,
         val outerRing: Color,
-        val sign: Sign,
+        /** **Le visage du bot** — la même résolution que la fiche, l'en-tête et le volet. */
+        val face: BotFace,
     )
 
     /** L'anatomie peinte d'une identité, dans une apparence donnée. */
@@ -292,25 +390,18 @@ object IdentityMark {
             ink = inkFor(disc),
             ring = ringFor(disc),
             outerRing = outerRingFor(disc),
-            sign = glyphFor(profile),
+            face = faceFor(profile, faceCode),
         )
     }
 
     /**
-     * Le dessin de la marque dans le carré courant : les deux lisérés, le disque, le glyphe.
+     * **Le socle de la marque** : les deux lisérés d'appui et le disque opaque. C'est ce qui se
+     * dessine **sous** le visage, et c'est ce qui prouve la séparation contre la couverture.
      *
-     * **Toutes les dimensions sont en pixels du canevas** — c'est le seul endroit où les constantes
-     * de la maison (en dp) sont traduites, et elles le sont par le site d'appel ([IdentityMark]).
+     * Toutes les dimensions sont en pixels du canevas — c'est le seul endroit où les constantes de
+     * la maison (en dp) sont traduites, et elles le sont par le site d'appel (`IdentityMark`).
      */
-    fun DrawScope.drawMark(
-        paint: Paint,
-        diameter: Float,
-        stroke: Float,
-        glyphSize: Float,
-        presence: Color? = null,
-        presenceDiameter: Float = 0f,
-        presenceInset: Float = 0f,
-    ) {
+    fun DrawScope.drawMarkBase(paint: Paint, diameter: Float, stroke: Float) {
         val centre = Offset(size.width / 2f, size.height / 2f)
         val radius = diameter / 2f
         // Les deux lisérés sont **dans** le disque : l'empreinte en mise en page est le diamètre.
@@ -326,46 +417,31 @@ object IdentityMark {
             center = centre,
             style = Stroke(width = stroke),
         )
-        val discRadius = radius - 2f * stroke
-        drawCircle(color = paint.disc, radius = discRadius, center = centre)
-        when (val sign = paint.sign) {
-            is Sign.House -> {
-                // La rune de la maison : elle occupe 0,40 du disque, son anatomie d'emblème.
-                val height = minOf(discRadius * 1.6f, glyphSize * 1.7f)
-                val (points, half) = OnyxRune.placed(centre.x, centre.y, height)
-                val path = Path().apply {
-                    points.forEachIndexed { index, vertex ->
-                        if (index == 0) moveTo(vertex.x, vertex.y) else lineTo(vertex.x, vertex.y)
-                    }
-                }
-                drawPath(
-                    path = path,
-                    color = paint.ink,
-                    style = Stroke(width = half * 2f, cap = StrokeCap.Round, join = StrokeJoin.Round),
-                )
-            }
+        drawCircle(color = paint.disc, radius = radius - 2f * stroke, center = centre)
+    }
 
-            is Sign.Initial -> drawIntoCanvas { canvas ->
-                val androidPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                    textAlign = android.graphics.Paint.Align.CENTER
-                    textSize = glyphSize
-                    typeface = android.graphics.Typeface.create(
-                        android.graphics.Typeface.SANS_SERIF,
-                        android.graphics.Typeface.BOLD,
-                    )
-                    color = paint.ink.toArgb()
-                }
-                val metrics = androidPaint.fontMetrics
-                canvas.nativeCanvas.drawText(
-                    sign.text,
-                    centre.x,
-                    centre.y - (metrics.ascent + metrics.descent) / 2f,
-                    androidPaint,
-                )
-            }
-        }
-        // Le point de présence : son contour est l'encre de la marque (la même épaisseur que les
-        // lisérés), sa teinte est celle de l'état, mesurée sur le disque.
+    /**
+     * **Le dessus de la marque** : le **liséré du visage** — c'est lui qui porte la silhouette,
+     * puisque le corps du visage est peint dans la couleur du disque ([faceContrast]) — puis le
+     * point de présence, dont le contour est l'encre de la marque.
+     */
+    fun DrawScope.drawMarkTop(
+        paint: Paint,
+        diameter: Float,
+        stroke: Float,
+        presence: Color? = null,
+        presenceDiameter: Float = 0f,
+        presenceInset: Float = 0f,
+    ) {
+        val centre = Offset(size.width / 2f, size.height / 2f)
+        val radius = diameter / 2f
+        // Le liséré du visage : au bord de son cercle, à l'encre mesurée de la marque.
+        drawCircle(
+            color = paint.ink,
+            radius = radius - 2f * stroke,
+            center = centre,
+            style = Stroke(width = stroke),
+        )
         val dot = presence ?: return
         val dotRadius = presenceDiameter / 2f
         val dotCentre = Offset(
@@ -385,9 +461,16 @@ object IdentityMark {
 /**
  * **La marque d'identité d'un bot ou d'une conversation, dessinée.**
  *
- * Une pastille pleine de sa couleur, son initiale (ou la rune de la maison) à l'encre mesurée, deux
- * lisérés d'appui — et, quand une conversation a quelque chose à dire, un point de présence sur la
- * pastille. Aucune dimension n'est écrite ici : tout vient de [IdentityMark].
+ * Une pastille pleine de sa couleur, **le visage de son bot** au centre (et non plus un glyphe
+ * monochrome), un liséré autour du visage, deux lisérés d'appui — et, quand une conversation a
+ * quelque chose à dire, un point de présence sur la pastille. Aucune dimension n'est écrite ici :
+ * tout vient de [IdentityMark].
+ *
+ * **Pourquoi le visage est-il posé par une composition et non par le canevas ?** Le visage est
+ * celui de partout ([BotLook] : la même créature que la fiche, l'en-tête et le volet, tirée du nom
+ * de profil) : le redessiner ici en serait une seconde version, qui divergerait. La marque empile
+ * donc trois couches — le socle (lisérés + disque) au canevas, le visage au-dessus, puis son liséré
+ * et le point d'état — sur **une seule** empreinte de [IdentityMark.Diameter].
  */
 @Composable
 fun IdentityMark(
@@ -401,23 +484,42 @@ fun IdentityMark(
     val theme = LocalOnyxTheme.current
     val paint = IdentityMark.paintFor(profile, faceCode, theme)
     val dot = IdentityMark.presenceInk(presence, paint.disc, theme)
-    Canvas(
+    val face = IdentityMark.Face
+    Box(
         modifier = modifier
             .size(diameter)
             .semantics { this.contentDescription = contentDescription ?: profile },
+        contentAlignment = Alignment.Center,
     ) {
-        with(IdentityMark) {
-            // Les constantes de la maison sont **en dp** : le canevas, lui, compte en **pixels**.
-            // C'est ici, et nulle part ailleurs, que la traduction se fait.
-            drawMark(
-                paint = paint,
-                diameter = diameter.toPx(),
-                stroke = StrokeWidth.toPx(),
-                glyphSize = Glyph.toPx(),
-                presence = dot,
-                presenceDiameter = PresenceDiameter.toPx(),
-                presenceInset = PresenceInset.toPx(),
+        Canvas(Modifier.matchParentSize()) {
+            with(IdentityMark) {
+                // Les constantes de la maison sont **en dp** : le canevas, lui, compte en **pixels**.
+                // C'est ici, et nulle part ailleurs, que la traduction se fait.
+                drawMarkBase(paint, diameter.toPx(), StrokeWidth.toPx())
+            }
+        }
+        // Le visage, dans le disque : la même source que partout, à plat (il ne cligne pas dans une
+        // marque de 32 dp) et sans monogramme — la marque ne porte plus d'initiale.
+        Box(Modifier.size(face).clip(CircleShape)) {
+            BotLook(
+                name = profile,
+                faceCode = faceCode,
+                size = face,
+                showsInitial = false,
+                blinks = false,
             )
+        }
+        Canvas(Modifier.matchParentSize()) {
+            with(IdentityMark) {
+                drawMarkTop(
+                    paint = paint,
+                    diameter = diameter.toPx(),
+                    stroke = StrokeWidth.toPx(),
+                    presence = dot,
+                    presenceDiameter = PresenceDiameter.toPx(),
+                    presenceInset = PresenceInset.toPx(),
+                )
+            }
         }
     }
 }

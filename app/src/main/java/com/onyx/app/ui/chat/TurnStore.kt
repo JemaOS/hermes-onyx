@@ -104,7 +104,7 @@ class TurnStore(
             } catch (error: TransportError) {
                 if (error is TransportError.Cancelled) session.succeed(clock()) else session.fail(error, clock())
             } catch (error: Exception) {
-                session.fail(TransportError.Malformed(error.message ?: error.javaClass.simpleName), clock())
+                session.fail(TransportError.Malformed(""), clock())
             } finally {
                 journal.turnEnded(conversationId, session)
             }

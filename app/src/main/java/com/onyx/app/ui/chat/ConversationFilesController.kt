@@ -333,7 +333,8 @@ class ConversationFilesController(
             val reason = when {
                 error is SecurityException ->
                     OnyxLocalization["Access to this file has expired: it comes from the gallery. Send it again from the device."]
-                error is LocalSourceGone -> error.message ?: OnyxLocalization["This file is no longer on this device."]
+                error is LocalSourceGone ->
+                    OnyxLocalization["This file is no longer on this device."]
                 error is java.io.FileNotFoundException ->
                     OnyxLocalization["This file is no longer on this device."]
                 else -> DeliveredFiles.failureText(error, null)

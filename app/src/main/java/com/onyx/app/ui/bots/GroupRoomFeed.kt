@@ -8,6 +8,7 @@ import com.onyx.app.data.model.serve.GroupRoom
 import com.onyx.app.data.model.serve.GroupState
 import com.onyx.app.data.net.GroupRoomApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.strOrNull
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.voice.VoiceDiagnostics
@@ -535,7 +536,7 @@ class GroupRoomFeed(
     }
 
     private fun reason(error: Exception): String =
-        (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["unknown error"]
+        humanFailure(error, OnyxLocalization["unknown error"])
 
     companion object {
         const val BUSY_TICK = 500L

@@ -43,6 +43,54 @@ object Fluide {
     /** Le nombre de teintes de la maison (les six de [ConversationCover.palettes]). */
     const val TEINTES = 6
 
+    /**
+     * **Les compositions abstraites de la couverture** — les trois candidates mesurées dans
+     * `qa/20261031-cartes-abstraites/`. Le même calcul vit dans le programme AGSL
+     * (`FLUIDE_AGSL_ABSTRAIT`) et dans `render.py`, qui a servi à les comparer ; `null` n'est pas
+     * ici : l'absence de composition, c'est [Plan.composition] à `null`, le **matériau de la
+     * planche** (les filaments), qui garde son programme et reste mesurable.
+     */
+    enum class Composition {
+        /** **Volumes** — un seul volume lumineux, à dégradé doux. */
+        VOLUME,
+
+        /** **Plans** — deux ou trois plans de couleur qui se touchent. La direction retenue. */
+        PLANS,
+
+        /** **Trames** — une trame géométrique très douce. Mesurée, écartée. */
+        TRAME;
+
+        companion object {
+            /** La composition d'une variante enregistrée, ou `null` : le matériau de la planche. */
+            fun de(variante: String): Composition? = when (variante) {
+                ChoixCouverture.VARIANTE_VOLUME -> VOLUME
+                ChoixCouverture.VARIANTE_PLANS -> PLANS
+                ChoixCouverture.VARIANTE_TRAME -> TRAME
+                else -> null
+            }
+        }
+    }
+
+    /** La demi-largeur d'une **arête** de composition : un trait net, dessiné (0,010 ≈ 4 px). */
+    const val ARETE = 0.010f
+
+    /** Le **lavis** de fond de la maison : le voile, très léger, du bas vers le haut. */
+    const val LAVIS = 0.06f
+
+    /**
+     * La **garde de coin** — la lumière sortie du coin haut-droit, où vit la marque. **0,45 → 0,22**
+     * et une portée resserrée (24 → 16) : à 0,45 la garde se lisait comme une **tache** sur la carte
+     * (vue à l'œil sur la planche du harnais) ; elle n'a pas besoin d'être forte, la séparation de la
+     * marque est portée par ses **lisérés**, pas par l'assombrissement de la couverture.
+     */
+    const val COIN = 0.22f
+
+    /** La portée de la garde de coin. */
+    const val COIN_PORTEE = 16f
+
+    /** Le **vignettage**, doux : c'est un dessin, pas un cadre. */
+    const val VIGNETTE = 0.12f
+
     /** Les six teintes, dans l'ordre de [ConversationCover.palettes] — la teinte porte l'identité. */
     private val teintes: List<Pair<Float, Float>> = listOf(
         24f to 0.58f,   // ambre
@@ -121,6 +169,18 @@ object Fluide {
         val sat: Float,
         val haut: Float,
         val bas: Float,
+        /**
+         * **La composition abstraite**, ou `null` : le matériau de la planche (les filaments).
+         * C'est elle qui choisit le programme de rendu, donc le dessin.
+         */
+        val composition: Composition? = null,
+        /**
+         * **Les douze réglages de la composition**, tirés **une fois** de la conversation (la
+         * graine du champ) : position et rayon de la masse, angle et point de la coupe, centre et
+         * rayon du disque, fréquence et centre de la trame. C'est ce qui fait que **chaque
+         * conversation a sa** composition dans la même famille visuelle.
+         */
+        val reglages: FloatArray = FloatArray(0),
     ) {
         /** La teinte, telle qu'un humain la nomme — pour le rapport. */
         val teinteNom: String
@@ -239,6 +299,13 @@ object Fluide {
         val raies = (9f + floor(r.next() * 6).toFloat())
         val incli = ((r.next() * 2 - 1) * 0.55).toFloat()
 
+        // **LA COMPOSITION ABSTRAITE** (ou aucune : le matériau de la planche). Ses douze
+        // réglages sont tirés de la **même** graine de conversation, dans un ordre écrit une fois
+        // pour toutes — c'est lui que le portage Python (`render.py`) et le programme AGSL
+        // (`FLUIDE_AGSL_ABSTRAIT`) recopient à l'identique.
+        val compo = Composition.de(choix.variante)
+        val reg = if (compo == null) FloatArray(0) else reglagesDe(champ)
+
         return Plan(
             graine = fam, graineChamp = champ, teinteIndex = idx, teinteH = h, dark = dark,
             brumeProfonde = brumeProfonde, brumeClaire = brumeClaire, ruban = ruban,
@@ -246,6 +313,35 @@ object Fluide {
             sol = sol, voile = voile,
             v0 = v0, v1 = v1, v2 = v2, lum = lum, force = force, rayon = rayon,
             raies = raies, incli = incli, sat = sat, haut = 0.38f, bas = 0.56f,
+            composition = compo, reglages = reg,
+        )
+    }
+
+    /**
+     * **Les douze réglages d'une composition**, tirés de la graine du **champ** (donc de la
+     * conversation). L'ordre est **l'ordre du portage Python et du programme AGSL** : le changer
+     * change toutes les cartes, donc il est écrit ici une fois.
+     *
+     * 0-2 · la **masse** (x, y, rayon) — le volume lumineux ;
+     * 3-5 · la **coupe** (angle, x, y) — l'arête du premier plan ;
+     * 6-8 · le **disque** (x, y, rayon) — le troisième plan, posé par-dessus ;
+     * 9-11 · la **trame** (fréquence, x, y) — la candidate écartée.
+     */
+    fun reglagesDe(champ: Long): FloatArray {
+        val r = Tirage(champ)
+        return floatArrayOf(
+            (0.10 + r.next() * (CARD_ASPECT - 0.20)).toFloat(),  // 0  masse x
+            (0.08 + r.next() * 0.84).toFloat(),                  // 1  masse y
+            (0.78 + r.next() * 0.42).toFloat(),                  // 2  masse rayon
+            (r.next() * Math.PI).toFloat(),                      // 3  coupe angle
+            (0.10 + r.next() * (CARD_ASPECT - 0.20)).toFloat(),  // 4  coupe x
+            (0.08 + r.next() * 0.84).toFloat(),                  // 5  coupe y
+            (0.10 + r.next() * (CARD_ASPECT - 0.20)).toFloat(),  // 6  disque x
+            (0.08 + r.next() * 0.84).toFloat(),                  // 7  disque y
+            (0.35 + r.next() * 0.45).toFloat(),                  // 8  disque rayon
+            (3.5 + r.next() * 3.0).toFloat(),                    // 9  trame fréquence
+            (0.10 + r.next() * (CARD_ASPECT - 0.20)).toFloat(),  // 10 trame x
+            (0.08 + r.next() * 0.84).toFloat(),                  // 11 trame y
         )
     }
 
@@ -600,6 +696,18 @@ object Fluide {
         souffle: Float,
         voileA: Float = 0f,
         phase: Float = 0f,
+    ): FloatArray =
+        if (plan.composition == null) samplePlanche(plan, u, v, souffle, voileA, phase)
+        else abstrait(plan, u, v, phase)
+
+    /** Le dessin du **matériau de la planche** (les filaments) — inchangé, et toujours mesuré. */
+    fun samplePlanche(
+        plan: Plan,
+        u: Float,
+        v: Float,
+        souffle: Float,
+        voileA: Float = 0f,
+        phase: Float = 0f,
     ): FloatArray {
         val asp = CARD_ASPECT
         val px = u * asp
@@ -673,6 +781,74 @@ object Fluide {
         col = mix3(col, plan.voile, a * voileA)
         // LA COMPRESSION DOUCE avant le clip : le cœur reste blanc, la retombée est graduelle.
         col = doux(col)
+        return floatArrayOf(col[0].coerceIn(0f, 1f), col[1].coerceIn(0f, 1f), col[2].coerceIn(0f, 1f))
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 5bis · Les trois compositions abstraites — le MÊME calcul que le programme AGSL
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * **Le pixel d'une composition abstraite** — le miroir exact de `FLUIDE_AGSL_ABSTRAIT` et de
+     * `render.py`. Aucun bruit n'y entre : c'est ce qui la rend **propre** (le grain de la
+     * couverture d'avant mesurait 4,6 sur l'échelle du verrou ; ici il n'y a rien à mesurer).
+     *
+     * La **forme est figée** ; seule la **lumière respire**, sur [souffleDuCycle] — donc trois
+     * respirations par cycle de 7,2 s, et un dessin de fin de cycle identique au pixel à celui du
+     * début : la boucle n'a pas de raccord.
+     */
+    fun abstrait(plan: Plan, u: Float, v: Float, phase: Float): FloatArray {
+        val g = plan.reglages
+        val px = u * CARD_ASPECT
+        val py = v
+        val resp = souffleDuCycle(phase)
+        var col: FloatArray = when (plan.composition) {
+            // **VOLUMES** — un seul volume lumineux : trois `smoothstep` emboîtés, du profond au
+            // cœur clair. Un dégradé continu, donc aucune arête à voir.
+            Composition.VOLUME -> {
+                val dx = px - g[0]
+                val dy = (py - g[1]) * 1.30f
+                val q = kotlin.math.sqrt(dx * dx + dy * dy) / g[2]
+                var c = mix3(plan.profond, plan.median, smoothstep(1.30f, 0.10f, q))
+                c = mix3(c, plan.pale, smoothstep(0.95f, 0.00f, q) * 0.85f)
+                mix3(c, plan.lumiere, smoothstep(0.42f, 0.00f, q) * (0.62f + 0.16f * resp))
+            }
+            // **PLANS** — une coupe droite, puis un disque posé par-dessus : deux ou trois plans
+            // de couleur **qui se touchent**, séparés par une arête nette (0,010 ≈ 4 px).
+            Composition.PLANS -> {
+                val dir = floatArrayOf(cos(g[3]), sin(g[3]))
+                val s = (px - g[4]) * dir[0] + (py - g[5]) * dir[1]
+                val t = smoothstep(-ARETE, ARETE, s)
+                val c = mix3(plan.median, plan.profond, t)
+                val dx = px - g[6]
+                val dy = (py - g[7]) * 1.15f
+                val w = kotlin.math.sqrt(dx * dx + dy * dy) - g[8]
+                val inside = 1f - smoothstep(-ARETE, ARETE, w)
+                mix3(c, plan.lumiere, inside * (0.86f + 0.10f * resp))
+            }
+            // **TRAMES** — des anneaux concentriques très doux (la candidate écartée : sa
+            // périodicité mesurée est haute — c'est le défaut « lignes régulières » déjà refusé).
+            Composition.TRAME -> {
+                val dx = px - g[10]
+                val dy = (py - g[11]) * 1.25f
+                val rings = 0.5f + 0.5f * cos((2.0 * Math.PI * kotlin.math.sqrt(dx * dx + dy * dy) * g[9]).toFloat())
+                val c = mix3(plan.median, plan.profond, 0.42f * rings)
+                mix3(c, plan.lumiere, 0.10f * resp * rings)
+            }
+            null -> plan.profond.let { floatArrayOf(it.red, it.green, it.blue) }
+        }
+        // Le lavis de fond, puis la garde de coin (la lumière sortie du coin haut-droit), puis le
+        // vignettage. Le sol et le masque du matériau de la planche sont **retirés** : leur bande
+        // horizontale se lisait comme une couture.
+        col = mix3(col, plan.voile, LAVIS * (1f - v))
+        val coinX = CARD_ASPECT - 0.105f
+        val coinY = 0.105f
+        val cdx = px - coinX
+        val cdy = py - coinY
+        col = mul3(col, 1f - COIN * exp(-(cdx * cdx + cdy * cdy) * COIN_PORTEE))
+        val rx = u - 0.5f
+        val ry = (v - 0.42f) * 0.85f
+        col = mul3(col, 1f - VIGNETTE * smoothstep(0.45f, 1.25f, kotlin.math.sqrt(rx * rx + ry * ry) * 1.6f))
         return floatArrayOf(col[0].coerceIn(0f, 1f), col[1].coerceIn(0f, 1f), col[2].coerceIn(0f, 1f))
     }
 

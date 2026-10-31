@@ -9,6 +9,7 @@ import com.onyx.app.data.model.serve.GroupRoomDraft
 import com.onyx.app.data.net.ServeGroupsRpc
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.conversations.GroupChat
 import com.onyx.app.ui.conversations.GroupCreation
@@ -119,4 +120,4 @@ internal suspend fun createGroupRoom(
 
 /** Le texte d'une erreur, tel qu'on le montre ailleurs. */
 private fun reason(error: Exception): String =
-    (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["unknown error"]
+    humanFailure(error, OnyxLocalization["unknown error"])

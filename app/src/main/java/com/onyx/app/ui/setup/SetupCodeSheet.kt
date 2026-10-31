@@ -47,6 +47,7 @@ import com.onyx.app.data.model.SetupServerAction
 import com.onyx.app.data.model.Transport
 import com.onyx.app.data.net.ConnectionProbe
 import com.onyx.app.data.net.ConnectionTester
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxIcon
@@ -117,7 +118,7 @@ fun SetupCodeSheet(
     } catch (error: CancellationException) {
         throw error
     } catch (error: Exception) {
-        ConnectionProbe(false, error.message ?: OnyxLocalization["Couldn't connect."], 0, emptyList())
+        ConnectionProbe(false, humanFailure(error, OnyxLocalization["Couldn't connect."]), 0, emptyList())
     }
 
     fun test(config: ServerConfig) {
@@ -143,7 +144,7 @@ fun SetupCodeSheet(
                 stage = SetupCodeStage.Tested(
                     ConnectionProbe(
                         false,
-                        error.message ?: OnyxLocalization["Couldn't save the setup code."],
+                        humanFailure(error, OnyxLocalization["Couldn't save the setup code."]),
                         0,
                         emptyList(),
                     ),

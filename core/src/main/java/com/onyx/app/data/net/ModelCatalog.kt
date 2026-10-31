@@ -80,7 +80,7 @@ object ModelCatalog {
      * parle.
      */
     suspend fun fetch(config: ServerConfig): List<ModelChoice> = withContext(Dispatchers.IO) {
-        if (!config.isUsable) return@withContext emptyList()
+        if (config.apiBaseUrl.isBlank()) return@withContext emptyList()
         val request = Request.Builder()
             .url(config.apiBaseUrl + ENDPOINT_MODELS)
             .get()

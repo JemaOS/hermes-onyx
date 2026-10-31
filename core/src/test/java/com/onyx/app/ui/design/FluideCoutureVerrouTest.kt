@@ -144,7 +144,7 @@ class FluideCoutureVerrouTest {
     @Test
     fun `la crete s enroule — la courbure locale reste dans la famille de la planche`() {
         listOf(true, false).forEach { dark ->
-            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             val l = bande(plan)
             val c = courbure(haut(l, W, HB), W, HB)
             println("MESURE couture (%s) : courbure locale %.4f rad/px d'arc".format(if (dark) "sombre" else "clair", c))
@@ -160,7 +160,7 @@ class FluideCoutureVerrouTest {
     @Test
     fun `le coeur n est plus ecrete a blanc`() {
         listOf(true, false).forEach { dark ->
-            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             val e = ecrevement(plan)
             println("MESURE couture (%s) : pixels écrêtés %.3f %%".format(if (dark) "sombre" else "clair", e * 100))
             assertTrue(
@@ -175,7 +175,7 @@ class FluideCoutureVerrouTest {
     @Test
     fun `le fond ne porte plus de grain parasite`() {
         listOf(true, false).forEach { dark ->
-            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             val g = grainFond(plan)
             println("MESURE couture (%s) : grain du fond %.2f".format(if (dark) "sombre" else "clair", g))
             assertTrue(

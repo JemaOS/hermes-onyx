@@ -254,13 +254,19 @@ class PlaqueFinaleWiringTest {
             screen.contains("bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap,"),
         )
         assertTrue(
-            "les autres onglets la réservent aussi — et leur contenu est posé sur la plaque qui " +
-                "glisse (`panePlate`, lot « verre-plaques »)",
+            "les autres onglets la réservent aussi — leur contenu repose directement sur la page",
             screen.contains(".padding(top = glassTopInset, bottom = glassBottomInset + floatLane)"),
         )
-        assertTrue(
-            "les onglets de contenu du pageur portent la plaque de verre qui suit le doigt",
+        // **RE-POINTÉ : la plaque de contenu a été RETIRÉE** (exigence du propriétaire, capture à
+        // l'appui : « un encadré gris transparent, je veux pas ça »). Le contenu des onglets du
+        // pageur repose sur la page ; le **glissement** reste (c'est le pageur qui le porte).
+        assertFalse(
+            "les onglets de contenu portent encore la plaque de verre refusée (`panePlate`)",
             screen.contains(".panePlate(theme),"),
+        )
+        assertTrue(
+            "et le glissement latéral du contenu reste : c'est le pageur qui le translate",
+            screen.contains("HorizontalPager("),
         )
         assertTrue(
             "et la liste des commandes se pose au-dessus d'elle, pas dedans",

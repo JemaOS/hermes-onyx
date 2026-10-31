@@ -1,5 +1,6 @@
 package com.onyx.app.ui.chat
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxSpace
 
 import com.onyx.app.ui.design.onyxPage
@@ -169,7 +170,7 @@ private fun readDocument(context: Context, uri: Uri): DocumentText {
             }
         }
     } catch (error: Throwable) {
-        DocumentText("", false, error.message ?: OnyxLocalization["Couldn't open it."])
+        DocumentText("", false, humanFailure(error, OnyxLocalization["Couldn't open it."]))
     }
 }
 

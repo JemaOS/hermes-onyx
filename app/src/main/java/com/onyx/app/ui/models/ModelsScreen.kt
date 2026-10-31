@@ -1,5 +1,6 @@
 package com.onyx.app.ui.models
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.onyxPage
 
 import androidx.compose.foundation.background
@@ -87,9 +88,7 @@ fun ModelsScreen(
         models = probe?.models.orEmpty()
         problem = when {
             probe != null && !probe.ok -> probe.message
-            probe == null -> (outcome.exceptionOrNull() as? TransportError)?.userMessage()
-                ?: outcome.exceptionOrNull()?.message
-                ?: OnyxLocalization["Couldn't reach the server"]
+            probe == null -> humanFailure(outcome.exceptionOrNull(), OnyxLocalization["Couldn't reach the server"])
             else -> null
         }
         loading = false

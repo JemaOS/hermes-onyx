@@ -409,7 +409,7 @@ class TurnSession(
         val message = _live.value.message
         // **Aucun fragment brut dans la ligne d'erreur** : elle est redactée — jamais le JSON du
         // fil, jamais un chemin interne, jamais une commande.
-        val reason = StreamLeak.redact(if (translated) error.message.orEmpty() else error.userMessage())
+        val reason = StreamLeak.redact(if (translated) error.detail else error.userMessage())
         update(message.copy(isStreaming = false, error = reason))
         _live.update {
             it.copy(

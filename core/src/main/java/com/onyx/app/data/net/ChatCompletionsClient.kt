@@ -105,8 +105,18 @@ class ChatCompletionsClient(
         val started = System.currentTimeMillis()
         fun elapsed() = System.currentTimeMillis() - started
 
-        if (!config.isUsable) {
-            return@withContext ConnectionProbe(false, OnyxLocalization["Base URL is empty."], 0L, emptyList())
+        if (config.apiBaseUrl.isBlank()) {
+            // `isUsable` est vrai dès qu'**une** adresse existe : un serveur réglé seulement par
+            // son Dashboard passait ce test avec une base d'API **vide**, et
+            // `url("" + "/v1/models")` laissait partir l'`IllegalArgumentException` d'OkHttp —
+            // « Expected URL scheme 'http' or 'https' but no scheme was found for /v1/models ».
+            // On le dit ici, en clair, au lieu de laisser l'exception remonter nue.
+            return@withContext ConnectionProbe(
+                false,
+                OnyxLocalization["No server address is set for the API."],
+                0L,
+                emptyList(),
+            )
         }
 
         val request = Request.Builder()
@@ -175,7 +185,7 @@ class ChatCompletionsClient(
 
     /** Construit la requête HTTP POST du flux. */
     private fun buildRequest(request: ChatRequest): Request {
-        if (!config.isUsable) throw TransportError.BadUrl(OnyxLocalization["empty base URL"])
+        if (config.apiBaseUrl.isBlank()) throw TransportError.BadUrl(OnyxLocalization["empty base URL"])
         if (config.transport == Transport.HERMES_SESSIONS && config.effectiveApiKey.isBlank()) {
             throw TransportError.MissingApiKey
         }

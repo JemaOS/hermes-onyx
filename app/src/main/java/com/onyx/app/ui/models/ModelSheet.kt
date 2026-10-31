@@ -3,6 +3,7 @@ package com.onyx.app.ui.models
 import com.onyx.app.ui.design.OnyxSocle
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxSurfaces
+import com.onyx.app.ui.design.housePanelSurface
 import com.onyx.app.ui.design.socleShadow
 
 import androidx.compose.animation.core.Animatable
@@ -86,7 +87,6 @@ import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.design.readableInk
 import com.onyx.app.ui.design.socleHeadingStyle
 import com.onyx.app.ui.design.socleSectionStyle
-import com.onyx.app.ui.design.frostedBar
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ResolvedTheme
@@ -283,14 +283,23 @@ fun ModelSheet(
                         // Appelée ici, elle est réellement dessinée ; sans cet appel, la feuille
                         // reste plate et rien ne ramène `SocleShadowKt` dans le binaire.
                         .socleShadow(OnyxSocle.ShadowFar, OnyxSocle.RadiusPanel, theme.dark)
-                        .frostedBar(FrostSurface.SHEET, RoundedCornerShape(OnyxSpace.PanelCorner), tint = OnyxSurfaces.surfaceHigh(theme))
-                        .padding(top = OnyxSocle.Tight, bottom = OnyxSocle.Tight)
-                        // **L'opaque d'abord, la vitre ensuite** : le panneau ne laisse rien
-                        // traverser — la même surface que la feuille d'actions de la maison, et
-                        // l'**arête** du filet de la maison sur les coins du haut.
-                        .clip(ModelSheetShape)
-                        .background(surface, ModelSheetShape)
+                        // **UNE SEULE SURFACE.** Le défaut du propriétaire, capture à l'appui :
+                        // *« on dirait que j'ai deux fenêtres superposées »* — au sommet de la
+                        // feuille on voyait **deux** rectangles arrondis : la vitre (`frostedBar`, son
+                        // voile et son arête, tous les coins arrondis) et, **en retrait d'un
+                        // rembourrage**, le panneau opaque (coins du haut seulement). La vitre
+                        // peignait sa propre arête **au-dessus** du panneau : deux bords, deux
+                        // surfaces. C'est exactement la cause de l'en-tête — un **aplat opaque sous
+                        // une vitre** — et le remède est le même : **un seul chemin de surface**,
+                        // celui des feuilles de la maison (l'ombre du socle **sous** la face, la face
+                        // du bord au bord, rien par-dessus).
+                        .housePanelSurface(ModelSheetShape, surface)
+                        // Le filet de la maison suit la forme : c'est le **seul** bord arrondi visible
+                        // de la feuille, avec l'ombre unique dessous.
                         .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), ModelSheetShape)
+                        // Le rembourrage vient **après** la surface : il rentre le contenu, il ne
+                        // sépare plus deux plaques.
+                        .padding(top = OnyxSocle.Tight, bottom = OnyxSocle.Tight)
                         // La feuille n'est pas une zone de fermeture : appuyer entre deux rangées
                         // ne doit rien faire.
                         .onyxTappable(onClick = {})

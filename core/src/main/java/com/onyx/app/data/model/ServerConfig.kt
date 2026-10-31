@@ -107,12 +107,8 @@ data class ServerConfig(
      */
     val serveBase: String
         get() {
-            var value = serveBaseUrl.trim()
+            var value = normalizeAddress(serveBaseUrl)
             while (value.endsWith("/")) value = value.dropLast(1)
-            // Un hôte saisi sans schéma (`xxx.trycloudflare.com`) est une erreur de frappe
-            // courante : on suppose https au lieu de refuser la configuration entière
-            // (« L'adresse du serveur est invalide »).
-            if (value.isNotEmpty() && !value.contains("://")) value = "https://$value"
             return value
         }
 
@@ -154,12 +150,10 @@ data class ServerConfig(
      */
     val normalizedBaseUrl: String
         get() {
-            var value = baseUrl.trim()
+            var value = normalizeAddress(baseUrl)
             while (value.endsWith("/")) value = value.dropLast(1)
             if (value.endsWith("/v1")) value = value.dropLast(3)
             while (value.endsWith("/")) value = value.dropLast(1)
-            // Même tolérance que pour le Dashboard : un hôte sans schéma reçoit `https://`.
-            if (value.isNotEmpty() && !value.contains("://")) value = "https://$value"
             return value
         }
 
@@ -231,6 +225,37 @@ data class ServerConfig(
     companion object {
         const val DEFAULT_READ_TIMEOUT_SECONDS = 120L
         const val DEFAULT_CALL_TIMEOUT_SECONDS = 3600L
+
+        /**
+         * Une adresse de serveur écrite **à la main**, ramenée à une base utilisable.
+         *
+         * Un hôte **sans schéma** (`192.168.1.83:9119`, `127.0.0.1:9119`, `onyx.local:9119`) est
+         * une saisie parfaitement normale : on tape l'adresse d'une machine, pas une URL. Elle est
+         * donc **acceptée**, et reçoit son schéma au lieu d'être refusée.
+         *
+         * Le défaut est **`http`**, et c'est un choix mesuré, pas un goût :
+         *
+         * 1. une machine du réseau qui sert `/v1/models` (LM Studio, llama.cpp, le compagnon
+         *    « une clé » sur `:9119`) parle **en clair** — supposer `https` transformait une
+         *    adresse juste en **échec de poignée de main TLS**, donc en « serveur injoignable »
+         *    faux ;
+         * 2. c'est déjà la règle de l'app pour la **même** forme d'adresse : le pont « Ordinateur »
+         *    déduit `ws://` (donc en clair) d'un `hote:port` sans schéma
+         *    (`ComputerAddress.websocketUrl`, `ComputerAddressTest`) ;
+         * 3. les exemples de l'écran de configuration sont eux-mêmes en `http` :
+         *    `http://your-onyx:9119`, `http://your-server:8080`, et le réseau local se propose en
+         *    `http://<ip>:9119` (`SetupSuggestions.localAddresses`).
+         *
+         * Une adresse qui **porte déjà son schéma** est **respectée telle quelle** — `https://`
+         * compris, avec son chemin et sa barre finale (que `normalizedBaseUrl`/`serveBase`
+         * rognent ensuite, l'app ajoutant elle-même `/v1/…` et `api/…`).
+         */
+        fun normalizeAddress(raw: String): String {
+            val value = raw.trim()
+            if (value.isEmpty()) return ""
+            if (value.contains("://")) return value
+            return "http://$value"
+        }
 
         fun blank(id: String): ServerConfig = ServerConfig(id = id, name = OnyxLocalization["Local server"])
     }

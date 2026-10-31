@@ -1,5 +1,6 @@
 package com.onyx.app.ui.setup
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxContrast
 import com.onyx.app.ui.design.OnyxSpace
 
@@ -276,7 +277,7 @@ fun SetupScreen(
             } catch (error: Exception) {
                 ConnectionProbe(
                     ok = false,
-                    message = error.message ?: OnyxLocalization["Couldn't connect."],
+                    message = humanFailure(error, OnyxLocalization["Couldn't connect."]),
                     latencyMs = 0L,
                     models = emptyList(),
                 )

@@ -17,6 +17,7 @@ import com.onyx.app.data.net.GitWorktree
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeGitApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.TurnSession
 import com.onyx.app.ui.chat.TurnStore
@@ -141,7 +142,7 @@ class CodeViewModel(
                 _state.update {
                     it.copy(
                         loading = false,
-                        problem = (error as? TransportError)?.userMessage() ?: error.message,
+                        problem = humanFailure(error),
                     )
                 }
             }
@@ -409,9 +410,7 @@ class CodeViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                val message = (error as? TransportError)?.userMessage()
-                    ?: error.message
-                    ?: OnyxLocalization["The session couldn't start: %1\$s"].format("?")
+                val message = humanFailure(error, OnyxLocalization["The session couldn't start: %1\$s"].format("?"))
                 _state.update { it.copy(working = null, problem = message) }
             }
         }

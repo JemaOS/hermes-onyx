@@ -10,6 +10,7 @@ import com.onyx.app.data.model.serve.RoutineWhen
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeCronApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,9 +97,7 @@ class CronViewModel(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            val detail = (error as? TransportError)?.userMessage()
-                ?: error.message
-                ?: OnyxLocalization["Couldn't load jobs"]
+            val detail = humanFailure(error, OnyxLocalization["Couldn't load jobs"])
             val message = if (profile != null) {
                 OnyxLocalization.format("Couldn't read %1\$s's schedules: %2\$s", botLabel ?: profile, detail)
             } else {
@@ -180,7 +179,7 @@ class CronViewModel(
                 _state.update {
                     it.copy(
                         saving = false,
-                        problem = (error as? TransportError)?.userMessage() ?: error.message,
+                        problem = humanFailure(error),
                     )
                 }
             }
@@ -212,7 +211,7 @@ class CronViewModel(
                     it.copy(
                         working = null,
                         busy = it.busy - job.id,
-                        problem = (error as? TransportError)?.userMessage() ?: error.message,
+                        problem = humanFailure(error),
                     )
                 }
             }

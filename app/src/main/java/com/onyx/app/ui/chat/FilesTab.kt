@@ -55,6 +55,7 @@ import com.onyx.app.data.model.fileFamilyCounts
 import com.onyx.app.data.model.fileFamilyLabel
 import com.onyx.app.data.model.fileSortLabel
 import com.onyx.app.data.model.visibleConversationFiles
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.FileThumbnail
 import com.onyx.app.ui.design.FileThumbnailView
@@ -682,7 +683,7 @@ private fun shareFile(context: Context, local: File, name: String, onMessage: (S
             clipData = android.content.ClipData.newUri(context.contentResolver, name, shareable(context, local))
         }
         context.startActivity(Intent.createChooser(intent, name))
-    }.onFailure { error -> onMessage(error.message ?: OnyxLocalization["Sharing isn't possible for this file."]) }
+    }.onFailure { error -> onMessage(humanFailure(error, OnyxLocalization["Sharing isn't possible for this file."])) }
 }
 
 /** Ouvre le fichier avec une application du téléphone, en le disant si rien ne sait le lire. */
@@ -699,7 +700,7 @@ private fun openWith(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, name))
-    }.onFailure { error -> onMessage(error.message ?: OnyxLocalization["Couldn't open it."]) }
+    }.onFailure { error -> onMessage(humanFailure(error, OnyxLocalization["Couldn't open it."])) }
 }
 
 /**
@@ -733,6 +734,6 @@ private suspend fun saveToPhone(context: Context, local: File, name: String): St
     } catch (error: CancellationException) {
         throw error
     } catch (error: Throwable) {
-        error.message ?: OnyxLocalization["Couldn't save it."]
+        humanFailure(error, OnyxLocalization["Couldn't save it."])
     }
 }

@@ -213,6 +213,156 @@ class DialogueSurfaceVerrouTest {
         assertTrue("l'action désactivée est marquée désactivée", salon.contains("disabled()"))
         assertTrue("sa raison est nommée", salon.contains("stateDescription = it"))
     }
+
+    // ============================================================================================
+    // 4 · LA FEUILLE « MODÈLE » — UN SEUL BORD ARROND, PAS DE SURFACE EMPILÉE
+    // ============================================================================================
+
+    private val modele = File("src/main/java/com/onyx/app/ui/models/ModelSheet.kt")
+
+    /** La chaîne de modificateurs du conteneur de la feuille, de sa hauteur à son inset bas. */
+    private fun chaineModele(source: String): Pair<List<String>, Int> {
+        val lignes = source.lines()
+        val debut = lignes.indexOfFirst { it.contains(".heightIn(max = sheetCap)") }
+        val fin = lignes.indexOfFirst { it.contains(".navigationBarsPadding(),") }
+        require(debut in 0 until fin) { "conteneur de la feuille « Modèle » introuvable ($debut..$fin)" }
+        return lignes.subList(debut, fin + 1) to debut
+    }
+
+    /** Ce qui **peint une surface** dans un chaînage de modificateurs (le fond ou une vitre). */
+    private val peintures = listOf(
+        ".background(", ".housePanelSurface(", ".frostedBar(", ".frostedSheet(", ".liquidGlass(",
+    )
+
+    /** Les lignes qui peignent une surface — `fichier:ligne` compris. */
+    private fun surfaces(file: String, chain: List<String>, base: Int): List<String> =
+        chain.withIndex()
+            .filter { (_, l) -> !l.trimStart().startsWith("//") && peintures.any { l.contains(it) } }
+            .map { (i, l) -> "$file:${base + i + 1} — ${l.trim()}" }
+
+    /**
+     * **Le défaut du propriétaire, nommé : deux fenêtres superposées.**
+     *
+     * Au sommet de la feuille « Modèle » on voyait deux rectangles arrondis : la **vitre**
+     * (`frostedBar`, son voile et son arête, tous les coins arrondis) **et**, en retrait d'un
+     * rembourrage, le **panneau opaque** (coins du haut seulement). Deux silhouettes décalées = deux
+     * bords. Le remède est le chemin commun des feuilles : `housePanelSurface` (l'ombre du socle sous
+     * la face, la face du bord au bord) — **une seule surface**, un seul bord arrondi (le filet de la
+     * maison), une seule ombre.
+     */
+    @Test
+    fun `la feuille Modele ne presente qu un seul bord arrondi et pas de surface empilee`() {
+        val source = modele.readText()
+        assertTrue(
+            "le panneau de la feuille « Modèle » doit passer par le chemin commun " +
+                "(housePanelSurface) — la même fonction que les feuilles et les alertes",
+            source.contains(".housePanelSurface("),
+        )
+        // Aucune vitre sur le panneau : c'est elle qui dessinait la seconde surface.
+        listOf(".frostedBar(", ".frostedSheet(", ".liquidGlass(").forEach { vitre ->
+            assertFalse(
+                "la feuille « Modèle » pose encore une vitre sur son panneau ($vitre) : " +
+                    "c'est la seconde surface que le propriétaire voit (ModelSheet.kt)",
+                source.contains(vitre),
+            )
+        }
+        // **Le rembourrage vient APRÈS la surface** : c'est cet ordre qui fait qu'il ne sépare plus
+        // deux plaques (avant, il était posé ENTRE la vitre et le panneau opaque).
+        val (chaine, _) = chaineModele(source)
+        val iSurface = chaine.indexOfFirst { it.contains(".housePanelSurface(") }
+        val iPadding = chaine.indexOfFirst { it.contains(".padding(top = OnyxSocle.Tight") }
+        assertTrue(
+            "le rembourrage doit suivre la surface, jamais la précéder (sinon il sépare deux " +
+                "plaques) : surface=$iSurface, padding=$iPadding (ModelSheet.kt)",
+            iSurface in 0 until iPadding,
+        )
+    }
+
+    /**
+     * **Le conteneur de la feuille « Modèle » peint UNE seule surface.**
+     *
+     * C'est la mesure qui attrape le défaut, et elle est **indépendante de l'ordre** : on compte ce
+     * qui, dans le chaînage du conteneur, **peint une surface** (un fond ou une vitre). Le conteneur
+     * d'avant en peignait **trois** (`frostedBar`, puis `background` sur un rectangle rentré) ; il
+     * n'en peint plus qu'**une**, et c'est la fonction de la maison.
+     */
+    @Test
+    fun `le conteneur de la feuille Modele ne peint qu une seule surface`() {
+        val (chaine, base) = chaineModele(modele.readText())
+        val faits = surfaces("app/src/main/java/com/onyx/app/ui/models/ModelSheet.kt", chaine, base)
+        assertEquals(
+            "le conteneur de la feuille « Modèle » peint ${faits.size} surfaces — une feuille n'en " +
+                "peint qu'UNE :\n" + faits.joinToString("\n"),
+            1,
+            faits.size,
+        )
+    }
+
+    /**
+     * **La morsure, sur la chaîne d'AVANT** : la vitre, un rembourrage, puis le panneau opaque —
+     * **trois** surfaces et deux silhouettes décalées. La même mesure doit rendre plus d'une surface
+     * et nommer `fichier:ligne`.
+     */
+    @Test
+    fun `le verrou mord sur la chaine d avant de la feuille Modele`() {
+        val avant = listOf(
+            "                        .heightIn(max = sheetCap)",
+            "                        .socleShadow(OnyxSocle.ShadowFar, OnyxSocle.RadiusPanel, theme.dark)",
+            "                        .frostedBar(FrostSurface.SHEET, RoundedCornerShape(OnyxSpace.PanelCorner), tint = OnyxSurfaces.surfaceHigh(theme))",
+            "                        .padding(top = OnyxSocle.Tight, bottom = OnyxSocle.Tight)",
+            "                        .clip(ModelSheetShape)",
+            "                        .background(surface, ModelSheetShape)",
+            "                        .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), ModelSheetShape)",
+        )
+        val faits = surfaces("app/src/main/java/com/onyx/app/ui/models/ModelSheet.kt", avant, 274)
+        assertTrue(
+            "le verrou ne mord pas : la chaîne d'avant devrait peindre plus d'une surface " +
+                "(mesuré ${faits.size}) :\n" + faits.joinToString("\n"),
+            faits.size > 1,
+        )
+        assertTrue(
+            "chaque fait doit nommer le fichier et la ligne",
+            faits.isNotEmpty() &&
+                faits.all { it.startsWith("app/src/main/java/com/onyx/app/ui/models/ModelSheet.kt:") },
+        )
+    }
+
+    /**
+     * **Aucune feuille n'empile une vitre et son panneau** — le défaut de « Modèle » cherché dans
+     * **toutes** les surcouches : une feuille qui peint un panneau ne pose pas, en plus, une vitre
+     * par-dessus (le motif exact de l'en-tête : un aplat sous une vitre, ici l'inverse).
+     */
+    @Test
+    fun `aucune feuille n empile une vitre et son panneau`() {
+        val feuilles = listOf(
+            File("src/main/java/com/onyx/app/ui/models/ModelSheet.kt"),
+            File("src/main/java/com/onyx/app/ui/conversations/ConversationActionSheet.kt"),
+            File("src/main/java/com/onyx/app/ui/chat/components/ChatActionSheet.kt"),
+            File("src/main/java/com/onyx/app/ui/chat/components/ToolCallDetail.kt"),
+            File("src/main/java/com/onyx/app/ui/bots/RoomCreationDialog.kt"),
+            File("src/main/java/com/onyx/app/ui/sidebar/AccountSheet.kt"),
+            File("../core/src/main/java/com/onyx/app/ui/design/HouseSheet.kt"),
+            File("../core/src/main/java/com/onyx/app/ui/design/AttachmentSheet.kt"),
+            File("../core/src/main/java/com/onyx/app/ui/design/OnyxConfirm.kt"),
+            File("../core/src/main/java/com/onyx/app/ui/design/OnyxAlert.kt"),
+        )
+        val fautives = mutableListOf<String>()
+        feuilles.forEach { f ->
+            val lignes = f.readText().lines()
+            lignes.forEachIndexed { i, ligne ->
+                val l = ligne.trimStart()
+                if (l.startsWith("//") || l.startsWith("*") || l.startsWith("/*")) return@forEachIndexed
+                if (!ligne.contains(".frostedBar(") && !ligne.contains(".frostedSheet(")) return@forEachIndexed
+                fautives += "${f.name}:${i + 1} — ${ligne.trim()}"
+            }
+        }
+        assertEquals(
+            "des feuilles empilent une vitre sur leur panneau — c'est la seconde surface que le " +
+                "propriétaire voit (« deux fenêtres superposées ») :\n" + fautives.joinToString("\n"),
+            emptyList<String>(),
+            fautives,
+        )
+    }
 }
 
 /**

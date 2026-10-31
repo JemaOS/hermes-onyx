@@ -45,6 +45,7 @@ import com.onyx.app.data.net.ServeGatewayApi
 import com.onyx.app.data.net.ServeSkillsApi
 import com.onyx.app.data.net.ServeToolsetsApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.common.AdaptiveSegmented
@@ -159,7 +160,7 @@ fun CapabilitiesScreen(
     fun message(error: Throwable, missingRoute: String): String {
         val http = error as? TransportError
         if (http is TransportError.Http && http.status == 404) return OnyxLocalization[missingRoute]
-        return http?.userMessage() ?: error.message.orEmpty()
+        return humanFailure(error)
     }
 
     // Les trois familles se lisent d'un coup : le compte de chacune s'affiche alors sur le
@@ -443,7 +444,7 @@ private fun testMcp(
                 McpProbe(
                     ok = false,
                     summary = "",
-                    error = (error as? TransportError)?.userMessage() ?: error.message,
+                    error = humanFailure(error),
                 )
             }
         onResult(probe)

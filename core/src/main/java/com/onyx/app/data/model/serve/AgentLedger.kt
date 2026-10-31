@@ -8,6 +8,7 @@ import com.onyx.app.data.model.ToolStatus
 import com.onyx.app.data.net.SessionSummary
 import com.onyx.app.localization.OnyxLanguage
 import com.onyx.app.localization.OnyxLocalization
+import com.onyx.app.ui.design.ModelInForce
 import com.onyx.app.ui.design.ServerPrice
 import java.util.Locale
 import kotlin.math.roundToLong
@@ -482,6 +483,12 @@ data class AgentLedger(
             price: ServerPrice? = null,
             priceSource: String? = null,
             priceReadAt: Long? = null,
+            /**
+             * Le modèle **en vigueur** de la conversation (`ModelInForce`) — celui de l'en-tête et
+             * de la fiche d'usage. Il **prime** sur le nom consigné par le registre, qui fige le
+             * modèle à l'ouverture de la session et ne suit pas un changement (le défaut signalé).
+             */
+            inForceModel: String? = null,
         ): AgentLedger {
             val tools = messages.flatMap { it.tools }
             val subagents = messages.flatMap { it.subagents }
@@ -496,8 +503,11 @@ data class AgentLedger(
             val output = registryTokens?.outputTokens?.toLong() ?: localOutput
             val cache = registryTokens?.cacheReadTokens?.toLong() ?: localCache
 
-            val resolvedModel = registry?.model?.takeIf { it.isNotBlank() }
-                ?: model?.takeIf { it.isNotBlank() }
+            // Le modèle **en vigueur** d'abord, le nom consigné par le registre ensuite. Le registre
+            // fige le modèle à l'ouverture de la session ; le nommer, c'était laisser la rangée
+            // « Model » (et le prix qu'on cherche sous ce nom) annoncer un modèle que la
+            // conversation ne sert plus. Une seule décision : [ModelInForce].
+            val resolvedModel = ModelInForce.preferInForce(inForceModel ?: model, registry?.model)
 
             return AgentLedger(
                 scope = LedgerScope.CONVERSATION,
@@ -543,6 +553,7 @@ data class AgentLedger(
             price: ServerPrice? = null,
             priceSource: String? = null,
             priceReadAt: Long? = null,
+            inForceModel: String? = null,
         ): AgentLedger = of(
             subject = conversation.title,
             messages = conversation.messages,
@@ -551,6 +562,7 @@ data class AgentLedger(
             price = price,
             priceSource = priceSource,
             priceReadAt = priceReadAt,
+            inForceModel = inForceModel,
         )
 
         /**

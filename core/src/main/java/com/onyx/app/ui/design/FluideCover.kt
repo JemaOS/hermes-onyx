@@ -40,6 +40,20 @@ import kotlinx.coroutines.withContext
 /**
  * **Le fluide de la carte de conversation, dessiné dans l'app.**
  *
+ * **⚠️ PLUS PEINTE SUR LES CARTES — décision explicite du propriétaire (lot « blocs-verre »).**
+ * Ce composable, ses programmes AGSL et les trois compositions de [ChoixCouverture] sont désormais un
+ * **matériau de la planche**, conservé et documenté, mais **qu'aucune carte de conversation ne peint
+ * plus**. Le propriétaire, capture à l'appui, a refusé les trois compositions (la troisième comprise)
+ * et remplacé la direction par une **plaque de verre** portant le visage du bot : *« pour les blocs
+ * de conversation tu vas pas mettre d'images, ça va être très simple : une plaque de verre avec
+ * liquid glass… »*. La carte est [com.onyx.app.ui.design.BlocConversation].
+ *
+ * Ce qui reste vrai : un lot qui **repeindrait** cette couverture sur une carte annulerait une
+ * décision du propriétaire, et les verrous des compositions (`CartesAbstraitesVerrouTest`,
+ * `FluideVerrouTest`) sont **re-pointés** sur « plus peinte sur les cartes » — pas désarmés.
+ *
+ * ---
+ *
  * Le champ d'écoulement est **calculé sur la carte graphique** : le programme de rendu est écrit en
  * **AGSL** (Android Graphics Shading Language) et [Fluide.plan] lui fournit ses uniformes. C'est le
  * port du `FRAG` de la maquette (`maquettes/carte.html`), branche **B — filaments**, sous le **choix
@@ -428,13 +442,104 @@ half4 main(float2 fragCoord){
 """
 
 /**
+ * **Le programme des compositions abstraites** — un seul programme pour les trois candidates, la
+ * variante est un uniforme (`uVariante` : 0 volumes, 1 plans, 2 trames).
+ *
+ * Ce qu'il fait, et pourquoi c'est **propre** : **aucun bruit n'y entre**. La couverture d'avant
+ * lisait les crêtes d'un champ de bruit (`fbm`, quatre octaves, un flou 3×3) et posait un grain de
+ * pas de trois pixels ; c'est ce qui donnait la « brume bleu-gris terne » que le propriétaire a
+ * jugée sale. Ici le dessin est de l'**arithmétique pure** — des dégradés emboîtés pour les
+ * volumes, deux arêtes nettes et un disque pour les plans, des anneaux pour la trame — donc il n'y
+ * a **ni grain ni nuage à mesurer** : la seule texture de l'image est celle de l'écran.
+ *
+ * Ce qui est **figé** et ce qui **respire** : la forme ne bouge pas ; seule la **lumière** respire,
+ * sur `souffleDuCycle` — trois respirations par cycle de 7,2 s — donc le dessin de la fin du cycle
+ * est identique au pixel à celui de son début, et la boucle n'a pas de raccord.
+ *
+ * Les douze réglages viennent de `Fluide.reglagesDe` (la graine de la conversation) : **même
+ * famille visuelle** pour toutes les cartes (même teinte, même matière), **composition différente
+ * pour chacune**.
+ */
+internal const val FLUIDE_AGSL_ABSTRAIT = """
+uniform float2 uRes;
+uniform float3 uProfond;
+uniform float3 uMedian;
+uniform float3 uPale;
+uniform float3 uLumiere;
+uniform float3 uVoile;
+uniform float uVariante;
+uniform float4 uCompA;
+uniform float4 uCompB;
+uniform float4 uCompC;
+uniform float uPhase;
+
+// L'arete : un trait NET, DESSINE (0,010 sur une carte de 1,974 de large, soit ~4 px).
+const float ARETE = 0.010;
+// Le lavis de fond, la garde de coin (la lumiere sortie du coin haut-droit) et le vignettage.
+const float LAVIS = 0.06;
+const float COIN = 0.22;
+const float VIGNETTE = 0.12;
+
+float ssf(float e0, float e1, float x){ float t = clamp((x-e0)/(e1-e0), 0.0, 1.0); return t*t*(3.0-2.0*t); }
+
+half4 main(float2 fragCoord){
+  float2 uv = fragCoord/uRes;
+  float asp = uRes.x/uRes.y;
+  float v = uv.y;
+  float px = uv.x*asp;
+  float py = v;
+  // La lumiere respire TROIS fois par cycle (souffleDuCycle) : la forme est figee.
+  float resp = 0.5 - 0.5*cos(6.2831853*uPhase*3.0);
+  float3 col;
+
+  if (uVariante < 0.5) {
+    // VOLUMES — un seul volume lumineux : trois degrades emboites, aucune arete.
+    float2 d = float2(px-uCompA.x, (py-uCompA.y)*1.30);
+    float q = length(d)/uCompA.z;
+    col = mix(uProfond, uMedian, ssf(1.30, 0.10, q));
+    col = mix(col, uPale, ssf(0.95, 0.00, q)*0.85);
+    col = mix(col, uLumiere, ssf(0.42, 0.00, q)*(0.62+0.16*resp));
+  } else if (uVariante < 1.5) {
+    // PLANS — une coupe droite, puis un disque pose par-dessus : deux ou trois plans qui SE
+    // TOUCHENT, separes par une arete nette.
+    float2 dir = float2(cos(uCompA.w), sin(uCompA.w));
+    float s = dot(float2(px-uCompB.x, py-uCompB.y), dir);
+    col = mix(uMedian, uProfond, ssf(-ARETE, ARETE, s));
+    float w = length(float2(px-uCompB.z, (py-uCompB.w)*1.15)) - uCompC.x;
+    col = mix(col, uLumiere, (1.0 - ssf(-ARETE, ARETE, w))*(0.86+0.10*resp));
+  } else {
+    // TRAMES — des anneaux concentriques tres doux (la candidate ECARTEE).
+    float dd = length(float2(px-uCompC.z, (py-uCompC.w)*1.25));
+    float rings = 0.5 + 0.5*cos(6.2831853*dd*uCompC.y);
+    col = mix(uMedian, uProfond, 0.42*rings);
+    col = mix(col, uLumiere, 0.10*resp*rings);
+  }
+
+  col = mix(col, uVoile, LAVIS*(1.0-v));
+  float2 coin = float2(asp-0.105, 0.105);
+  float2 dcoin = float2(px,py) - coin;
+  col *= 1.0 - COIN*exp(-dot(dcoin,dcoin)*16.0);
+  float2 r = float2(uv.x-0.5, (v-0.42)*0.85);
+  col *= 1.0 - VIGNETTE*ssf(0.45, 1.25, length(r)*1.6);
+  col = clamp(col, 0.0, 1.0);
+  return half4(col.r, col.g, col.b, 1.0);
+}
+"""
+
+/**
  * Le programme se compile-t-il sur **ce** système ? Un `RuntimeShader` dont la source ne compile pas
  * lève à la construction : on le sonde **une fois**, et la carte retombe alors sur la couverture
  * déterministe au lieu de faire tomber l'écran. C'est le repli des appareils anciens, et la même
  * garde sert aux systèmes dont le programme de rendu serait refusé.
  */
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-internal fun agslCompiles(): Boolean = runCatching { RuntimeShader(FLUIDE_AGSL) }
+internal fun agslCompiles(): Boolean = runCatching {
+    // **Les DEUX programmes sont sondés** : le matériau de la planche (les filaments) et les
+    // compositions abstraites. Un seul qui refuse fait tomber la carte sur l'ancienne couverture —
+    // donc le refus doit se voir, et il doit se voir pour l'un comme pour l'autre.
+    RuntimeShader(FLUIDE_AGSL)
+    RuntimeShader(FLUIDE_AGSL_ABSTRAIT)
+}
     // **Une erreur de compilation ne doit JAMAIS être muette.** Le `runCatching` décidait seul du
     // repli, sans laisser de trace : sur l'appareil, la carte retombait sur l'ancienne couverture et
     // personne ne pouvait nommer la cause. Le refus est donc journalisé (avec la source AGSL, que
@@ -447,6 +552,36 @@ internal fun agslCompiles(): Boolean = runCatching { RuntimeShader(FLUIDE_AGSL) 
         )
     }
     .isSuccess
+
+/** L'indice de la composition dans `uVariante` — 0 volumes, 1 plans, 2 trames. */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun varianteIndex(plan: Fluide.Plan): Float = when (plan.composition) {
+    Fluide.Composition.VOLUME -> 0f
+    Fluide.Composition.PLANS -> 1f
+    Fluide.Composition.TRAME -> 2f
+    null -> 0f
+}
+
+/**
+ * Pose les uniformes d'une **composition abstraite**. Les douze réglages sont rangés en trois
+ * `float4` : `uCompA` (masse x, y, rayon, angle de coupe), `uCompB` (coupe x, y, disque x, y),
+ * `uCompC` (disque rayon, trame fréquence, trame x, y) — c'est l'ordre de [Fluide.reglagesDe].
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+internal fun poseAbstrait(shader: RuntimeShader, plan: Fluide.Plan, w: Float, h: Float, phase: Float) {
+    val g = plan.reglages
+    shader.setFloatUniform("uRes", w, h)
+    shader.setFloatUniform("uProfond", plan.profond.red, plan.profond.green, plan.profond.blue)
+    shader.setFloatUniform("uMedian", plan.median.red, plan.median.green, plan.median.blue)
+    shader.setFloatUniform("uPale", plan.pale.red, plan.pale.green, plan.pale.blue)
+    shader.setFloatUniform("uLumiere", plan.lumiere.red, plan.lumiere.green, plan.lumiere.blue)
+    shader.setFloatUniform("uVoile", plan.voile.red, plan.voile.green, plan.voile.blue)
+    shader.setFloatUniform("uVariante", varianteIndex(plan))
+    shader.setFloatUniform("uCompA", g[0], g[1], g[2], g[3])
+    shader.setFloatUniform("uCompB", g[4], g[5], g[6], g[7])
+    shader.setFloatUniform("uCompC", g[8], g[9], g[10], g[11])
+    shader.setFloatUniform("uPhase", phase)
+}
 
 /**
  * Pose les uniformes du plan dans le programme. [phase] est la **seule** entrée qui change d'une
@@ -499,12 +634,15 @@ private fun ShaderFluid(
     fixedSouffle: Float?,
     modifier: Modifier,
 ) {
-    val shader = remember(plan) { RuntimeShader(FLUIDE_AGSL) }
+    val shader = remember(plan) {
+        RuntimeShader(if (plan.composition == null) FLUIDE_AGSL else FLUIDE_AGSL_ABSTRAIT)
+    }
     val paint = remember { AndroidPaint().apply { isAntiAlias = false } }
     Canvas(modifier) {
         val souffle = fixedSouffle ?: state.floatValue
         val phase = if (fixedSouffle != null) 0f else cycle.floatValue
-        poseUniforms(shader, plan, size.width, size.height, souffle, phase)
+        if (plan.composition == null) poseUniforms(shader, plan, size.width, size.height, souffle, phase)
+        else poseAbstrait(shader, plan, size.width, size.height, phase)
         paint.shader = shader
         drawIntoCanvas { canvas ->
             canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, paint)
@@ -572,15 +710,20 @@ private fun PrecalcFluid(plan: Fluide.Plan, modifier: Modifier) {
  */
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun bakeCycleFrames(plan: Fluide.Plan): List<ImageBitmap>? = runCatching {
-    val shader = RuntimeShader(FLUIDE_AGSL)
+    val abstrait = plan.composition != null
+    val shader = RuntimeShader(if (abstrait) FLUIDE_AGSL_ABSTRAIT else FLUIDE_AGSL)
     val paint = AndroidPaint().apply { isAntiAlias = false; this.shader = shader }
     val out = ArrayList<ImageBitmap>(PRECALC_FRAMES)
     for (i in 0 until PRECALC_FRAMES) {
         val phase = i.toFloat() / PRECALC_FRAMES
-        poseUniforms(
-            shader, plan, PRECALC_W.toFloat(), PRECALC_H.toFloat(),
-            Fluide.souffleDuCycle(phase), phase,
-        )
+        if (abstrait) {
+            poseAbstrait(shader, plan, PRECALC_W.toFloat(), PRECALC_H.toFloat(), phase)
+        } else {
+            poseUniforms(
+                shader, plan, PRECALC_W.toFloat(), PRECALC_H.toFloat(),
+                Fluide.souffleDuCycle(phase), phase,
+            )
+        }
         val bmp = Bitmap.createBitmap(PRECALC_W, PRECALC_H, Bitmap.Config.ARGB_8888)
         AndroidCanvas(bmp).drawRect(0f, 0f, PRECALC_W.toFloat(), PRECALC_H.toFloat(), paint)
         out.add(bmp.asImageBitmap())

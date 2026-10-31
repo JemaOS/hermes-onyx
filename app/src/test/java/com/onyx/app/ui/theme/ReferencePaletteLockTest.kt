@@ -39,6 +39,15 @@ class ReferencePaletteLockTest {
      * décision, et elle doit s'écrire ici.
      */
     private val allowList: Map<String, String> = mapOf(
+        "core/src/main/java/com/onyx/app/ui/design/VerreTeinte.kt" to
+            "**la teinte du verre des plaques — décision explicite du propriétaire.** Le verre clair " +
+                "des plaques est volontairement plus teinté que la planche (« trop subtil », a dit le " +
+                "propriétaire), et cette teinte est une **échelle de six candidats** dont le rang " +
+                "retenu est un choix, pas une dérivation : elle ne peut donc pas venir d'un thème. " +
+                "C'est la **seule** couleur écrite en dur de la couche de dessin, et elle est isolée " +
+                "dans ce fichier pour que la dispense ne couvre **rien d'autre** de la peinture des " +
+                "vitres (`LiquidGlass.kt` reste, lui, contrôlé). L'écart et les chiffres sont dans " +
+                "son en-tête.",
         "core/src/main/java/com/onyx/app/ui/theme/ReferencePalette.kt" to
             "la palette elle-même — la table de la référence, relue par le test 2",
         "core/src/main/java/com/onyx/app/ui/theme/OnyxTheme.kt" to
@@ -52,6 +61,11 @@ class ReferencePaletteLockTest {
                 "large), recopiés du générateur (hcss.py:16-20). Ce ne sont pas des couleurs de " +
                 "décoration — ce sont les trois opacités d'une ombre, et le socle les tient en un " +
                 "seul endroit ([OnyxSocle.shadowInk])",
+        "core/src/main/java/com/onyx/app/ui/design/IdentityMark.kt" to
+            "l'**encre des traits du visage** que la marque pose dans son disque ([IdentityMark" +
+                ".FeatureInk]) : c'est exactement la valeur de `BotAvatar` (`0.09, 0.09, 0.13`), " +
+                "recopiée pour que la preuve de lisibilité mesure l'encre **peinte** et non une " +
+                "encre annoncée. Ce n'est pas une couleur de décoration : c'est un trait de visage",
         "core/src/main/java/com/onyx/app/ui/design/BotAvatar.kt" to
             "le visage d'un bot et sa palette : c'est l'identité d'un bot, elle doit rester " +
                 "distincte d'un bot à l'autre (§4 « ne perds rien »)",

@@ -125,11 +125,115 @@ object PlaqueGeometry {
      */
     val TabPillClearance: Dp = (TabRowHeight - TabCellHeight).value.let { (it / 2f).dp }
 
-    /** L'anneau clair du repère-visage : 2,5 px de blanc à 90 %. `hlib.py:493` (`.capface`). */
+    /**
+     * **L'anneau clair du repère-visage — PLUS PEINT SUR LE REPÈRE.**
+     *
+     * Il valait 2,5 px de blanc à 90 % (`hlib.py:493`, `.capface`) et cernait le visage du bot dans
+     * la barre d'onglets : le propriétaire l'a **refusé** sur sa capture — « pas besoin de mettre le
+     * cercle blanc, ça coupe le visage, supprime le cercle ». Le cercle **rograit** le visage (le
+     * repère d'alors était découpé en rond) **et** débordait sur son bord.
+     *
+     * La constante reste **déclarée** — l'anneau n'est pas supprimé en silence — pour que le prochain
+     * lot sache que le peindre à nouveau sur un visage est **interdit**. La séparation du visage avec
+     * le verre est désormais portée par une **ombre douce** ([FaceShadow]) qui **ne rogne pas** :
+     * c'est [faceSeparation] qui la mesure, dans les deux apparences.
+     */
     val FaceRing: Dp = 2.5.dp
 
-    /** L'opacité de cet anneau, telle que la planche la déclare. */
+    /** L'opacité de cet anneau, telle que la planche la déclare — voir [FaceRing]. */
     const val FaceRingAlpha: Float = 0.9f
+
+    /**
+     * **L'ombre douce sous le visage** — le levier qui sépare le visage du verre **sans le rogner**.
+     *
+     * Le visage est peint par-dessus ; l'ombre se pose **derrière** et **débordant** (`clip = false`),
+     * donc le visage reste **entier**. C'est le remplacement mesuré de l'anneau refusé : sans lui, un
+     * visage clair (le blanc, un bleu lavé) se confond avec le verre clair ; avec lui, son bord touche
+     * la bande sombre de l'ombre et se détache ([faceSeparation]).
+     */
+    val FaceShadow: Dp = 6.dp
+
+    /**
+     * **L'opacité de l'ombre sous le visage** : 45 %. Assez pour détacher, jamais pour rogner ni
+     * opacifier — le visage reste entier, l'ombre n'est qu'une bande douce derrière son bord.
+     */
+    const val FaceHaloAlpha: Float = 0.45f
+
+    /**
+     * **La teinte de l'ombre, par apparence** : le **pôle opposé au verre** — sombre sur un verre
+     * clair, clair sur un verre sombre — exactement comme la règle d'encre de la maison éloigne
+     * l'encre du fond. Un même noir ne séparerait pas un visage sombre sur un verre sombre ; un même
+     * blanc ne séparerait pas un visage clair sur un verre clair ; le pôle qui s'oppose au verre, lui,
+     * borde le visage sur les deux fonds. Le chiffre de [faceSeparation] est composé avec **cette**
+     * valeur, donc l'ombre annoncée et l'ombre mesurée sont la même.
+     */
+    fun faceHalo(theme: ResolvedTheme): Color {
+        val under = plaqueGround(theme, selected = false)
+        return if (OnyxContrast.luminance(under) > 0.5f) {
+            Color.Black.copy(alpha = FaceHaloAlpha)
+        } else {
+            Color.White.copy(alpha = FaceHaloAlpha)
+        }
+    }
+
+    /** Le fond **réel** derrière le visage du repère : la plaque (avec et sans sa pastille). */
+    private fun faceGrounds(theme: ResolvedTheme): List<Color> =
+        listOf(false, true).map { selected -> plaqueGround(theme, selected) }
+
+    /** Les couleurs de corps des visages de la maison : le clair et le profond de chaque palette. */
+    private fun faceBodies(): List<Color> =
+        (0..12).flatMap { c -> BotFace.pair(c).toList() }
+
+    /**
+     * **La séparation du visage contre le fond RÉELLEMENT derrière lui** — le remplacement mesuré de
+     * l'anneau refusé.
+     *
+     * Pour chaque couleur de visage de la maison, le meilleur des deux fonds que le bord du visage
+     * touche vraiment : **le verre** de la plaque ([plaqueGround]) et **la bande de l'ombre**
+     * ([faceHalo] composée dessus). C'est le **minimum** sur toute la palette qui décide.
+     */
+    fun faceSeparation(theme: ResolvedTheme): Float {
+        val grounds = faceGrounds(theme)
+        val halos = grounds.map { compositedBackdrop(faceHalo(theme), it) }
+        var worst = Float.MAX_VALUE
+        for (body in faceBodies()) {
+            grounds.zip(halos).forEach { (g, h) ->
+                worst = minOf(worst, maxOf(OnyxContrast.ratio(body, g), OnyxContrast.ratio(body, h)))
+            }
+        }
+        return worst
+    }
+
+    /**
+     * **Le témoin négatif de [faceSeparation] : sans le levier.** Le pire visage de la maison contre
+     * le **verre seul** — c'est ce que l'ombre doit sauver, et c'est le chiffre qui prouve que la dent
+     * mord.
+     */
+    fun faceSeparationWithoutLever(theme: ResolvedTheme): Float {
+        var worst = Float.MAX_VALUE
+        for (body in faceBodies()) {
+            faceGrounds(theme).forEach { g -> worst = minOf(worst, OnyxContrast.ratio(body, g)) }
+        }
+        return worst
+    }
+
+    /**
+     * **Ce que l'anneau blanc refusé apportait** — le même calcul, avec le blanc de [FaceRing] à
+     * [FaceRingAlpha] comme bande. C'est la borne que le levier de remplacement doit **dépasser** :
+     * un levier qui ne fait pas mieux que l'anneau qu'il remplace ne remplace rien.
+     */
+    fun faceSeparationWithRing(theme: ResolvedTheme): Float {
+        val ring = Color.White.copy(alpha = FaceRingAlpha)
+        val grounds = faceGrounds(theme)
+        val rings = grounds.map { compositedBackdrop(ring, it) }
+        var worst = Float.MAX_VALUE
+        for (body in faceBodies()) {
+            grounds.zip(rings).forEach { (g, r) ->
+                worst = minOf(worst, maxOf(OnyxContrast.ratio(body, g), OnyxContrast.ratio(body, r)))
+            }
+        }
+        return worst
+    }
 
     // -----------------------------------------------------------------------------------------
     // La rangée du champ : la maquette la donne au pixel, il n'y a donc rien à choisir ici.
