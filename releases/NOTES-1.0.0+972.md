@@ -6,7 +6,8 @@ qui ne puisse être montré.
 
 **Version :** `1.0.0+972` (`versionCode` = `972`, écrit dans `gradle.properties` — l'arbre public
 est la copie aplatie de l'arbre de fusion, son historique ne porte donc pas le numéro).
-**Paquets :** téléphone `Hermes-Onyx-1.0.0+972-telephone.apk` ; les trois paquets — téléphone, auto et wear — portent `1.0.0+972`.
+**Paquets :** téléphone `Hermes-Onyx-1.0.0+972-telephone.apk`, auto `Hermes-Onyx-1.0.0+972-auto.apk`,
+wear `Hermes-Onyx-1.0.0+972-wear.apk` — les trois reconstruits et signés pour cette version.
 **Recette :** `3596 tests, 0 échec` — `:core:testDebugUnitTest` + `:app:testDebugUnitTest`.
 
 ---
