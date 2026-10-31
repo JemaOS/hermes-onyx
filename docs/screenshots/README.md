@@ -21,32 +21,36 @@ l'état courant.
   l'écran avant de garder une capture.
 - La galerie montre le **build livré**. La rafraîchir est la **dernière** étape, sur l'APK publié.
 
-## Captures attendues pour la version courante
+## Captures de la galerie (version courante)
 
-À produire **en sombre puis en clair** (le second fichier porte `-light`) :
+**Apparence sombre uniquement.** Les fichiers réellement présents dans ce dossier, tous repris sur l'APK livré :
 
-| # | Écran | Fichier sombre | Fichier clair |
-|---|---|---|---|
-| 1 | Accueil | `start.png` | `start-light.png` |
-| 2 | Le volet, sur le fil (téléphone) | `conversations.png` | `conversations-light.png` |
-| 3 | Le volet, posé à côté (grand écran) | `conversation-sidebar.png` | `conversation-sidebar-light.png` |
-| 4 | Le fil, avec outils | `conversation-chat.png` | `conversation-chat-light.png` |
-| 5 | Le fil, avec sous-agents | `conversation-subagents.png` | `conversation-subagents-light.png` |
-| 6 | Réglages | `settings-connection.png` | `settings-connection-light.png` |
-| 7 | Capacités | `capabilities.png` | `capabilities-light.png` |
-| 8 | Fichiers | `conversation-files.png` | `conversation-files-light.png` |
-| 9 | Fichiers — filtres | `conversation-files-filters.png` | `conversation-files-filters-light.png` |
-| 10 | Planifiés | `scheduled.png` | `scheduled-light.png` |
-| 11 | Kanban | `kanban.png` | `kanban-light.png` |
-| 12 | Code | `code-sessions.png` | `code-sessions-light.png` |
-| 13 | L'appel entrant | `incoming-call.png` | `incoming-call-light.png` |
-| 14 | La feuille de modèle | `model-sheet.png` | `model-sheet-light.png` |
+| # | Fichier |
+|---|---|
+| 1 | `archive.png` |
+| 2 | `capabilities.png` |
+| 3 | `code-sessions.png` |
+| 4 | `computer.png` |
+| 5 | `conversation-actions-sheet.png` |
+| 6 | `conversation-chat.png` |
+| 7 | `conversation-feed.png` |
+| 8 | `conversation-files-filters.png` |
+| 9 | `conversation-files.png` |
+| 10 | `conversation-sidebar.png` |
+| 11 | `conversations.png` |
+| 12 | `file-viewer.png` |
+| 13 | `kanban.png` |
+| 14 | `models.png` |
+| 15 | `settings-about.png` |
+| 16 | `settings-connection.png` |
+| 17 | `settings-voice-notifications.png` |
+| 18 | `terminal.png` |
+| 19 | `voice-listening.png` |
+| 20 | `voice-ready.png` |
 
-Écrans déjà capturés et conservés s'ils n'ont pas changé (à re-vérifier avant de garder) :
-`conversation-feed.png`, `conversation-ideas.png`, `conversation-goals.png`, `file-viewer.png`,
-`voice-listening.png`, `voice-ready.png`, `computer.png`, `terminal.png`,
-`conversation-actions-sheet.png`, `settings-voice-notifications.png`, `settings-about.png`,
-`models.png`, `archive.png`.
+Écrans pas encore mis en image (à produire **en sombre**, jamais en clair) : l'accueil (`start.png`), le fil avec sous-agents (`conversation-subagents.png`), les planifiés (`scheduled.png`), l'appel entrant (`incoming-call.png`), la feuille de modèle (`model-sheet.png`).
+
+Les onglets **Idées** et **Objectifs** ont été retirés de l'application : leurs captures (`conversation-ideas.png`, `conversation-goals.png`) ont été retirées avec eux.
 
 ## Provenance
 
