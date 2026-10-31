@@ -798,6 +798,10 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "A small service on the PC hands out the screen and takes the input. It listens on that machine only. The token is a password for the PC: it stays in this phone's keystore and is never shown in full." to
         "Un petit service sur le PC fournit l’écran et prend les entrées. Il n’écoute que sur cette machine. Le jeton est un mot de passe pour le PC : il reste dans le trousseau de ce téléphone et n’est jamais montré en entier.",
     "Couldn't reach the bridge: %1\$s" to "Impossible de joindre le pont : %1\$s",
+    // La panne qu'on ne sait pas nommer : on ne recopie **pas** le texte de l'exception (des
+    // phrases d'OkHttp, des noms de classes lavaient fini par s'afficher). L'écran dit qu'il n'a
+    // pas pu joindre le pont, et rien de plus — c'est déjà l'action à faire.
+    "Couldn't reach the bridge." to "Impossible de joindre le pont.",
     // Panne de la session « Ordinateur », une phrase par cause. Le texte d'une bibliothèque
     // réseau (« sent ping but didn't receive pong within 20000ms ») n'apprend rien à qui lit
     // l'écran : on dit ce qui s'est passé, et ce qu'il y a à faire.

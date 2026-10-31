@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeFilesApi
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,7 +80,7 @@ class ContextViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _state.update { it.copy(loading = false, problem = error.message ?: OnyxLocalization["Couldn't reach the Dashboard."]) }
+                _state.update { it.copy(loading = false, problem = humanFailure(error, OnyxLocalization["Couldn't reach the Dashboard."])) }
             }
         }
     }

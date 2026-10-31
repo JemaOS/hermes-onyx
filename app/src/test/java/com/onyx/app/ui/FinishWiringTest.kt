@@ -234,8 +234,8 @@ class FinishWiringTest {
         // que le compilateur ne replie pas), et le paquet livré n'en garde aucune trace. Les liens
         // et QR déjà diffusés restent reconnus au caractère près. La liste des noms de compatibilité
         // est donc **vide** : toute entrée doit faire échouer ce test.
+        val legacyName = "red" + "de"
         val compatibilityNames = emptySet<String>()
-        val oldName = "red" + "de"
         val root = File("..")
         val extensions = setOf("kt", "kts", "xml", "java", "pro", "properties")
         val offenders = sortedSetOf<String>()
@@ -250,10 +250,10 @@ class FinishWiringTest {
                 scanned++
                 val relative = "$module/src/main/" + file.relativeTo(production).path
                 val lines = file.readLines()
-                if (lines.none { oldName in it.lowercase() }) continue
+                if (lines.none { legacyName in it.lowercase() }) continue
                 if (relative !in compatibilityNames) {
                     offenders += relative
-                } else if (lines.any { oldName in it.lowercase() && "legacy" !in it.lowercase() }) {
+                } else if (lines.any { legacyName in it.lowercase() && "legacy" !in it.lowercase() }) {
                     // Dans un fichier de compatibilité, le mot n'a le droit de vivre **que** sur une
                     // ligne qui avoue aussi son statut ; ailleurs, c'est une trace qui repousse.
                     offenders += "$relative (mot hors ligne de compatibilité)"

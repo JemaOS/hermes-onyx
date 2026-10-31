@@ -59,6 +59,8 @@ internal val onyxMenuSheetFrench: Map<String, String> = linkedMapOf(
         "Ce serveur ne donne encore aucun compte de jetons pour cette conversation.",
     "This server gives no price for this conversation; the counters above are all it has." to
         "Ce serveur ne donne aucun prix pour cette conversation ; les compteurs ci-dessus sont tout ce qu'il a.",
+    "This server counted no tokens for this conversation; the only thing it measured is the window below." to
+        "Ce serveur n'a compté aucun jeton pour cette conversation ; la seule chose qu'il a mesurée est la fenêtre ci-dessous.",
     "Costs are the server's own estimate from provider pricing." to
         "Le coût est l'estimation du serveur, d'après les tarifs du fournisseur.",
     "The window is estimated from the text; the server did not give the exact count." to

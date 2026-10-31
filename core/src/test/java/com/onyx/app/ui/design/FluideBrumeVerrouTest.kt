@@ -92,7 +92,7 @@ class FluideBrumeVerrouTest {
     @Test
     fun `le dessin est ISOTROPE (des volutes), plus un champ de lignes paralleles`() {
         listOf(true, false).forEach { dark ->
-            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             val W = 379; val H = 192
             val l = bande(plan, W, H)
             val y0 = (0.05f * H).toInt(); val y1 = (0.45f * H).toInt()
@@ -122,7 +122,7 @@ class FluideBrumeVerrouTest {
         // L'orientation globale ne doit PAS être celle d'une famille unique. On la relève sur les
         // gradients : la direction dominante ne doit pas porter la majorité de l'énergie.
         listOf(true, false).forEach { dark ->
-            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan(TITRE, ID, dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             val W = 379; val H = 192
             val l = bande(plan, W, H)
             val y0 = (0.05f * H).toInt(); val y1 = (0.45f * H).toInt()

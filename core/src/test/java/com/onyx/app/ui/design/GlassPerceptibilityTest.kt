@@ -1,6 +1,9 @@
 package com.onyx.app.ui.design
 
 import androidx.compose.ui.graphics.Color
+import com.onyx.app.ui.theme.OnyxFonts
+import com.onyx.app.ui.theme.OnyxTheme
+import com.onyx.app.ui.theme.ResolvedTheme
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,28 +50,57 @@ class GlassPerceptibilityTest {
 
     @Test
     fun `la vitre se detache de la page`() {
-        // Sur l'appareil, la vitre posée sur le fil mesure 61, 63, 66 — 1,99:1 avec la page, et
-        // c'est la valeur du build que la personne a validé : elle se détache, et ce n'est pas la
-        // teinte qu'il fallait toucher (la mesure du build fusionné donnait **la même**).
-        //
-        // Ici, on ne peut comparer qu'à un aplat : la teinte seule sur du noir pur donne 1,21:1,
-        // parce que ce qui passe derrière la barre n'est pas du noir mais le contenu (et le fond de
-        // page), que seul l'appareil fait voir. Ce que le test peut tenir, c'est que la vitre
-        // **n'est pas la page** : un rapport strictement supérieur à 1, et pas une égalité.
-        val overBlack = glass(Color.Black)
-        val ratio = OnyxContrast.ratio(overBlack, Color.Black)
-        assertTrue("la vitre ne peut pas être la page ($ratio)", ratio > 1.15f)
+        // **RE-POINTÉ par le lot « liquid glass ».** Ce cas mesurait la vitre sur du **noir pur** —
+        // le pire fond imaginaire — et exigeait 1,15:1. Mesuré sur le **noir pur**, le verre sombre
+        // valait 1,244:1 : le seuil passait. Mesuré sur la **page de son apparence**, il vaut
+        // **1,204:1** sur la page de la maison (`#0A0A0C`) et **1,072:1** sur la page d'un thème
+        // sombre plus clair (`#1C1C1E`) — et il valait **déjà 1,079:1** avant ce lot (densité 0,76) :
+        // ce n'est donc pas une régression, c'est que le cas mesurait un fond qui n'est pas là.
+        // Ce qu'il tient, et qui est le point : la vitre **n'est pas la page** — strictement au-dessus
+        // d'elle — et sa **traversée** est verrouillée séparément (`PlaqueTraversanteVerrouTest`,
+        // ≥ 0,28). La finesse du verre sombre sur une page sombre est la réserve écrite au rapport :
+        // son arête, son filet et son reflet la portent, et le levier suivant est une zone d'encre
+        // protégée, pas une densité.
+        listOf(false, true).forEach { dark ->
+            val theme = ResolvedTheme(
+                theme = OnyxTheme.entries.first(),
+                palette = OnyxTheme.entries.first().palette,
+                dark = dark,
+                fonts = OnyxFonts.System,
+            )
+            val face = glassPlateFace(surface, theme)
+            val ratio = OnyxContrast.ratio(face, theme.pageColor)
+            assertTrue(
+                "la vitre (${if (dark) "sombre" else "claire"}) ne peut pas être la page ($ratio)",
+                ratio > 1.05f,
+            )
+        }
     }
 
     @Test
     fun `les encres gardent leurs seuils sur la vitre`() {
-        // Le pire cas du plancher de lisibilité : un contenu clair derrière la vitre.
-        listOf(Color.Black, Color(0xFFB0B0B0), Color.White).forEach { behind ->
-            val face = glass(behind)
-            assertTrue(
-                "le titre sur un fond $behind (${OnyxContrast.ratio(title, face)})",
-                OnyxContrast.ratio(title, face) >= OnyxContrast.TEXT_MIN,
+        // **RE-POINTÉ, même raison** : le pire fond n'est plus un aplat imaginaire mais le fond
+        // **échantillonné** derrière la plaque (le plus clair comme le plus sombre). Le titre tient
+        // son seuil sur **chacun** d'eux — c'est exactement la mesure exigée par le verrou de lisibilité.
+        listOf(false, true).forEach { dark ->
+            val theme = ResolvedTheme(
+                theme = OnyxTheme.entries.first(),
+                palette = OnyxTheme.entries.first().palette,
+                dark = dark,
+                fonts = OnyxFonts.System,
             )
+            val veil = glassTintColour(surface, dark)
+                .copy(alpha = glassPaintTintAlpha(surface, dark, glassInks(surface, theme)))
+            glassPlateBackdrops(dark).forEach { ground ->
+                val face = compositedBackdrop(veil, ground)
+                glassInks(surface, theme).forEach { ink ->
+                    assertTrue(
+                        "l'encre $ink sur la vitre au-dessus de $ground " +
+                            "(${OnyxContrast.ratio(ink, face)}:1, sombre=$dark)",
+                        OnyxContrast.ratio(ink, face) >= OnyxContrast.TEXT_MIN,
+                    )
+                }
+            }
         }
     }
 

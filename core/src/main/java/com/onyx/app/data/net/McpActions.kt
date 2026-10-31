@@ -44,7 +44,7 @@ fun mcpDraftProblem(draft: McpServerDraft): String? = when {
  * message générique du transport est rendu, **avec** le corps du serveur (jamais un code seul).
  */
 fun mcpFailureMessage(error: Throwable, serverName: String? = null): String {
-    val http = error as? TransportError ?: return error.message.orEmpty()
+    val http = error as? TransportError ?: return humanFailure(error)
     if (http !is TransportError.Http) return http.userMessage()
 
     val detail = detailOf(http.body)

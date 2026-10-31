@@ -25,7 +25,7 @@ class FluideHarnaisTest {
         dossier.mkdirs()
         for (dark in listOf(true, false)) {
             val app = if (dark) "sombre" else "clair"
-            val plan = Fluide.plan("Réunion de chantier", "conv-1", dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan("Réunion de chantier", "conv-1", dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             for (k in 0..4) {
                 val phase = k / 4f
                 rend(plan, phase, File(dossier, "harnais-$app-t$k.png"))
@@ -42,7 +42,7 @@ class FluideHarnaisTest {
         for (dark in listOf(true, false)) {
             val app = if (dark) "sombre" else "clair"
             val cadre = File(dir, "frames-$app").apply { mkdirs() }
-            val plan = Fluide.plan("Réunion de chantier", "conv-1", dark = dark, choix = ChoixCouverture.DEFAUT)
+            val plan = Fluide.plan("Réunion de chantier", "conv-1", dark = dark, choix = ChoixCouverture.MATERIAU_PLANCHE)
             for (k in 0 until n) {
                 rend(plan, k.toFloat() / n, File(cadre, "f%03d.png".format(k)))
             }

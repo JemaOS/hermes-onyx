@@ -77,6 +77,29 @@ data class ChatUsage(
             promptTokens == null && apiCalls == null
 
     /**
+     * Tous les compteurs de **jetons** sont nuls ou absents — vrai quand le serveur n'a compté
+     * aucun jeton pour cette conversation.
+     *
+     * Sert à la phrase honnête de la fiche : des compteurs sans un seul jeton **à côté d'un
+     * contexte mesuré** ne se lisent pas, ils se **disent** (c'est la contradiction que le
+     * propriétaire a vue : « Entrée 0, Sortie 0 » sous « Contexte utilisé 21,3k / 256,0k · 8 % »).
+     */
+    val countsNoTokens: Boolean
+        get() = listOf(
+            inputTokens, outputTokens, totalTokens, promptTokens, completionTokens,
+            cacheReadTokens, cacheWriteTokens, reasoningTokens,
+        ).all { (it ?: 0) <= 0 }
+
+    /**
+     * La contradiction à dire : le serveur a **mesuré** un contexte, mais n'a **compté aucun
+     * jeton**. Vrai aussi bien quand les compteurs sont tombés à zéro que quand ils manquent —
+     * dans les deux cas, la fiche doit expliquer les zéros plutôt que de les laisser à côté d'un
+     * contexte rempli.
+     */
+    val reportsContextWithoutTokens: Boolean
+        get() = (contextUsed ?: 0) > 0 && countsNoTokens
+
+    /**
      * La part du cache dans les jetons d'entrée, en pour cent.
      *
      * `cache_hit_pct` du serveur quand il le donne ; sinon calculée sur `cache_read_tokens` et les
@@ -257,7 +280,7 @@ class ServeChatActions(
                 },
                 TIMEOUT,
             )
-        }.getOrElse { error -> return failureReason(error.message ?: error.toString()) }
+        }.getOrElse { error -> return failureReason(humanFailure(error)) }
         val object_ = result.asObject() ?: return OnyxLocalization["the server answered nothing"]
         return when (object_.str("status")) {
             "killed", "already_exited" -> null
@@ -299,7 +322,7 @@ class ServeChatActions(
                 },
                 RESTORE_TIMEOUT,
             )
-        }.getOrElse { error -> return failureReason(error.message ?: error.toString()) }
+        }.getOrElse { error -> return failureReason(humanFailure(error)) }
         val object_ = result.asObject() ?: return OnyxLocalization["the server answered nothing"]
         if (object_.bool("success") == true) return null
         return object_.strOrNull("error")

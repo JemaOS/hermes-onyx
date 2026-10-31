@@ -115,7 +115,9 @@ fun looksLikeMissingRoute(error: Throwable?): Boolean = when (error) {
     is com.onyx.app.data.net.TransportError.Rpc -> error.code == -32601
     is com.onyx.app.data.net.TransportError.Http -> error.status == 404
     else -> {
-        val text = error.message.orEmpty().lowercase()
+        // Le corps d'un refus maison peut porter le marqueur ; le texte d'une exception
+        // **inconnue**, lui, ne se lit plus : il n'était pas un message.
+        val text = (error as? com.onyx.app.data.net.TransportError)?.detail.orEmpty().lowercase()
         MissingRouteMarkers.any { it in text }
     }
 }

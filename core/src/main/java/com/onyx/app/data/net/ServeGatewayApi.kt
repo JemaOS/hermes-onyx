@@ -204,7 +204,7 @@ class ServeGatewayApi(private val client: ServeClient) {
             return McpProbe(
                 ok = false,
                 summary = "",
-                error = (error as? TransportError)?.userMessage() ?: error.message,
+                error = humanFailure(error),
                 latencyMillis = elapsed,
             )
         }

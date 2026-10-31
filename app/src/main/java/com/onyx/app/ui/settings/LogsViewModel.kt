@@ -8,6 +8,7 @@ import com.onyx.app.data.model.serve.ServeLogLine
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeGatewayApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.voice.VoiceDiagnostics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -137,7 +138,7 @@ class LogsViewModel(
         } catch (error: TransportError) {
             _state.update { it.copy(loading = false, problem = error.userMessage()) }
         } catch (error: Exception) {
-            _state.update { it.copy(loading = false, problem = error.message) }
+            _state.update { it.copy(loading = false, problem = humanFailure(error)) }
         }
     }
 

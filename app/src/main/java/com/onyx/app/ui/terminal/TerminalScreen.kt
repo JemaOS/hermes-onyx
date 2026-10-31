@@ -1,5 +1,6 @@
 package com.onyx.app.ui.terminal
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxSpace
 
 import com.onyx.app.ui.design.onyxPage
@@ -211,7 +212,7 @@ class TerminalModel(
     private fun fail(error: Exception) {
         phase = TerminalPhase.FAILED
         failure = TerminalFailure(
-            error.message ?: OnyxLocalization["Couldn't connect."],
+            humanFailure(error, OnyxLocalization["Couldn't connect."]),
             (error as? TerminalProblem)?.wantsKey == true,
         )
     }

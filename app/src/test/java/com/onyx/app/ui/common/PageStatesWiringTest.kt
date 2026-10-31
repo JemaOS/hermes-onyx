@@ -120,7 +120,9 @@ class PageStatesWiringTest {
         val models = screen("models/ModelsScreen.kt")
         assertTrue(
             "une sonde qui échoue par exception pose quand même un problème",
-            models.contains("probe == null -> (outcome.exceptionOrNull() as? TransportError)?.userMessage()"),
+            models.contains(
+                "probe == null -> humanFailure(outcome.exceptionOrNull(), OnyxLocalization[\"Couldn't reach the server\"])",
+            ),
         )
         // Code : l'échec prend la place de l'état vide, il ne s'y ajoute pas.
         val code = screen("code/CodeScreen.kt")

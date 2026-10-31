@@ -24,6 +24,15 @@ internal val onyxCommonFrench: Map<String, String> = linkedMapOf(
     "Add your gateway key" to "Ajouter la clé de votre gateway",
     "Can't reach your gateway" to "Impossible de contacter votre gateway",
     "Couldn't reach the server" to "Impossible de contacter le serveur",
+    // Les pannes que `humanFailure` nomme **sans jamais recopier le texte de l'exception** : une
+    // adresse introuvable, une connexion refusée, un délai, une poignée de main TLS ratée, une
+    // adresse inutilisable — et l'adresse d'API absente (serveur réglé par son seul Dashboard).
+    "Couldn't find that server. Check its address in Settings." to "Serveur introuvable à cette adresse. Vérifiez-la dans les réglages.",
+    "The server refused the connection. Check that it is running, and its address." to "Le serveur a refusé la connexion. Vérifiez qu’il tourne, et son adresse.",
+    "The server did not answer in time." to "Le serveur n’a pas répondu à temps.",
+    "The secure connection failed. Check the address, and whether it is http or https." to "La connexion sécurisée a échoué. Vérifiez l’adresse, et si elle est en http ou en https.",
+    "The server address is invalid. Fix it in Settings." to "L’adresse du serveur est invalide. Corrigez-la dans les réglages.",
+    "No server address is set for the API." to "Aucune adresse de serveur n’est réglée pour l’API. Ajoutez-la dans les réglages.",
     "Check that the gateway is running and that this phone is on your network or tailnet." to "Vérifiez que le gateway est actif et que ce téléphone est sur votre réseau ou votre tailnet.",
     "Hide details" to "Masquer les détails",
     "Onyx needs the gateway's API key before it can read your conversations." to "Onyx a besoin de la clé API du gateway pour lire vos conversations.",

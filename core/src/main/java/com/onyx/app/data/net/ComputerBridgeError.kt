@@ -180,11 +180,7 @@ sealed class ComputerBridgeError {
                 OnyxLocalization.translate("The connection was refused: nothing is listening there.", locale)
             error is SocketTimeoutException ->
                 OnyxLocalization.translate("The bridge didn't answer in time.", locale)
-            else -> OnyxLocalization.format(
-                "Couldn't reach the bridge: %1\$s",
-                error.message ?: "?",
-                locale = locale,
-            )
+            else -> OnyxLocalization.translate("Couldn't reach the bridge.", locale)
         }
 
         /** La fermeture décidée par le pont — `null` quand ce n'est pas un refus qu'on sait nommer. */

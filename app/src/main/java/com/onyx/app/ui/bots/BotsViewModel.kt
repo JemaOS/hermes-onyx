@@ -22,6 +22,7 @@ import com.onyx.app.data.net.ServeGroupsRpc
 import com.onyx.app.data.net.ServeProfilesApi
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.visibleBotProfiles
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.conversations.GroupChat
@@ -310,7 +311,7 @@ class BotsViewModel(
             _state.update {
                 it.copy(
                     loading = false,
-                    problem = (error.message ?: OnyxLocalization["Couldn't load the bots"]) + suffix,
+                    problem = (humanFailure(error, OnyxLocalization["Couldn't load the bots"])) + suffix,
                 )
             }
         }
@@ -363,9 +364,7 @@ class BotsViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _showProblem.value = (error as? TransportError)?.userMessage()
-                    ?: error.message
-                    ?: OnyxLocalization["Couldn't show the bot"]
+                _showProblem.value = humanFailure(error, OnyxLocalization["Couldn't show the bot"])
             } finally {
                 _showing.value = null
             }

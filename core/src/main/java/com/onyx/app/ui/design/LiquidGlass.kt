@@ -156,6 +156,11 @@ const val GlassTintDark: Float = 0.30f
  */
 val GlassAnthracite: Color = ReferencePalette.DarkSurface3
 
+// **LE VERRE DES PLAQUES EST FRANCHEMENT TEINTÉ.** Sa teinte, l'échelle des candidats, le niveau
+// retenu, l'écart assumé à la planche et le levier de captures vivent dans `VerreTeinte.kt` — un
+// fichier à part, dispensé dans la liste blanche de `ReferencePaletteLockTest` pour **cette seule**
+// raison. C'est lui que [glassTintColour] lit pour les plaques en apparence claire.
+
 // ---------------------------------------------------------------------------------------------
 // La profondeur — ce qui fait qu'une vitre se voit
 // ---------------------------------------------------------------------------------------------
@@ -326,6 +331,56 @@ fun glassPlateEdgeAlpha(surface: GlassSurface, dark: Boolean): Float = when {
     !surface.plateEdge -> 0f
     dark -> OnyxEdge.TopEdgeDarkAlpha
     else -> OnyxEdge.TopEdgeLightAlpha
+}
+
+/**
+ * **LE GRAIN DE LA PLAQUE A ÉTÉ RETIRÉ — décision explicite du propriétaire.**
+ *
+ * Le lot « verre-plaques » peignait le carreau mosaïqué de la matière ([PlaqueGeometry.Grain], 7,5 %,
+ * `Matiere.grainTile`) pour « faire matière » au repos. Sur capture d'appareil, le propriétaire a
+ * entouré les plaques en rouge : *« tu as mis une espèce de grain, supprime ce grain »*. La plaque est
+ * donc **lisse**, et cette fonction rend **0** — elle reste, nommée, pour que le verrou lise le chiffre
+ * au lieu de le supposer (et pour qu'un lot qui voudrait le remettre doive toucher une fonction dont
+ * le nom dit non).
+ *
+ * `PlaqueGeometry.Grain` reste dans la table : c'est le jeton de la **planche**, et il documente
+ * l'écart. Il n'est simplement plus peint.
+ */
+fun glassPlateGrainUsed(surface: GlassSurface): Float = 0f
+
+// ---------------------------------------------------------------------------------------------
+// LE LIQUIDE : la lentille d'arête et le reflet de tête d'une plaque
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * **LE REFLET SPÉCULAIRE DE TÊTE D'UNE PLAQUE** — la lumière qui glisse sur le haut du verre.
+ *
+ * C'est la deuxième pièce du « liquide », et elle manquait : les plaques de la maison ne portaient
+ * que leur **arête** ([drawGlassPlateEdge], 1,5 dp sur le bord haut, jeton `--gedge` de la planche).
+ * Une arête seule fait un **liseré** ; c'est le **reflet** — une bande de lumière qui s'éteint en
+ * descendant — qui fait lire une **surface de verre éclairée** plutôt qu'un aplat bordé. Le
+ * propriétaire l'a demandé pour les deux plaques : « normalement il doit y avoir l'effet liquid
+ * glass, la c'est pas le cas ».
+ *
+ * **Pourquoi ce n'est pas le halo que le lot de la matière avait retiré.** Ce que la planche ne
+ * dessine pas, et ce que `MatiereAplatVerrouTest` continue d'interdire, c'est un **contour** (un
+ * cerceau autour de la plaque) et une bande de pied : deux filets qui se lisent comme un cadre. Ici
+ * il n'y a **qu'une** pièce, sur le **haut**, sans contour : la lumière du verre. Le corps de la
+ * plaque reste, sous elle, un aplat — et c'est ce que la planche demande.
+ */
+const val GlassPlateGlossStop: Float = 0.30f
+
+/** Son opacité au bord haut, en clair : le verre clair a peu de marge vers le blanc. */
+const val GlassPlateGlossLight: Float = 0.22f
+
+/** …et en sombre : même lumière, moins dense, parce que la page l'est déjà. */
+const val GlassPlateGlossDark: Float = 0.12f
+
+/** L'opacité du reflet de tête **réellement peinte** pour cette surface (0 si elle n'est pas une plaque). */
+fun glassPlateGlossUsed(surface: GlassSurface, dark: Boolean): Float = when {
+    !surface.plateEdge -> 0f
+    dark -> GlassPlateGlossDark
+    else -> GlassPlateGlossLight
 }
 
 /**
@@ -521,6 +576,26 @@ fun glassTier(
  */
 val GlassTierForcedForEvidence: GlassTier? = null
 
+/**
+ * **LE VOILE DES PLAQUES, FORCÉ PAR LA PASSE DE CAPTURES** — `null` en production, comme
+ * [GlassTierForcedForEvidence] et `GlassPlateTintLevelForEvidence`.
+ *
+ * Il ne sert qu'à **échantillonner le fond réellement derrière la plaque** et à produire la paire qui
+ * chiffre la traversée, depuis **un seul** APK :
+ *
+ *  - `0` — la plaque ne pose **aucune teinte** : la bande de la plaque montre le fond **tel que le
+ *    flou le livre**, c'est-à-dire l'entrée exacte du plancher d'encre ([glassPlateBackdrops] se
+ *    remplit avec ces pixels, pas avec une supposition) ;
+ *  - `1` — la plaque **opaque** : la référence « aucune traversée » de la paire ;
+ *  - la valeur peinte (défaut) — l'état livré.
+ *
+ * Il est posé par le lancement de l'app (`MainActivity`, extra `onyx.verreVoile`, en centièmes) et
+ * **aucun écran ne le pose** : ce que l'app peint et ce que la table déclare ne peuvent pas diverger
+ * en fonctionnement normal. Il est lu **dans** [glassPaintTintAlpha] — donc le dessin, la
+ * dérivation d'encre de la barre d'onglets et le verrou lisent le même chiffre.
+ */
+var GlassPlateVeilForEvidence: Float? by mutableStateOf(null)
+
 /** Le palier de l'appareil qui exécute l'app — ou celui de la preuve, quand il est posé. */
 val glassTierNow: GlassTier get() = GlassTierForcedForEvidence ?: glassTier(Build.VERSION.SDK_INT)
 
@@ -548,6 +623,50 @@ const val GlassRefractionEdgeDp: Float = 22f
  * limite du perceptible, jamais une lentille, jamais une seconde copie.
  */
 const val GlassRefractionDisplacementDp: Float = 0.2f
+
+/**
+ * **LA LENTILLE D'ARÊTE DES PLAQUES — la réfraction VISIBLE, bornée et mesurée.**
+ *
+ * Le lot « verre liquide » avait ramené le déplacement à 0,2 dp (**sub-pixel**) partout, sur un
+ * refus légitime du propriétaire : à 27 dp (dérivé du flou), le fond « gauchissait » et **dupliquait
+ * l'étiquette voisine** dans la tuile « Capacités » du volet. Deux causes étaient mêlées, et une
+ * seule était le déplacement : la **réinjection de détail** (0,8) faisait traverser 80 % des arêtes
+ * du fond, et c'est **elle** qui rendait une seconde copie lisible. Elle vaut **0** depuis, et le
+ * déplacement sub-pixel a été appliqué **à toutes les surfaces** — y compris aux plaques, où le
+ * propriétaire constate aujourd'hui l'inverse : « normalement il doit y avoir l'effet liquid glass,
+ * la c'est pas le cas ». Un verre sans **aucune** déformation d'arête se lit comme une vitre plate.
+ *
+ * Le déplacement est donc **par surface**, et c'est ce qui réconcilie les deux refus :
+ *
+ *  - **les petites surfaces** (tuile, carte, rangée, capsule : `plateEdge = false`) gardent le
+ *    déplacement **sub-pixel** de 0,2 dp — la lentille y gauchissait vraiment, et elles n'ont pas de
+ *    grande arête où la lire ;
+ *  - **les plaques** ([GlassSurface.plateEdge] : l'en-tête, le compositeur, la barre d'onglets)
+ *    prennent [GlassPlateRefractionDisplacementDp], **mesuré à l'appareil** : sur l'arête, le motif
+ *    du fond est **déplacé** (le chiffre est dans le rapport), et il ne se **duplique** pas, parce
+ *    que la réfraction ne réinjecte plus aucune haute fréquence
+ *    ([GlassRefractionDetailIntensity] = 0 : ce qui traverse la vitre est le flou, et un flou déplacé
+ *    reste un flou).
+ */
+const val GlassPlateRefractionDisplacementDp: Float = 5f
+
+/** Le déplacement **réellement appliqué** à une surface, en dp. Pure : deux entrées, un chiffre. */
+fun glassRefractionDisplacementDp(surface: GlassSurface): Float =
+    (GlassPlateRefractionForEvidence ?: defaultRefractionDisplacementDp(surface))
+
+/** Le déplacement **de la maison**, sans la passe de captures : la porte par surface. */
+fun defaultRefractionDisplacementDp(surface: GlassSurface): Float =
+    if (surface.plateEdge) GlassPlateRefractionDisplacementDp else GlassRefractionDisplacementDp
+
+/**
+ * **Le déplacement des plaques, forcé par la passe de captures** — `null` en production.
+ *
+ * C'est la paire qui **chiffre la lentille** : la même scène capturée avec `0` dp (aucune
+ * déformation) et avec la valeur livrée, puis une **corrélation croisée d'une ligne de la plaque**
+ * entre les deux images rend le décalage en pixels — le chiffre du rapport. Il est posé par
+ * `MainActivity` (extra `onyx.verreRefraction`, en dixièmes de dp) et aucun écran ne le pose.
+ */
+var GlassPlateRefractionForEvidence: Float? by mutableStateOf(null)
 
 /**
  * **Conservée pour ne pas casser un appelant voisin** : le déplacement ne se dérive **plus** du
@@ -1136,17 +1255,14 @@ enum class GlassSurface(
     COMPOSER(48f, GlassInk.TEXT, 6f, RoundedCornerShape(GlassBarCorner), lit = false, plateEdge = true),
 
     /**
-     * **La plaque d'un onglet de contenu** — celle qui glisse sous le doigt (Chat / Flux / Fichiers).
+     * **La plaque d'un onglet de contenu — RETIRÉE, décision explicite du propriétaire.**
      *
-     * Le propriétaire : « quand je clique par exemple Flux ou Fichiers je devrais avoir comme une
-     * plaque en verre que je peux faire glisser de gauche a droite ». Avant ce lot, le pageur ne
-     * portait que du **contenu nu** : rien à déplacer sinon le texte, aucune arête pendant le geste
-     * (mesuré sur les quatre images prises à mi-course). Cette surface est la plaque qui se déplace :
-     * elle vit **dans** la page du pageur, donc elle suit le doigt à l'identique — c'est le pageur
-     * qui la translate, elle n'a pas de geste à elle.
+     * Un lot précédent la posait derrière les pages du pageur (Flux, Fichiers) : le propriétaire l'a
+     * refusée sur capture (« un encadré gris transparent, je veux pas ça »). Elle reste dans la table
+     * — elle documente la plaque refusée et garde sa forme — mais **aucun écran ne la peint** : le
+     * contenu repose directement sur la page, et c'est le pageur qui le fait glisser.
      *
-     * Son encre est **dérivée** ([GlassInk.DERIVED]) pour la même raison que la barre d'onglets : elle
-     * porte du texte du thème, et une encre fixe ferait remonter le voile jusqu'à l'aplat.
+     * Son encre était **dérivée** ([GlassInk.DERIVED]) pour la même raison que la barre d'onglets.
      */
     PANE(GlassBlurDefaultDp, GlassInk.DERIVED, 8f, RoundedCornerShape(PlaqueGeometry.Radius), lit = false, plateEdge = true),
 
@@ -1195,6 +1311,37 @@ enum class GlassSurface(
 
     /** Une tuile du volet : un carré de verre dans un panneau de verre. */
     SIDEBAR_TILE(GlassBlurMinDp, GlassInk.TEXT, 0f, RoundedCornerShape(OnyxSpace.TileCorner), lit = false),
+
+    /**
+     * **Le bloc de conversation du volet — une PLAQUE, et non plus une vitre de rangée.**
+     *
+     * Décision explicite du propriétaire (capture à l'appui, les cartes encadrées en rouge autour
+     * d'une « grosse bille grise ») : *« pour les blocs de conversation tu vas pas mettre d'images, ça
+     * va être très simple : une plaque de verre avec liquid glass, le visage du bot… »*. La carte
+     * quitte donc la couverture générative et prend **le verre des plaques** — la teinte franche en
+     * apparence claire ([GlassPlateTintLight], la même famille que l'en-tête, le compositeur et la
+     * barre d'onglets), l'arête claire du haut ([OnyxEdge.topEdge]) et le flou de la source — et
+     * **aucun grain** (`glassPlateGrainUsed` rend 0 pour toute la famille). C'est ce que
+     * `plateEdge = true` porte, ici comme sur les trois plaques flottantes.
+     *
+     * Ce qui la distingue d'une **barre** : son ombre est **nulle** et sa finition est éteinte
+     * (`lit = false`) — une carte posée sur le volet n'est pas un objet qui flotte au-dessus du
+     * contenu, et l'ombre unique de la maison ([OnyxShadow.Float]) reste réservée à ce qui flotte. Sa
+     * **forme** est portée par la table (le coin des plaques, [GlassBarCorner]) : un appelant ne peut
+     * pas se fabriquer un rectangle ici.
+     *
+     * Son flou est le **plancher** de la famille ([GlassBlurMinDp], 36 dp), comme une rangée de liste
+     * et une tuile : c'est la surface la plus répétée de l'app, et la liste en porte une par
+     * conversation.
+     */
+    CONVERSATION_CARD(
+        GlassBlurMinDp,
+        GlassInk.TEXT,
+        0f,
+        RoundedCornerShape(GlassBarCorner),
+        lit = false,
+        plateEdge = true,
+    ),
 
     /** Une carte de bot : même famille que la tuile, un cran de rayon plus large. */
     BOT_CARD(GlassBlurMinDp, GlassInk.TEXT, 0f, RoundedCornerShape(OnyxSpace.CardCorner), lit = false),
@@ -1287,7 +1434,15 @@ fun glassPaintTintAlpha(
     surface: GlassSurface,
     dark: Boolean,
     inks: List<Color>,
-): Float = glassTintAlpha(surface, glassPaintLevel, dark, inks)
+): Float {
+    // **La passe de captures peut forcer le voile d'une plaque** ([GlassPlateVeilForEvidence]) : c'est
+    // ainsi qu'on échantillonne le fond *réellement* derrière la plaque (voile 0) et qu'on produit la
+    // référence « opaque » de la paire qui chiffre la traversée. `null` en production — le chiffre
+    // peint par l'app est alors exactement celui de la mesure.
+    val forced = GlassPlateVeilForEvidence
+    if (surface.plateEdge && forced != null) return forced.coerceIn(0f, 1f)
+    return glassTintAlpha(surface, glassPaintLevel, dark, inks)
+}
 
 /** Le flou **peint** d'une surface : [glassBlurDp] au palier constant [glassPaintLevel]. */
 fun glassPaintBlurDp(surface: GlassSurface): Float = glassBlurDp(surface, glassPaintLevel)
@@ -1323,6 +1478,16 @@ fun glassNominalTint(dark: Boolean): Float = if (dark) GlassTintDark else GlassT
 fun glassTintColour(dark: Boolean): Color = if (dark) GlassAnthracite else Color.White
 
 /**
+ * **La teinte d'une surface donnée** : la même que [glassTintColour], sauf pour les **plaques**
+ * ([GlassSurface.plateEdge]) en apparence **claire**, qui portent le verre **franchement teinté**
+ * ([GlassPlateTintLight]) — la décision explicite du propriétaire, plus dense que la planche. En
+ * sombre, la teinte des plaques ne change pas : leur verre anthracite se détache déjà (relevé du lot
+ * « verre-fond » : 3,817:1).
+ */
+fun glassTintColour(surface: GlassSurface, dark: Boolean): Color =
+    if (!dark && surface.plateEdge) GlassPlateTintLight else glassTintColour(dark)
+
+/**
  * Le **plancher de lisibilité** de la teinte : la plus petite opacité (à partir de [from]) qui tient
  * le seuil pour **toutes** les encres de la surface, avec **les deux aplats extrêmes** derrière —
  * blanc pur et noir pur. C'est le pire cas honnête de [Frost] : le flou ne change pas la couleur
@@ -1354,6 +1519,74 @@ fun glassLegibilityFloor(
     }
     return 1f
 }
+
+/**
+ * **LE PLANCHER DE LISIBILITÉ, MESURÉ CONTRE LE FOND RÉELLEMENT DERRIÈRE LA PLAQUE.**
+ *
+ * **L'ANCIENNE BORNE — écrite ici, pas effacée.** [glassLegibilityFloor] exige que l'encre tienne son
+ * seuil sur `compositedBackdrop(veil, blanc pur)` **et** sur `compositedBackdrop(veil, noir pur)`.
+ * C'est la borne de [Frost] : le pire cas honnête d'**une vitre qu'on ne sait pas où poser**. Appliquée
+ * aux **plaques**, elle est **sur-conservatrice**, et c'est elle qui a rendu la plaque opaque :
+ *
+ *  - sur **noir pur**, une encre **sombre** (`#0A0A0C`, l'encre claire de la maison) ne peut tenir
+ *    4,5:1 que si la teinte recouvre presque tout le noir — mesuré : densité **0,81** pour la teinte
+ *    franche `#A9B1B5`, donc **19 % du fond qui passe**. Une plaque à 19 % n'est plus une vitre ;
+ *  - or **le noir pur n'est jamais derrière ces plaques** : le fond de l'écran de conversation est la
+ *    page, le fil (réponses, bulles) et les images ; et le flou de 36 à 44 dp en fait de toute façon
+ *    une **moyenne locale**, jamais un aplat noir.
+ *
+ * **LA NOUVELLE BORNE.** L'encre d'une **plaque** est mesurée contre **le fond réellement derrière
+ * elle** — échantillonné à l'appareil, dans chaque apparence, sur la pire zone — c'est-à-dire la liste
+ * [glassPlateBackdrops]. La règle n'est pas abaissée : le seuil reste [OnyxContrast.TEXT_MIN]
+ * (4,5:1), la marge reste [LegibilityMargin], et la fonction est **la même** pour le dessin et pour le
+ * verrou. Ce qui change est **le fond contre lequel on mesure** : un fond qui existe, au lieu d'un fond
+ * qui n'arrive jamais.
+ *
+ * Le balayage est déterministe (le rapport n'est pas monotone en α sur une teinte colorée) et rend
+ * **1** quand aucune densité ne suffit — un chiffre honnête plutôt qu'un chiffre faux.
+ */
+fun glassLegibilityFloorOver(
+    tint: Color,
+    inks: List<Color>,
+    backdrops: List<Color>,
+    minRatio: Float,
+    from: Float = 0f,
+): Float {
+    if (inks.isEmpty() || backdrops.isEmpty()) return from.coerceIn(0f, 1f)
+    val target = minRatio + LegibilityMargin
+    var alpha = from.coerceIn(0f, 1f)
+    while (alpha <= 1f) {
+        val veil = tint.copy(alpha = alpha)
+        val ok = inks.all { ink ->
+            backdrops.all { under -> OnyxContrast.ratio(ink, compositedBackdrop(veil, under)) >= target }
+        }
+        if (ok) return alpha
+        alpha += LegibilityStep
+    }
+    return 1f
+}
+
+/** La face d'une plaque **sur la page de son apparence** — la même composition que le verrou. */
+fun glassPlateFace(surface: GlassSurface, theme: ResolvedTheme): Color =
+    compositedBackdrop(
+        glassTintColour(surface, theme.dark).copy(
+            alpha = glassPaintTintAlpha(surface, theme.dark, glassInks(surface, theme)),
+        ),
+        theme.pageColor,
+    )
+
+/**
+ * La **traversée d'une plaque** : la part du fond qui passe au travers, 0 à 1.
+ *
+ * C'est le chiffre du propriétaire — « normalement il doit y avoir l'effet liquid glass » : une plaque
+ * qui ne laisse rien passer (0) est un aplat, quelle que soit la beauté de son arête. Il se lit
+ * directement sur la densité peinte : `1 − α`.
+ */
+fun glassPlateTraversal(alpha: Float): Float = (1f - alpha).coerceIn(0f, 1f)
+
+/** La traversée **peinte** d'une surface, au palier constant ([glassPaintLevel]). */
+fun glassPlatePaintedTraversal(surface: GlassSurface, dark: Boolean, inks: List<Color>): Float =
+    glassPlateTraversal(glassPaintTintAlpha(surface, dark, inks))
 
 /**
  * Le meilleur rapport qu'une encre **dérivée** peut atteindre sur ce qui passe sous la vitre : le noir
@@ -1422,11 +1655,27 @@ fun glassTintAlpha(
     dark: Boolean,
     inks: List<Color>,
 ): Float {
-    val tint = glassTintColour(dark)
+    val tint = glassTintColour(surface, dark)
     val nominal = glassNominalTint(dark)
-    val floor = when (surface.ink) {
+    val floor = when {
+        // **LES PLAQUES : LA BORNE RE-DÉRIVÉE.** L'encre est mesurée contre **le fond réellement
+        // derrière la plaque** ([glassPlateBackdrops] : échantillonné à l'appareil, dans les deux
+        // apparences, sur la pire zone), et non plus contre du **blanc pur et du noir pur** — un fond
+        // qui n'arrive jamais derrière une plaque et qui, sur le noir, imposait une densité de 0,81
+        // (19 % de traversée : un aplat). L'ancienne règle est écrite au-dessus de
+        // [glassLegibilityFloorOver], avec la mesure qui l'a condamnée. Ce qui n'est pas abaissé : le
+        // seuil (4,5:1, [OnyxContrast.TEXT_MIN]) et la marge ([LegibilityMargin]).
+        //
+        // Pourquoi la même fonction pour les trois plaques, y compris la barre d'onglets à encre
+        // **dérivée** : pour qu'elles aient **le même verre** (même teinte, même densité). Laisser la
+        // barre d'onglets sur le plancher « dérivé » lui donnerait une densité plus BASSE que
+        // l'en-tête et le compositeur, et les trois plaques ne se liraient plus comme une famille.
+        surface.plateEdge ->
+            glassLegibilityFloorOver(tint, inks, glassPlateBackdrops(dark), surface.ink.minRatio, nominal)
+
         // Une encre **dérivée** : le voile n'a qu'à laisser *une* encre lisible possible.
-        GlassInk.DERIVED -> glassDerivedFloor(tint, surface.ink.minRatio, nominal)
+        surface.ink == GlassInk.DERIVED -> glassDerivedFloor(tint, surface.ink.minRatio, nominal)
+
         else -> glassLegibilityFloor(tint, inks, surface.ink.minRatio, nominal)
     }
     return (floor + level.tintBonus).coerceIn(0f, 1f)
@@ -1440,11 +1689,18 @@ fun glassTintAlpha(
  * changement de voile — ici, il n'y a qu'un code.
  */
 fun glassWorstInkRatio(surface: GlassSurface, level: GlassLevel, theme: ResolvedTheme): Float {
-    val tint = glassTintColour(theme.dark)
+    val tint = glassTintColour(surface, theme.dark)
     val alpha = glassTintAlpha(surface, level, theme.dark, glassInks(surface, theme))
     val veil = tint.copy(alpha = alpha)
-    return listOf(Color.White, Color.Black).minOf { under ->
-        val backdrop = compositedBackdrop(veil, under)
+    // **Le fond contre lequel on mesure est celui de la surface.** Une **plaque** se mesure contre
+    // le fond **réellement** derrière elle ([glassPlateBackdrops] : échantillonné à l'appareil) —
+    // c'est la borne re-dérivée de ce lot. Les autres surfaces gardent la borne conservatrice de la
+    // maison : les deux aplats extrêmes (blanc pur et noir pur), le pire cas d'une vitre qu'on ne
+    // sait pas où poser. C'est **la même fonction** que le dessin lit : un chiffre annoncé dans le
+    // rapport et un chiffre vérifié ailleurs ne peuvent pas diverger.
+    val under = if (surface.plateEdge) glassPlateBackdrops(theme.dark) else listOf(Color.White, Color.Black)
+    return under.minOf { ground ->
+        val backdrop = compositedBackdrop(veil, ground)
         when (surface.ink) {
             GlassInk.DERIVED -> maxOf(
                 OnyxContrast.ratio(Color.Black, backdrop),
@@ -1473,8 +1729,17 @@ fun glassScrimAlpha(
     val nominal = glassNominalTint(dark)
     val floor = glassLegibilityFloor(tint, inks, surface.ink.minRatio, nominal)
     val minimum = if (dark) GlassScrimMinDark else GlassScrimMinLight
-    return (floor + ScrimBonus).coerceIn(minimum, 1f)
+    // **Le repli doit rester PLUS opaque que le verre réellement peint.** Depuis que le verre clair
+    // des plaques est franchement teinté (densité au plancher d'encre : 0,82), le plancher historique
+    // du repli (0,82) ne le dépasse plus — il l'égalait, et un repli qui vaut le verre n'est plus un
+    // repli. Il se mesure donc contre le verre **peint** de la surface, avec une marge.
+    val painted = glassTintAlpha(surface, glassPaintLevel, dark, inks)
+    val abovePainted = (painted + GlassScrimAboveGlass).coerceAtMost(1f)
+    return maxOf(floor + ScrimBonus, minimum, abovePainted).coerceIn(0f, 1f)
 }
+
+/** La marge du repli au-dessus du verre peint : le repli n'est jamais un trou, jamais un égal. */
+const val GlassScrimAboveGlass: Float = 0.06f
 
 /** Ce que le repli ajoute au plancher de lisibilité. */
 const val ScrimBonus: Float = 0.20f
@@ -1616,7 +1881,7 @@ fun Modifier.liquidGlass(
     val level = glassPaintLevel
     val dark = theme.dark
     val inks = glassInks(surface, theme)
-    val tint = glassTintColour(dark)
+    val tint = glassTintColour(surface, dark)
     val nominalTintAlpha = glassPaintTintAlpha(surface, dark, inks)
     val scrim = tint.copy(alpha = glassScrimAlpha(surface, dark, inks))
     val blurDp = glassPaintBlurDp(surface)
@@ -1756,6 +2021,7 @@ fun Modifier.liquidGlass(
                 Modifier.glassEffect(
                     state = source,
                     tier = tier,
+                    surface = surface,
                     shape = shape,
                     blurDp = blurDp,
                     tint = tint,
@@ -1786,11 +2052,23 @@ fun Modifier.liquidGlass(
             // défaut relevé sur la capture du propriétaire. Une petite pastille garde le reflet plein :
             // c'est la distance entre les deux filets, pas le filet, qui fait la bague.
             if (surface.plateEdge) {
-                // **L'arête de la plaque** : le jeton `--gedge` de la planche, peint sur le bord haut.
-                // C'est la seule pièce de profondeur que les trois plaques flottantes portent (le lot
-                // de la matière leur a retiré halo, liseré et reflet, sur la mesure de la planche) —
-                // et c'est précisément ce qui manquait au propriétaire : « il manque du liquid glass,
-                // c'est pas assez prononcé ».
+                // **LA PLAQUE EST LISSE — le grain a été RETIRÉ** (décision explicite du
+                // propriétaire, capture à l'appui : « tu as mis une espèce de grain, supprime ce
+                // grain »). Le lot « verre-plaques » peignait ici le carreau mosaïqué de la matière
+                // ([PlaqueGeometry.Grain], 7,5 %) pour « faire matière » au repos. Le propriétaire
+                // n'en veut pas : la vitre doit être lisse, et c'est désormais la **teinte**
+                // ([GlassPlateTintLight]) qui la fait lire comme du verre. Ne pas le remettre.
+                //
+                // **Où était le grain, et où il reste.** Relevé : le grain des plaques n'était peint
+                // qu'**ici**, une seule fois (les trois plaques passent toutes par ce `if`). Le
+                // **second** grain de l'app — celui de la **page** (`Matiere.grainTile`, dans
+                // `drawMatiere`) — est une autre couche, sous la page, et le propriétaire ne l'a pas
+                // visé : il reste. C'est bien le grain *de la plaque* qui s'en va.
+                //
+                // L'arête de la plaque, elle, reste : c'est l'autre signe qui pose la vitre.
+                // **Et le reflet de tête est peint SOUS elle** : la lumière du verre, puis son
+                // arête. Deux pièces, dans cet ordre, sur le haut seulement — jamais un contour.
+                drawGlassPlateGloss(dark)
                 drawGlassPlateEdge(shape, dark)
             }
             if (surface.lit) {
@@ -1816,24 +2094,21 @@ fun Modifier.liquidGlass(
 }
 
 /**
- * **La plaque de verre d'un onglet** — la surface qui porte le contenu d'un onglet de conversation et
- * **glisse avec lui** sous le doigt.
+ * **LA PLAQUE DE CONTENU A ÉTÉ RETIRÉE — décision explicite du propriétaire.**
  *
- * Elle est posée dans la page du pageur ([ChatScreen]), donc c'est le pageur qui la translate pendant
- * le glissement : son arête reste visible **à mi-course**, ce qui est la demande du propriétaire
- * (« une plaque en verre que je peux faire glisser de gauche a droite »). Elle reprend la matière de
- * la plaque du bas : le rayon des panneaux ([PlaqueGeometry.Radius], 28 dp), la marge d'écran de la
- * maison ([PlaqueGeometry.SideMargin], 16 dp), le filet de la maison ([OnyxSurfaces.hairline]) —
- * donc elle se lit comme la même famille, et non comme une carte de contenu de plus.
+ * Un lot précédent posait `Modifier.panePlate(theme)` derrière le contenu des onglets de conversation
+ * (Flux, Fichiers) : une grande plaque de verre arrondie qui glissait avec le pageur. Sur capture
+ * d'appareil, le propriétaire a entouré toute la zone en rouge : *« tu as foutu en arrière-plan un
+ * encadré gris transparent, je veux pas ça »*. Le contenu repose donc **directement sur la page**,
+ * sans plaque, sans encadré, sans voile gris derrière lui.
+ *
+ * **Ce qui RESTE.** Le **glissement** : c'est le `HorizontalPager` de `ChatScreen` qui translate le
+ * contenu sous le doigt (« quand je clique par exemple Flux ou Fichiers je devrais avoir comme une
+ * plaque en verre que je peux faire glisser de gauche a droite ») — le geste demandé était le
+ * glissement du contenu, pas la plaque qui le portait. Le pageur n'a pas bougé ; c'est la plaque qui
+ * s'en va. La surface [GlassSurface.PANE] reste dans la table (elle documente la plaque refusée) mais
+ * **aucun écran ne la peint**.
  */
-fun Modifier.panePlate(theme: ResolvedTheme): Modifier {
-    val shape = GlassSurface.PANE.shape
-    return this
-        .padding(horizontal = PlaqueGeometry.SideMargin)
-        .clip(shape)
-        .border(PlaqueGeometry.Outline, OnyxSurfaces.hairline(theme), shape)
-        .liquidGlass(GlassSurface.PANE, shape)
-}
 
 /**
  * L'effet Haze lui-même, **au palier de la plateforme**.
@@ -1861,6 +2136,7 @@ fun Modifier.panePlate(theme: ResolvedTheme): Modifier {
 private fun Modifier.glassEffect(
     state: HazeState,
     tier: GlassTier,
+    surface: GlassSurface,
     shape: Shape,
     blurDp: Float,
     tint: Color,
@@ -1875,7 +2151,15 @@ private fun Modifier.glassEffect(
     when (tier) {
         GlassTier.REFRACTION -> this.hazeGlass(
             input = input,
-            style = glassRefractionStyle(shape, blurDp, tint, tintAlpha, page, level),
+            style = glassRefractionStyle(
+                shape,
+                glassRefractionDisplacementDp(surface),
+                blurDp,
+                tint,
+                tintAlpha,
+                page,
+                level,
+            ),
             interactionReducedMotionPolicy = if (reduceMotion) {
                 GlassReducedMotionPolicy.Reduced
             } else {
@@ -1902,6 +2186,7 @@ private fun Modifier.glassEffect(
 @OptIn(ExperimentalHazeApi::class)
 private fun glassRefractionStyle(
     surfaceShape: Shape,
+    displacementDp: Float,
     blurDp: Float,
     tint: Color,
     tintAlpha: Float,
@@ -1914,8 +2199,11 @@ private fun glassRefractionStyle(
     optics(
         refractionStrength = GlassRefractionStrength,
         refractionHeightFraction = GlassRefractionHeightFraction,
-        // Le déplacement **absolu**, sous le pixel : la lentille est retirée (voir la constante).
-        refractionDisplacement = GlassRefractionDisplacementDp.dp,
+        // Le déplacement **de la surface** : sub-pixel pour les petites surfaces (la lentille y
+        // gauchissait), visible et borné pour les plaques (voir [GlassPlateRefractionDisplacementDp]).
+        // Ce qui reproduisait une seconde copie était la **réinjection de détail**, pas le
+        // déplacement : elle vaut 0 ([GlassRefractionDetailIntensity]).
+        refractionDisplacement = displacementDp.dp,
         depth = 1f,
         blurRadius = blurDp.dp,
         refractionDetailIntensity = GlassRefractionDetailIntensity,
@@ -2167,7 +2455,7 @@ fun glassShadeAlpha(dark: Boolean): Float = if (dark) GlassShadeDark else GlassS
  */
 fun glassFace(surface: GlassSurface, level: GlassLevel, theme: ResolvedTheme, backdrop: Color): Color =
     compositedBackdrop(
-        glassTintColour(theme.dark).copy(
+        glassTintColour(surface, theme.dark).copy(
             alpha = glassTintAlpha(surface, level, theme.dark, glassInks(surface, theme)),
         ),
         backdrop,
@@ -2186,6 +2474,27 @@ fun glassBottomRim(surface: GlassSurface, level: GlassLevel, theme: ResolvedThem
         Color.Black.copy(alpha = glassShadeAlpha(theme.dark)),
         glassFace(surface, level, theme, backdrop),
     )
+
+/**
+ * **L'arête de verre d'une plaque** — l'arête claire du haut, le jeton `--gedge` de la planche
+ * ([OnyxEdge.topEdge] : blanc 98 % en clair, 62 % en sombre), peinte sur [PlaqueGeometry.TopEdge]
+ * (1,5 dp) et **rentrée de [GlassPlateEdgeInset]** pour ne pas déborder sur les coins arrondis.
+ *
+ * Elle se peint **au-dessus** de la vitre et **sous** le contenu ([drawWithContent] l'appelle avant
+ * `drawContent`), donc le texte de la plaque reste net. Une seule ligne, sur le bord haut : c'est la
+ * seule pièce de la profondeur que ces plaques portent (voir [GlassSurface.plateEdge]).
+ */
+private fun DrawScope.drawGlassPlateGloss(dark: Boolean) {
+    val gloss = if (dark) GlassPlateGlossDark else GlassPlateGlossLight
+    if (gloss <= 0f || size.width <= 0f || size.height <= 0f) return
+    drawRect(
+        brush = Brush.verticalGradient(
+            0f to Color.White.copy(alpha = gloss),
+            GlassPlateGlossStop to Color.Transparent,
+        ),
+        size = size,
+    )
+}
 
 /**
  * **L'arête de verre d'une plaque** — l'arête claire du haut, le jeton `--gedge` de la planche

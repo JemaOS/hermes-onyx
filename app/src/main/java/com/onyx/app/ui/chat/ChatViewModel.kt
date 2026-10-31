@@ -30,6 +30,7 @@ import com.onyx.app.data.net.TurnEvent
 import com.onyx.app.data.net.asChatChannel
 import com.onyx.app.data.net.asObject
 import com.onyx.app.data.net.array
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.firstString
 import com.onyx.app.data.repo.ConversationRepository
 import com.onyx.app.data.repo.ServerRepository
@@ -430,7 +431,7 @@ class ChatViewModel(
                 }
                 rpc.close()
             }.onFailure { error ->
-                _state.update { it.copy(error = (error as? TransportError)?.userMessage() ?: error.message) }
+                _state.update { it.copy(error = humanFailure(error)) }
             }
         }
     }
@@ -449,7 +450,7 @@ class ChatViewModel(
                 com.onyx.app.data.net.ServeInterruptRpc(rpc).sudo(serverSessionId.orEmpty(), requestId, password)
                 rpc.close()
             }.onFailure { error ->
-                _state.update { it.copy(error = (error as? TransportError)?.userMessage() ?: error.message) }
+                _state.update { it.copy(error = humanFailure(error)) }
             }
         }
     }
@@ -468,7 +469,7 @@ class ChatViewModel(
                 com.onyx.app.data.net.ServeInterruptRpc(rpc).secret(serverSessionId.orEmpty(), request.id, value)
                 rpc.close()
             }.onFailure { error ->
-                _state.update { it.copy(error = (error as? TransportError)?.userMessage() ?: error.message) }
+                _state.update { it.copy(error = humanFailure(error)) }
             }
         }
     }
@@ -975,7 +976,7 @@ class ChatViewModel(
         }
         val shown = result.getOrNull()?.asObject()
             ?.let { it.firstString("display") ?: it.firstString("output") ?: it.firstString("message") }
-            ?: (result.exceptionOrNull()?.message ?: "(done)")
+            ?: humanFailure(result.exceptionOrNull(), "(done)")
         appendLocalReply(shown)
     }
 

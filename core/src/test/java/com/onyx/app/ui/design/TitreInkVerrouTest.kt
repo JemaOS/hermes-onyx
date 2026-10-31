@@ -68,10 +68,12 @@ class TitreInkVerrouTest {
             "les titres du scan vivent SUR l'aperçu de la caméra (le fond est l'image, pas une " +
                 "surface du thème) : l'encre blanche est celle de la scène, elle ne peut pas venir " +
                 "d'un thème. Même famille que la barre d'un lecteur vidéo (`BarInk`).",
-        "core/src/main/java/com/onyx/app/ui/design/Galerie.kt" to
-            "`.cvttl`, le titre d'une vignette de couverture : il est posé SUR l'image, avec son " +
-                "ombre — la planche le donne blanc (`hcss.py:149`), et c'est l'encre de la scène, " +
-                "pas celle d'une surface de la maison.",
+        // **`Galerie.kt` est SORTI de cette liste — lot « blocs-verre », jamais affaibli.**
+        // Il y était dispensé pour `.cvttl`, le titre blanc d'une vignette de couverture « posé SUR
+        // l'image ». Le bloc de conversation n'est plus une image : c'est une **plaque de verre**, et
+        // son titre porte l'encre du thème, tenue à 4,5:1 sur la pire plaque par
+        // `BlocsVerreVerrouTest`. La dispense n'a plus d'objet, donc elle est **retirée** : la
+        // règle générale s'applique de nouveau à ce fichier (un titre y reçoit une couleur du thème).
     )
 
     private fun theme(theme: OnyxTheme, dark: Boolean): ResolvedTheme =

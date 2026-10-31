@@ -983,30 +983,41 @@ fun ChatTabBar(
                 // commande** : la teinter ici faisait porter au quatrième repère un **cercle à la
                 // couleur du bot** — le « cercle violet » relevé — alors que la planche n'a,
                 // sous son `.capface`, **aucun disque** : le visage du bot, et lui seul, porte sa
-                // couleur (c'est l'identité), et l'anneau clair de la planche
-                // (`0 0 0 2.5px rgba(255,255,255,.9)`) le détache du verre sans ajouter de
-                // matière. Le même accent continue de teinter ce qui **désigne** le bot ailleurs
-                // (la pastille de non-lu) — il ne peint plus le repère.
+                // couleur (c'est l'identité), et une **ombre douce** le détache du verre — l'anneau
+                // clair de la planche (`0 0 0 2.5px rgba(255,255,255,.9)`) a été **retiré** : il
+                // rognait le visage, et le propriétaire l'a refusé sur sa capture. Le même accent
+                // continue de teinter ce qui **désigne** le bot ailleurs (la pastille de non-lu) — il
+                // ne peint plus le repère.
                 val faceContent = face
                 Box(
                     modifier = Modifier.size(PlaqueGeometry.TabCell),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isFace) {
+                        // **Le visage est ENTIER, sans anneau.** Le repère portait un anneau blanc de
+                        // 2,5 dp (`PlaqueGeometry.FaceRing`, la planche `.capface`) **et** découpait
+                        // le visage en rond : le propriétaire a refusé les deux — « pas besoin de
+                        // mettre le cercle blanc, ça coupe le visage, supprime le cercle ». Les deux
+                        // sont retirés : le visage est peint tel quel, entier. La séparation du visage
+                        // avec le verre est portée par une **ombre douce** qui **ne rogne pas**
+                        // (`clip = false`, donc derrière et débordante) — c'est
+                        // `PlaqueGeometry.faceSeparation` qui la mesure dans les deux apparences,
+                        // contre le fond réel de la plaque.
                         Box(
                             modifier = Modifier
                                 .size(PlaqueGeometry.TabCell)
-                                .clip(RoundedCornerShape(50))
-                                .border(
-                                    PlaqueGeometry.FaceRing,
-                                    Color.White.copy(alpha = PlaqueGeometry.FaceRingAlpha),
-                                    RoundedCornerShape(50),
+                                .shadow(
+                                    elevation = PlaqueGeometry.FaceShadow,
+                                    shape = RoundedCornerShape(50),
+                                    clip = false,
+                                    ambientColor = PlaqueGeometry.faceHalo(theme),
+                                    spotColor = PlaqueGeometry.faceHalo(theme),
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
                             // **Un groupe fait défiler ses visages ; un fil à un bot peint le sien.**
-                            // L'anneau clair ne bouge pas : c'est le visage **dedans** qui passe d'un
-                            // bot à l'autre, en fondu, sans déplacer le repère.
+                            // Le visage **entier** passe d'un bot à l'autre, en fondu, sans déplacer
+                            // le repère.
                             if (faceCycle.isEmpty()) {
                                 faceContent?.invoke()
                             } else {

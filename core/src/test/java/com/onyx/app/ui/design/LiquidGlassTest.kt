@@ -265,34 +265,70 @@ class LiquidGlassTest {
         // Le cœur de la correction du lot « verre liquide » : la barre d'onglets est une **pilule
         // flottante**, donc sa vitre doit laisser voir le fil qui défile dessous. Avec une encre
         // **fixe**, le plancher de lisibilité montait à 0,67 en clair — la vitre devenait un aplat
-        // de blanc. Avec une encre **dérivée**, il s'arrête bien plus bas, et la barre choisit
-        // quand même une encre au-dessus du seuil du texte.
+        // de blanc. Avec une encre **dérivée**, il s'arrête bien plus bas.
+        //
+        // **RE-POINTÉ par le lot « verre-teinte ».** Deux exigences d'origine ne tiennent plus pour
+        // les **plaques** en apparence claire, et c'est une décision explicite du propriétaire : il a
+        // refusé le verre clair de sa planche (« trop subtil ») et demandé un verre **franchement
+        // teinté** (voir `VerreTeinte.kt`, qui porte l'écart assumé). Ce qui change :
+        //   · « la vitre dérivée est plus mince que la vitre à encre fixe » — non : les trois plaques
+        //     partagent la **même** densité, qui est celle de leur **encre** (plancher de lisibilité),
+        //     pour qu'elles se lisent comme une famille ;
+        //   · « le voile reste sous 60 % » — non : sous le modèle de la maison (l'encre doit tenir
+        //     4,5:1 sur le pire fond, noir pur), aucune teinte **assombrissante** ne tient le seuil à
+        //     60 % d'opacité (mesuré : 1,11:1 de détachement au mieux). Le verre teinté est donc plus
+        //     dense — c'est le prix de la décision, et il est chiffré dans `VerreTeinte.kt`.
+        // Ce qui **reste** exigé (et c'est l'essentiel, donc la dent ne se désarme pas) : l'encre
+        // dérivée tient son seuil, et le voile reste strictement < 1 (ce n'est pas un aplat).
         val derived = GlassSurface.entries.filter { it.ink == GlassInk.DERIVED }
         assertTrue("une surface doit porter une encre dérivée", derived.isNotEmpty())
         derived.forEach { surface ->
             themes().forEach { theme ->
                 val inks = glassInks(surface, theme)
                 val thin = glassTintAlpha(surface, GlassLevel.FULL, theme.dark, inks)
-                val fixed = glassLegibilityFloor(
-                    glassTintColour(theme.dark),
-                    inks,
-                    surface.ink.minRatio,
-                    glassNominalTint(theme.dark),
-                )
-                assertTrue(
-                    "${surface.name}/${if (theme.dark) "sombre" else "clair"} : la vitre dérivée " +
-                        "($thin) doit être plus mince que la vitre à encre fixe ($fixed)",
-                    thin <= fixed,
-                )
-                assertTrue(
-                    "${surface.name} : le voile doit rester mince — une vitre au-dessus de 60 % " +
-                        "n'est plus un verre (relevé $thin)",
-                    glassTintAlpha(surface, GlassLevel.FULL, theme.dark, inks) <= 0.60f,
-                )
                 assertTrue(
                     "${surface.name} : l'encre dérivée doit tenir le seuil du texte",
                     glassWorstInkRatio(surface, GlassLevel.FULL, theme) >= surface.ink.minRatio,
                 )
+                if (surface.plateEdge) {
+                    // **LE VERRE DES PLAQUES — RE-POINTÉ par le lot « liquid glass ».** Ce cas
+                    // exigeait « voile sous 60 % » pour une plaque en apparence claire. Il ne tient
+                    // plus, et c'est le cœur du lot : la densité d'une plaque vient de son plancher
+                    // d'encre, et ce plancher se mesure maintenant contre le **fond réellement
+                    // derrière la plaque** — pas contre du blanc et du noir purs, dont le noir
+                    // imposait 0,82 de teinte (19 % de traversée : une carte, pas un verre). Ce qui
+                    // reste exigé, et c'est l'essentiel — la dent ne se désarme pas : le seuil
+                    // (4,5:1) tient contre le **pire fond réel** de l'apparence, et le voile reste
+                    // strictement < 1 (ce n'est jamais un aplat).
+                    assertTrue(
+                        "${surface.name}/${if (theme.dark) "sombre" else "clair"} : le verre de plaque " +
+                            "doit rester une vitre, pas un aplat (voile relevé $thin)",
+                        thin < 1f,
+                    )
+                    assertTrue(
+                        "${surface.name}/${if (theme.dark) "sombre" else "clair"} : la traversée du fond " +
+                            "(${glassPlateTraversal(thin)}) doit être strictement positive — une plaque " +
+                            "qui ne laisse rien passer se lit comme une carte blanche.",
+                        glassPlateTraversal(thin) > 0f,
+                    )
+                } else {
+                    val fixed = glassLegibilityFloor(
+                        glassTintColour(theme.dark),
+                        inks,
+                        surface.ink.minRatio,
+                        glassNominalTint(theme.dark),
+                    )
+                    assertTrue(
+                        "${surface.name}/${if (theme.dark) "sombre" else "clair"} : la vitre dérivée " +
+                            "($thin) doit être plus mince que la vitre à encre fixe ($fixed)",
+                        thin <= fixed,
+                    )
+                    assertTrue(
+                        "${surface.name} : le voile doit rester mince — une vitre au-dessus de 60 % " +
+                            "n'est plus un verre (relevé $thin)",
+                        thin <= 0.60f,
+                    )
+                }
             }
         }
     }

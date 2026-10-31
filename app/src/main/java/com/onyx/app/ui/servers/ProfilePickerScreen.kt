@@ -1,5 +1,6 @@
 package com.onyx.app.ui.servers
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.onyxPage
 
 import androidx.compose.foundation.background
@@ -63,7 +64,7 @@ fun ProfilePickerScreen(
         loading = true
         runCatching { ServeProfilesApi(ServeClient(server)).profiles() }
             .onSuccess { profiles = it }
-            .onFailure { problem = (it as? com.onyx.app.data.net.TransportError)?.userMessage() ?: it.message }
+            .onFailure { problem = humanFailure(it) }
         loading = false
     }
 

@@ -59,7 +59,7 @@ object MotionTable {
     )
 
     private const val MOTION = "core/src/main/java/com/onyx/app/ui/design/OnyxMotion.kt"
-    private const val IOS_CONTROLS = "core/src/main/java/com/onyx/app/ui/design/OnyxControls.kt"
+    private const val ONYX_CONTROLS = "core/src/main/java/com/onyx/app/ui/design/OnyxControls.kt"
 
     private const val VOICE_SCREEN = "app/src/main/java/com/onyx/app/ui/voice/VoiceScreen.kt"
     private const val VOICE_MOTION = "app/src/main/java/com/onyx/app/ui/voice/VoiceLiveMotion.kt"
@@ -71,6 +71,7 @@ object MotionTable {
     private const val COMPOSER = "app/src/main/java/com/onyx/app/ui/chat/components/OnyxComposer.kt"
     private const val FOLLOW_UP = "app/src/main/java/com/onyx/app/ui/chat/components/FollowUpChips.kt"
     private const val CHAT_SCREEN = "app/src/main/java/com/onyx/app/ui/chat/ChatScreen.kt"
+    private const val GALERIE = "core/src/main/java/com/onyx/app/ui/design/Galerie.kt"
     private const val ARRIVAL = "app/src/main/java/com/onyx/app/ui/common/MessageArrival.kt"
     private const val TYPED_TITLE = "app/src/main/java/com/onyx/app/ui/common/TypedTitle.kt"
 
@@ -277,7 +278,7 @@ object MotionTable {
         ),
         entry(
             "Views/MessageRow:544", "if !reduceMotion {",
-            "val reduceMotion = LocalReduceMotion.current", MotionStatus.REDUIT, IOS_CONTROLS,
+            "val reduceMotion = LocalReduceMotion.current", MotionStatus.REDUIT, ONYX_CONTROLS,
             note = "le shimmer est du texte d'aplat sous Reduce Motion",
         ),
         entry(
@@ -313,11 +314,11 @@ object MotionTable {
             "Views/StreamingTail:135",
             "withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { pulse = true }",
             "tween(durationMillis = OnyxMotion.MS_1600, easing = OnyxMotion.EaseOut)",
-            MotionStatus.PORTE, IOS_CONTROLS,
+            MotionStatus.PORTE, ONYX_CONTROLS,
         ),
         entry(
             "Views/StreamingTail:134", "guard !reduceMotion else { return }",
-            "ambientLoop(0f)", MotionStatus.REDUIT, IOS_CONTROLS,
+            "ambientLoop(0f)", MotionStatus.REDUIT, ONYX_CONTROLS,
         ),
 
         // — Écran de départ —
@@ -375,7 +376,7 @@ object MotionTable {
         ),
         entry(
             "Views/Composer:95", "still: still || reduceMotion",
-            "val frozen = still || reduceMotion", MotionStatus.REDUIT, IOS_CONTROLS,
+            "val frozen = still || reduceMotion", MotionStatus.REDUIT, ONYX_CONTROLS,
             note = "la forme d'onde du composeur se fige",
         ),
 
@@ -414,28 +415,44 @@ object MotionTable {
         entry(
             "Views/OpeningCover:80",
             "withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.28 * slow))",
-            "OnyxMotion.Sites.CoverGrowth", MotionStatus.PORTE, IOS_CONTROLS,
+            "OnyxMotion.Sites.CoverGrowth", MotionStatus.PORTE, ONYX_CONTROLS,
             note = "0,28 s exact — le facteur `slow` des tests n'a pas lieu d'être",
         ),
         entry(
             "Views/SwipeToOpen:236", "static var sidePanel: Animation { .smooth(duration: 0.32) }",
-            "OnyxMotion.Sites.SidePanel", MotionStatus.APPROXIMATIF, IOS_CONTROLS,
+            "OnyxMotion.Sites.SidePanel", MotionStatus.APPROXIMATIF, ONYX_CONTROLS,
             note = "`.smooth` est un ressort du système ; reproduit en `easeInOut` 0,32 s",
         ),
         entry(
             "Views/SwipeToOpen:204",
             "animation = .interpolatingSpring(duration: 0.34, bounce: 0, initialVelocity: relative)",
-            "OnyxMotion.Sites.SidePanelOffset", MotionStatus.APPROXIMATIF, IOS_CONTROLS,
+            "OnyxMotion.Sites.SidePanelOffset", MotionStatus.APPROXIMATIF, ONYX_CONTROLS,
             note = "la vitesse du geste n'est pas reprise : Android rejoue la courbe fixe",
         ),
         entry(
             "Views/Toast:25", ".animation(.easeOut(duration: 0.2), value: text)",
-            "OnyxMotion.Sites.Toast", MotionStatus.PORTE, IOS_CONTROLS,
+            "OnyxMotion.Sites.Toast", MotionStatus.PORTE, ONYX_CONTROLS,
         ),
         entry(
             "Views/VoiceView:660", "TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion))", "",
             MotionStatus.ABSENT, VOICE_MOTION,
             note = "les lumières de l'orbe Onyx sont dessinées au Canvas, pas par une horloge de vue",
+        ),
+
+        // — Le visage d'un bloc de conversation : la vie de repos d'un bot, figée sous le réglage —
+
+        entry(
+            "Views/VoiceView:660",
+            "TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion))",
+            "BotIdle.seedFor(name, faceCode)", MotionStatus.REDUIT, GALERIE,
+            note = "le visage du bloc de conversation (BlocConversationFace) : la **règle d'horloge** " +
+                "du visage de la référence — une image sur trente, `paused: reduceMotion` — appliquée " +
+                "au visage d'une carte. Les instants, eux, sont les **pouls de repos** de la maison " +
+                "(BotIdle : clignement 170 ms, regard 760, souffle 2600, micro-sourire 1200, " +
+                "hochement 900) séparés par 4 à 9 s d'immobilité — donc aucune image demandée entre " +
+                "deux pouls, et sous « Réduire les animations » **aucune boucle n'est montée** " +
+                "(le visage reste à sa pose de repos, comme `Fluide.Level.FIGE`). Le clignement propre " +
+                "de BotAvatar est éteint (`blinks = false`) : une seule source donne l'instant.",
         ),
     )
 

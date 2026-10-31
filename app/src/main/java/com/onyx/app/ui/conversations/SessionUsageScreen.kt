@@ -23,12 +23,14 @@ import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeSessionsApi
 import com.onyx.app.data.net.SessionSummary
 import com.onyx.app.data.net.SessionUsage
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLanguage
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.OnyxRow
 import com.onyx.app.ui.design.OnyxRowDivider
+import com.onyx.app.ui.design.ModelInForce
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
@@ -57,6 +59,12 @@ fun SessionUsageScreen(
     server: ServerConfig? = null,
     fetchId: String? = null,
     profile: String? = null,
+    /**
+     * Le modèle **en vigueur** de cette conversation (`ModelInForce`), comme l'en-tête et la fiche
+     * d'actions l'affichent. La fiche le nomme à la place du `model` figé du registre, qui fige le
+     * modèle à l'ouverture de la session et ne suit pas un changement (le défaut signalé).
+     */
+    model: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
@@ -88,8 +96,7 @@ fun SessionUsageScreen(
             }
             outcome.isSuccess -> UsageSource.NoRow(profileName(profile))
             else -> UsageSource.Silent(
-                outcome.exceptionOrNull()?.message
-                    ?: "the route answered nothing",
+                humanFailure(outcome.exceptionOrNull(), "the route answered nothing"),
             )
         }
     }
@@ -150,9 +157,11 @@ fun SessionUsageScreen(
                 UsageRow("Tool calls", SessionUsage.count(summary.toolCallCount))
                 OnyxRowDivider()
                 UsageRow("API calls", SessionUsage.count(summary.apiCallCount))
-                summary.model?.takeIf { it.isNotEmpty() }?.let { model ->
+                // Le modèle vient de la **source unique** (`ModelInForce`) : le nom EN VIGUEUR
+                // d'abord, le nom consigné par le registre en repli — jamais le figé seul.
+                ModelInForce.preferInForce(model, summary.model)?.let { name ->
                     OnyxRowDivider()
-                    UsageRow("Model", model, verbatim = true)
+                    UsageRow("Model", name, verbatim = true)
                 }
                 OnyxRowDivider()
                 UsageRow("Source", summary.sourceLabel, verbatim = true)

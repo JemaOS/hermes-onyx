@@ -16,6 +16,7 @@ import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServerProject
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.projectFolderName
 import com.onyx.app.data.net.projectMoveTargets
 import com.onyx.app.localization.OnyxLocalization
@@ -160,4 +161,4 @@ fun ChatProjectPrompt(
 }
 
 internal fun projectProblemReason(error: Exception): String =
-    (error as? TransportError)?.userMessage() ?: error.message ?: OnyxLocalization["unknown error"]
+    humanFailure(error, OnyxLocalization["unknown error"])

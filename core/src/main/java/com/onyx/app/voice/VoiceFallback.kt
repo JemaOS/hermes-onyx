@@ -1,5 +1,6 @@
 package com.onyx.app.voice
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLanguage
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.localization.OnyxLocalization
@@ -38,8 +39,7 @@ sealed interface VoiceTrialOutcome {
 /** Le détail d'un échec : le message lisible d'un [TransportError], sinon le sien, sinon son type. */
 fun voiceServerDetail(error: Throwable, locale: Locale = OnyxLanguage.preferred): String =
     (error as? TransportError)?.userMessage(locale)
-        ?: error.message?.takeIf { it.isNotBlank() }
-        ?: error.javaClass.simpleName
+        ?: humanFailure(error)
 
 /**
  * L'issue d'un échec du serveur : [VoiceTrialOutcome.Device] quand l'appareil peut parler,

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxIcon
@@ -130,9 +131,7 @@ fun KokoroVoicesView(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
-            val reason = (failure as? TransportError)?.userMessage()
-                ?: failure.message
-                ?: OnyxLocalization["Server unreachable"]
+            val reason = humanFailure(failure, OnyxLocalization["Server unreachable"])
             error = OnyxLocalization.format("Couldn't reach Kokoro: %1\$s", reason)
         }
         loading = false

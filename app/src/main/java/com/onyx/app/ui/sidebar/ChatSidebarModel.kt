@@ -214,16 +214,22 @@ internal fun sidebarRows(
     agentName: String = "",
     projectLabel: String? = null,
     /**
-     * **L'identité d'une conversation** : le nom de profil de son bot, par identifiant de serveur.
-     * Un serveur inconnu retombe sur le bot principal ([agentName]) — jamais une marque muette.
+     * **L'identité d'une conversation** : le nom de profil de **son bot** — la clé unique de la
+     * maison pour résoudre un visage et sa marque (`BotLook`).
+     *
+     * Elle se résout **par conversation**, jamais par serveur. C'était le défaut de synchro relevé
+     * par le propriétaire : une identité par serveur donne le **même** visage à trois conversations
+     * écrites avec des bots différents du même serveur (trois cartes, un seul visage). Le volet
+     * appelle donc le **même** calcul que partout ailleurs — conversation → bot → profil du serveur
+     * → `default` (`conversationProfile` / `ProfileInForce`), câblé dans `OnyxApp`.
      */
-    identityOf: (String) -> String = { agentName },
+    identityOf: (Conversation) -> String = { agentName },
     /** Le visage enregistré d'un profil, quand il y en a un. */
     faceCodeOf: (String) -> String? = { null },
 ): List<SidebarRow> = conversations
     .filter { sidebarMatches(it, query, includeMessages) }
     .map { conversation ->
-        val identity = identityOf(conversation.serverId)
+        val identity = identityOf(conversation)
         sidebarRowOf(
             conversation = conversation,
             kind = conversation.serverSessionId?.let { liveKinds[it] },

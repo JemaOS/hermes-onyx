@@ -55,6 +55,13 @@ internal val onyxSetupTerminalFrench: Map<String, String> = linkedMapOf(
 
     // Terminal, compte et clés.
     "Reconnect" to "Reconnecter",
+    // Les motifs d'un échec SSH, lus par `SshTerminal.sshReason` : ils se composent dans la ligne
+    // « Impossible de joindre le serveur : … », donc ils se **traduisent** ici, jamais recopiés.
+    "the address doesn't resolve" to "l’adresse ne se résout pas. Vérifiez-la dans les réglages.",
+    "the connection was refused" to "la connexion a été refusée. Vérifiez que le serveur tourne.",
+    "it didn't answer in time" to "il n’a pas répondu à temps.",
+    "the secure handshake failed" to "la poignée de main sécurisée a échoué.",
+    "the connection closed" to "la connexion s’est fermée.",
     "Copy This Phone's Key" to "Copier la clé de ce téléphone",
     "Trust this server?" to "Faire confiance à ce serveur ?",
     "Trust" to "Faire confiance",

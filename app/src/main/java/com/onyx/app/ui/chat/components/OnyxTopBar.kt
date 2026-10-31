@@ -46,7 +46,7 @@ import com.onyx.app.ui.design.LiveMark
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.SurfaceRole
-import com.onyx.app.ui.design.surfaceRole
+import com.onyx.app.ui.design.glassBarShell
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.ambientLoop
 import com.onyx.app.ui.design.GlassSurface
@@ -296,7 +296,14 @@ fun OnyxTopBar(
             // sans barreau — sur une page sombre la barre valait 1,058:1, donc rien. Les trois
             // surfaces flottantes de l'écran (en-tête, compositeur, onglets) partagent maintenant
             // la même marche et la même arête.
-            .surfaceRole(SurfaceRole.Bar)
+            // **La coque du rôle « barre », SANS son fond** ([glassBarShell], et non
+            // [surfaceRole]) : le rôle posait un **aplat opaque** ([OnyxSurfaces.surfaceHigh],
+            // `#FFFFFF` en clair) **sous** la vitre. Une vitre sur un aplat opaque n'a rien à révéler
+            // — elle transporte l'aplat, et l'en-tête se lisait comme une **carte blanche** posée sur
+            // la page : c'est le défaut du propriétaire, « normalement il doit y avoir l'effet liquid
+            // glass, la c'est pas le cas ». La forme, le filet de la maison et l'ombre unique
+            // restent : c'est eux qui détachent la barre. Le fond, c'est le **verre**.
+            .glassBarShell(SurfaceRole.Bar)
             // La forme vient de la surface, mais le rôle la fixe : une capsule, comme la barre
             // d'onglets juste en dessous.
             .liquidGlass(GlassSurface.THREAD_TOP_BAR, SurfaceRole.Bar.shape)

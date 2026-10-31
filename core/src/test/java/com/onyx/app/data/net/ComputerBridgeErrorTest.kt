@@ -246,7 +246,9 @@ class ComputerBridgeErrorTest {
     fun `une panne inconnue garde le repli et n'invente rien`() {
         val text = ComputerBridgeError.fromFailure(IllegalStateException("boom"), null, fr)
         assertTrue(text, text.startsWith("Impossible de joindre le pont"))
-        assertTrue(text, text.endsWith("boom"))
+        // Le **texte de l'exception** ne s'affiche plus : une panne qu'on ne sait pas nommer dit
+        // qu'on n'a pas pu joindre le pont, jamais « boom » ni un nom de classe.
+        assertFalse("le texte brut ne doit pas s'afficher : « $text »", text.contains("boom"))
     }
 
     @Test

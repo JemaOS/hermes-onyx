@@ -1,6 +1,8 @@
 package com.onyx.app.data.net
 
 import com.onyx.app.localization.OnyxLanguage
+import com.onyx.app.localization.OnyxLocalization
+import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -74,6 +76,17 @@ sealed class TransportError(message: String? = null, cause: Throwable? = null) :
             is Http -> status == 408 || status == 429 || status in 500..599
             else -> false
         }
+
+    /**
+     * Le **détail** porté par cette erreur, quand l'appelant sait déjà qu'il est de la maison.
+     *
+     * Un [TransportError] n'est **jamais** une exception brute : [userMessage] le rend en mots, et
+     * le détail — le corps d'un refus, la cause d'un flux coupé — ne se lit que là où la maison
+     * l'a écrit (`Rpc`, `Malformed` déjà traduit). C'est l'accès nommé à ce détail : ce que la
+     * règle interdit, c'est `Throwable.message` d'une exception **inconnue**, pas la donnée d'une
+     * erreur qu'on a construite.
+     */
+    val detail: String get() = message.orEmpty()
 
     /** Vrai si le serveur n'a jamais vu la requête. */
     val isConnectivity: Boolean
@@ -184,4 +197,31 @@ sealed class TransportError(message: String? = null, cause: Throwable? = null) :
             }
         }
     }
+}
+
+/**
+ * Le **message humain** d'un échec, quelle que soit l'exception — **jamais** `Throwable.message`.
+ *
+ * Le motif de la maison était `humanFailure(error)` : dès
+ * que l'exception n'était pas un [TransportError], c'est son texte **brut** qui partait à l'écran —
+ * `Expected URL scheme 'http' or 'https' but no scheme was found for /v1/models` (OkHttp, quand la
+ * base de l'API est vide), `java.net.UnknownHostException: Unable to resolve host …`,
+ * `Reading from a closed stream`. Une exception n'est pas un message : ce point **unique** traduit
+ * la **classe** de la panne, sans jamais recopier son texte.
+ *
+ * [fallback] dit ce que l'écran affichait quand il n'avait rien de mieux — « Impossible d'ouvrir
+ * ce dossier », « Impossible de se connecter » — et reste le message des pannes qu'on ne sait pas
+ * nommer. Le défaut reste « Impossible de contacter le serveur ».
+ */
+fun humanFailure(error: Throwable?, fallback: String? = null): String = when (error) {
+    null -> fallback ?: OnyxLocalization["Couldn't reach the server"]
+    is TransportError -> error.userMessage()
+    // L'ordre compte : les cinq premières sont des `IOException`, et la dernière n'en est pas une.
+    is UnknownHostException -> OnyxLocalization["Couldn't find that server. Check its address in Settings."]
+    is ConnectException -> OnyxLocalization["The server refused the connection. Check that it is running, and its address."]
+    is SocketTimeoutException -> OnyxLocalization["The server did not answer in time."]
+    is SSLException -> OnyxLocalization["The secure connection failed. Check the address, and whether it is http or https."]
+    is IllegalArgumentException -> OnyxLocalization["The server address is invalid. Fix it in Settings."]
+    is IOException -> fallback ?: OnyxLocalization["Couldn't reach the server"]
+    else -> fallback ?: OnyxLocalization["Couldn't reach the server"]
 }

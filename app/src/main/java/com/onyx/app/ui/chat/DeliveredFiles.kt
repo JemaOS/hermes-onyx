@@ -277,7 +277,8 @@ object DeliveredFiles {
         // le dit déjà en mots, dans la langue de l'app.
         error is TransportError -> error.userMessage()
 
-        else -> OnyxLocalization["Couldn't fetch it:"] + " " + (error.message ?: OnyxLocalization["unknown error"])
+        else -> OnyxLocalization["Couldn't fetch it:"] + " " +
+            com.onyx.app.data.net.humanFailure(error, OnyxLocalization["unknown error"])
     }
 
     /** Vrai quand rejouer la même demande a une chance d'aboutir (le bouton « Réessayer »). */

@@ -8,6 +8,7 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import com.onyx.app.data.net.humanFailure
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -226,7 +227,7 @@ class SpeechEngine(
                 sessionActive = false
                 needsFreshRecognizer = true
                 VoiceDiagnostics.note("voice: départ refusé (${error.javaClass.simpleName}: ${error.message})")
-                _state.update { it.copy(problem = error.message, isListening = false) }
+                _state.update { it.copy(problem = humanFailure(error), isListening = false) }
             }
     }
 

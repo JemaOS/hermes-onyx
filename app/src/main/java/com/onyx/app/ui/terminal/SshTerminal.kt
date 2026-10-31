@@ -1,5 +1,7 @@
 package com.onyx.app.ui.terminal
 
+import com.onyx.app.data.net.humanFailure
+import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -128,7 +130,7 @@ class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
                 problem != null -> throw problem
                 error is TerminalProblem -> throw error
                 error is UserAuthException -> throw TerminalProblem.KeyNotAccepted
-                else -> throw TerminalProblem.Unreachable(error.message ?: error.javaClass.simpleName)
+                else -> throw TerminalProblem.Unreachable(sshReason(error))
             }
         }
     }
@@ -171,7 +173,7 @@ class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
             writer.write(bytes)
             writer.flush()
         } catch (error: IOException) {
-            throw TerminalProblem.Unreachable(error.message ?: "the connection closed.")
+            throw TerminalProblem.Unreachable(sshReason(error))
         }
     }
 
@@ -206,6 +208,22 @@ class SshTerminal(private val knownHosts: TerminalKnownHostsStore) {
     }
 
     companion object {
+
+        /**
+         * Le motif d'un échec SSH, **en mots** — jamais le message de la bibliothèque.
+         *
+         * `TerminalProblem.Unreachable(reason)` compose « Impossible de joindre le serveur :
+         * <reason> » et finit **à l'écran** (`TerminalScreen`) : `error.message` d'SSHJ y laissait
+         * passer des phrases techniques (`Auth fail`, `java.net.ConnectException: …`). On lit donc
+         * la **classe** de la panne, et on ne recopie rien.
+         */
+        private fun sshReason(error: Throwable): String = when (error) {
+            is java.net.UnknownHostException -> OnyxLocalization["the address doesn't resolve"]
+            is java.net.ConnectException -> OnyxLocalization["the connection was refused"]
+            is java.net.SocketTimeoutException -> OnyxLocalization["it didn't answer in time"]
+            is javax.net.ssl.SSLException -> OnyxLocalization["the secure handshake failed"]
+            else -> OnyxLocalization["the connection closed"]
+        }
         /** Même commande que `SSHShell.startCommand` : `cd` sûr, puis le shell de login. */
         fun startCommand(folder: String): String {
             val quoted = "'" + folder.replace("'", "'\\''") + "'"

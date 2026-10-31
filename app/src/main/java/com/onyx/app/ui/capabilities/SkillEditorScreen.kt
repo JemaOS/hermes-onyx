@@ -1,5 +1,6 @@
 package com.onyx.app.ui.capabilities
 
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.OnyxSpace
 
 import com.onyx.app.ui.design.onyxPage
@@ -74,7 +75,7 @@ fun SkillEditorScreen(
         loading = true
         runCatching { ServeSkillsApi(ServeClient(server)).content(existing) }
             .onSuccess { content = it }
-            .onFailure { problem = (it as? TransportError)?.userMessage() ?: it.message }
+            .onFailure { problem = humanFailure(it) }
         loading = false
     }
 
@@ -94,7 +95,7 @@ fun SkillEditorScreen(
                             if (isNew) api.create(name.trim(), content, category.takeIf { it.isNotBlank() })
                             else api.saveContent(name.trim(), content)
                         }.onSuccess { onSaved() }
-                            .onFailure { problem = (it as? TransportError)?.userMessage() ?: it.message }
+                            .onFailure { problem = humanFailure(it) }
                         saving = false
                     }
                 },

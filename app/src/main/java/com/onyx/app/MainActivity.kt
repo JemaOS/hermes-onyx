@@ -95,6 +95,35 @@ class MainActivity : FragmentActivity() {
     /** Lit le texte d'un partage, d'`ACTION_ASSIST` ou d'une App Action, et le met de côté. */
     private fun intake(intent: Intent?) {
         if (intent == null) return
+        // **Le niveau de teinte des plaques, forcé par la passe de captures** (`onyx.verreTeinte` =
+        // 0..5, l'indice dans `GlassPlateTintCandidates`). C'est le levier qui permet de
+        // photographier **l'échelle entière** des teintes au repos depuis un seul APK. Absent — le
+        // cas de tous les lancements normaux, donc de ce que la personne voit — le verre garde le
+        // niveau **retenu**.
+        intent.getIntExtra(EXTRA_VERRE_TEINTE, -1).let { forced ->
+            if (forced in 0..5) com.onyx.app.ui.design.GlassPlateTintLevelForEvidence = forced
+        }
+        // **Le voile des plaques, forcé par la passe de captures** (`onyx.verreVoile`, en centièmes :
+        // 0 = la plaque ne pose aucune teinte, la bande montre le fond **réellement** derrière elle —
+        // c'est la sonde ; 100 = la plaque opaque, la référence « aucune traversée »). Absent — le cas
+        // de tous les lancements normaux — le verre garde la densité de sa mesure.
+        intent.getIntExtra(EXTRA_VERRE_VOILE, -1).let { forced ->
+            if (forced in 0..100) {
+                com.onyx.app.ui.design.GlassPlateVeilForEvidence = forced / 100f
+            } else if (forced == RESET) {
+                com.onyx.app.ui.design.GlassPlateVeilForEvidence = null
+            }
+        }
+        // **Le déplacement d'arête des plaques, forcé par la passe de captures**
+        // (`onyx.verreRefraction`, en dixièmes de dp : 0 = aucune déformation, 50 = 5 dp). C'est la
+        // paire « avec / sans lentille » qui **chiffre** la réfraction de bord par corrélation croisée.
+        intent.getIntExtra(EXTRA_VERRE_REFRACTION, -1).let { forced ->
+            if (forced in 0..200) {
+                com.onyx.app.ui.design.GlassPlateRefractionForEvidence = forced / 10f
+            } else if (forced == RESET) {
+                com.onyx.app.ui.design.GlassPlateRefractionForEvidence = null
+            }
+        }
         when (intent.action) {
             ACTION_VOICE -> ShareInbox.requestVoice(intent.getStringExtra("query"))
             ACTION_CAPTURE -> ShareInbox.requestCapture()
@@ -166,6 +195,39 @@ class MainActivity : FragmentActivity() {
     private companion object {
         /** L'action des App Actions et des raccourcis (`res/xml/shortcuts.xml`). */
         const val ACTION_ASK = "com.onyx.app.action.ASK"
+
+        /**
+         * Le niveau de teinte des plaques, pour la passe de captures (`onyx.verreTeinte`).
+         *
+         * Il ne sert **pas** à l'app en fonctionnement : c'est le levier de la preuve, au même titre
+         * que `GlassTierForcedForEvidence` dans la couche de dessin. Sans lui, le verre garde le
+         * niveau retenu.
+         */
+        const val EXTRA_VERRE_TEINTE = "onyx.verreTeinte"
+
+        /**
+         * **Le voile des plaques, pour la passe de captures** (`onyx.verreVoile`, en centièmes).
+         *
+         * Comme le précédent, il ne sert pas à l'app en fonctionnement : `0` montre le fond
+         * **réellement** derrière la plaque (la sonde qui remplit `glassPlateBackdrops`), `100` donne
+         * la plaque **opaque** (la référence « aucune traversée »). Absent, le verre garde la densité
+         * que sa mesure lui donne.
+         */
+        const val EXTRA_VERRE_VOILE = "onyx.verreVoile"
+
+        /**
+         * **Le déplacement d'arête des plaques, pour la passe de captures** (`onyx.verreRefraction`,
+         * en dixièmes de dp). `0` = aucune déformation ; la valeur livrée = 5 dp (50). La paire des
+         * deux est corrélée pour **chiffrer** la lentille en pixels.
+         */
+        const val EXTRA_VERRE_REFRACTION = "onyx.verreRefraction"
+
+        /**
+         * La valeur qui **retire** un forçage de la passe de captures : `-2` remet la constante à
+         * `null` (l'état **livré**). La bascule se fait alors **sans relancer l'app** — `singleTask`
+         * appelle `onNewIntent`, et les deux constantes sont des états Compose.
+         */
+        const val RESET = -2
 
         /** Le raccourci « parler à Onyx ». */
         const val ACTION_VOICE = "com.onyx.app.action.VOICE"

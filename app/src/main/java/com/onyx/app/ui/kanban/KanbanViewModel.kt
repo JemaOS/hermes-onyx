@@ -9,6 +9,7 @@ import com.onyx.app.data.net.KanbanLiveBoard
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeKanbanApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -131,7 +132,7 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: TransportError) {
                 _state.update { it.copy(loading = false, problem = error.userMessage()) }
             } catch (error: Exception) {
-                _state.update { it.copy(loading = false, problem = error.message ?: OnyxLocalization["Couldn't load the board"]) }
+                _state.update { it.copy(loading = false, problem = humanFailure(error, OnyxLocalization["Couldn't load the board"])) }
             } finally {
                 refreshing = false
                 if (againAfter) { againAfter = false; refresh(silent = true) }
@@ -215,7 +216,7 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
                 _state.update {
                     it.copy(
                         saving = false,
-                        problem = (error as? TransportError)?.userMessage() ?: error.message,
+                        problem = humanFailure(error),
                     )
                 }
             }
@@ -252,7 +253,7 @@ class KanbanViewModel(private val config: ServerConfig) : ViewModel() {
                 _state.update {
                     it.copy(
                         working = null,
-                        problem = (error as? TransportError)?.userMessage() ?: error.message,
+                        problem = humanFailure(error),
                     )
                 }
             }

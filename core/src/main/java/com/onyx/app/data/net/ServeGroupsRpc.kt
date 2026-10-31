@@ -188,7 +188,7 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
                 rpc.call("groups.disband", buildJsonObject { put("room_id", room) ; put("cancel_id", "disband-" + uuid()) }, CALL_TIMEOUT)
                 return
             } catch (error: TransportError) {
-                val stopping = error.message.orEmpty().contains("stopping", ignoreCase = true)
+                val stopping = error.detail.contains("stopping", ignoreCase = true)
                 if (!stopping || attempt == DISBAND_TRIES - 1) throw error
                 kotlinx.coroutines.delay(DISBAND_PAUSE)
             }

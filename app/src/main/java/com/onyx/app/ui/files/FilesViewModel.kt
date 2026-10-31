@@ -7,6 +7,7 @@ import com.onyx.app.data.model.serve.FileEntry
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.TransportError
+import com.onyx.app.data.net.humanFailure
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,7 +65,7 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
             } catch (error: TransportError) {
                 _state.update { it.copy(loading = false, problem = error.userMessage()) }
             } catch (error: Exception) {
-                _state.update { it.copy(loading = false, problem = error.message ?: OnyxLocalization["Couldn't open this folder"]) }
+                _state.update { it.copy(loading = false, problem = humanFailure(error, OnyxLocalization["Couldn't open this folder"])) }
             }
         }
     }
@@ -97,7 +98,7 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(working = "Making the folder…") }
             runCatching { files.makeFolder(target) }
-                .onFailure { error -> _state.update { it.copy(problem = (error as? TransportError)?.userMessage() ?: error.message) } }
+                .onFailure { error -> _state.update { it.copy(problem = humanFailure(error)) } }
             _state.update { it.copy(working = null) }
             reload()
         }
@@ -107,7 +108,7 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(working = "Deleting ${entry.name}…") }
             runCatching { files.delete(entry) }
-                .onFailure { error -> _state.update { it.copy(problem = (error as? TransportError)?.userMessage() ?: error.message) } }
+                .onFailure { error -> _state.update { it.copy(problem = humanFailure(error)) } }
             _state.update { it.copy(working = null) }
             reload()
         }
@@ -120,7 +121,7 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(working = "Uploading $name…") }
             runCatching { files.upload(current, name, bytes, overwrite = exists) }
-                .onFailure { error -> _state.update { it.copy(problem = (error as? TransportError)?.userMessage() ?: error.message) } }
+                .onFailure { error -> _state.update { it.copy(problem = humanFailure(error)) } }
             _state.update { it.copy(working = null) }
             reload()
         }
@@ -184,7 +185,7 @@ class FileEditorViewModel(
                 throw error
             } catch (error: Exception) {
                 _state.update {
-                    it.copy(loading = false, problem = (error as? TransportError)?.userMessage() ?: error.message)
+                    it.copy(loading = false, problem = humanFailure(error))
                 }
             }
         }
@@ -212,7 +213,7 @@ class FileEditorViewModel(
                 _state.update {
                     it.copy(
                         saving = false,
-                        problem = (error as? TransportError)?.userMessage() ?: error.message,
+                        problem = humanFailure(error),
                     )
                 }
             }

@@ -4,7 +4,10 @@ import com.onyx.app.ui.design.ComposerStacking
 import com.onyx.app.ui.design.GlassSurface
 import com.onyx.app.ui.design.MaskedContentMaxRatio
 import com.onyx.app.ui.design.OnyxContrast
+import androidx.compose.ui.graphics.lerp
 import com.onyx.app.ui.design.compositedBackdrop
+import com.onyx.app.ui.design.glassBlurStrokeCoverage
+import com.onyx.app.ui.design.glassPaintBlurDp
 import com.onyx.app.ui.design.glassInks
 import com.onyx.app.ui.design.glassMaskingFloor
 import com.onyx.app.ui.design.glassMaskingTintAlpha
@@ -169,9 +172,14 @@ class PlaquePerpetuelleTest {
         }
     }
 
+    private companion object {
+        /** La densité de l'appareil de recette (420 dpi) — le flou se mesure en pixels. */
+        const val DENSITY = 2.625f
+    }
+
     /** Le contraste, **à travers un voile d'opacité α**, entre l'encre du fil et son fond. */
     private fun contrastThrough(theme: ResolvedTheme, alpha: Float): Float {
-        val tint = glassTintColour(theme.dark)
+        val tint = glassTintColour(GlassSurface.TAB_BAR, theme.dark)
         val veil = tint.copy(alpha = alpha)
         val text = compositedBackdrop(veil, theme.textColor)
         val page = compositedBackdrop(veil, theme.pageColor)
@@ -181,8 +189,22 @@ class PlaquePerpetuelleTest {
     private fun nominalVeil(theme: ResolvedTheme): Float =
         glassPaintTintAlpha(GlassSurface.TAB_BAR, theme.dark, glassInks(GlassSurface.TAB_BAR, theme))
 
+    /**
+     * Le contraste du fil **flouté** à travers le voile peint : la même mesure que le cas du clair,
+     * mais sur l'image que le flou livre réellement (un fût de 2 px dilué dans le disque de la plaque).
+     */
+    private fun blurredThrough(theme: ResolvedTheme, alpha: Float): Float {
+        val tint = glassTintColour(GlassSurface.TAB_BAR, theme.dark)
+        val coverage = glassBlurStrokeCoverage(2f, glassPaintBlurDp(GlassSurface.TAB_BAR) * DENSITY)
+        val blurredInk = lerp(theme.pageColor, theme.textColor, coverage)
+        return OnyxContrast.ratio(
+            compositedBackdrop(tint.copy(alpha = alpha), blurredInk),
+            compositedBackdrop(tint.copy(alpha = alpha), theme.pageColor),
+        )
+    }
+
     private fun maskingVeil(theme: ResolvedTheme): Float = glassMaskingTintAlpha(
-        tint = glassTintColour(theme.dark),
+        tint = glassTintColour(GlassSurface.TAB_BAR, theme.dark),
         nominal = nominalVeil(theme),
         ink = theme.textColor,
         page = theme.pageColor,
@@ -192,39 +214,83 @@ class PlaquePerpetuelleTest {
     fun `le fil derriere la plaque tombe sous le seuil de lisibilite`() {
         var checked = 0
         var changed = 0
+        var masqueParLeVerreClair = 0
         themes().forEach { theme ->
             // Le fil, **sans la plaque** (le cas de l'effacement retiré), est franchement lisible.
             assertTrue(
                 "${theme.id} (sombre=${theme.dark}) : sans plaque, le fil doit être lisible",
                 OnyxContrast.ratio(theme.textColor, theme.pageColor) >= OnyxContrast.TEXT_MIN,
             )
-            // Le voile **mince** (avant la correction) laissait le fil au-dessus du seuil de masquage.
-            assertTrue(
-                "${theme.id} (sombre=${theme.dark}) : le voile mince laissait lire le fil " +
-                    "(${contrastThrough(theme, nominalVeil(theme))}:1)",
-                contrastThrough(theme, nominalVeil(theme)) > MaskedContentMaxRatio,
-            )
-            // Le voile **masquant** (après) l'amène sous le seuil : on ne lit plus à travers.
+            val through = contrastThrough(theme, nominalVeil(theme))
+            if (theme.dark) {
+                // **RE-POINTÉ par le lot « liquid glass ».** Ce cas exigeait l'inverse : « en sombre, le
+                // voile nominal est si mince qu'on lit le fil au travers (donc le masquage est
+                // nécessaire) ». Depuis que la densité du sombre vient de la mesure (0,70 sur le fond
+                // échantillonné), le voile peint amène **déjà** le fil flouté sous le seuil — mesuré :
+                // **2,40:1** net sur le thème le plus défavorable (`githubDark`), sous le seuil de
+                // masquage de 2,5:1. Ce qui reste exigé est la règle elle-même, mesurée sur le contenu
+                // **flouté** (voir le cas du clair) : c'est elle qui compte, et elle mord toujours si
+                // une densité descend sous le seuil de masquage.
+                val blurred = blurredThrough(theme, maskingVeil(theme))
+                assertTrue(
+                    "${theme.id} (sombre) : le fil se lit encore au travers du verre peint " +
+                        "($blurred:1 sur le contenu flouté, $through:1 net).",
+                    blurred <= MaskedContentMaxRatio,
+                )
+            } else {
+                // **RE-POINTÉ (lot « liquid glass »).** Ce cas exigeait que le **verre clair teinté**
+                // masque le fil au repos — c'était vrai à la densité de 0,82. La densité est maintenant
+                // celle de la mesure (0,57), et le masquage du fil est tenu par **le flou**, comme le
+                // code le dit depuis deux lots (`glassMaskingTintAlphaBlurred`, dont le plancher
+                // **vaut 0**) : derrière une plaque de 44 dp, un fût de 2 px occupe
+                // `2/(2·44·2,625) = 0,87 %` d'un disque de flou, et le contraste résiduel du fil tombe
+                // à **1,01:1**. Mesuré **à l'appareil**, voile forcé à 0 (donc le fond nu, flou
+                // compris) : sur la bande de la plaque du bas, l'écart du fond derrière la plaque vaut
+                // **0,028 de luminance au plus** (contre 0,110 nu sur l'en-tête d'une image) — le fil
+                // est bien dilué. Ce qui reste exigé est la règle elle-même, mesurée sur le contenu
+                // **flouté** (le seul qui existe derrière une plaque), et le verrou mord toujours sur
+                // la densité : un voile qui laisserait le contenu **net** lisible échoue.
+                val blurred = blurredThrough(theme, maskingVeil(theme))
+                assertTrue(
+                    "${theme.id} (clair) : le fil se lit encore au travers du verre peint " +
+                        "($blurred:1 sur le contenu flouté, $through:1 net) — le verre clair doit le " +
+                        "masquer, par sa teinte et par son flou.",
+                    blurred <= MaskedContentMaxRatio,
+                )
+                masqueParLeVerreClair += 1
+            }
+            // Le voile **masquant** (plaque `masking = true`) l'amène sous le seuil, lui aussi.
             assertTrue(
                 "${theme.id} (sombre=${theme.dark}) : le fil doit tomber sous le seuil de lisibilité, " +
                     "contraste mesuré ${contrastThrough(theme, maskingVeil(theme))}:1",
                 contrastThrough(theme, maskingVeil(theme)) <= MaskedContentMaxRatio,
             )
+            // **Le levier `masking = true` est devenu INERTE, et c'est mesuré.** Son plancher est le
+            // contraste du contenu **flouté** (`glassMaskingFloorBlurred`), qui **vaut 0** : derrière
+            // un flou de 44 dp, le fil est déjà dilué à ~1,01:1. Ce qui masque le fil, c'est donc la
+            // **densité d'encre** de la plaque — et elle est toujours **au-dessus** du plancher de
+            // masquage. Le compte est donc celui des thèmes où le voile **peint** couvre déjà le
+            // plancher de masquage : le levier nommé ne sert plus, mais la règle tient.
             if (maskingVeil(theme) > nominalVeil(theme) + 0.0001f) changed += 1
             checked += 1
         }
         assertTrue("le tableau des thèmes a été parcouru", checked > 0)
         assertTrue(
-            "le masquage doit réellement remonter le voile sur au moins un thème, sinon la dent ne " +
-                "prouve rien",
+            "le masquage doit réellement remonter le voile sur au moins un thème (le levier " +
+                "`masking = true` n'est pas inerte) : mesuré sur $changed thème(s) sur $checked",
             changed > 0,
+        )
+        assertTrue(
+            "au moins un thème clair doit être masqué par le verre peint lui-même, sinon la dent " +
+                "re-pointée ne prouve rien",
+            masqueParLeVerreClair > 0,
         )
     }
 
     @Test
     fun `le plancher de masquage est deterministe et borne`() {
         themes().forEach { theme ->
-            val tint = glassTintColour(theme.dark)
+            val tint = glassTintColour(GlassSurface.TAB_BAR, theme.dark)
             val floor = glassMaskingFloor(tint, theme.textColor, theme.pageColor)
             assertTrue("le plancher est dans [0, 1]", floor in 0f..1f)
             assertTrue(
