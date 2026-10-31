@@ -34,10 +34,12 @@ l'arbre d'intégration (rev 980, tête `945755b8`), et rejoué par le CI sur le 
 
 ## 2. La couverture d'une conversation, et la nappe de ton
 
-- **La crête de la couverture s'enroule**, et la **nappe de ton** est rendue par un dégradé réel
-  (fusions `ffb787f7`, `928065df`, `cf431d90` — `lot/brume-nappe`) ; le relevé avant/après, appareil
-  en main, est `qa/20261030-brume-courbure/`. Un verrou de source tient la matière
-  (`core/src/test/java/com/onyx/app/ui/design/FluideBrumeVerrouTest.kt`).
+- **La crête de la couverture s'enroule** et la **nappe de ton** est rendue par un vrai
+  **processeur d'ombrage** — `android.graphics.RuntimeShader` (AGSL) dans
+  `core/src/main/java/com/onyx/app/ui/design/FluideCover.kt`, avec un repli branché là où il ne
+  compile pas (`agslCompiles()`). Fusions `ffb787f7`, `928065df`, `cf431d90` (`lot/brume-nappe`) ;
+  le relevé avant/après, appareil en main, est `qa/20261030-brume-courbure/`. Un verrou de source
+  tient la matière (`core/src/test/java/com/onyx/app/ui/design/FluideBrumeVerrouTest.kt`).
 
 ## 3. Le bouton d'envoi visible dans les deux apparences
 
