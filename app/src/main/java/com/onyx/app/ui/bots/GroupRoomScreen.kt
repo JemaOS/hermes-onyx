@@ -97,6 +97,9 @@ import com.onyx.app.ui.design.ChatTab
 import com.onyx.app.ui.design.ChatTabBar
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
+import com.onyx.app.ui.design.TabFace
+import com.onyx.app.ui.design.botFaceColour
+import com.onyx.app.ui.design.rememberTabFaceCycleIndex
 import com.onyx.app.ui.design.GlassSurface
 import com.onyx.app.ui.design.PlaqueGeometry
 import com.onyx.app.ui.design.OnyxSocle
@@ -177,7 +180,36 @@ fun GroupRoomScreen(
         pageCount = { chatTabCount },
     )
     val scope = rememberCoroutineScope()
-    val tabAccent = theme.accent
+    // ---- Le repère-visage de la salle : il fait DÉFILER les visages de ses membres ----
+    // La demande du propriétaire, devant la capture d'un groupe : « faire passer le visage de un bot
+    // par un bot avec un temps pour passer à l'autre : 8 secondes ». Chaque membre de la salle est
+    // donc un visage de la file ([TabFaceCycle.PeriodMs] chacun, en boucle), et l'index montré vient
+    // d'**une seule** boucle ([rememberTabFaceCycleIndex]) — c'est lui qui donne **aussi** la teinte,
+    // si bien que le repère ne peut pas montrer un bot sous la couleur d'un autre.
+    //
+    // Une salle à moins de deux membres ne défile pas : `count <= 1` tient l'index à zéro et le
+    // repère garde son visage unique. C'est la règle, pas un cas particulier ajouté ici.
+    val roomMembers = room.members
+    val faceCycleIndex = rememberTabFaceCycleIndex(roomMembers.size)
+    val faceCycleFaces = remember(roomMembers, faceResolver, theme) {
+        roomMembers.map { member ->
+            TabFace(
+                key = member.profile,
+                accent = botFaceColour(member.profile, face(member.profile), theme),
+                content = {
+                    BotLook(
+                        name = member.profile,
+                        faceCode = face(member.profile),
+                        size = PlaqueGeometry.TabCell,
+                    )
+                },
+            )
+        }
+    }
+    // La teinte de la salle suit le visage montré (l'accent des onglets, du flux et des fichiers) :
+    // c'est `botFaceColour` de ce bot, donc l'identité ne se contredit pas. Sans membres, l'accent
+    // du thème reste — une salle vide n'a pas de visage à teinter.
+    val tabAccent = faceCycleFaces.getOrNull(faceCycleIndex)?.accent ?: theme.accent
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
     var feedFeedback by remember(panelKey) { mutableStateOf(panels.feedbackFor(panelKey)) }
     // Le sujet qu'un « Discuter » du flux écrit dans le champ : le brouillon vit dans le
@@ -527,6 +559,12 @@ fun GroupRoomScreen(
                         plate = true,
                         faceIndex = faceIndex,
                         faceLabel = room.name,
+                        // **Les visages des membres défilent** sur le repère, un bot après l'autre
+                        // (`faceCycle`), et l'index courant — une seule boucle — donne aussi la
+                        // teinte. `face` reste le repli d'une salle sans membre : rien à faire
+                        // défiler, donc le repère ne peint qu'un visage.
+                        faceCycle = faceCycleFaces,
+                        faceCycleIndex = faceCycleIndex,
                         face = {
                             RoomFaceStack(
                                 members = room.members,

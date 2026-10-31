@@ -132,6 +132,7 @@ import com.onyx.app.ui.design.TabSwipeEdgeGuards
 import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.BotLook
 import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.panePlate
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
 import com.onyx.app.ui.design.GlassSurface
@@ -1091,8 +1092,15 @@ fun ChatScreen(
                 },
                 onDiscuss = { card -> discussAbout(card.title) },
                 onCompose = { openChatTab() },
+                // **LE CONTENU DE L'ONGLET EST POSÉ SUR UNE PLAQUE DE VERRE** qui se déplace avec
+                // lui : c'est la demande du propriétaire — « quand je clique par exemple Flux ou
+                // Fichiers je devrais avoir comme une plaque en verre que je peux faire glisser de
+                // gauche a droite ». La plaque vit **dans** la page du pageur, donc c'est le pageur
+                // qui la translate : elle suit le doigt sans geste à elle, et son arête reste visible
+                // **pendant** le mouvement (voir les images prises à mi-course dans le rapport).
                 modifier = Modifier.fillMaxSize()
-                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane),
+                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane)
+                    .panePlate(theme),
             )
 
             2 -> ChatFilesPane(
@@ -1108,8 +1116,10 @@ fun ChatScreen(
                         file.mime.ifBlank { FileViewers.mimeFor(file.name) },
                     )
                 },
+                // La même plaque de verre, sur l'onglet Fichiers.
                 modifier = Modifier.fillMaxSize()
-                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane),
+                    .padding(top = glassTopInset, bottom = glassBottomInset + floatLane)
+                    .panePlate(theme),
             )
 
             }

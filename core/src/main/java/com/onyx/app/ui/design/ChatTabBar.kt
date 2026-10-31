@@ -2,6 +2,7 @@ package com.onyx.app.ui.design
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -518,6 +520,138 @@ fun plaqueInk(theme: ResolvedTheme, selected: Boolean, isFace: Boolean): Color {
  */
 const val TabSelectionTint: Float = 0.16f
 
+// ---------------------------------------------------------------------------------------------
+// Le défilement des visages — un bot par visage, huit secondes chacun
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * **Le rythme du défilement des visages** sur le repère du bas, quand la conversation est un
+ * **groupe** : un bot après l'autre, [PeriodMs] chacun, en boucle.
+ *
+ * C'est une **règle pure** — elle reçoit un temps écoulé, un nombre de visages et le réglage du
+ * système, et rend l'index montré — donc le chiffre que le verrou interroge et le chiffre que
+ * l'écran emploie sont le **même appel**. Rien n'est tiré au sort : rouvrir la salle redonne la
+ * même suite, dans le même ordre.
+ *
+ * **Un seul visage ne défile pas** : `count <= 1` rend toujours `0`, donc une conversation à un bot
+ * garde son visage unique — un repère qui tournerait sur lui-même n'aurait rien à montrer.
+ *
+ * **« Réduire les animations » fige le visage** ([shownIndex], `reduceMotion = true`) : l'index
+ * retombe sur le **premier** visage et n'en bouge plus. C'est la règle de la maison pour toute
+ * animation ([LiveBotFace] s'arrête au lieu de ralentir ; [MotionFamily.spec] rend `snap()`) : un
+ * visage qui continuerait de défiler sous le réglage est exactement ce que le réglage interdit. On
+ * garde le **premier membre** — celui que l'en-tête de la salle montre en tête de son empilement —,
+ * parce qu'il est **déterministe** : la salle rouverte montre le même visage, sans dépendre d'une
+ * horloge.
+ */
+object TabFaceCycle {
+
+    /** **Huit secondes** par visage : le temps demandé par le propriétaire, mot pour mot. */
+    const val PeriodMs: Long = 8_000L
+
+    /**
+     * Le visage montré à l'instant [elapsedMs] écoulé, pour [count] visages. La suite est
+     * `0, 1, … count-1, 0, …` : chaque visage tient [PeriodMs], puis passe la main au suivant.
+     */
+    fun indexAt(elapsedMs: Long, count: Int): Int {
+        if (count <= 1) return 0
+        val t = if (elapsedMs < 0L) 0L else elapsedMs
+        return ((t / PeriodMs) % count).toInt()
+    }
+
+    /**
+     * L'index montré selon le réglage : **figé sur le premier visage** sous « Réduire les
+     * animations », sinon le défilement de [indexAt].
+     */
+    fun shownIndex(elapsedMs: Long, count: Int, reduceMotion: Boolean): Int =
+        if (reduceMotion) 0 else indexAt(elapsedMs, count)
+}
+
+/**
+ * **L'index du visage montré** sur le repère d'un groupe, tenu par la boucle de huit secondes.
+ *
+ * Un seul visage, ou « Réduire les animations » : la boucle **ne démarre pas** (le court-circuit
+ * `reduceMotion) return 0`) et l'index reste le premier — le repère garde alors son visage unique.
+ * Sinon l'index avance d'un cran toutes les [TabFaceCycle.PeriodMs] millisecondes, et repart à zéro
+ * après le dernier : c'est le seul compteur du repère, donc la file des visages et la teinte qui
+ * l'accompagne ne peuvent pas se désynchroniser.
+ */
+@Composable
+fun rememberTabFaceCycleIndex(count: Int): Int {
+    val reduceMotion = LocalReduceMotion.current
+    if (count <= 1 || reduceMotion) return 0
+    var index by remember(count) { mutableIntStateOf(0) }
+    LaunchedEffect(count, reduceMotion) {
+        if (count <= 1 || reduceMotion) {
+            index = 0
+            return@LaunchedEffect
+        }
+        while (true) {
+            delay(TabFaceCycle.PeriodMs)
+            index = (index + 1) % count
+        }
+    }
+    return index
+}
+
+/**
+ * Un visage du repère **quand ils défilent** : ce que le repère peint, et la **teinte** qui va
+ * avec — la couleur d'identité du bot (`botFaceColour`), c'est-à-dire celle qui le désigne ailleurs.
+ * Le visage et sa teinte voyagent donc ensemble : le repère ne peut pas montrer un bot sous la
+ * couleur d'un autre.
+ */
+class TabFace(
+    /** Ce qui identifie ce visage (le profil du bot) — une clé de suite, jamais un tirage. */
+    val key: Any,
+    /** La teinte de ce visage : le repère la prend tant que ce visage est montré. */
+    val accent: Color,
+    /** Le visage lui-même, dessiné par l'appelant (il seul connaît la conversation). */
+    val content: @Composable () -> Unit,
+)
+
+/**
+ * **Le visage montré, qui passe d'un bot à l'autre** sans trou ni saut : l'ancien reste dessous
+ * pendant que le nouveau se pose par-dessus, en fondu — la **famille de mouvement de la barre**
+ * ([MotionFamily.Tab], la même courbe et la même durée que la capsule : rien n'est inventé ici pour
+ * l'occasion). La boîte est de taille **constante**, donc la transition ne déplace rien — le repère
+ * ne saute pas et le libellé voisin ne bouge pas.
+ *
+ * Un seul visage (ou aucun) : `faces.size <= 1`, rien ne défile, le premier est peint tel quel.
+ */
+@Composable
+private fun CycledFace(
+    faces: List<TabFace>,
+    index: Int,
+    modifier: Modifier = Modifier,
+) {
+    if (faces.size <= 1) {
+        faces.firstOrNull()?.content?.invoke()
+        return
+    }
+    val safeIndex = index.coerceIn(0, faces.lastIndex)
+    // La spec lue **ici** (elle lit le réglage) ; la coroutine ne peut pas appeler un composable.
+    val spec = MotionFamily.Tab.animated<Float>()
+    // L'ancien visage reste dessous tant que le nouveau se pose : jamais de trou, jamais de saut.
+    val from = remember { mutableIntStateOf(safeIndex) }
+    val to = remember { mutableIntStateOf(safeIndex) }
+    val alpha = remember { Animatable(1f) }
+    LaunchedEffect(safeIndex) {
+        if (safeIndex == to.intValue) return@LaunchedEffect
+        from.intValue = to.intValue
+        to.intValue = safeIndex
+        alpha.snapTo(0f)
+        alpha.animateTo(1f, spec)
+    }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        if (alpha.value < 1f && from.intValue != to.intValue) {
+            faces[from.intValue].content()
+        }
+        Box(modifier = Modifier.alpha(alpha.value), contentAlignment = Alignment.Center) {
+            faces[to.intValue].content()
+        }
+    }
+}
+
 /**
  * La barre des cinq onglets, en verre liquide.
  *
@@ -561,6 +695,19 @@ fun ChatTabBar(
     faceLabel: String? = null,
     /** Le visage lui-même, dessiné par l'appelant (il seul connaît la conversation). */
     face: (@Composable () -> Unit)? = null,
+    /**
+     * **Les visages qui défilent** sur le repère — une conversation de **groupe** : un bot par
+     * visage, [TabFaceCycle.PeriodMs] chacun, en boucle. Vide (ou un seul visage) : **rien ne
+     * défile**, et c'est [face] qui est peint — une conversation à un bot ne tourne pas. Le repère
+     * garde alors son visage unique, et son appui ouvre la même chose qu'aujourd'hui.
+     */
+    faceCycle: List<TabFace> = emptyList(),
+    /**
+     * L'index montré dans [faceCycle], tenu par **l'appelant** ([rememberTabFaceCycleIndex]) : une
+     * seule boucle pour la barre et pour ce qui teinte le reste de l'écran, donc le visage et sa
+     * teinte ne peuvent pas se désynchroniser.
+     */
+    faceCycleIndex: Int = 0,
 ) {
     val theme = LocalOnyxTheme.current
     // La forme vient de la **table** : la capsule de `TAB_BAR`. La recopier ici, c'est exactement
@@ -583,6 +730,12 @@ fun ChatTabBar(
     // retirée sur la foi d'un brief qui la croyait absente de la planche — la planche gagne.)
     val pill = PlaqueGeometry.activePill(theme)
     val pillLine = PlaqueGeometry.activePillLine(theme)
+    // **La teinte du repère suit le visage montré.** Quand les visages défilent, l'`accent` de la
+    // conversation n'est plus une seule couleur : c'est celle du visage **à l'écran**. Un repère qui
+    // montrerait le bot A sous la couleur du bot B contredirait l'identité — l'accent et le visage
+    // viennent donc du **même** élément de [faceCycle]. Sans défilement, l'accent de l'appelant est
+    // rendu tel quel (une conversation à un bot garde exactement sa couleur).
+    val shownAccent = faceCycle.getOrNull(faceCycleIndex)?.accent ?: accent
     val density = LocalDensity.current
     val reduceMotion = LocalReduceMotion.current
     val measurer = rememberTextMeasurer()
@@ -687,14 +840,14 @@ fun ChatTabBar(
             // encre** — l'état « c'est celui-là » —, les autres l'encre secondaire du thème, et le
             // **repère-visage** l'encre **pleine** (le blanc de la maison en sombre : le
             // propriétaire le demande explicitement, son contenu partait en noir sur le fond sombre).
-            val isFace = faceIndex == index && face != null
+            val isFace = faceIndex == index && (face != null || faceCycle.isNotEmpty())
             val ink = plaqueInk(theme, selected, isFace)
             val label = OnyxLocalization[
                 // **Le repère-visage porte son propre libellé.** « Onyx » nomme **qui** répond — pas
                 // la page qu'il ouvre. Le libellé de l'onglet reste dans le dictionnaire central et
                 // continue de nommer la page pour le reste de l'app (le lecteur d'écran de la page,
                 // l'état gardé par conversation).
-                if (faceIndex == index && face != null) (faceLabel ?: ChatTab.FACE_LABEL) else tab.label
+                if (isFace) (faceLabel ?: ChatTab.FACE_LABEL) else tab.label
             ]
 
             // ---------------------------------------------------------------------------------
@@ -839,7 +992,7 @@ fun ChatTabBar(
                     modifier = Modifier.size(PlaqueGeometry.TabCell),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (faceContent != null && faceIndex == index) {
+                    if (isFace) {
                         Box(
                             modifier = Modifier
                                 .size(PlaqueGeometry.TabCell)
@@ -851,7 +1004,14 @@ fun ChatTabBar(
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
-                            faceContent()
+                            // **Un groupe fait défiler ses visages ; un fil à un bot peint le sien.**
+                            // L'anneau clair ne bouge pas : c'est le visage **dedans** qui passe d'un
+                            // bot à l'autre, en fondu, sans déplacer le repère.
+                            if (faceCycle.isEmpty()) {
+                                faceContent?.invoke()
+                            } else {
+                                CycledFace(faces = faceCycle, index = faceCycleIndex)
+                            }
                         }
                     } else {
                         Image(
@@ -876,8 +1036,8 @@ fun ChatTabBar(
                     if (count > 0) {
                         CounterBadge(
                             count = count,
-                            fill = accent,
-                            contentColor = readableInk(accent, accent, ICON_CONTRAST_MIN),
+                            fill = shownAccent,
+                            contentColor = readableInk(shownAccent, shownAccent, ICON_CONTRAST_MIN),
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .offset(x = -BadgeGeometry.AnchorInset, y = BadgeGeometry.AnchorInset),

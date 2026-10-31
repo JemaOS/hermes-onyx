@@ -71,7 +71,10 @@ class TopBarCornerTest {
         )
         assertTrue(
             "la table doit porter une forme arrondie pour la barre du haut",
-            glass.contains("THREAD_TOP_BAR(GlassBlurDefaultDp, GlassInk.TEXT, 4f, RoundedCornerShape(GlassBarCorner), lit = false)"),
+            glass.contains(
+                "THREAD_TOP_BAR(GlassBlurDefaultDp, GlassInk.TEXT, 4f, RoundedCornerShape(GlassBarCorner), " +
+                    "lit = false, plateEdge = true)",
+            ),
         )
     }
 
