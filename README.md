@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-3597%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-3609%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -153,12 +153,21 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## Ce que 1.0.0+980 apporte
+## Ce que 1.0.0+988 apporte
 
 Chaque point ci-dessous cite le commit, le fichier ou la mesure qui le porte — rien n'est annoncé ici
 qui ne puisse être montré. Le détail complet est dans
-[`releases/NOTES-1.0.0+980.md`](releases/NOTES-1.0.0+980.md).
+[`releases/NOTES-1.0.0+988.md` (et celui de la 980)](releases/NOTES-1.0.0+980.md).
 
+- **Le verre des plaques est peint** — le **grain** de la planche, qui n'était **jamais peint**
+  (mesuré σ 3,199), et son **arête** de 1,5 dp (**3,0:1** en sombre, contre 1,20:1 avant) ; la plaque
+  de contenu des onglets **Flux** et **Fichiers** se pose et **suit le doigt** pendant le glissement
+  (`GlassSurface.PANE`, `panePlate`). L'encre posée sur la plaque reste au-dessus du seuil de la
+  maison : **4,73:1 en clair, 4,79:1 en sombre** pour un minimum de 4,5:1 (`VerrePlaquesVerrouTest`).
+- **Les visages des bots défilent dans une conversation de groupe** — le repère du bas présente les
+  bots du groupe l'un après l'autre, la teinte suivant le visage affiché, et le défilement **se fige**
+  quand « Réduire les animations » est actif ; une conversation à un seul bot ne défile pas
+  (`VisagesGroupeVerrouTest`).
 - **Le certificat de signature a changé** — `1.0.0+980` est signé par un **nouveau certificat** ; une
   mise à jour en place depuis `1.0.0+972` (ou une version antérieure) est **refusée** par Android. Il
   faut **désinstaller l'ancienne application** avant d'installer celle-ci (voir *Install*).
@@ -192,7 +201,7 @@ qui ne puisse être montré. Le détail complet est dans
 - **Les retours corrigés** — la page quittée n'est plus perdue au sortir du volet, et un banc mesure les
   trois chemins (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
 
-**3597 tests, 0 échec.** Les trois paquets — téléphone, Android Auto et Wear OS — sont fournis dans
+**3609 tests, 0 échec.** Les trois paquets — téléphone, Android Auto et Wear OS — sont fournis dans
 cette release.
 
 ## What 1.0.0+547 brought
@@ -312,16 +321,16 @@ before installing.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+980-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
-| `Hermes-Onyx-1.0.0+980-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+980-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+988-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `Hermes-Onyx-1.0.0+988-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+988-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**The signing certificate has changed — you must uninstall first.** `1.0.0+980` is signed with a
-**new key**, different from every release before it. Android therefore **refuses an in-place update**
-from `1.0.0+972`, `1.0.0+547`, `1.0.0+546` or `1.0.0`: **uninstall the old app, then install this
-one.** Nothing is lost from your server — scan your setup code again after the reinstall.
+**The signing certificate changed with `1.0.0+980`.** `1.0.0+988` is signed with that same
+**new key**, so **an update from `1.0.0+980` is a normal in-place update.** Coming from `1.0.0+972`,
+`1.0.0+547`, `1.0.0+546` or `1.0.0` — releases signed with the previous key — Android **refuses the
+in-place update**: **uninstall the old app, then install this one.** Nothing is lost from your server — scan your setup code again after the reinstall.
 
-The three names above are the exact asset names on the releases. `1.0.0+980` carries a
+The three names above are the exact asset names on the releases. `1.0.0+988` carries a
 `SHA256SUMS` file with the SHA-256 of every package it ships. Check your download against
 it:
 
@@ -386,7 +395,7 @@ copy of the integration tree, so its git history cannot carry the number.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**3597 tests, 0 failures** — 1661 in `:core`, 1936 in `:app`. Plain JUnit 4, no
+**3609 tests, 0 failures** — 1661 in `:core`, 1948 in `:app`. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
