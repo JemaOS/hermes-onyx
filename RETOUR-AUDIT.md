@@ -9,7 +9,7 @@ et après, avec le titre de l'écran et l'élément en haut de la liste.
 | App | **Hermes Onyx** (paquet `com.onyx.app`), worktree neuf `onyx-routes-retour` (base `0bebdd61` = `1.0.0+467`) |
 | Commits du lot | `8059febd` (le retour), `a7fa372b` (le pliage) ; les relevés suivent (l'APK mesuré est celui d'`a7fa372b`, mêmes sources) |
 | APK mesuré | **1.0.0+469** (`versionCode 469`) — `sha256 d52debee9c07436a64fb06f8f37b63e5998633385cbcd975cdfa00759c14eb37` |
-| Appareil | `emulator-5580` (AVD `redde36`, API 36, x86_64) — **jamais `emulator-5558`**, tué à la fin |
+| Appareil | `emulator-5580` (AVD `onyx36`, API 36, x86_64) — **jamais `emulator-5558`**, tué à la fin |
 | Une colonne | `1080x2400 @420` = **411 dp** — le téléphone, le pliable **replié** |
 | Deux panneaux | `2156x2344 @400` = **862 dp** — le pliable **déplié** (la géométrie du propriétaire) |
 | Serveur | passerelle Hermes réelle `http://10.0.2.2:8650` (profil actif), posée par `qa/20261027-retour-routes/inject.py` |

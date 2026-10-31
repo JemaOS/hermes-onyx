@@ -63,10 +63,10 @@ android {
         // la valeur retenue est écrite dans le rapport de la fusion. Sans la variable, la règle
         // du compte de commits reste la seule source — les deux branches de la fusion ne peuvent
         // donc pas se marcher dessus en silence.
-        versionCode = providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
-            ?: ((providers.gradleProperty("onyx.versionBaseline").orNull?.toIntOrNull() ?: 0) +
-                (providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
-                    .standardOutput.asText.get().trim().toIntOrNull() ?: 1))
+        versionCode = providers.gradleProperty("onyx.versionCode").orNull?.toIntOrNull()
+            ?: providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
+            ?: providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+                .standardOutput.asText.get().trim().toIntOrNull() ?: 1
         versionName = "1.0.0+" + versionCode
         // Le jeton du service vocal pour la version de test (voir plus haut `voiceToken`).
         buildConfigField("String", "VOICE_TOKEN", "\"" + voiceToken + "\"")

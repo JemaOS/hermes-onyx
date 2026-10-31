@@ -38,10 +38,10 @@ android {
         minSdk = 26
         targetSdk = 36
         // Départage de fusion : voir `app/build.gradle.kts` (`ONYX_VERSION_CODE`).
-        versionCode = providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
-            ?: ((providers.gradleProperty("onyx.versionBaseline").orNull?.toIntOrNull() ?: 0) +
-                (providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
-                    .standardOutput.asText.get().trim().toIntOrNull() ?: 1))
+        versionCode = providers.gradleProperty("onyx.versionCode").orNull?.toIntOrNull()
+            ?: providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
+            ?: providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+                .standardOutput.asText.get().trim().toIntOrNull() ?: 1
         versionName = "1.0.0+" + versionCode
     }
 
