@@ -262,47 +262,47 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 ## Screenshots
 
-The gallery is the **`1.0.0+547`** build — the **dark theme** for the whole set, then the
-**light theme** on the same screens. It has **not** been re-shot for this release: the images below
-show the build named in this paragraph, not `1.0.0+980`. The naming convention and the list of
-expected shots are in
-[`docs/screenshots/README.md`](docs/screenshots/README.md). Every capture was taken on an emulator, against a test server holding demo data:
-no real machine, no real conversation, no token. The **status bar is cropped out** of every shot and the
-demo server's **address is blurred**.
+The gallery is the **`1.0.0+976`** build (`versionCode 976`) — and it shows **both appearances**:
+the **dark theme** (the default, file name without a suffix) and the **light theme** (the same
+screens, file name with the `-light` suffix), each pair taken on the **same** build, screen for
+screen. The naming convention and the list of the files actually present are in
+[`docs/screenshots/README.md`](docs/screenshots/README.md). Every capture was taken on an emulator,
+against a test server holding demo data: no real machine, no real conversation, no token. The
+**status bar is cropped out** of every shot and the demo server's **address is blurred** (the panel
+header that prints it is cropped off).
 
-| Chat | Feed | Files | Files — filters | File viewer |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-files-filters.png" width="100%"> | <img src="docs/screenshots/file-viewer.png" width="100%"> |
+Each table below reads **Dark** then **Light** down the same columns: the light twin sits directly
+under its dark counterpart.
 
-| Ideas | Goals | Code sessions | Kanban | Models |
-|:---:|:---:|:---:|:---:|:---:|
+**The conversation.**
+| | Chat | Feed | Files | Files — filters | File viewer |
+|:--|:---:|:---:|:---:|:---:|:---:|
+| **Dark** | <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-files-filters.png" width="100%"> | <img src="docs/screenshots/file-viewer.png" width="100%"> |
+| **Light** | <img src="docs/screenshots/conversation-chat-light.png" width="100%"> | <img src="docs/screenshots/conversation-feed-light.png" width="100%"> | <img src="docs/screenshots/conversation-files-light.png" width="100%"> | <img src="docs/screenshots/conversation-files-filters-light.png" width="100%"> | <img src="docs/screenshots/file-viewer-light.png" width="100%"> |
 
-| Voice — listening | Voice — ready | Computer | Terminal | Conversation actions |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/voice-listening.png" width="100%"> | <img src="docs/screenshots/voice-ready.png" width="100%"> | <img src="docs/screenshots/computer.png" width="100%"> | <img src="docs/screenshots/terminal.png" width="100%"> | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> |
+**Actions, sessions and the machine.**
+| | Conversation actions | Code sessions | Kanban | Models | Computer |
+|:--|:---:|:---:|:---:|:---:|:---:|
+| **Dark** | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> | <img src="docs/screenshots/kanban.png" width="100%"> | <img src="docs/screenshots/models.png" width="100%"> | <img src="docs/screenshots/computer.png" width="100%"> |
+| **Light** | <img src="docs/screenshots/conversation-actions-sheet-light.png" width="100%"> | <img src="docs/screenshots/code-sessions-light.png" width="100%"> | <img src="docs/screenshots/kanban-light.png" width="100%"> | <img src="docs/screenshots/models-light.png" width="100%"> | <img src="docs/screenshots/computer-light.png" width="100%"> |
 
-| Settings — gateway | Settings — voice & notifications | Settings — about |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/settings-connection.png" width="100%"> | <img src="docs/screenshots/settings-voice-notifications.png" width="100%"> | <img src="docs/screenshots/settings-about.png" width="100%"> |
+**Voice, terminal and settings.**
+| | Voice — listening | Voice — ready | Terminal | Settings — gateway | Settings — about |
+|:--|:---:|:---:|:---:|:---:|:---:|
+| **Dark** | <img src="docs/screenshots/voice-listening.png" width="100%"> | <img src="docs/screenshots/voice-ready.png" width="100%"> | <img src="docs/screenshots/terminal.png" width="100%"> | <img src="docs/screenshots/settings-connection.png" width="100%"> | <img src="docs/screenshots/settings-about.png" width="100%"> |
+| **Light** | <img src="docs/screenshots/voice-listening-light.png" width="100%"> | <img src="docs/screenshots/voice-ready-light.png" width="100%"> | <img src="docs/screenshots/terminal-light.png" width="100%"> | <img src="docs/screenshots/settings-connection-light.png" width="100%"> | <img src="docs/screenshots/settings-about-light.png" width="100%"> |
 
-| Light — Chat | Light — Feed | Light — Settings |
-|:---:|:---:|:---:|
+**Voice &amp; notifications, the panel, and the screens.**
+| | Settings — voice &amp; notifications | The panel, over the thread on a phone | The panel, docked beside the thread | Capabilities | Archive |
+|:--|:---:|:---:|:---:|:---:|:---:|
+| **Dark** | <img src="docs/screenshots/settings-voice-notifications.png" width="100%"> | <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> | <img src="docs/screenshots/archive.png" width="100%"> |
+| **Light** | <img src="docs/screenshots/settings-voice-notifications-light.png" width="100%"> | <img src="docs/screenshots/conversations-light.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar-light.png" width="100%"> | <img src="docs/screenshots/capabilities-light.png" width="100%"> | <img src="docs/screenshots/archive-light.png" width="100%"> |
 
-| The panel, over the thread on a phone | The panel, docked beside the thread |
-|:---:|:---:|
-| <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar.png" width="100%"> |
-
-| The Archive screen | Capabilities — Skills and MCP |
-|:---:|:---:|
-| <img src="docs/screenshots/archive.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> |
-
-Every capture here is **`1.0.0+547`** — the build it was taken from — and each shot is labelled with
+Every capture here is **`1.0.0+976`** — the build it was taken from — and each shot is labelled with
 its build in [`docs/screenshots/README.md`](docs/screenshots/README.md). The bot
 roster and the name on the cards are read from the server — the app lists the profiles it exposes, it
-never invents one. The bot roster and the name on the cards are read from the server — the
-app lists the profiles it exposes, it never invents one — and the name on the panel (`Onyx`, and
-`homelab` in the docked shot) with the letter chip derived from it are the test double's, not a real
-machine.
+never invents one — and the name on the panel (`Onyx`) with the letter chip derived from it is the
+test double's, not a real machine.
 
 ## Install
 
