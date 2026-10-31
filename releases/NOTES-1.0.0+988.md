@@ -19,6 +19,9 @@ normalement. Depuis une version **antérieure à la `1.0.0+980`**, il faut **dé
 installer** — le certificat de signature a changé entre-temps, et Android refuse une mise à jour
 d'un paquet signé par un autre certificat. Le serveur, lui, n'a rien perdu ; rescannez votre code
 de configuration après réinstallation.
+**Recette :** `3609 tests, 0 échec` — `:core:testDebugUnitTest` + `:app:testDebugUnitTest`
+(**1661** dans `:core`, **1948** dans `:app`, 0 échec, 0 erreur), relevé sur les rapports XML de
+l'arbre d'intégration (tête `d7d84bdb`, rev 988), et rejoué par le CI sur le commit publié.
 
 ---
 
