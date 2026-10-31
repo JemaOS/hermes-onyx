@@ -17,7 +17,6 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
   <img src="docs/screenshots/conversation-feed.png" width="19%" alt="The Feed tab of a conversation" />
   <img src="docs/screenshots/voice-listening.png" width="19%" alt="Hands-free voice, listening" />
   <img src="docs/screenshots/code-sessions.png" width="19%" alt="Code sessions, with branch and status" />
-  <img src="docs/screenshots/conversation-goals.png" width="19%" alt="Goals, kept on the phone" />
 </p>
 
 </div>
@@ -271,7 +270,6 @@ demo server's **address is blurred**.
 
 | Ideas | Goals | Code sessions | Kanban | Models |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/conversation-ideas.png" width="100%"> | <img src="docs/screenshots/conversation-goals.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> | <img src="docs/screenshots/kanban.png" width="100%"> | <img src="docs/screenshots/models.png" width="100%"> |
 
 | Voice — listening | Voice — ready | Computer | Terminal | Conversation actions |
 |:---:|:---:|:---:|:---:|:---:|
@@ -283,7 +281,6 @@ demo server's **address is blurred**.
 
 | Light — Chat | Light — Feed | Light — Settings |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/conversation-chat-light.png" width="100%"> | <img src="docs/screenshots/conversation-feed-light.png" width="100%"> | <img src="docs/screenshots/settings-connection-light.png" width="100%"> |
 
 | The panel, over the thread on a phone | The panel, docked beside the thread |
 |:---:|:---:|

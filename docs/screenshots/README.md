@@ -8,9 +8,8 @@ l'état courant.
 ## Convention de nommage (déjà en place dans le dépôt)
 
 - **Pas de suffixe = thème sombre** (le thème par défaut). Ex. `conversation-chat.png`.
-- **Suffixe `-light` = thème clair**, même écran. Ex. `conversation-chat-light.png`.
 - Casse : minuscules, mots séparés par un tiret.
-- Un écran, deux fichiers : `<écran>.png` et `<écran>-light.png`.
+- **Une seule apparence pour toute la galerie : la sombre.** Aucun fichier `-light`.
 
 ## Règles de prise de vue
 
