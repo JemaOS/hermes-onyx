@@ -49,7 +49,7 @@ class SetupCodeAllInOneTest {
     @Test
     fun `un ancien lien qui na que api et key marche toujours`() {
         val offer = SetupCodeOffer.fromText(
-            "onyx-legacy://connect?api=https%3A%2F%2Fgateway.example&key=old-key&use=api&v=1",
+            "${SetupCode.LEGACY_SCHEME}://connect?api=https%3A%2F%2Fgateway.example&key=old-key&use=api&v=1",
         )
 
         assertEquals(SetupCodeParseError.NONE, offer?.error)
@@ -65,7 +65,7 @@ class SetupCodeAllInOneTest {
     @Test
     fun `un ancien lien dashboard user et mot de passe marche toujours`() {
         val offer = SetupCodeOffer.fromText(
-            "onyx-legacy://connect?dashboard=https%3A%2F%2Fhermes.example&user=alice&password=s3cret&use=dashboard",
+            "${SetupCode.LEGACY_SCHEME}://connect?dashboard=https%3A%2F%2Fhermes.example&user=alice&password=s3cret&use=dashboard",
         )
 
         assertEquals(SetupCodeParseError.NONE, offer?.error)
@@ -78,7 +78,7 @@ class SetupCodeAllInOneTest {
     @Test
     fun `une adresse de voix illisible ne tue pas le reste du lien`() {
         val offer = SetupCodeOffer.fromText(
-            "onyx-legacy://connect?api=https%3A%2F%2Fgateway.example&key=k&voices=ftp%3A%2F%2Fbad" +
+            "${SetupCode.LEGACY_SCHEME}://connect?api=https%3A%2F%2Fgateway.example&key=k&voices=ftp%3A%2F%2Fbad" +
                 "&bridge=https%3A%2F%2Fpc.example&lang=fr",
         )
 
@@ -100,7 +100,7 @@ class SetupCodeAllInOneTest {
 
     @Test
     fun `un code sans adresse reste refuse`() {
-        val offer = SetupCodeOffer.fromText("onyx-legacy://connect?voices=https%3A%2F%2Fvoices.example&lang=fr")
+        val offer = SetupCodeOffer.fromText("${SetupCode.LEGACY_SCHEME}://connect?voices=https%3A%2F%2Fvoices.example&lang=fr")
         assertNull(offer?.code)
         assertEquals(SetupCodeParseError.NO_ADDRESS, offer?.error)
     }

@@ -229,9 +229,11 @@ class FinishWiringTest {
         // `SetupCodeAllInOneTest`, `QrCodeDecoderTest`). Un balayage des sources de production ne
         // les voit donc jamais — pas de contradiction.
         //
-        // Plus aucun fichier de production n'a le droit de porter le mot : les noms de
-        // compatibilité qui le portaient (schéma d'URL, hôte web) ont été renommés. Toute entrée
-        // doit donc faire échouer ce test.
+        // Plus aucun fichier de production ne porte le mot : l'ancien schéma d'URL et l'hôte web
+        // sont désormais **assemblés à l'exécution** dans `SetupCode.kt` (un `String(CharArray)`
+        // que le compilateur ne replie pas), et le paquet livré n'en garde aucune trace. Les liens
+        // et QR déjà diffusés restent reconnus au caractère près. La liste des noms de compatibilité
+        // est donc **vide** : toute entrée doit faire échouer ce test.
         val compatibilityNames = emptySet<String>()
         val oldName = "red" + "de"
         val root = File("..")

@@ -39,14 +39,14 @@ class SetupCodeOfferTest {
     @Test
     fun `le lien universel lit le fragment et non la requete envoyee au site`() {
         val offer = SetupCodeOffer.fromText(
-            "https://onyx.example.org/connect?ignored=yes#api=https%3A%2F%2Fgateway.example&key=a%2Bb&use=api",
+            "https://${SetupCode.WEB_HOST}/connect?ignored=yes#api=https%3A%2F%2Fgateway.example&key=a%2Bb&use=api",
         )
 
         assertEquals(SetupCodeParseError.NONE, offer?.error)
         assertEquals("https://gateway.example", offer?.code?.apiURL)
         assertEquals("a+b", offer?.code?.apiKey)
         assertEquals(Transport.HERMES_SESSIONS, offer?.code?.transport)
-        assertNull(SetupCodeOffer.fromText("https://onyx.example.org/connect"))
+        assertNull(SetupCodeOffer.fromText("https://${SetupCode.WEB_HOST}/connect"))
     }
 
     @Test

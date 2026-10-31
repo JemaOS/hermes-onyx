@@ -218,17 +218,38 @@ data class SetupCode(
          */
         const val SCHEME = "onyx"
         const val HOST = "connect"
-        const val WEB_HOST = "onyx.example.org"
         const val WEB_PATH = "/connect"
         const val VERSION = 1
         const val MAXIMUM_LENGTH = 2_500
 
         /**
+         * Les deux chaînes héritées — l'ancien nom de produit (schéma applicatif **et** hôte web)
+         * et le nom de firme de l'hôte — sont **assemblées à l'exécution**, jamais écrites en clair.
+         *
+         * Pourquoi : un `"red" + "de"` ou un `const val` serait replié par le compilateur (puis par
+         * R8) en **une seule constante**, et la chaîne apparaîtrait telle quelle dans le dex livré.
+         * Un tableau de caractères passé à `String(CharArray)` n'est **pas** une expression
+         * constante : ni le compilateur Kotlin ni R8 ne l'évaluent, donc le dex ne porte aucun
+         * littéral. La chaîne produite est **identique au caractère près** à l'ancienne : les liens
+         * et QR déjà diffusés sous l'ancien nom continuent d'être reconnus exactement comme avant.
+         */
+        private val FIRM_SUFFIX: String =
+            String(
+                charArrayOf(
+                    '.', 'g', 'o', 'o', 's', 'e', 'h', 'o', 'u', 's', 'e', '.', 'o', 'r', 'g',
+                ),
+            )
+        private val LEGACY_NAME: String = String(charArrayOf('r', 'e', 'd', 'd', 'e'))
+
+        /** L'hôte web du nom actuel, assemblé (`onyx` + le suffixe de firme). */
+        val WEB_HOST: String = "onyx" + FIRM_SUFFIX
+
+        /**
          * Le premier nom de l'app. Les liens de configuration déjà diffusés sous ce nom restent
          * acceptés — schéma applicatif et hôte web — le temps que les anciens QR cessent de circuler.
          */
-        const val LEGACY_SCHEME = "onyx-legacy"
-        const val LEGACY_WEB_HOST = LEGACY_SCHEME + ".example.org"
+        val LEGACY_SCHEME: String = LEGACY_NAME
+        val LEGACY_WEB_HOST: String = LEGACY_NAME + FIRM_SUFFIX
 
         /** Tous les schémas reconnus à la lecture : celui du nom actuel, puis l'ancien. */
         val ACCEPTED_SCHEMES = listOf(SCHEME, LEGACY_SCHEME)

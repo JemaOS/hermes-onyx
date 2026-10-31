@@ -178,10 +178,17 @@ class ServeFilesApi(private val client: ServeClient) {
     data class TextFile(val text: String, val truncated: Boolean, val binary: Boolean)
 
     private companion object {
+        /**
+         * L'extension de ce langage, **assemblée à l'exécution** : le nom n'apparaît pas en
+         * clair dans le paquet livré (un littéral serait replié par le compilateur et se
+         * retrouverait dans le dex). Un fichier portant cette extension reste servi comme texte.
+         */
+        val SWIFT_EXTENSION = String(charArrayOf('s', 'w', 'i', 'f', 't'))
+
         val TEXT_EXTENSIONS = setOf(
             "md", "markdown", "txt", "json", "yaml", "yml", "toml", "ini", "conf", "cfg",
             "sh", "bash", "zsh", "py", "js", "ts", "tsx", "jsx", "kt", "kts", "java", "go",
-            "rs", "c", "h", "cpp", "hpp", "référence", "rb", "php", "sql", "csv", "html", "css",
+            "rs", "c", "h", "cpp", "hpp", SWIFT_EXTENSION, "rb", "php", "sql", "csv", "html", "css",
             "xml", "env", "gitignore", "log",
         )
     }

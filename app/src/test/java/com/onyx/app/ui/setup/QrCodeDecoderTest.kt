@@ -2,6 +2,7 @@ package com.onyx.app.ui.setup
 
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.onyx.app.data.model.SetupCode
 import com.onyx.app.data.model.SetupCodeOffer
 import com.onyx.app.data.model.SetupCodeParseError
 import com.onyx.app.data.model.Transport
@@ -256,7 +257,7 @@ class QrCodeDecoderTest {
     /** L'ancien schéma reste lu exactement comme le nouveau. */
     @Test
     fun `l ancien schema est accepte comme le nouveau`() {
-        val offer = SetupCodeOffer.fromText(setupLink.replace("onyx://", "onyx-legacy://"))
+        val offer = SetupCodeOffer.fromText(setupLink.replace("onyx://", "${SetupCode.LEGACY_SCHEME}://"))
 
         assertEquals(SetupCodeParseError.NONE, offer?.error)
         assertEquals("test-install-key-123", offer?.code?.apiKey)
