@@ -254,8 +254,13 @@ class PlaqueFinaleWiringTest {
             screen.contains("bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap,"),
         )
         assertTrue(
-            "les autres onglets la réservent aussi",
-            screen.contains(".padding(top = glassTopInset, bottom = glassBottomInset + floatLane),"),
+            "les autres onglets la réservent aussi — et leur contenu est posé sur la plaque qui " +
+                "glisse (`panePlate`, lot « verre-plaques »)",
+            screen.contains(".padding(top = glassTopInset, bottom = glassBottomInset + floatLane)"),
+        )
+        assertTrue(
+            "les onglets de contenu du pageur portent la plaque de verre qui suit le doigt",
+            screen.contains(".panePlate(theme),"),
         )
         assertTrue(
             "et la liste des commandes se pose au-dessus d'elle, pas dedans",

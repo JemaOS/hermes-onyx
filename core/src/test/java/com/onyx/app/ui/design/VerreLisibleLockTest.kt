@@ -278,6 +278,7 @@ class VerreLisibleLockTest {
         GlassSurface.MENU -> "le menu ancré"
         GlassSurface.SEGMENTED -> "le contrôle segmenté"
         GlassSurface.MATTER_CARD -> "la grande carte de matière"
+        GlassSurface.PANE -> "la plaque d'un onglet de contenu"
     }
 
     private fun explain(m: Measurement): String = buildString {

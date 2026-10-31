@@ -72,6 +72,13 @@ object OnyxEdge {
         Color.White.copy(alpha = if (theme.dark) TopEdgeDarkAlpha else TopEdgeLightAlpha)
 
     /**
+     * La même arête, **par apparence** — c'est la porte qu'emploie le verre ([drawGlassPlateEdge]),
+     * qui ne reçoit que le drapeau sombre et non le thème entier.
+     */
+    fun topEdge(dark: Boolean): Color =
+        Color.White.copy(alpha = if (dark) TopEdgeDarkAlpha else TopEdgeLightAlpha)
+
+    /**
      * Le filet de la **pastille d'onglet active** : `inset 0 0 0 1px` de la planche — blanc `.92`
      * en clair, `.24` en sombre (`v4css.py:145`, `:157`). Il vit sur la vitre, donc il est **clair**,
      * jamais un gris.
