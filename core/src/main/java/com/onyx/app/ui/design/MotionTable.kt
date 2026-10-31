@@ -33,7 +33,7 @@ object MotionTable {
     /**
      * Une ligne de la table.
      *
-     * @param référence `Views/<fichier>.référence:<ligne>`, la source qui fait foi.
+     * @param reference `Views/<fichier>:<ligne>`, la source qui fait foi.
      * @param sourceSpec un fragment de la ligne de référence, tel quel — sert à la retrouver dans le relevé.
      * @param android l'équivalent Kotlin, mot pour mot dans [androidFile].
      * @param androidFile le fichier Kotlin concerné, relatif à la racine du dépôt.
@@ -45,7 +45,7 @@ object MotionTable {
      * @param note ce qui reste à dire : pourquoi c'est approché, ou ce qui manque.
      */
     data class MotionEntry(
-        val référence: String,
+        val reference: String,
         val sourceSpec: String,
         val android: String,
         val status: MotionStatus,
@@ -444,10 +444,10 @@ object MotionTable {
         MotionStatus.entries.associateWith { status -> entries.count { it.status == status } }
 
     /** Les écrans couverts, pour vérifier qu'aucun n'a été oublié. */
-    fun sourceViews(): Set<String> = entries.map { it.référence.substringBefore(':') }.toSet()
+    fun sourceViews(): Set<String> = entries.map { it.reference.substringBefore(':') }.toSet()
 
     private fun entry(
-        référence: String,
+        reference: String,
         sourceSpec: String,
         android: String,
         status: MotionStatus,
@@ -459,7 +459,7 @@ object MotionTable {
         stiffness: Float? = null,
         note: String = "",
     ) = MotionEntry(
-        référence = référence,
+        reference = reference,
         sourceSpec = sourceSpec,
         android = android,
         status = status,

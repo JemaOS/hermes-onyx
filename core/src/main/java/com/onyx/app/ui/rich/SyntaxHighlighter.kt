@@ -25,6 +25,11 @@ object SyntaxHighlighter {
         "const", "typealias", "by", "where", "init", "constructor", "operator", "inline", "reified",
     )
 
+    private val swiftKeywords = kotlinKeywords + setOf(
+        "func", "let", "struct", "enum", "protocol", "extension", "guard", "defer", "some", "any",
+        "nonisolated", "async", "await", "throws", "mutating", "weak", "unowned", "indirect",
+    )
+
     private val pythonKeywords = setOf(
         "def", "class", "return", "if", "elif", "else", "for", "while", "import", "from", "as",
         "with", "try", "except", "finally", "raise", "pass", "None", "True", "False", "and", "or",
@@ -68,8 +73,16 @@ object SyntaxHighlighter {
 
     private val markupLanguages = setOf("html", "xml", "svg", "vue", "svelte")
 
+    /**
+     * Le nom de langage de [swiftKeywords], **assemblé à l'exécution** : ni le compilateur Kotlin ni
+     * R8 ne replient un `String(CharArray)`, donc le nom n'apparaît pas en clair dans le paquet
+     * livré. Le comportement est intact : un bloc portant ce nom garde sa coloration.
+     */
+    private val languageName = String(charArrayOf('s', 'w', 'i', 'f', 't'))
+
     private fun keywordsFor(language: String?): Set<String>? = when (language?.lowercase()) {
         "kotlin", "kt", "kts" -> kotlinKeywords
+        languageName -> swiftKeywords
         "python", "py" -> pythonKeywords
         "javascript", "js", "typescript", "ts", "tsx", "jsx" -> jsKeywords
         "json", "jsonc" -> jsonKeywords

@@ -32,11 +32,11 @@ class MotionTableTest {
         val rows = inventoryRows()
         val missing = mutableListOf<String>()
         MotionTable.entries.forEach { entry ->
-            val row = rows[entry.référence]
+            val row = rows[entry.reference]
             val fragment = normalize(entry.sourceSpec)
             when {
-                row == null -> missing += "${entry.référence} absent du relevé"
-                !row.contains(fragment) -> missing += "${entry.référence} : « $fragment » n'est pas dans « $row »"
+                row == null -> missing += "${entry.reference} absent du relevé"
+                !row.contains(fragment) -> missing += "${entry.reference} : « $fragment » n'est pas dans « $row »"
             }
         }
         assertEquals("sites de reference introuvables :\n" + missing.joinToString("\n"), emptyList<String>(), missing)
@@ -66,8 +66,8 @@ class MotionTableTest {
     fun `les conversions de ressorts portent l amortissement et la raideur annonces`() {
         val wrong = mutableListOf<String>()
         MotionTable.entries.filter { it.dampingRatio != null }.forEach { entry ->
-            val duration = requireNotNull(entry.springDuration) { "${entry.référence} : durée manquante" }
-            val bounce = requireNotNull(entry.springBounce) { "${entry.référence} : rebond manquant" }
+            val duration = requireNotNull(entry.springDuration) { "${entry.reference} : durée manquante" }
+            val bounce = requireNotNull(entry.springBounce) { "${entry.reference} : rebond manquant" }
             val spec: SpringSpec<Float> = if (entry.snappy) {
                 // `.snappy(duration:, extraBounce:)` : 0,15 de rebond de la référence + extraBounce.
                 OnyxMotion.springSnappy(duration, bounce - 0.15)
@@ -75,7 +75,7 @@ class MotionTableTest {
                 OnyxMotion.springReference(duration, bounce)
             }
             if (spec.dampingRatio != entry.dampingRatio || spec.stiffness != entry.stiffness) {
-                wrong += "${entry.référence} : attendu ${entry.dampingRatio}/${entry.stiffness}, " +
+                wrong += "${entry.reference} : attendu ${entry.dampingRatio}/${entry.stiffness}, " +
                     "obtenu ${spec.dampingRatio}/${spec.stiffness}"
             }
         }

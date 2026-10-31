@@ -3,8 +3,8 @@
   Le rendu hors ligne de Mermaid et de KaTeX, embarqué dans l'app.
 
   Aucune ressource ne vient du réseau : la feuille, le script et les polices sont dans
-  assets/rich/. C'est le même parti qu'référence, qui embarque aussi ces deux bibliothèques pour rendre
-  les réponses sans connexion.
+  assets/rich/. La page embarque elle-même la feuille, le script et les polices : les réponses se
+  rendent sans connexion.
 -->
 <html lang="__LANG__">
 <head>
@@ -17,15 +17,15 @@
             margin: 0;
             padding: 0;
             background: transparent;
-            /* Un diagramme plus large que le bloc se fait glisser (comme l'référence, qui garde le
-               dessin à sa taille) ; la hauteur, elle, est bornée par le bloc natif. */
+            /* Un diagramme plus large que le bloc se fait glisser (le dessin garde sa taille) ;
+               la hauteur, elle, est bornée par le bloc natif. */
             overflow-x: auto;
             overflow-y: __BODY_OVERFLOW__;
             -webkit-text-size-adjust: 100%;
         }
         body {
             color: __TEXT_COLOUR__;
-            font-family: system-ui, "Inter", sans-serif;
+            font-family: "Inter", system-ui, sans-serif;
             font-size: 14px;
             line-height: 1.35;
         }
@@ -66,7 +66,8 @@
 
     /**
      * Une formule plus large que le bloc est mise à l'échelle pour tenir en entier, comme le fait
-     * référence (la formule de coût y tient sur une ligne). La réduction a une borne basse : en dessous,
+     * le lecteur de référence (la formule de coût y tient sur une ligne). La réduction a une borne
+     * basse : en dessous,
      * elle resterait illisible.
      *
      * La largeur mesurée est celle du `base` de KaTeX — un `inline-block` à la taille réelle de la
@@ -86,7 +87,8 @@
     }
 
     /**
-     * Un dessin plus large que le bloc est ramené à sa largeur, comme le fait référence : mermaid pose
+     * Un dessin plus large que le bloc est ramené à sa largeur, comme le fait le lecteur de
+     * référence : mermaid pose
      * une largeur en dur et un `viewBox`, donc on retire la première et on laisse le second tenir
      * le dessin à l'échelle. Un dessin qui tient déjà garde sa taille.
      */

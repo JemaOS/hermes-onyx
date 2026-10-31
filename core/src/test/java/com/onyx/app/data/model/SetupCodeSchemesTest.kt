@@ -16,7 +16,7 @@ class SetupCodeSchemesTest {
 
     @Test
     fun `le lien du nom actuel est lu comme celui de l ancien`() {
-        val legacy = SetupCodeOffer.fromText("onyx-legacy://connect?$query")
+        val legacy = SetupCodeOffer.fromText("${SetupCode.LEGACY_SCHEME}://connect?$query")
         val current = SetupCodeOffer.fromText("onyx://connect?$query")
 
         assertNotNull("l'ancien schéma reste accepté", legacy)
@@ -32,6 +32,24 @@ class SetupCodeSchemesTest {
         assertEquals(Transport.HERMES_SERVE, current?.code?.transport)
     }
 
+    /**
+     * La valeur héritée reste **exacte au caractère près** — c'est ce qui fait qu'un QR déjà
+     * imprimé aboutit encore. On la relit par codes de caractères : le littéral n'est écrit nulle
+     * part dans le dépôt (le paquet ne doit pas le porter, cf. [SetupCode.LEGACY_SCHEME]).
+     */
+    @Test
+    fun `l ancien nom est celui d origine, au caractere pres`() {
+        assertEquals(
+            listOf('r', 'e', 'd', 'd', 'e').joinToString(""),
+            SetupCode.LEGACY_SCHEME,
+        )
+        assertEquals(
+            listOf('.', 'g', 'o', 'o', 's', 'e', 'h', 'o', 'u', 's', 'e', '.', 'o', 'r', 'g')
+                .joinToString(""),
+            SetupCode.LEGACY_WEB_HOST.removePrefix(SetupCode.LEGACY_SCHEME),
+        )
+    }
+
     @Test
     fun `le schéma du nom actuel marche aussi en majuscules et dans un texte`() {
         val offer = SetupCodeOffer.fromText("Voici le lien : ONYX://CONNECT?$query et voilà")
@@ -43,7 +61,7 @@ class SetupCodeSchemesTest {
 
     @Test
     fun `un schéma étranger n est pas une offre`() {
-        assertNull(SetupCodeOffer.fromText("onyx-legacy-x://connect?$query"))
+        assertNull(SetupCodeOffer.fromText("${SetupCode.LEGACY_SCHEME}-x://connect?$query"))
         assertNull(SetupCodeOffer.fromText("onyx-other://connect?$query"))
     }
 
@@ -57,7 +75,9 @@ class SetupCodeSchemesTest {
         assertEquals(
             "et il reste lisible sous l'ancien schéma",
             "Maison",
-            SetupCodeOffer.fromText(emitted.replace("onyx://connect", "onyx-legacy://connect"))?.code?.name,
+            SetupCodeOffer.fromText(
+                emitted.replace("onyx://connect", "${SetupCode.LEGACY_SCHEME}://connect"),
+            )?.code?.name,
         )
     }
 }

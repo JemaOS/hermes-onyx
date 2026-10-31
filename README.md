@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-3596%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-3597%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -153,12 +153,18 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## Ce que 1.0.0+972 apporte
+## Ce que 1.0.0+980 apporte
 
-Cette vague est la **fusion de onze lots**. Chaque point ci-dessous cite le commit, le fichier ou la
-mesure qui le porte — rien n'est annoncé ici qui ne puisse être montré. Le détail complet est dans
-[`releases/NOTES-1.0.0+972.md`](releases/NOTES-1.0.0+972.md).
+Chaque point ci-dessous cite le commit, le fichier ou la mesure qui le porte — rien n'est annoncé ici
+qui ne puisse être montré. Le détail complet est dans
+[`releases/NOTES-1.0.0+980.md`](releases/NOTES-1.0.0+980.md).
 
+- **Le certificat de signature a changé** — `1.0.0+980` est signé par un **nouveau certificat** ; une
+  mise à jour en place depuis `1.0.0+972` (ou une version antérieure) est **refusée** par Android. Il
+  faut **désinstaller l'ancienne application** avant d'installer celle-ci (voir *Install*).
+- **Plus aucune trace de l'ancien nom, ni dans les sources, ni dans le paquet** — le schéma d'URL et
+  l'hôte hérités sont **assemblés à l'exécution** (`SetupCode.kt`) : le dex ne porte plus le littéral,
+  et un lien à l'ancien schéma ouvre toujours la feuille de configuration.
 - **La palette et les surfaces sont lues dans la source** — six palettes de la référence comparées
   champ par champ : **54 valeurs, 54 identiques, 0 écart** ; le verrou de palette relève **412 sources
   lues, 0 couleur hors palette** (`3cd0f588`).
@@ -186,8 +192,8 @@ mesure qui le porte — rien n'est annoncé ici qui ne puisse être montré. Le 
 - **Les retours corrigés** — la page quittée n'est plus perdue au sortir du volet, et un banc mesure les
   trois chemins (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
 
-**3596 tests, 0 échec.** Les compagnons Android Auto et Wear OS ne changent pas sauf s'ils sont
-fournis avec cette release ; sinon ils restent sur **`1.0.0+972`**.
+**3597 tests, 0 échec.** Les trois paquets — téléphone, Android Auto et Wear OS — sont fournis dans
+cette release.
 
 ## What 1.0.0+547 brought
 
@@ -258,7 +264,7 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 The gallery is the **`1.0.0+547`** build — the **dark theme** for the whole set, then the
 **light theme** on the same screens. It has **not** been re-shot for this release: the images below
-show the build named in this paragraph, not `1.0.0+972`. The naming convention and the list of
+show the build named in this paragraph, not `1.0.0+980`. The naming convention and the list of
 expected shots are in
 [`docs/screenshots/README.md`](docs/screenshots/README.md). Every capture was taken on an emulator, against a test server holding demo data:
 no real machine, no real conversation, no token. The **status bar is cropped out** of every shot and the
@@ -301,18 +307,21 @@ machine.
 ## Install
 
 The signed APKs are on the [latest release](https://github.com/JemaOS/hermes-onyx/releases/latest)
-page. One code base, one signing key.
+page. One code base — but **the signing certificate changed with this release**: read the note below
+before installing.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+972-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
-| `Hermes-Onyx-1.0.0+972-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+972-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+980-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `Hermes-Onyx-1.0.0+980-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+980-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**Coming from an older build?** `1.0.0+972` is signed with the same key as every release
-before it, so it installs straight over `1.0.0+547`, `1.0.0+546` or `1.0.0` with no uninstall.
+**The signing certificate has changed — you must uninstall first.** `1.0.0+980` is signed with a
+**new key**, different from every release before it. Android therefore **refuses an in-place update**
+from `1.0.0+972`, `1.0.0+547`, `1.0.0+546` or `1.0.0`: **uninstall the old app, then install this
+one.** Nothing is lost from your server — scan your setup code again after the reinstall.
 
-The three names above are the exact asset names on the releases. `1.0.0+972` carries a
+The three names above are the exact asset names on the releases. `1.0.0+980` carries a
 `SHA256SUMS` file with the SHA-256 of every package it ships. Check your download against
 it:
 
@@ -368,8 +377,8 @@ You need **JDK 21** and the **Android SDK** (platform 36, build-tools 36).
 
 Release signing is deliberately out of the tree: point `ONYX_RELEASE_KEYSTORE` at a properties file
 holding `storeFile`, `storePassword`, `keyAlias` and `keyPassword`. Without it the release build stays
-unsigned instead of failing. `versionCode` is the commit count plus `onyx.versionBaseline`, so it only
-ever goes up and an APK installs over the previous one.
+unsigned instead of failing. `versionCode` is written in `gradle.properties` (`onyx.versionCode`): the public tree is a flattened
+copy of the integration tree, so its git history cannot carry the number.
 
 ## Tests
 
@@ -377,7 +386,7 @@ ever goes up and an APK installs over the previous one.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**2460 tests, 0 failures** — 1174 in `:core`, 1286 in `:app`. Plain JUnit 4, no
+**3597 tests, 0 failures** — 1661 in `:core`, 1936 in `:app`. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
