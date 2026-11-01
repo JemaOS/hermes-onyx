@@ -1080,9 +1080,13 @@ fun OnyxApp() {
             // en ligne d'elle-même si le moteur n'a pas la langue.
             voice.offlineRecognition = offlineRecognition
             voice.stopPhrases = stopPhrases
-            // La maquette de QA se relance après chaque réponse : c'est la **reprise de l'écoute**
-            // qu'on veut prouver sur l'émulateur. Hors maquette, le réglage de la personne décide.
-            voice.autoRelisten = voiceScenario != null
+            // **La reprise de l'écoute est ce que « mains libres » veut dire.** Elle n'était armée
+            // que pour la maquette de QA : dans une vraie conversation, chaque réponse rendait la
+            // main (« PRÊT »), et il fallait **toucher la bulle à chaque phrase**. L'écoute reprend
+            // donc d'elle-même — les phrases d'arrêt (« arrête d'écouter », « c'est tout ») et le
+            // bouton rouge restent les seules sorties, et `listenAfterSpeech` continue de décider
+            // cas par cas (une réponse dictée, un tour sans suite, n'ouvrent pas le micro).
+            voice.autoRelisten = true
         }
 
         val phase by voice.phase.collectAsStateWithLifecycle()
@@ -1778,15 +1782,21 @@ fun OnyxApp() {
             // bot — celui que la feuille de modèle vient d'écrire dans `FaceKeys.model` — et que
             // l'envoi porte **exactement** ce nom (l'ordre : conversation → bot → serveur → défaut).
             // `null` pour une conversation simple : l'étage « bot » passe alors la main au serveur.
-            LaunchedEffect(openedConversationBot?.name) {
-                chatViewModel.setBotModel(openedConversationBot?.let(botsViewModel::modelOf))
+            // **Les valeurs lues ici, pas dans l'effet.** La clé de `LaunchedEffect` était le seul
+            // *nom* du bot : changer son modèle ne la changeait pas, donc l'effet ne se rejouait
+            // jamais et l'en-tête gardait l'ancien modèle jusqu'à la réouverture de l'écran
+            // (« c'est pas synchro en temps réel »). Le modèle et le profil sont maintenant lus
+            // **avant** l'effet et portés par ses clés : tout choix se propage au tour suivant.
+            val botModelInForce = openedConversationBot?.let(botsViewModel::modelOf)
+            val botProfileInForce =
+                openedConversationBot?.let { if (it.isDefault) "" else it.name }
+            LaunchedEffect(openedConversationBot?.name, botModelInForce, botProfileInForce) {
+                chatViewModel.setBotModel(botModelInForce)
                 // **La liaison bot → profil** : la conversation d'un bot tourne dans **son** profil.
                 // `null` (conversation simple) laisse le profil du serveur décider ; `""` (le profil
                 // principal, `isDefault`) laisse la passerelle sur son profil par défaut. C'est ce
                 // que l'envoi porte au tour (`ChatUiState.botProfile` → `profile` de session).
-                chatViewModel.setBotProfile(
-                    openedConversationBot?.let { if (it.isDefault) "" else it.name },
-                )
+                chatViewModel.setBotProfile(botProfileInForce)
             }
             // **Le bot dont on ouvre l'identité.** Le visage du fil (le repère de la barre du
             // bas, celui de l'en-tête) désigne le bot de la conversation ; une conversation
@@ -2649,6 +2659,31 @@ fun OnyxApp() {
          * dans la position *Bots*, avec les salons.
          */
         val chatSidebar: @Composable () -> Unit = {
+            // **Les deux résolveurs du volet, calculés une fois par état de bots.**
+            //
+            // Ils sont les **clés** du `remember` qui construit les rangées (`ChatSidebarHost`) :
+            // recréés à chaque recomposition de cet écran, ils faisaient rebâtir toutes les rangées
+            // — et toutes leurs vitres — à chaque fois, ce qui se sentait au défilement de la liste.
+            // Ils ne dépendent que des bots, du serveur et du nom affiché.
+            val knownBots = remember(botsState.bots, botsState.hidden) {
+                (botsState.bots + botsState.hidden).distinctBy { it.name }
+            }
+            val sidebarMainName = displayName.trim().ifEmpty { "Onyx" }
+            val identityOf: (com.onyx.app.data.model.Conversation) -> String = remember(
+                knownBots, state.server, sidebarMainName,
+            ) {
+                { conversation ->
+                    conversationProfile(
+                        conversation = conversation,
+                        bots = knownBots,
+                        server = state.server,
+                        mainName = sidebarMainName,
+                    )
+                }
+            }
+            val faceCodeOf: (String) -> String? = remember(knownBots, botsState.faces) {
+                { name -> knownBots.firstOrNull { it.name == name }?.faceCode ?: botsState.faces[name] }
+            }
             ChatSidebarHost(
                 serverName = state.server.displayName,
                 serverAddress = state.server.serveBaseUrl.ifBlank { state.server.baseUrl },
@@ -2663,14 +2698,12 @@ fun OnyxApp() {
                 // La marque **et le visage** d'une conversation se résolvent sur le **nom de profil de
                 // son bot** — le même calcul que l'en-tête et les onglets (`conversationProfile`) :
                 // par conversation, jamais par serveur.
-                identityOf = { conversation ->
-                    conversationProfile(
-                        conversation = conversation,
-                        bots = (botsState.bots + botsState.hidden).distinctBy { it.name },
-                        server = state.server,
-                        mainName = displayName.trim().ifEmpty { "Onyx" },
-                    )
-                },
+                //
+                // **Mémoïsé.** Ces deux résolveurs sont les **clés** du `remember` qui construit les
+                // rangées du volet : recreés à chaque recomposition de l'écran, ils faisaient
+                // rebâtir toutes les rangées — et toutes leurs vitres — à chaque fois, ce qui se
+                // sentait au défilement. Ils ne dépendent que des bots, du serveur et du nom affiché.
+                identityOf = identityOf,
                 conversations = history,
                 liveKinds = botsState.liveKinds,
                 seenMarks = unreadMarks,
@@ -2680,11 +2713,7 @@ fun OnyxApp() {
                 roomMarks = botsState.seenMarks,
                 roomKinds = botsState.roomKinds,
                 projects = serverProjects,
-                faceCodeOf = { name ->
-                    botsState.bots.firstOrNull { it.name == name }?.faceCode
-                        ?: botsState.hidden.firstOrNull { it.name == name }?.faceCode
-                        ?: botsState.faces[name]
-                },
+                faceCodeOf = faceCodeOf,
                 // Onyx n'a pas de compte : le rond du pied porte **le signe de la maison** — la
                 // rune du lanceur sur son disque teinté. Il portait l'initiale de la passerelle
                 // (« O »), faute de mieux : une initiale n'est pas un signe.
@@ -3376,7 +3405,10 @@ fun OnyxApp() {
                 }
             }
 
-            Route.GROUP_CHAT -> {
+            // **La salle est enveloppée par le volet**, comme le fil : sans cette enveloppe, le
+            // contrôle du volet changeait son état sans que rien ne s'ouvre — « le bouton ne fait
+            // rien ». Le même `SidebarScaffold` sert donc le fil et la salle.
+            Route.GROUP_CHAT -> withSidebar {
                 val room = openedRoom
                 if (room != null) {
                     // Une salle du serveur ouverte depuis la liste : son fil vient d'Hermes lui-même
@@ -3399,6 +3431,8 @@ fun OnyxApp() {
                     GroupRoomScreen(
                         viewModel = roomViewModel,
                         server = state.server,
+                        // **Le volet**, comme dans un fil de bot : la même pastille, le même geste.
+                        sidebarToggle = sidebarToggleControl,
                         faceResolver = faceResolver,
                         // La salle s'ouvre depuis la liste des conversations comme depuis l'onglet
                         // Bots : le retour revient donc là d'où l'on vient, et ne saute plus

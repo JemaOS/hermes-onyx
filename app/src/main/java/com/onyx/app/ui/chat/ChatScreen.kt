@@ -132,6 +132,7 @@ import com.onyx.app.ui.design.TabSwipeEdgeGuards
 import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.BotLook
 import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.onyxLensPage
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
 import com.onyx.app.ui.design.GlassSurface
@@ -758,6 +759,8 @@ fun ChatScreen(
     // d'onglets échantillonnent. `null` hors de l'arbre qui l'a posé (aperçus, tests) — les vitres
     // retombent alors sur leur voile, jamais sur un trou.
     val glassState = LocalHazeState.current
+    /** La page que la lentille échantillonne (Android 13+) — `null` ailleurs. */
+    val lensPage = com.onyx.app.ui.design.LocalOnyxLensPage.current
 
     // Le retour ferme la **recherche du fil** avant de quitter la conversation : sur l'accueil (le
     // fil), le geste du bord fermait l'app alors qu'un bandeau ouvert attendait qu'on le referme —
@@ -839,7 +842,10 @@ fun ChatScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(glassState?.let { Modifier.onyxHazeSource(it) } ?: Modifier),
+                    .then(glassState?.let { Modifier.onyxHazeSource(it) } ?: Modifier)
+                    // **Et la page de la lentille** (Android 13+) : le même contenu, enregistré
+                    // une fois pour toutes les surfaces qui courbent (voir `OnyxLensGlass`).
+                    .then(lensPage?.let { page -> Modifier.onyxLensPage(page) } ?: Modifier),
             ) {
             // **LA MATIÈRE DE LA PAGE, DANS LA SOURCE HAZE.** Elle était sur la `Box` racine de
             // l'écran ; la source Haze, posée **sous** elle, ne la capturait donc pas, et la

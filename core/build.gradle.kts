@@ -55,6 +55,14 @@ dependencies {
     api(libs.haze.blur)
     api(libs.haze.glass)
 
+    // **La lentille du verre** — `io.github.kyant0:backdrop` (Apache-2.0) : l'enregistrement de la
+    // page dans un `GraphicsLayer` et le shader AGSL de réfraction. Haze reste le flou de repli ;
+    // ce module ajoute ce que Haze ne sait pas faire : courber le fond au bord (lentille),
+    // disperser les couleurs sur cette courbure, et n'enregistrer la page **qu'une fois** pour
+    // toutes les surfaces (`OnyxLensGlass.kt`).
+
+    api(libs.kyant.backdrop)
+
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)
 }

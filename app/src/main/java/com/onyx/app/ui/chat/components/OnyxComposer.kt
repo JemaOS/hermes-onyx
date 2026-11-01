@@ -495,7 +495,7 @@ fun OnyxComposer(
                 ).lineCount
             }
         }
-        val multiline = ComposerGrowth.stacksCommands(draftLineCount)
+        val multiline = plate || ComposerGrowth.stacksCommands(draftLineCount)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -619,9 +619,22 @@ fun OnyxComposer(
                     ).size.width.toDp().value
                 }
             }
+            // **En grand de base** : le champ réserve trois lignes dès le repos
+            // (`ComposerGrowth.RestLines`). C'est la correction du défaut du propriétaire : « quand
+            // je dépasse 19 caractères, ça change la taille de l'entrée du prompt et déplace le
+            // clavier ». Le texte n'a plus à agrandir la plaque pour ses trois premières lignes,
+            // donc le clavier ne bouge plus — la plaque grandit seulement au-delà, pour un vrai
+            // paragraphe.
+            val restFieldHeight = with(density) {
+                val lineHeightDp = draftMeasurer.measure(
+                    text = AnnotatedString("X"),
+                    style = theme.body,
+                ).size.height.toDp()
+                lineHeightDp * ComposerGrowth.RestLines + ComposerGrowth.VerticalPaddingDp.dp
+            }
             BoxWithConstraints(
                 modifier = fieldModifier
-                    .defaultMinSize(minHeight = 40.dp)
+                    .defaultMinSize(minHeight = maxOf(40.dp, restFieldHeight))
                     .composerFieldSurface(
                         theme = theme,
                         // **Le rayon du champ suit la règle de l'emboîtement** : un élément posé à

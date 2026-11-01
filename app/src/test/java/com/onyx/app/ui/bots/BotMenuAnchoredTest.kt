@@ -61,7 +61,14 @@ class BotMenuAnchoredTest {
         assertTrue("et la salle de cet écran", botsScreen.contains("tileBounds[\"room:\" + group.id] = it.boundsInWindow()"))
         assertTrue(botsScreen.contains("anchor = tileBounds[\"bot:\" + bot.name]"))
         val volet = File(ui, "sidebar/ChatSidebar.kt").readText()
-        assertTrue("la rangée du volet se mesure aussi", volet.contains(".onGloballyPositioned { bounds = it.boundsInWindow() }"))
+        // La rangée du volet se mesure — mais dans un porteur **muet** : écrite dans un état, la
+        // mesure se republiait à chaque image de défilement et la rangée se recomposait ~60 fois par
+        // seconde (le volet « lent » du propriétaire).
+        assertTrue(
+            "la rangée du volet se mesure, sans réveiller de recomposition",
+            volet.contains(".onGloballyPositioned { bounds.rect = it.boundsInWindow() }") &&
+                volet.contains("val bounds = remember { RowBounds() }"),
+        )
         // La rangée du volet n'ancre plus son menu : l'appui long ouvre la **feuille du bas**, le
         // même composant que les autres listes du volet — pas un second panneau à ancrer.
         assertTrue("et son menu est la feuille du bas", volet.contains("ConversationActionSheet("))

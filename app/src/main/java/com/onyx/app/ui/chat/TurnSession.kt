@@ -96,6 +96,8 @@ data class TurnLive(
     val phase: TurnPhase,
     /** L'identifiant de session serveur, quand le tour en a ouvert une. */
     val serverSessionId: String? = null,
+    /** L'identifiant du run serveur (`chatcmpl-…`) : ce qu'arrête « Arrêter » chez l'hôte. */
+    val runId: String? = null,
     /** Le modèle servi, quand le serveur le dit. */
     val modelInUse: String? = null,
     /**
@@ -314,6 +316,9 @@ class TurnSession(
             }
 
             is TurnEvent.SessionId -> _live.update { it.copy(serverSessionId = event.id) }
+
+            // Le run ouvert chez l'hôte : gardé sur le tour, pour que « Arrêter » sache quoi arrêter.
+            is TurnEvent.RunId -> _live.update { it.copy(runId = event.id) }
 
             TurnEvent.Done -> touch(now)
         }

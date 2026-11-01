@@ -23,15 +23,24 @@ class ComposerGrowthTest {
     /** La hauteur d'une ligne du corps rendue sur l'appareil de référence (15 sp × 1,22 ≈ 18,3 dp). */
     private val lineDp = 18.3f
 
-    // — 1 · au repos : une ligne, 64 dp de rangée, 140 dp de plaque —
+    // — 1 · au repos : trois lignes réservées, et plus rien ne bouge sur les trois premières —
 
     @Test
-    fun `au repos la rangee du champ vaut 64 dp et la plaque 140`() {
-        assertEquals("la rangée du champ au repos", 64.dp, PlaqueGeometry.FieldRowHeight)
+    fun `au repos le champ reserve trois lignes`() {
+        assertEquals("la rangée minimale de la planche reste 64 dp", 64.dp, PlaqueGeometry.FieldRowHeight)
         assertEquals("la cible de la planche : 140 dp", 140.dp, PlaqueGeometry.Height)
-        // Une ligne tient dans les 64 dp du repos : la croissance est **nulle**, la plaque ne bouge pas.
-        assertEquals(64f, ComposerGrowth.fieldRowHeightDp(1, lineDp), 0.001f)
-        assertEquals(140f, ComposerGrowth.plaqueHeightDp(64f), 0.001f)
+        // **En grand de base** : le champ montre trois lignes dès qu'il est vide.
+        val repos = ComposerGrowth.RestLines * lineDp + ComposerGrowth.VerticalPaddingDp
+        assertEquals("trois lignes + le rembourrage", repos, ComposerGrowth.fieldRowHeightDp(1, lineDp), 0.001f)
+        assertTrue("et il est plus haut que l'ancien repos de 64 dp", repos > 64f)
+        // Le défaut du propriétaire : à 19 caractères (deuxième ligne) la plaque changeait de
+        // hauteur et déplaçait le clavier. Les trois premières lignes ne changent plus rien.
+        assertEquals(
+            "une ligne, deux lignes, trois lignes : la même hauteur",
+            ComposerGrowth.fieldRowHeightDp(1, lineDp),
+            ComposerGrowth.fieldRowHeightDp(3, lineDp),
+            0.001f,
+        )
     }
 
     // — 2 · croissance ligne par ligne, sans jamais de coupure —
@@ -43,8 +52,9 @@ class ComposerGrowthTest {
         hauteurs.zipWithNext().forEach { (a, b) ->
             assertTrue("la hauteur recule : $a → $b", b >= a)
         }
-        // …et elle **grandit vraiment** dès que le contenu dépasse le repos (trois lignes ici).
-        assertTrue("à trois lignes le champ doit avoir grandi", hauteurs[2] > 64f)
+        // …plate jusqu'à la réserve, puis elle **grandit vraiment** au-delà (quatrième ligne ici).
+        assertEquals("les trois premières lignes ne bougent pas", hauteurs[0], hauteurs[2], 0.001f)
+        assertTrue("à quatre lignes le champ doit avoir grandi", hauteurs[3] > hauteurs[2])
         // Chaque ligne au-delà du repos se **voit** : la hauteur d'une ligne s'ajoute à la précédente.
         assertEquals(
             "deux lignes de plus = deux hauteurs de ligne de plus",
@@ -93,12 +103,17 @@ class ComposerGrowthTest {
         assertFalse("et il ne défile pas en lui-même à huit lignes, même à 1,3×", ComposerGrowth.scrollsInternally(ComposerGrowth.MaxLines))
     }
 
-    // — 5 · les commandes descendent dès la deuxième ligne (elles ne se posent jamais sur le texte) —
+    // — 5 · les commandes descendent à la troisième ligne (deux lignes tolérées sur la rangée) —
 
     @Test
-    fun `les commandes descendent des la deuxieme ligne`() {
+    fun `les commandes descendent a la troisieme ligne`() {
+        // Deux lignes rendues tiennent dans la hauteur de repos : les commandes restent à droite, la
+        // plaque ne bouge pas pendant qu'on écrit le premier mot (le défaut « la barre s'agrandit au
+        // dixième caractère » venait de la descente dès la deuxième ligne).
+        assertEquals("la tolérance est de deux lignes", 2, ComposerGrowth.StackAfterLines)
         assertFalse("une ligne : les commandes restent à droite, sur la même rangée", ComposerGrowth.stacksCommands(1))
-        assertTrue("deux lignes : les commandes descendent sur leur propre rangée", ComposerGrowth.stacksCommands(2))
+        assertFalse("deux lignes : elles y restent encore, la plaque ne bouge pas", ComposerGrowth.stacksCommands(2))
+        assertTrue("trois lignes : les commandes descendent sur leur propre rangée", ComposerGrowth.stacksCommands(3))
         assertTrue(ComposerGrowth.stacksCommands(ComposerGrowth.MaxLines))
         assertTrue(ComposerGrowth.stacksCommands(ComposerGrowth.MaxLines + 1))
     }

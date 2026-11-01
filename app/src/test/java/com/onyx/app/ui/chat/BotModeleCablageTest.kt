@@ -40,7 +40,19 @@ class BotModeleCablageTest {
     fun `l ecran du chat pousse le modele du bot dans l etat`() {
         assertTrue(
             "l'écran pousse le modèle du bot de la conversation ouverte",
-            app.contains("chatViewModel.setBotModel(openedConversationBot?.let(botsViewModel::modelOf))"),
+            app.contains("chatViewModel.setBotModel(botModelInForce)"),
+        )
+        // **Et il le pousse à CHAQUE changement du modèle, pas seulement au changement de bot.**
+        // La clé de l'effet était le seul nom : choisir un modèle dans la feuille ne la changeait
+        // pas, l'effet ne se rejouait pas, et l'en-tête gardait l'ancien modèle (« pas synchro en
+        // temps réel »). Le modèle et le profil sont donc lus **avant** et portés par les clés.
+        assertTrue(
+            "le modèle du bot est lu hors de l'effet",
+            app.contains("val botModelInForce = openedConversationBot?.let(botsViewModel::modelOf)"),
+        )
+        assertTrue(
+            "le modèle est une clé de l'effet",
+            app.contains("LaunchedEffect(openedConversationBot?.name, botModelInForce, botProfileInForce)"),
         )
     }
 

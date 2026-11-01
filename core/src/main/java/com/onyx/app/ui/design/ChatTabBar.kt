@@ -1,10 +1,38 @@
 package com.onyx.app.ui.design
 
+import kotlinx.coroutines.withTimeoutOrNull
+
+import androidx.compose.ui.input.pointer.positionChange
+
+import androidx.compose.foundation.gestures.awaitFirstDown
+
+import kotlinx.coroutines.CoroutineScope
+
+import androidx.compose.animation.core.tween
+
+import androidx.compose.runtime.rememberCoroutineScope
+
+import androidx.compose.runtime.Stable
+
+import androidx.compose.foundation.gestures.awaitEachGesture
+
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +47,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -31,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
@@ -783,9 +813,81 @@ fun ChatTabBar(
             width = measureLabel,
         )
 
+    // ---- LA PILULE QUI VOYAGE ---------------------------------------------------------------
+    //
+    // Une seule capsule pour toute la barre : elle rejoint l'onglet choisi **sur un ressort**,
+    // se soulève pendant le trajet, s'étire au départ et s'écrase à l'arrivée. C'est la physique de
+    // la référence (`liquid_glass_easy`, MIT) : le ressort de voyage, la levée tenue tout du long,
+    // et l'aplatissement qui vient de la **vitesse** — sans son intégrateur maison, les ressorts de
+    // Compose donnent le même geste et le même rebond.
+    //
+    // Elle est peinte **avant** la rangée : elle vit donc derrière les libellés, jamais devant.
+    val cellWidthPx = with(LocalDensity.current) {
+        ((maxWidth - OnyxSpace.ControlGap * 2).value / tabs.size).coerceAtLeast(1f).dp.toPx()
+    }
+    val pillState = rememberTabPillState(selectedIndex, cellWidthPx, reduceMotion, tabs.size)
+    // **Un appui long sur la barre prend la pastille** : elle grossit, suit le doigt de gauche à
+    // droite, et se pose sur l'onglet le plus proche au relâchement — l'onglet est alors choisi.
+    // C'est le geste de la référence (`liquid_glass_easy`) : on **saisit** la sélection au lieu de
+    // la voir sauter d'un repère à l'autre.
+    val grabPill = Modifier.pointerInput(tabs.size, cellWidthPx) {
+        // **La saisie ne s'attend pas.** Le long-press système demande ~400 ms : on croit que rien
+        // ne se passe, on appuie encore, on lâche — c'est exactement le reproche. Ici la pastille se
+        // décolle au bout de [PillGrabDelayMillis] (150 ms) immobiles, **ou dès le premier
+        // millimètre** si le doigt part sur le côté : on la prend comme on prend un objet.
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            val decided = withTimeoutOrNull(PillGrabDelayMillis) {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull() ?: return@withTimeoutOrNull false
+                    if (!change.pressed) return@withTimeoutOrNull false
+                    val travel = change.positionChange()
+                    if (travel.getDistance() > 2f) {
+                        // **Le doigt glisse d'abord** : c'est une saisie si le geste est horizontal,
+                        // sinon on rend la main (un défilement vertical qui part de la barre doit
+                        // continuer de défiler).
+                        return@withTimeoutOrNull abs(travel.x) > abs(travel.y)
+                    }
+                }
+                @Suppress("UNREACHABLE_CODE")
+                true
+            }
+            // `false` : le doigt est reparti avant, ou il défilait — l'appui simple suit son cours.
+            // `null` : le délai est écoulé sans mouvement, on a saisi. `true` : il a bougé sur le côté.
+            if (decided == false) return@awaitEachGesture
+            pillState.grab()
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull()
+                if (change == null || !change.pressed) {
+                    val landed = pillState.release()
+                    // **Toujours demander l'onglet où la capsule s'est posée.** La garde
+                    // `landed != selectedIndex` se trompait quand la sélection reçue par la barre
+                    // était en retard sur le pageur : la capsule se posait sur « Chat » et la page
+                    // ne s'ouvrait pas (« je suis obligé de cliquer »). Demander la page où l'on est
+                    // déjà ne coûte rien — le pageur ne bouge pas.
+                    onSelect(landed)
+                    break
+                }
+                val dx = change.positionChange().x
+                if (dx != 0f) pillState.dragBy(dx)
+                change.consume()
+            }
+        }
+    }
+    TabPill(
+        state = pillState,
+        count = tabs.size,
+        cellWidthDp = ((maxWidth - OnyxSpace.ControlGap * 2).value / tabs.size).coerceAtLeast(1f),
+        pill = pill,
+        pillLine = pillLine,
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(grabPill)
             // **Le barreau de la barre.** Comme le compositeur : le voile du verre posé sur la page
             // sombre ne donnait que 1,058:1 — la barre se lisait « encore plus sombre que la page »,
             // ce qui est le pire des cas (une surface doit monter, jamais descendre). Le barreau
@@ -931,27 +1033,13 @@ fun ChatTabBar(
                             Modifier
                         },
                     )
-                    // **La pastille de l'onglet actif** : le fond de la planche (`--pill`), posé
-                    // **sous** l'onglet choisi et seulement sous lui, avec son filet
-                    // (`inset 0 0 0 1px --pillline`). Elle **ne glisse plus** d'une colonne à
-                    // l'autre : le décalage `offset` qui la suivait a disparu avec le lot
-                    // précédent — il poussait chaque repère non choisi d'une colonne, et le
-                    // quatrième (« Onyx ») sortait de la plaque. Ici, c'est l'onglet qui la porte
-                    // donc elle ne peut plus déplacer un voisin : le dessin de la planche, sans
-                    // le défaut qu'il avait introduit.
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .background(pill, SurfaceRole.ActiveCapsule.shape)
-                                .border(
-                                    PlaqueGeometry.Outline,
-                                    pillLine,
-                                    SurfaceRole.ActiveCapsule.shape,
-                                )
-                        } else {
-                            Modifier
-                        },
-                    )
+                    // **La pastille n'est plus portée par la colonne** : c'est [TabPill], une seule
+                    // capsule peinte derrière la rangée, qui voyage d'un onglet à l'autre. La
+                    // colonne ne peint donc plus rien pour « être choisi » — elle garde son libellé
+                    // et son repère, et c'est la capsule qui dit où l'on est. (La pastille portée
+                    // par la colonne ne pouvait pas se déplacer : elle n'existait qu'une fois
+                    // choisie, sans trajet.)
+                    .then(Modifier)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -1073,4 +1161,207 @@ fun ChatTabBar(
         }
     }
     }
+}
+
+/** Le geste : un appui long, un glisser, une pose. Rien d'autre. */
+private const val PillGrabLift = 1.35f
+
+/** Le temps d'appui avant que la pastille se décolle — celui de la main, pas celui du système. */
+private const val PillGrabDelayMillis = 150L
+
+/**
+ * **Ce que la pastille dépasse de sa colonne, de chaque côté.** À la largeur exacte de la cellule,
+ * sa forme — une capsule — mangeait les coins et **rognat le libellé** (« Fichiers » touchait
+ * l'arrondi). Elle est donc plus longue que sa colonne de cette marge, sans jamais empiéter sur la
+ * suivante au-delà de l'interstice : c'est la capsule qui doit sembler posée **sous** le mot, pas
+ * autour de lui.
+ */
+private const val PillOverhangDp = 6f
+
+/**
+ * **L'état de la pastille**, hors de la composition de [TabPill] : le geste est posé sur la
+ * **rangée** (les colonnes sont devant, ce sont elles qui reçoivent les touches), donc c'est la barre
+ * qui pilote la capsule. Trois choses seulement : où elle est ([travel]), à quel point elle est
+ * soulevée ([lift]), et de combien elle s'étire ([stretch]).
+ */
+@Stable
+private class TabPillState(
+    count: Int,
+    private val cellWidthPx: Float,
+    private val reduceMotion: Boolean,
+    start: Int,
+) {
+    val travel = Animatable(start.toFloat())
+    val lift = Animatable(0f)
+    var stretch by mutableFloatStateOf(0f)
+        private set
+    var grabbed by mutableStateOf(false)
+        private set
+    private var anchor = start
+    private val lastIndex = (count - 1).coerceAtLeast(0)
+
+    /**
+     * **La position pendant la saisie, tenue à part.** Le doigt écrit `dragIndex` **tout de suite**,
+     * et c'est lui que la capsule suit. L'ancienne version passait par `travel.snapTo` dans une
+     * coroutine : `release()` lisait alors une position **en retard de plusieurs images**, arrondissait
+     * à l'ancien onglet, et n'appelait donc pas la sélection — la pastille se déplaçait, la page non
+     * (« je suis obligé de recliquer sur le bouton »).
+     */
+    var dragIndex by mutableFloatStateOf(start.toFloat())
+        private set
+
+    /** Ce que la capsule peint : le doigt pendant la saisie, le ressort autrement. */
+    val position: Float get() = if (grabbed) dragIndex else travel.value
+
+    /** Le doigt s'est posé : la pastille **grossit** et vient sous la main. */
+    fun grab() {
+        grabbed = true
+        dragIndex = travel.value
+        coroutineScope?.launch {
+            lift.animateTo(PillGrabLift, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium))
+        }
+    }
+
+    /** Le doigt glisse : la pastille le suit **image par image**, sans jamais sortir de la barre. */
+    fun dragBy(dxPx: Float) {
+        if (cellWidthPx <= 0f) return
+        val next = (dragIndex + dxPx / cellWidthPx).coerceIn(0f, lastIndex.toFloat())
+        // L'étirement suit la vitesse du geste : elle s'allonge dans le sens du mouvement.
+        stretch = (abs(next - dragIndex) * 2.2f).coerceIn(0f, 0.14f)
+        dragIndex = next
+    }
+
+    /** Le doigt se lève : elle se pose sur l'onglet le plus proche, **qui devient la sélection**. */
+    fun release(): Int {
+        grabbed = false
+        val landed = dragIndex.roundToInt().coerceIn(0, lastIndex)
+        stretch = 0f
+        coroutineScope?.launch {
+            travel.animateTo(landed.toFloat(), spring(dampingRatio = 0.72f, stiffness = 420f))
+            lift.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 300f))
+        }
+        anchor = landed
+        return landed
+    }
+
+    /** Le geste est perdu : elle revient là où elle était. */
+    fun cancel() {
+        grabbed = false
+        stretch = 0f
+        dragIndex = anchor.toFloat()
+        coroutineScope?.launch {
+            travel.animateTo(anchor.toFloat(), spring(dampingRatio = 0.72f, stiffness = 420f))
+            lift.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 300f))
+        }
+    }
+
+    /** La sélection a changé sans geste (touche, lien, restauration) : elle voyage d'elle-même. */
+    suspend fun travelTo(index: Int) {
+        if (grabbed || travel.value == index.toFloat()) return
+        if (!reduceMotion) {
+            coroutineScope?.launch {
+                lift.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium))
+            }
+        }
+        travel.animateTo(
+            targetValue = index.toFloat(),
+            animationSpec = if (reduceMotion) {
+                tween(durationMillis = 140)
+            } else {
+                spring(dampingRatio = 0.72f, stiffness = 320f)
+            },
+        )
+        stretch = 0f
+        anchor = index
+        if (!reduceMotion) {
+            lift.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 300f))
+        }
+    }
+
+    internal var coroutineScope: CoroutineScope? = null
+}
+
+@Composable
+private fun rememberTabPillState(selected: Int, cellWidthPx: Float, reduceMotion: Boolean, count: Int = 4): TabPillState {
+    val scope = rememberCoroutineScope()
+    val state = remember { TabPillState(count = count, cellWidthPx = cellWidthPx, reduceMotion = reduceMotion, start = selected) }
+    state.coroutineScope = scope
+    LaunchedEffect(selected) { state.travelTo(selected) }
+    return state
+}
+
+/**
+ * **LA PILULE QUI VOYAGE** — la capsule de l'onglet choisi, une seule pour toute la barre.
+ *
+ * Elle était auparavant peinte **par la colonne choisie** : un fond qui apparaissait sur l'onglet
+ * d'arrivée et disparaissait de l'onglet de départ, donc **aucun trajet**.
+ *
+ * Ici, c'est un **objet** : sa position est un ressort, sa levée un second. Elle se soulève pendant
+ * le trajet, s'étire avec la vitesse, se repose à l'arrivée — et surtout, **on peut la saisir** :
+ * un appui long la fait grossir ([PillGrabLift]), le doigt la déplace de gauche à droite, le
+ * relâchement la pose sur l'onglet le plus proche. C'est la physique de la référence
+ * (`liquid_glass_easy`, MIT), transposée sur les ressorts de Compose.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.TabPill(
+    state: TabPillState,
+    count: Int,
+    cellWidthDp: Float,
+    pill: Color,
+    pillLine: Color,
+) {
+    val density = LocalDensity.current
+    val cellWidthPx = with(density) { cellWidthDp.dp.toPx() }
+    val overhangPx = with(density) { PillOverhangDp.dp.toPx() }
+    // **Le débordement est borné par la barre.** Aux deux extrémités, les 6 dp de marge sortaient
+    // de la plaque et la capsule se faisait **couper par son propre arrondi** : elle est donc
+    // rapprochée du bord intérieur plutôt que de le dépasser — jamais rognée, jamais collée.
+    val pillWidthPx = with(density) { (cellWidthDp + PillOverhangDp * 2f).dp.toPx() }
+    val maxOffsetPx = (with(density) { (cellWidthDp * count).dp.toPx() } - pillWidthPx)
+        .coerceAtLeast(0f)
+    // **La même sélection, en verre.** Quand la page est enregistrée (Android 13+), la pastille est
+    // une **lentille** : elle courbe ce qui passe sous elle, avec son arête. Sinon, elle reste la
+    // capsule peinte : jamais de trou.
+    val lensPage = LocalOnyxLensPage.current
+    val glassShape = SurfaceRole.ActiveCapsule.shape
+    val glassable = lensPage != null && OnyxLens.available
+    Box(
+        modifier = Modifier
+            // La position se lit dans la phase de pose : un voyage par image ne recompose rien.
+            .offset {
+                IntOffset(
+                    (state.position * cellWidthPx - overhangPx)
+                        .coerceIn(0f, maxOffsetPx)
+                        .roundToInt(),
+                    0,
+                )
+            }
+            .width((cellWidthDp + PillOverhangDp * 2f).dp)
+            .height(PlaqueGeometry.TabCellHeight)
+            .align(Alignment.CenterStart)
+            .graphicsLayer {
+                // **Saisie** : au-delà de la levée (1), l'excédent gonfle la capsule dans les deux
+                // sens — c'est ce qui la fait « grossir » sous l'appui long avant de suivre le doigt.
+                val grab = (state.lift.value - 1f).coerceAtLeast(0f)
+                scaleX = 1f + state.stretch + grab * 0.10f
+                scaleY = 1f - state.stretch * 0.5f + (state.lift.value * 0.16f)
+                translationY = -state.lift.value * 2.dp.toPx()
+                shadowElevation = state.lift.value * 8.dp.toPx()
+                shape = glassShape
+                clip = false
+            }
+            .then(
+                if (glassable && lensPage != null) {
+                    Modifier.onyxLensGlass(
+                        shape = glassShape,
+                        page = lensPage,
+                        tint = pill,
+                    )
+                } else {
+                    Modifier
+                        .background(pill, SurfaceRole.ActiveCapsule.shape)
+                        .border(PlaqueGeometry.Outline, pillLine, SurfaceRole.ActiveCapsule.shape)
+                },
+            ),
+    )
 }

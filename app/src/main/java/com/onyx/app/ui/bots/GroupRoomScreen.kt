@@ -1,5 +1,11 @@
 package com.onyx.app.ui.bots
 
+import androidx.compose.ui.layout.onSizeChanged
+
+import androidx.compose.ui.platform.LocalDensity
+
+import androidx.compose.runtime.mutableIntStateOf
+
 import com.onyx.app.ui.design.OnyxSpace
 
 import com.onyx.app.ui.design.onyxPage
@@ -77,7 +83,13 @@ import com.onyx.app.ui.design.LiveMark
 import com.onyx.app.ui.design.MenuItem
 import com.onyx.app.ui.design.SafeBarSpacing
 import com.onyx.app.ui.design.SelectableText
+import com.onyx.app.ui.design.SurfaceRole
+import com.onyx.app.ui.design.glassBarShell
 import com.onyx.app.ui.design.Symbols
+import com.onyx.app.ui.design.matierePage
+import com.onyx.app.ui.design.onyxHazeSource
+import com.onyx.app.ui.design.LocalGlassSourcePresence
+import com.onyx.app.ui.design.OnyxLens
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.voice.SpeechEngine
@@ -102,6 +114,7 @@ import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.rememberTabFaceCycleIndex
 import com.onyx.app.ui.design.GlassSurface
 import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.onyxLensPage
 import com.onyx.app.ui.design.OnyxSocle
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.composerBottomInsets
@@ -127,6 +140,12 @@ fun GroupRoomScreen(
     viewModel: GroupRoomViewModel,
     server: ServerConfig,
     onBack: () -> Unit,
+    /**
+     * **Le contrôle du volet**, celui d'un fil de bot : un appui replie la liste, un autre la
+     * déplie. La pastille de gauche de la salle ne faisait que revenir en arrière, alors que la
+     * salle vit **dans** le volet.
+     */
+    sidebarToggle: (@Composable () -> Unit)? = null,
     /**
      * Le crayon de la salle : une **nouvelle conversation de cette salle** (ses membres, son nom).
      * Fourni, le bouton est dessiné ; sans lui, l'en-tête n'en porte aucun.
@@ -300,20 +319,260 @@ fun GroupRoomScreen(
         }
     }
 
-    Column(
+    // **La hauteur des barres, mesurée.** Le fil s'étend **dessous** : sans cela il n'y a, sous la
+    // plaque et sous la barre, que le fond de la page — une couleur unie, que la lentille ne peut
+    // pas faire plier. C'est la mesure qui donne aux vitres quelque chose à courber.
+    var topInsetPx by remember { mutableIntStateOf(0) }
+    var bottomInsetPx by remember { mutableIntStateOf(0) }
+    val insetDensity = LocalDensity.current
+    val topInsetDp = with(insetDensity) { topInsetPx.toDp() }
+    val bottomInsetDp = with(insetDensity) { bottomInsetPx.toDp() }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .onyxPage(theme)
+            .onyxPage(theme),
+    ) {
+    // **LA PAGE DU VERRE, SUR TOUT L'ÉCRAN.** C'est elle que la barre et la plaque de la salle
+    // échantillonnent (voir `OnyxLensGlass`). Elle est enregistrée **ici**, et l'en-tête comme la
+    // plaque sont peints **après**, donc **hors** du calque : une vitre ne se dessine jamais dans la
+    // texture qu'elle lit — c'est ce qui faisait planter l'écran quand on enregistrait le `Column`
+    // entier. Sans elle, la barre et la plaque se lisaient mates : rien à courber.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // **La source Haze**, comme dans un fil de bot : ce que la vitre échantillonne quand la
+            // lentille n'est pas disponible. La salle n'en avait aucune — d'où le verre mat.
+            .then(
+                com.onyx.app.ui.design.LocalHazeState.current
+                    ?.let { state -> Modifier.onyxHazeSource(state) }
+                    ?: Modifier,
+            )
+            .then(
+                com.onyx.app.ui.design.LocalOnyxLensPage.current
+                    ?.let { page -> page.let(Modifier::onyxLensPage) }
+                    ?: Modifier,
+            ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .padding(bottom = SafeBarSpacing.GapDp.dp),
+        ) {
+            Box(
+                // **Le fil, plein écran, décalé de la hauteur des barres.** C'est **lui**, la texture que
+                // les vitres de la salle courbent — une couleur unie ne montre aucune pliure, un fil qui
+                // défile, si. Il vit dans le calque enregistré (voir plus haut), donc aucune vitre ne se
+                // dessine à l'intérieur de ce qu'elle lit.
+                modifier = Modifier
+                    .fillMaxSize()
+                    // **Aucune marge de mise en page.** Le fil descend **sous la barre et sous la
+                // plaque** : c'est ce que la lentille courbe. Les deux marges vivent dans le
+                // **défilement** (`contentPadding` du journal), sinon il n'y aurait, sous le verre,
+                // qu'une couleur unie — et le verre paraîtrait mat.
+            ) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { tabPage ->
+                when (tabPage) {
+                // ---- Chat : le journal de la salle, inchangé. ----
+                0 -> {
+                if (rows.isEmpty() && state.sending.isEmpty() && state.shownDrafts.isEmpty() && !state.loaded) {
+                    RoomOpening(room = room, face = face)
+                } else {
+                    // L'échelle de texte des Réglages est posée à la **racine** — l'activité la lit
+                    // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
+                    // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
+                    // une seconde fois (1,23 × 1,23 = 1,51).
+                    CompositionLocalProvider(LocalOnyxTheme provides theme) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 12.dp + topInsetDp,
+                                // La plaque du compositeur : la dernière ligne passe **au-dessus**
+                                // d'elle au lieu de se cacher dessous, et le fil continue de défiler
+                                // **sous** le verre (voir la page enregistrée).
+                                bottom = 12.dp + bottomInsetDp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(18.dp),
+                        ) {
+                            if (room.omitted > 0) {
+                                item(key = "omitted") {
+                                    SelectableText(
+                                        text = "Earlier messages are in Hermes Desktop.",
+                                        style = theme.footnote.copy(color = theme.secondaryText, textAlign = TextAlign.Center),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+                            if (page.hidden > 0) {
+                                item(key = "earlier") {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .onyxClickable {
+                                                shownFrom = rows[(page.start - PAGE).coerceAtLeast(0)].seq
+                                            },
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        OnyxIcon(Symbols.ArrowUpCircle, tint = theme.accent, size = 15.dp)
+                                        Spacer(Modifier.size(6.dp))
+                                        BasicText(
+                                            text = OnyxLocalization.format("Show earlier messages (%1\$d)", page.hidden),
+                                            style = theme.footnote.copy(color = theme.accent),
+                                        )
+                                    }
+                                }
+                            }
+                            if (rows.isEmpty() && state.sending.isEmpty()) {
+                                item(key = "opening") { RoomOpening(room = room, face = face, inline = true) }
+                            }
+                            items(page.shown, key = { "seq-" + it.seq }) { event ->
+                                RoomEventRow(
+                                    event = event,
+                                    room = room,
+                                    server = server,
+                                    face = face,
+                                    highlighted = current == event.seq,
+                                )
+                            }
+                            // Les messages de la personne pas encore dans le journal.
+                            items(state.sending, key = { "sending-" + it.id }) { pending ->
+                                MineRow(
+                                    text = AttachedFileNote.split(pending.text).text,
+                                    paths = AttachedFileNote.split(pending.text).paths,
+                                    files = pending.files,
+                                    server = server,
+                                    // Un envoi définitif n'est plus « en attente » : il est là, marqué,
+                                    // et la raison se lit dans le bandeau des problèmes.
+                                    waiting = !pending.failed,
+                                )
+                            }
+                            // Les réponses en train d'être écrites, sous leur bot, jusqu'à ce que la salle les ait.
+                            items(state.shownDrafts, key = { "draft-" + it.id }) { draft ->
+                                RoomDraftRow(draft = draft, room = room, face = face)
+                            }
+                            if (state.status.waitsOnPerson || (state.busy && state.writing == null)) {
+                                item(key = "talking") { TalkingLine(status = state.status) }
+                            }
+                            items(
+                                state.status.approvals.filterNot { state.answering.contains(it.id) },
+                                key = { "approval-" + it.id },
+                            ) { approval ->
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    BasicText(
+                                        text = OnyxLocalization.format(
+                                            "%1\$s wants to run a command",
+                                            room.member(approval.memberID)?.label ?: OnyxLocalization["A bot"],
+                                        ),
+                                        localize = false,
+                                        style = theme.footnote.copy(color = theme.secondaryText, fontWeight = FontWeight.SemiBold),
+                                    )
+                                    ApprovalCard(
+                                        request = approval.request,
+                                        onChoose = { choice -> viewModel.answer(approval, choice) },
+                                    )
+                                    BasicText(
+                                        text = "Not answered in about 5 minutes, it isn't run.",
+                                        style = theme.caption.copy(color = theme.secondaryText),
+                                    )
+                                }
+                            }
+                            items(
+                                state.status.retries.filterNot { state.answering.contains(it) },
+                                key = { "retry-" + it },
+                            ) { task ->
+                                RetryCard(
+                                    task = task,
+                                    who = viewModel.feed.memberForTask(task) ?: OnyxLocalization["A bot"],
+                                    onRetry = { viewModel.retry(task) },
+                                )
+                            }
+                            state.problem?.let { problem ->
+                                item(key = "problem") {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 14.dp)
+                                        // Ce que le serveur a refusé passe tel quel, jamais traduit.
+                                        SelectableText(
+                                            text = problem,
+                                            localize = false,
+                                            style = theme.footnote.copy(color = theme.warning),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                // ---- Flux : les réponses de la salle, en cartes datées (le même journal). ----
+                1 -> ChatFeedPane(
+                    cards = feedCards,
+                    feedback = feedFeedback,
+                    botName = room.name,
+                    faceName = room.name,
+                    faceCode = face(room.name),
+                    accent = tabAccent,
+                    nowMillis = nowMillis,
+                    onFeedback = { cardId, value ->
+                        feedFeedback = panels.setFeedback(panelKey, cardId, value)
+                    },
+                    onDiscuss = { card -> pendingDraft = card.title },
+                    onCompose = { scope.launch { pagerState.animateScrollToPage(0) } },
+                    // **La place des barres, mesurée.** Sans elle, le contenu de ces deux
+                    // onglets démarrait **sous l'en-tête** (et sous la barre d'état) : la liste du
+                    // Chat a son `contentPadding`, celles-ci n'en ont pas — on leur donne les deux
+                    // marges, dans la mise en page.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topInsetDp, bottom = bottomInsetDp),
+                )
+                // ---- Fichiers : ce qui a été échangé DANS ce salon — mêmes filtres, même tri. ----
+                else -> ChatFilesPane(
+                    files = roomFiles,
+                    accent = tabAccent,
+                    config = server,
+                    onOpen = { file, local ->
+                        onOpenFile(
+                            android.net.Uri.fromFile(local),
+                            file.name,
+                            file.mime.ifBlank { FileViewers.mimeFor(file.name) },
+                        )
+                    },
+                    // **La place des barres, mesurée.** Sans elle, le contenu de ces deux
+                    // onglets démarrait **sous l'en-tête** (et sous la barre d'état) : la liste du
+                    // Chat a son `contentPadding`, celles-ci n'en ont pas — on leur donne les deux
+                    // marges, dans la mise en page.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topInsetDp, bottom = bottomInsetDp),
+                )
+                }
+            }
+            }
+        }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
             // La zone du système d'abord, puis l'espace visuel de la maison : la barre
             // d'écriture de la salle ne peut plus être enterrée sous la barre de navigation,
             // ni paraître collée au bord.
             .navigationBarsPadding()
             .padding(bottom = SafeBarSpacing.GapDp.dp),
     ) {
+        Box(Modifier.onSizeChanged { topInsetPx = it.height }) {
         RoomHeader(
             room = room,
             face = face,
             onBack = onBack,
+            sidebarToggle = sidebarToggle,
             onMenu = { showingMenu = true },
             onNewConversation = onNewConversation,
         )
@@ -334,172 +593,11 @@ fun GroupRoomScreen(
             )
         }
 
-        Box(modifier = Modifier.weight(1f)) {
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { tabPage ->
-            when (tabPage) {
-            // ---- Chat : le journal de la salle, inchangé. ----
-            0 -> {
-            if (rows.isEmpty() && state.sending.isEmpty() && state.shownDrafts.isEmpty() && !state.loaded) {
-                RoomOpening(room = room, face = face)
-            } else {
-                // L'échelle de texte des Réglages est posée à la **racine** — l'activité la lit
-                // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
-                // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
-                // une seconde fois (1,23 × 1,23 = 1,51).
-                CompositionLocalProvider(LocalOnyxTheme provides theme) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
-                    ) {
-                        if (room.omitted > 0) {
-                            item(key = "omitted") {
-                                SelectableText(
-                                    text = "Earlier messages are in Hermes Desktop.",
-                                    style = theme.footnote.copy(color = theme.secondaryText, textAlign = TextAlign.Center),
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-                        if (page.hidden > 0) {
-                            item(key = "earlier") {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .onyxClickable {
-                                            shownFrom = rows[(page.start - PAGE).coerceAtLeast(0)].seq
-                                        },
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    OnyxIcon(Symbols.ArrowUpCircle, tint = theme.accent, size = 15.dp)
-                                    Spacer(Modifier.size(6.dp))
-                                    BasicText(
-                                        text = OnyxLocalization.format("Show earlier messages (%1\$d)", page.hidden),
-                                        style = theme.footnote.copy(color = theme.accent),
-                                    )
-                                }
-                            }
-                        }
-                        if (rows.isEmpty() && state.sending.isEmpty()) {
-                            item(key = "opening") { RoomOpening(room = room, face = face, inline = true) }
-                        }
-                        items(page.shown, key = { "seq-" + it.seq }) { event ->
-                            RoomEventRow(
-                                event = event,
-                                room = room,
-                                server = server,
-                                face = face,
-                                highlighted = current == event.seq,
-                            )
-                        }
-                        // Les messages de la personne pas encore dans le journal.
-                        items(state.sending, key = { "sending-" + it.id }) { pending ->
-                            MineRow(
-                                text = AttachedFileNote.split(pending.text).text,
-                                paths = AttachedFileNote.split(pending.text).paths,
-                                files = pending.files,
-                                server = server,
-                                // Un envoi définitif n'est plus « en attente » : il est là, marqué,
-                                // et la raison se lit dans le bandeau des problèmes.
-                                waiting = !pending.failed,
-                            )
-                        }
-                        // Les réponses en train d'être écrites, sous leur bot, jusqu'à ce que la salle les ait.
-                        items(state.shownDrafts, key = { "draft-" + it.id }) { draft ->
-                            RoomDraftRow(draft = draft, room = room, face = face)
-                        }
-                        if (state.status.waitsOnPerson || (state.busy && state.writing == null)) {
-                            item(key = "talking") { TalkingLine(status = state.status) }
-                        }
-                        items(
-                            state.status.approvals.filterNot { state.answering.contains(it.id) },
-                            key = { "approval-" + it.id },
-                        ) { approval ->
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                BasicText(
-                                    text = OnyxLocalization.format(
-                                        "%1\$s wants to run a command",
-                                        room.member(approval.memberID)?.label ?: OnyxLocalization["A bot"],
-                                    ),
-                                    localize = false,
-                                    style = theme.footnote.copy(color = theme.secondaryText, fontWeight = FontWeight.SemiBold),
-                                )
-                                ApprovalCard(
-                                    request = approval.request,
-                                    onChoose = { choice -> viewModel.answer(approval, choice) },
-                                )
-                                BasicText(
-                                    text = "Not answered in about 5 minutes, it isn't run.",
-                                    style = theme.caption.copy(color = theme.secondaryText),
-                                )
-                            }
-                        }
-                        items(
-                            state.status.retries.filterNot { state.answering.contains(it) },
-                            key = { "retry-" + it },
-                        ) { task ->
-                            RetryCard(
-                                task = task,
-                                who = viewModel.feed.memberForTask(task) ?: OnyxLocalization["A bot"],
-                                onRetry = { viewModel.retry(task) },
-                            )
-                        }
-                        state.problem?.let { problem ->
-                            item(key = "problem") {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 14.dp)
-                                    // Ce que le serveur a refusé passe tel quel, jamais traduit.
-                                    SelectableText(
-                                        text = problem,
-                                        localize = false,
-                                        style = theme.footnote.copy(color = theme.warning),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            }
-            // ---- Flux : les réponses de la salle, en cartes datées (le même journal). ----
-            1 -> ChatFeedPane(
-                cards = feedCards,
-                feedback = feedFeedback,
-                botName = room.name,
-                faceName = room.name,
-                faceCode = face(room.name),
-                accent = tabAccent,
-                nowMillis = nowMillis,
-                onFeedback = { cardId, value ->
-                    feedFeedback = panels.setFeedback(panelKey, cardId, value)
-                },
-                onDiscuss = { card -> pendingDraft = card.title },
-                onCompose = { scope.launch { pagerState.animateScrollToPage(0) } },
-                modifier = Modifier.fillMaxSize(),
-            )
-            // ---- Fichiers : ce qui a été échangé DANS ce salon — mêmes filtres, même tri. ----
-            else -> ChatFilesPane(
-                files = roomFiles,
-                accent = tabAccent,
-                config = server,
-                onOpen = { file, local ->
-                    onOpenFile(
-                        android.net.Uri.fromFile(local),
-                        file.name,
-                        file.mime.ifBlank { FileViewers.mimeFor(file.name) },
-                    )
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-            }
+        // Le fil vit dans le calque enregistré, plus haut ; ici, sa place seulement.
         }
-        }
+        Spacer(Modifier.weight(1f))
 
+        Box(Modifier.onSizeChanged { bottomInsetPx = it.height }) {
         if (room.inDesktop) {
             DesktopNote()
         } else {
@@ -522,6 +620,8 @@ fun GroupRoomScreen(
                         OnyxSurfaces.hairline(theme),
                         RoundedCornerShape(PlaqueGeometry.Radius),
                     )
+                    // **La lentille de la maison**, la même que dans un fil de bot — désormais découpée à la
+                    // forme (voir `LiquidGlass`), donc plus de rectangle au milieu de la plaque.
                     .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlaqueGeometry.Radius), masking = true),
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -596,6 +696,8 @@ fun GroupRoomScreen(
                 }
             }
         }
+        }
+    }
     }
 
     if (showingMenu) {
@@ -732,6 +834,10 @@ private fun RoomHeader(
     room: GroupRoom,
     face: (String) -> String?,
     onBack: () -> Unit,
+    // Le **même** contrôle que dans un fil de bot : la pastille du volet, avec son état et son
+    // libellé (« Déplier » / « Replier la liste »). La salle n'avait qu'un retour, alors qu'elle est
+    // ouverte **dans** le volet : le geste attendu est celui du volet.
+    sidebarToggle: (@Composable () -> Unit)? = null,
     onMenu: () -> Unit,
     onNewConversation: (() -> Unit)? = null,
 ) {
@@ -740,18 +846,30 @@ private fun RoomHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
+            // **La même barre que dans un fil de bot** : une capsule de verre détachée de la page,
+            // et non un bandeau plein largeur. Sans elle, la salle se lisait comme un autre écran
+            // que le fil — alors que c'est le même endroit, avec plusieurs voix.
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .glassBarShell(SurfaceRole.Bar)
+            .liquidGlass(GlassSurface.THREAD_TOP_BAR, SurfaceRole.Bar.shape)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        GlassCircleButton(
-            symbol = Symbols.ListBullet,
-            label = "Conversations",
-            size = 36.dp,
-            iconSize = 18.dp,
-            tint = theme.secondaryText,
-            onClick = onBack,
-        )
+        // **Le contrôle du volet**, celui du fil de bot — il replie et déplie la liste. Sans lui (une
+        // salle ouverte hors du volet), la pastille des conversations garde son rôle de retour.
+        if (sidebarToggle != null) {
+            sidebarToggle()
+        } else {
+            GlassCircleButton(
+                symbol = Symbols.SidebarLeft,
+                label = "Conversations",
+                size = 36.dp,
+                iconSize = 18.dp,
+                tint = theme.secondaryText,
+                onClick = onBack,
+            )
+        }
         RoomFaceStack(members = room.members, face = face, size = 22.dp)
         BasicText(
             text = room.name,

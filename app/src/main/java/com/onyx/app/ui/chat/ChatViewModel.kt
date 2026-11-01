@@ -46,6 +46,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -104,6 +105,8 @@ class ChatViewModel(
     /** Les messages écrits pendant une réponse : ils partent l'un après l'autre à la fin. */
     private val queued = OutboxQueue()
     private var retryJob: Job? = null
+    /** Le rattrapage d'un tour fini sans nous (voir [resumeDetachedTurn]) : un seul à la fois. */
+    private var recoveryJob: Job? = null
     private var retryAttempt = 0
     private val retryDelaysMs = longArrayOf(2_000, 5_000, 15_000, 30_000, 60_000)
     /** Ancienneté initiale des tours sortis de la file, par bulle de réponse. */
@@ -754,6 +757,52 @@ class ChatViewModel(
             )
         }
         scheduleRetry()
+        resumeDetachedTurn(conversation)
+    }
+
+    /**
+     * **Le tour que l'hôte a fini sans nous.**
+     *
+     * Fermer l'app pendant qu'un bot travaille ne l'arrête plus : le serveur finit le run et écrit
+     * la réponse dans la session (le client annonce `X-Hermes-Keep-Running`). Au retour sur la
+     * conversation, la bulle laissée en suspens se remplit donc avec ce que l'hôte a écrit —
+     * pendant que l'app était fermée, ou pendant qu'elle finissait d'arriver.
+     *
+     * Trois refus explicites, dans cet ordre :
+     *  - un tour **vit encore** dans le processus : c'est lui qui écrit, on ne double pas ;
+     *  - le transport ne tient **pas** de session côté serveur : il n'y a rien à relire ;
+     *  - pas d'identifiant de session conservé : la même raison.
+     *
+     * Et une règle de fond : sans réponse d'assistant **après** le dernier message de l'utilisateur,
+     * on ne touche à rien (`ServeSessionMessages.trailingReply`) — une vieille réponse n'est jamais
+     * la nouvelle.
+     */
+    private fun resumeDetachedTurn(conversation: com.onyx.app.data.model.Conversation) {
+        recoveryJob?.cancel()
+        recoveryJob = null
+        val pending = conversation.messages.lastOrNull()?.takeIf { message ->
+            message.role == Role.ASSISTANT && (message.isStreaming || message.text.isBlank())
+        } ?: return
+        if (turns.session(conversation.id) != null) return
+        val state = _state.value
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(state.server, state.botProfile)
+        if (server.transport == Transport.CHAT_COMPLETIONS && server.apiBaseUrl.isBlank()) return
+        if (server.transport != Transport.CHAT_COMPLETIONS && server.transport != Transport.HERMES_SESSIONS) return
+        val sessionId = conversation.serverSessionId?.takeIf { it.isNotBlank() } ?: return
+        recoveryJob = viewModelScope.launch {
+            val client = com.onyx.app.data.net.ServeSessionMessages(server)
+            repeat(RECOVERY_ATTEMPTS) { attempt ->
+                val fromHost = runCatching { client.reply(sessionId) }.getOrNull()
+                val merged = com.onyx.app.data.net.ServeSessionMessages.merge(pending.text, fromHost)
+                if (merged != null) {
+                    updateMessage(pending.id) { message -> message.copy(text = merged, isStreaming = false) }
+                    persistCurrent()
+                    return@launch
+                }
+                // Le run peut encore tourner chez l'hôte : on redemande, sans rien affirmer entre-temps.
+                if (attempt < RECOVERY_ATTEMPTS - 1) delay(RECOVERY_DELAY_MS)
+            }
+        }
     }
 
     fun delete(conversation: Conversation) {
@@ -1246,6 +1295,19 @@ class ChatViewModel(
      * Le texte déjà reçu reste dans le fil.
      */
     fun stop() {
+        // L'ordre part **avant** la coupure locale : depuis que le tour survit à la fermeture de
+        // l'app, annuler l'écoute ne suffit plus — sans `POST /v1/runs/{id}/stop`, le bot
+        // continuerait de travailler dans le dos de l'utilisateur.
+        val stateBefore = _state.value
+        val runId = turns.session(conversationId)?.live?.value?.runId
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(
+            stateBefore.server, stateBefore.botProfile,
+        )
+        if (!runId.isNullOrBlank()) {
+            viewModelScope.launch {
+                runCatching { com.onyx.app.data.net.ServeRunStop(server).stop(runId) }
+            }
+        }
         turns.stop(conversationId)
         retryJob?.cancel()
         retryJob = null
@@ -1648,6 +1710,16 @@ class ChatViewModel(
 
         /** Le gateway rend 4018 quand la ligne n'est pas une commande de son worker. */
         const val SLASH_NOT_A_COMMAND = 4018
+
+        /**
+         * Le rattrapage d'un tour fini sans client : combien de relectures, et à quel rythme.
+         *
+         * Douze relectures espacées de cinq secondes couvrent une minute — le temps qu'un run
+         * laissé tourner chez l'hôte finisse d'écrire. Au-delà, la bulle reste telle quelle : rien
+         * n'est inventé, et le prochain retour sur la conversation retentera.
+         */
+        const val RECOVERY_ATTEMPTS = 12
+        const val RECOVERY_DELAY_MS = 5_000L
     }
 }
 

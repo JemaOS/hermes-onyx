@@ -71,7 +71,7 @@ class AbsentRoutesReachabilityTest {
     @Test
     fun `le menu d une rangee s ouvre vraiment, par un appui long`() {
         // Sans ce geste, le menu — et « Usage & cost » avec lui — serait un écran orphelin.
-        assertTrue(volet.contains("onLongPress = onLongPress?.let { press -> { bounds?.let(press) } }"))
+        assertTrue(volet.contains("onLongPress = onLongPress?.let { press -> { bounds.rect?.let(press) } }"))
         val interactions = File("../core/src/main/java/com/onyx/app/ui/design/Interactions.kt").readText()
         assertTrue(interactions.contains("onLongClick = onLongPress"))
         assertTrue(interactions.contains("combinedClickable("))

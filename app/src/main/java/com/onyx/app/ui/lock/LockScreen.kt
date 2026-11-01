@@ -118,10 +118,12 @@ fun LockScreen(
             .setSubtitle(OnyxLocalization["Unlock to see your conversations"])
             // Les classes **fortes et faibles** : sur beaucoup d'appareils (Honor, Xiaomi), seules
             // les fortes sont proposées, et l'ancienne demande (faible seule) restait sans réponse.
-            .setAllowedAuthenticators(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.BIOMETRIC_WEAK,
-            )
+            // **`BIOMETRIC_STRONG or BIOMETRIC_WEAK` est refusé par l'API** (`setAllowedAuthenticators`
+            // n'accepte qu'une classe, éventuellement avec `DEVICE_CREDENTIAL`) : la boîte levait une
+            // `IllegalArgumentException` attrapée par le `runCatching` du dessous, et l'écran de
+            // verrouillage restait muet — ni empreinte, ni visage. Une seule classe, la plus large :
+            // la faible couvre l'empreinte comme le visage.
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
             // L'identifiant de l'appareil n'est pas demandé — le code de Onyx est le secours, donc
             // le bouton négatif reste permis et mène au champ de code.
             .setNegativeButtonText(OnyxLocalization["Use the passcode"])

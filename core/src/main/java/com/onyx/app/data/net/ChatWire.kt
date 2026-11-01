@@ -51,6 +51,8 @@ internal data class WireMessage(
 
 @Serializable
 internal data class ChatChunk(
+    /** L'identifiant du run côté serveur (`chatcmpl-…`) : c'est lui qu'arrête `POST /v1/runs/{id}/stop`. */
+    val id: String? = null,
     /** Le modèle que le serveur dit servir — l'alias demandé peut cacher le vrai. */
     val model: String? = null,
     val choices: List<Choice>? = null,

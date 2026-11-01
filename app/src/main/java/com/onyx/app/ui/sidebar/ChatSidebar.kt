@@ -2218,11 +2218,22 @@ private fun ConversationRow(
     // **Une seule colonne à gauche** : la marge de la liste (8 dp) plus le rembourrage de la rangée
     // (8 dp) posent le cercle à 16 dp du bord du panneau — exactement là où commence le texte de la
     // tête et où commence l'icône d'une tuile.
-    var bounds by remember { mutableStateOf<Rect?>(null) }
-    val rowLabel = listOfNotNull(
-        row.title.takeIf { it.isNotBlank() },
-        sidebarAgeLabel(row.age).takeIf { it.isNotEmpty() },
-    ).joinToString(", ")
+    // **Les limites de la rangée, dans un porteur MUET.**
+    //
+    // La couverture d'ouverture en a besoin (elle part du rectangle de la rangée), mais les écrire
+    // dans un `mutableStateOf` réveillait la rangée **à chaque image de défilement** : pendant que
+    // la liste glisse, les coordonnées à l'écran changent toutes les 16 ms, `onGloballyPositioned`
+    // les republie, et chaque rangée visible se recomposait donc ~60 fois par seconde — c'est ce
+    // qui rendait le défilement lent. Un porteur ordinaire ne notifie personne : il est écrit à
+    // chaque image et **lu seulement quand le doigt appuie**.
+    val bounds = remember { RowBounds() }
+    // **L'âge se calcule une fois.** Il était formé deux fois par rangée et par composition (pour
+    // le libellé d'accessibilité puis pour la carte) ; une seule valeur sert désormais aux deux.
+    val ageLabel = remember(row.age) { sidebarAgeLabel(row.age) }
+    val rowLabel = remember(row.title, ageLabel) {
+        listOfNotNull(row.title.takeIf { it.isNotBlank() }, ageLabel.takeIf { it.isNotEmpty() })
+            .joinToString(", ")
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -2232,14 +2243,14 @@ private fun ConversationRow(
             .defaultMinSize(minHeight = OnyxSpace.RowHeight)
             .clip(shape)
             .onyxTappable(
-                onClick = { onClick(bounds) },
-                onLongPress = onLongPress?.let { press -> { bounds?.let(press) } },
+                onClick = { onClick(bounds.rect) },
+                onLongPress = onLongPress?.let { press -> { bounds.rect?.let(press) } },
             )
             // **La rangée se annonce d'une voix** : son titre, son état et son âge — ce qu'elle
             // montre. Relevé d'arbre : sans ce libellé, la cellule cliquable était muette.
             .tapLabel(rowLabel)
             .then(gesture)
-            .onGloballyPositioned { bounds = it.boundsInWindow() }
+            .onGloballyPositioned { bounds.rect = it.boundsInWindow() }
             // **Le rembourrage de la colonne** (16 dp) : c'est lui qui pose le disque dans la
             // colonne d'alignement du volet — la même que le texte de la tête et l'icône d'une
             // tuile. La rangée, elle, reste pleine largeur : son geste et son appui vont jusqu'aux
@@ -2270,7 +2281,7 @@ private fun ConversationRow(
                     )
                 }
             }
-            val ageSelecting = sidebarAgeLabel(row.age)
+            val ageSelecting = ageLabel
             if (ageSelecting.isNotEmpty()) {
                 BasicText(
                     text = ageSelecting,
@@ -2298,7 +2309,7 @@ private fun ConversationRow(
                 faceCode = row.identityFace,
                 preview = row.subtitle,
                 metaLeft = row.projectLabel,
-                metaRight = sidebarAgeLabel(row.age).takeIf { it.isNotEmpty() },
+                metaRight = ageLabel.takeIf { it.isNotEmpty() },
                 pinned = row.pinned,
                 modifier = Modifier.weight(1f),
             )
@@ -2892,3 +2903,17 @@ internal val SidebarTileHeight: Dp = OnyxSpace.ThumbnailSize
  * tuiles le même axe optique.
  */
 internal val TileIconSquare: Dp = 32.dp
+
+/**
+ * **Un porte-limites muet** — les coordonnées d'une rangée, sans réveiller de recomposition.
+ *
+ * Une rangée doit connaître son rectangle à l'écran pour que l'ouverture d'une conversation parte
+ * de la bonne place. Mais `onGloballyPositioned` se déclenche **à chaque image de défilement** (les
+ * coordonnées à la fenêtre changent), et publier ce rectangle dans un `mutableStateOf` invalidait la
+ * rangée ~60 fois par seconde : c'est ce qui rendait la liste lente à faire glisser. Ce porteur est
+ * écrit librement et **lu seulement quand le doigt appuie** — aucune écriture ne notifie personne,
+ * donc le défilement ne recompose plus rien.
+ */
+internal class RowBounds {
+    var rect: Rect? = null
+}

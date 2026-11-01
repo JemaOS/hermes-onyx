@@ -357,7 +357,7 @@ class SidebarConversationGesturesTest {
     @Test
     fun `le volet porte les deux gestes sur ses rangees`() {
         assertTrue(sidebar.contains("SwipeableConversationRow("))
-        assertTrue(sidebar.contains("onLongPress = onLongPress?.let { press -> { bounds?.let(press) } }"))
+        assertTrue(sidebar.contains("onLongPress = onLongPress?.let { press -> { bounds.rect?.let(press) } }"))
     }
 
     @Test
