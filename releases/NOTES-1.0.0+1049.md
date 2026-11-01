@@ -4,10 +4,11 @@
 `versionCode 1049` egalement relu **sur l'appareil**, `dumpsys package com.onyx.app`).
 
 Les trois paquets sont batis sur l'**arbre d'integration rev 1049** (tete `a4d85aae`, 1049 commits,
-arbre propre : `git status --porcelain` = 0 ligne). Les sources publiees sur `main` n'ont **pas**
-ete republiees dans cette passe : elles restent la **copie nettoyee de la rev 1047** (`6944817`).
-Ce qui change ici, ce sont la **galerie d'ecrans**, refaite sur le build final, et la **release**,
-au numero `1.0.0+1049`.
+arbre propre : `git status --porcelain` = 0 ligne). Les sources publiees sur `main` sont **la copie
+nettoyee de cette meme rev 1049** (`onyx.versionCode=1049`, commit `89e63a4`) : un build fait **depuis
+les sources publiees** rend `versionCode='1049' versionName='1.0.0+1049'` sur les trois modules, et la
+suite y est verte (**3674 tests, 0 echec**). Ce qui change ici, ce sont la **galerie d'ecrans**,
+refaite sur le build final, et la **release**, au numero `1.0.0+1049`.
 
 ## Ce qui change depuis 1.0.0+1047
 
