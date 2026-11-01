@@ -7,7 +7,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white)](#requirements)
-[![Tests](https://img.shields.io/badge/tests-3673%20passing-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-3674%20passing-brightgreen)](#tests)
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -153,12 +153,15 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## Ce que 1.0.0+1047 apporte
+## Ce que 1.0.0+1049 apporte
 
 Chaque point ci-dessous cite le commit, le fichier ou la mesure qui le porte — rien n'est annoncé ici
 qui ne puisse être montré. Le détail complet est dans
-[`releases/NOTES-1.0.0+1047.md`](releases/NOTES-1.0.0+1047.md).
+[`releases/NOTES-1.0.0+1049.md`](releases/NOTES-1.0.0+1049.md).
 
+- **La carte n'a plus de rectangle interieur** — la bande d'effacement ne se compose plus
+  sur elle-meme, et la bande basse est son miroir (`567feca1`, `ui/design/Galerie.kt` ;
+  `BlocsVerreVerrouTest`).
 - **La fiche d'usage vient d'une source unique** — le modèle en vigueur (`ModelInForce`) alimente le
   relevé d'agent **et** la fiche par bot ; les compteurs à zéro sont expliqués au lieu de rester
   muets (`FicheUsageModeleEnVigueurVerrouTest`, `ModeleEnVigueurFicheCasTest`, `ChatUsageCoherenceTest`).
@@ -212,7 +215,7 @@ qui ne puisse être montré. Le détail complet est dans
 - **Les retours corrigés** — la page quittée n'est plus perdue au sortir du volet, et un banc mesure les
   trois chemins (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
 
-**3673 tests, 0 échec.** Les trois paquets — téléphone, Android Auto et Wear OS — sont fournis dans
+**3674 tests, 0 échec.** Les trois paquets — téléphone, Android Auto et Wear OS — sont fournis dans
 cette release.
 
 ## What 1.0.0+547 brought
@@ -282,7 +285,7 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 ## Screenshots
 
-The gallery is the **`1.0.0+976`** build (`versionCode 976`) — and it shows **both appearances**:
+The gallery is the **`1.0.0+1049`** build (`versionCode 1049`) — and it shows **both appearances**:
 the **dark theme** (the default, file name without a suffix) and the **light theme** (the same
 screens, file name with the `-light` suffix), each pair taken on the **same** build, screen for
 screen. The naming convention and the list of the files actually present are in
@@ -318,7 +321,7 @@ under its dark counterpart.
 | **Dark** | <img src="docs/screenshots/settings-voice-notifications.png" width="100%"> | <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> | <img src="docs/screenshots/archive.png" width="100%"> |
 | **Light** | <img src="docs/screenshots/settings-voice-notifications-light.png" width="100%"> | <img src="docs/screenshots/conversations-light.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar-light.png" width="100%"> | <img src="docs/screenshots/capabilities-light.png" width="100%"> | <img src="docs/screenshots/archive-light.png" width="100%"> |
 
-Every capture here is **`1.0.0+976`** — the build it was taken from — and each shot is labelled with
+Every capture here is **`1.0.0+1049`** — the build it was taken from — and each shot is labelled with
 its build in [`docs/screenshots/README.md`](docs/screenshots/README.md). The bot
 roster and the name on the cards are read from the server — the app lists the profiles it exposes, it
 never invents one — and the name on the panel (`Onyx`) with the letter chip derived from it is the
@@ -332,25 +335,25 @@ below before installing.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+1047-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
-| `Hermes-Onyx-1.0.0+1047-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+1047-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `Hermes-Onyx-1.0.0+1049-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `Hermes-Onyx-1.0.0+1049-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `Hermes-Onyx-1.0.0+1049-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**The signing certificate changed with `1.0.0+980`.** `1.0.0+1047` is signed with that same
+**The signing certificate changed with `1.0.0+980`.** `1.0.0+1049` is signed with that same
 **new key** (verified on the packages themselves: the `1.0.0+988` asset downloaded from this repo's
-previous release and the three `1.0.0+1047` packages all carry the same certificate,
+previous release and the three `1.0.0+1049` packages all carry the same certificate,
 `CN=Hermes Onyx, O=JemaOS`, SHA-256 `bf436416…`), so **an update from `1.0.0+988` is a normal
 in-place update.** Coming from `1.0.0+972`,
 `1.0.0+547`, `1.0.0+546` or `1.0.0` — releases signed with the previous key — Android **refuses the
 in-place update**: **uninstall the old app, then install this one.** Nothing is lost from your server — scan your setup code again after the reinstall.
 
-The three names above are the exact asset names on the releases. `1.0.0+1047` carries a
-`SHA256SUMS-1047.txt` file with the SHA-256 of every package it ships. Check your download against
+The three names above are the exact asset names on the releases. `1.0.0+1049` carries a
+`SHA256SUMS-1049.txt` file with the SHA-256 of every package it ships. Check your download against
 it:
 
 ```bash
-curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS-1047.txt
-sha256sum -c SHA256SUMS-1047.txt
+curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS-1049.txt
+sha256sum -c SHA256SUMS-1049.txt
 ```
 
 1. Download the APK for your device, open it, allow the install (the build is signed).
@@ -409,7 +412,7 @@ copy of the integration tree, so its git history cannot carry the number.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**3673 tests, 0 failures** — 1702 in `:core`, 1971 in `:app`. Plain JUnit 4, no
+**3674 tests, 0 failures** — 1703 in `:core`, 1971 in `:app`. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
