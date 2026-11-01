@@ -20,6 +20,7 @@ import com.onyx.app.ui.chat.PendingAttachment
 import com.onyx.app.ui.conversations.GroupChat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -50,7 +51,21 @@ class GroupRoomViewModel(
 
     /** Les visages des membres, tels que le fil et la scène vocale les dessinent. */
     private val faceStore = BotFaceStore(application)
-    val face: (String) -> String? = { name -> faceStore.faceOf(name) }
+
+    /**
+     * La table de visages **de l'écran** (`BotFaceResolver`), posée par la salle : elle réunit le
+     * choix du téléphone et `ui_meta.onyx.face`. Sans elle, la scène vocale ne lisait que le choix
+     * local — un membre dont le visage vient du serveur y apparaissait sans code, donc avec la
+     * créature de repli de `BotLook`, déduite de son nom : deux visages pour un même bot.
+     */
+    private val faces = MutableStateFlow<((String) -> String?)?>(null)
+
+    /** La salle pose sa résolution de visages ; le fil et la scène vocale la suivent. */
+    fun useFaces(resolve: (String) -> String?) {
+        faces.value = resolve
+    }
+
+    val face: (String) -> String? = { name -> faces.value?.invoke(name) ?: faceStore.faceOf(name) }
 
     val feed = GroupRoomFeed(
         initialRoom = initialRoom,
@@ -66,7 +81,7 @@ class GroupRoomViewModel(
     override val roomName: String get() = state.value.room.name
 
     /** Le round, tel que la scène vocale le lit : le journal, ce qui part, ce qui s'écrit. */
-    private val _lines = state.map { it.voiceLines(face) }
+    private val _lines = combine(state, faces) { room, _ -> room.voiceLines(face) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     override val lines: StateFlow<List<GroupVoiceLine>> = _lines
 

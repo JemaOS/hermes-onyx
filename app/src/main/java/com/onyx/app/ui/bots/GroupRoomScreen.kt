@@ -141,6 +141,13 @@ fun GroupRoomScreen(
     onOpenVoice: (() -> Unit)? = null,
     /** La salle a été terminée ici : la liste la laisse partir. */
     onEnded: () -> Unit,
+    /**
+     * Le modèle IA **d'un membre de la salle**, choisi d'ici : le menu de la salle liste ses bots
+     * (« Bot Models ») et cette lambda ouvre la feuille pour celui qu'on touche. Le choix s'écrit
+     * sur son profil (`profiles.configure`), donc c'est le modèle qu'Hermes lui donne **dans cette
+     * salle** comme dans ses propres conversations. Absente, l'entrée n'est pas dessinée.
+     */
+    onPickBotModel: ((String) -> Unit)? = null,
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
     focusComposer: Boolean = false,
     onComposerFocused: () -> Unit = {},
@@ -170,6 +177,9 @@ fun GroupRoomScreen(
     // Le visage des membres : la **même** résolution que la liste (`BotFaceResolver`), jamais une
     // lecture à part du choix local — c'est ce qui faisait diverger la salle de la liste.
     val face: (String) -> String? = faceResolver::codeOf
+    // Et la scène vocale de cette salle lit la **même** table : le fil vocal et l'orbe dessinent
+    // donc le visage du salon, jamais une créature déduite du nom.
+    LaunchedEffect(faceResolver) { viewModel.useFaces(faceResolver::codeOf) }
 
     // ---- Les onglets du bas : la même barre qu'une conversation à un bot. ----
     // L'onglet choisi est gardé **par salle** (`ChatPanelStore`) : chaque salon rouvre le sien.
@@ -595,6 +605,24 @@ fun GroupRoomScreen(
                     showingMenu = false
                     findOpen = true
                 })
+                // Le modèle IA **de chaque bot**, depuis la salle : une salle n'avait aucun chemin
+                // vers le modèle d'un membre (seule la conversation d'un bot portait sa feuille).
+                // Le sous-menu nomme les membres — celui qu'on touche ouvre sa feuille de modèle.
+                if (onPickBotModel != null && room.members.isNotEmpty()) {
+                    add(
+                        MenuItem(
+                            label = "Bot Models",
+                            symbol = Symbols.Sparkles,
+                            submenu = room.members.map { member ->
+                                MenuItem(label = member.label, localize = false) {
+                                    showingMenu = false
+                                    onPickBotModel(member.profile)
+                                }
+                            },
+                            onSelect = {},
+                        ),
+                    )
+                }
                 if (!room.inDesktop) {
                     add(MenuItem(label = "Rename", symbol = Symbols.Pencil) {
                         showingMenu = false

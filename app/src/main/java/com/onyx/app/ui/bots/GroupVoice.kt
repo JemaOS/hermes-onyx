@@ -61,6 +61,21 @@ data class GroupVoiceLine(
     val isMine: Boolean get() = profile == null
 }
 
+/**
+ * Les bots d'une scène vocale, chacun portant le visage que **l'écran** résout pour lui.
+ *
+ * Une salle dessine ses visages avec une seule table (`BotFaceResolver` : le choix du téléphone
+ * réuni à `ui_meta.onyx.face`). La scène vocale, elle, ne lisait que le choix local : un membre dont
+ * le visage vient du serveur y arrivait **sans code**, et l'orbe montrait alors la créature de repli
+ * de `BotLook`, déduite du nom — un autre visage que celui du salon. Résoudre ici, avec la table de
+ * l'écran, ferme l'écart : en-tête, orbe et légende lisent le même code.
+ */
+internal fun List<BotProfile>.withFaces(resolve: (String) -> String?): List<BotProfile> =
+    map { bot ->
+        val code = resolve(bot.name)
+        if (code == null || code == bot.faceCode) bot else bot.copy(faceCode = code)
+    }
+
 /** Le dernier round de la salle, comme `VoiceView.groupExchange` : la question et ce qui suit. */
 internal fun groupVoiceRound(lines: List<GroupVoiceLine>): List<GroupVoiceLine> {
     val lastAsk = lines.indexOfLast { it.isMine }
