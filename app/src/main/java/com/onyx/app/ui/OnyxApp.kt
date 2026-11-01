@@ -104,6 +104,7 @@ import com.onyx.app.ui.bots.BotActivityStore
 import com.onyx.app.ui.bots.BotBadges
 import com.onyx.app.ui.bots.BotFaceStore
 import com.onyx.app.ui.bots.composerBots
+import com.onyx.app.ui.bots.withFaces
 import com.onyx.app.ui.bots.BotsScreen
 import com.onyx.app.ui.bots.BotsViewModel
 import com.onyx.app.ui.bots.BotRosterStandIn
@@ -708,6 +709,11 @@ fun OnyxApp() {
         // l'écran des modèles, un seul état pour les deux.
         val currentReasoning by settingsRepo.reasoningEffort.collectAsStateWithLifecycle()
         var showModelSheet by remember { mutableStateOf(false) }
+        // La feuille de modèle ouverte **depuis une salle** : le nom du bot visé. Une salle n'a pas
+        // de conversation à un bot, si bien que sans ce nom la feuille parlerait du serveur au lieu
+        // de ce bot ; le choix s'écrit sur son profil (`profiles.configure`), et c'est le modèle
+        // qu'Hermes lui donne **dans la salle** comme dans ses propres conversations.
+        var roomModelBot by remember { mutableStateOf<String?>(null) }
         var modelChoices by remember(state.server.id) { mutableStateOf<List<com.onyx.app.ui.design.ModelChoice>>(emptyList()) }
         var modelChoicesLoading by remember(state.server.id) { mutableStateOf(false) }
         // Les profils Hermes et l'état de leur liste — le local du profil `default`, les distants du
@@ -735,8 +741,8 @@ fun OnyxApp() {
         // Le catalogue n'est lu **que** quand la feuille s'ouvre : une requête en moins au démarrage.
         // Il est lu **par profil** (le registre, puis les modèles de chaque profil) : la feuille
         // montre ainsi tous les profils, pas le seul alias de la passerelle.
-        LaunchedEffect(showModelSheet, state.server.id) {
-            if (!showModelSheet) return@LaunchedEffect
+        LaunchedEffect(showModelSheet, roomModelBot, state.server.id) {
+            if (!showModelSheet && roomModelBot == null) return@LaunchedEffect
             modelChoicesLoading = true
             val catalog = runCatching { com.onyx.app.data.net.ModelCatalog.fetchAll(state.server) }
                 .getOrDefault(emptyList())
@@ -3416,6 +3422,10 @@ fun OnyxApp() {
                         // Un fichier de l'onglet Fichiers de la salle s'ouvre comme celui d'une
                         // conversation : la même route, le même lecteur de famille.
                         onOpenFile = { uri, name, mime -> openConversationFile(uri, name, mime) },
+                        // Le modèle IA d'un membre, choisi **depuis la salle** : le menu de la salle
+                        // liste ses bots, et la feuille s'ouvre pour celui qu'on touche. Le choix
+                        // s'écrit sur son profil, donc vaut aussi pour ses réponses dans la salle.
+                        onPickBotModel = { name -> roomModelBot = name },
                         onEnded = {
                             // Terminée sur le serveur : la liste la laisse partir.
                             openedRoom = null
@@ -3427,6 +3437,42 @@ fun OnyxApp() {
                         onComposerFocused = { groupComposerFocus = false },
                         chatTextScale = com.onyx.app.ui.theme.ResolvedTheme.chatTextScale(chatTextSize),
                     )
+                    // ---- Le modèle IA **d'un bot**, réglé depuis la salle ----
+                    // Une salle n'a pas de conversation à un bot : la feuille se dessine donc
+                    // au-dessus d'elle, pour le membre choisi dans son menu. Elle lit le `model`
+                    // du profil — celui qu'Hermes sert à ce bot **dans la salle** — et l'écrit par
+                    // `profiles.configure` (`BotsViewModel.setModel`), comme la feuille d'un chat.
+                    val roomModelBotProfile = roomModelBot?.let { name ->
+                        bots.firstOrNull { it.name == name } ?: BotProfile(name = name)
+                    }
+                    if (roomModelBotProfile != null) {
+                        com.onyx.app.ui.models.ModelSheet(
+                            models = modelChoices,
+                            currentModel = roomModelBotProfile.model ?: state.modelInForce,
+                            reasoning = currentReasoning,
+                            favourites = modelFavourites,
+                            recents = modelRecents,
+                            loading = modelChoicesLoading,
+                            profiles = modelProfiles,
+                            scope = com.onyx.app.ui.models.ModelScope.BOT,
+                            fallback = state.fallback,
+                            // Pas de « Mode rapide » : ce réglage-là appartient à une session de
+                            // conversation, et la salle n'en a pas — la ligne ne se dessine pas.
+                            fastMode = null,
+                            onPickModel = { model ->
+                                botsViewModel.setModel(roomModelBotProfile, model)
+                                modelPrefs.noteRecent(state.server.id, model)
+                                modelRecents = modelPrefs.recents(state.server.id)
+                                roomModelBot = null
+                            },
+                            onPickReasoning = { value -> scope.launch { settingsRepo.setReasoningEffort(value) } },
+                            onToggleFavourite = { id, favourite ->
+                                modelPrefs.setFavourite(state.server.id, id, favourite)
+                                modelFavourites = modelPrefs.favourites(state.server.id)
+                            },
+                            onDismiss = { roomModelBot = null },
+                        )
+                    }
                 } else {
                     // La salle choisie dans la liste : ses membres sont cochés d'avance, comme le
                     // `NewGroupChatView` d'la référence part des bots de la salle.
@@ -3545,14 +3591,16 @@ fun OnyxApp() {
                 }
                 val thread: GroupVoiceThread = liveDemo?.thread ?: demo?.thread ?: roomViewModel ?: groupViewModel!!
 
-                // Les visages de la salle, pour l'en-tête et l'orbe.
-                val bots = (liveDemo ?: demo)?.bots ?: if (roomViewModel != null) {
+                // Les visages de la salle, pour l'en-tête et l'orbe : la **même** table que le fil
+                // (`faceResolver`) — sinon un bot montre le visage du salon puis une créature
+                // déduite de son nom dans la scène vocale.
+                val bots = ((liveDemo ?: demo)?.bots ?: if (roomViewModel != null) {
                     val roomState by roomViewModel.state.collectAsStateWithLifecycle()
                     roomState.room.composerBots(roomViewModel.face)
                 } else {
                     val groupState by groupViewModel!!.state.collectAsStateWithLifecycle()
                     groupState.bots.filter { it.name in groupState.selected }
-                }
+                }).withFaces(faceResolver::codeOf)
 
                 // Les noms de la salle : c'est eux qui disent à la lecture quelle voix va à qui,
                 // pour que deux bots ne lisent pas de la même (`BotVoices`).

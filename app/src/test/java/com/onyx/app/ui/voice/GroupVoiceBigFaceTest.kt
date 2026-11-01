@@ -12,6 +12,7 @@ import com.onyx.app.ui.bots.GroupVoiceReplies
 import com.onyx.app.ui.bots.GroupVoiceScene
 import com.onyx.app.ui.bots.groupVoicePhaseTitle
 import com.onyx.app.ui.bots.voiceLines
+import com.onyx.app.ui.bots.withFaces
 import com.onyx.app.voice.VoicePhase
 import java.io.File
 import java.util.Locale
@@ -196,6 +197,42 @@ class GroupVoiceBigFaceTest {
             viewModel.contains("draftId = if (message.isStreaming) \"local-\" + message.id else null"),
         )
         assertTrue("et le fil porte le profil du bot", viewModel.contains("profile = message.bot?.name"))
+    }
+
+    @Test
+    fun `la scene vocale d une salle porte le visage que la salle affiche`() {
+        // Ce que la salle connaît : le choix du téléphone **et** `ui_meta.onyx.face`, réunis par
+        // `BotFaceResolver`. C'est cette table que le fil et l'orbe doivent lire, tous les deux.
+        val table = mapOf("scout" to "creature:fox", "quill" to "creature:owl")
+
+        // Un membre dont le visage vient du serveur n'arrive **sans aucun code** dans la scène :
+        // il prenait donc la créature de repli de `BotLook`, déduite de son nom.
+        val bare = listOf(scout.copy(faceCode = null), quill)
+        val dressed = bare.withFaces { table[it] }
+        assertEquals("il prend le visage de la table de l'écran", "creature:fox", dressed[0].faceCode)
+        assertEquals("et le sien quand la table le donne aussi", "creature:owl", dressed[1].faceCode)
+
+        // Une table muette ne change rien : le nom continue de décider.
+        assertEquals(bare, bare.withFaces { null })
+
+        // Et la salle pose vraiment sa table aux deux bouts : l'en-tête/l'orbe (`OnyxApp`) et le
+        // fil vocal (`GroupRoomScreen` → `GroupRoomViewModel.useFaces`).
+        val app = File("src/main/java/com/onyx/app/ui/OnyxApp.kt").readText()
+        assertTrue(
+            "la scène vocale résout les visages avec la table de l'écran",
+            app.contains("}).withFaces(faceResolver::codeOf)"),
+        )
+        val room = File("src/main/java/com/onyx/app/ui/bots/GroupRoomScreen.kt").readText()
+        assertTrue(
+            "la salle pose sa résolution au fil vocal",
+            room.contains("viewModel.useFaces(faceResolver::codeOf)"),
+        )
+        val model = File("src/main/java/com/onyx/app/ui/bots/GroupRoomViewModel.kt").readText()
+        assertTrue("le fil vocal suit cette table", model.contains("combine(state, faces)"))
+        assertTrue(
+            "et retombe sur le choix local quand elle manque",
+            model.contains("faces.value?.invoke(name) ?: faceStore.faceOf(name)"),
+        )
     }
 
     @Test
