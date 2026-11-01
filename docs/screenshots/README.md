@@ -25,7 +25,7 @@ comme l'état courant.
   (`grep -oE 'text="[^"]+"' <arbre>.xml`).
 - La galerie montre le **build livré**. La rafraîchir est la **dernière** étape, sur l'APK publié.
 
-## Captures de la galerie (build `1.0.0+976`, `versionCode 976`)
+## Captures de la galerie (build `1.0.0+1049`, `versionCode 1049`)
 
 **Deux apparences.** Les fichiers réellement présents dans ce dossier, tous repris sur l'APK livré :
 
@@ -72,6 +72,13 @@ Quand une capture ne peut pas être re-prise, sa provenance se **note dans le RE
 build vient l'image) plutôt que de la laisser non marquée : une image périmée non étiquetée est une
 affirmation fausse, une image étiquetée est un écart connu.
 
-Les 40 fichiers de ce dossier viennent du **même** build (`1.0.0+976`, `versionCode 976`) ; le
-`sha256` du `base.apk` relu **sur l'appareil** vaut
-`3ea97ce2985017a3cce24f36d82e5f6ee70fca8f5bd1aae451749cf8e1314d5d`.
+Les 40 fichiers de ce dossier viennent du **même** build (`1.0.0+1049`, `versionCode 1049`). Le
+`versionCode` est **relu sur l'appareil** avant la série (`dumpsys package com.onyx.app` rend
+`versionName=1.0.0+1049`, `versionCode=1049`), et le `sha256` du `base.apk` relu **sur l'appareil**
+vaut `bd8fe440c56dc2e33eb6d95e3bad1a6d48633a801724842acff489bca757d72e` (identique au fichier
+local).
+
+Rendu **matériel** : l'émulateur journalise `Selecting Vulkan device: NVIDIA GeForce RTX 4070
+SUPER`, et l'appareil répond, à `dumpsys SurfaceFlinger`, `GLES: … NVIDIA GeForce RTX 4070
+SUPER/PCIe/SSE2 … OpenGL ES 3.1 (4.5.0 NVIDIA 595.99.02)`. Le verre et le flou sont donc rendus par
+le GPU de l'hôte — pas en logiciel.
