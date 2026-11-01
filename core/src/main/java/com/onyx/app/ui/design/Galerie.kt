@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -191,7 +192,8 @@ object BlocConversation {
     private const val InkZoneFloor: Float = 0.16f
 
     /**
-     * **LA BANDE D'EFFACEMENT DE LA ZONE — 12 dp, et JAMAIS une arête.**
+     * **LA BANDE D'EFFACEMENT DE LA ZONE — 16 dp : tout le rembourrage de la carte, et pas un dp de
+     * plus.**
      *
      * Le défaut du propriétaire, capture à l'appui : *« tu as un encadré dans le verre, ça fait deux
      * couches pour rien »*. La zone d'encre du lot précédent était un **rectangle à coins arrondis**
@@ -208,14 +210,25 @@ object BlocConversation {
      * plaque (la zone prend toute la largeur, recadrée par la forme arrondie du verre), donc il n'y a
      * pas de bord vertical non plus.
      *
-     * **Pourquoi 12 dp tient la garantie.** Le texte d'une carte est posé dans le rembourrage de la
-     * plaque ([OnyxSocle.CardPadding], 16 dp) : le titre, l'aperçu et l'heure sont donc à **16 dp au
-     * moins** du bord haut et du bord bas. La zone atteint son opacité **pleine** à [InkZoneFade]
-     * (12 dp) du bord — **avant** le premier glyphe —, si bien que **tout le texte repose sur le
-     * plateau**, à l'opacité que [inkZoneAlpha] a mesurée. La garantie 4,5:1 est donc **celle du lot
-     * précédent, inchangée**, sur la même pire zone.
+     * **Pourquoi 16 dp, et pas 12 (mesuré à l'appareil, lot `liquide-unifie`).** Le lot
+     * « encadre-verre » avait laissé **deux défauts de dessin** dans la bande (voir
+     * [inkZoneBandRows] : des sous-rangs qui se **chevauchaient**, donc une bande plus **dense** que
+     * son plateau, et une bande basse **à l'envers**) — réparés, il restait que la bande était
+     * **courte** : à 12 dp, un écran à **densité 1** ne dispose que de **12 pixels** pour descendre de
+     * `inkZoneAlpha`, soit une marche de ≈ **2,4 niveaux de luminance par pixel**, au-dessus du seuil
+     * du verrou (**un niveau sur 255**) — le seuil n'étant pas négociable, c'est la **bande** qui
+     * s'allonge. À 16 dp, la marche par pixel passe sous le seuil à **toutes** les densités, **1×
+     * compris** (relevé du verrou : voir `BlocsVerreVerrouTest`, section 5 bis).
+     *
+     * **Pourquoi 16 dp tient encore la garantie.** Le texte d'une carte est posé dans le rembourrage
+     * de la plaque ([OnyxSocle.CardPadding], **16 dp**) : le titre, l'aperçu et l'heure sont donc à
+     * **16 dp au moins** du bord haut et du bord bas. La zone atteint son opacité **pleine** à
+     * [InkZoneFade] du bord — donc **exactement au premier glyphe** — et tout le texte repose sur le
+     * plateau, à l'opacité que [inkZoneAlpha] a mesurée. La garantie 4,5:1 est **celle du lot
+     * précédent, inchangée**, sur la même pire zone (le verrou le mesure : l'opacité au rembourrage
+     * vaut exactement l'opacité pleine).
      */
-    val InkZoneFade: Dp = 12.dp
+    val InkZoneFade: Dp = OnyxSocle.CardPadding
 
     /**
      * **Le nombre de marches de la bande d'effacement** — la zone n'emploie **aucun dégradé** (le
@@ -239,6 +252,40 @@ object BlocConversation {
         val fade = InkZoneFade.value
         if (fade <= 0f) return full
         return (full * (edgeDistance.value / fade)).coerceIn(0f, full)
+    }
+
+    /**
+     * **LE NOMBRE DE RANGS DE LA BANDE D'EFFACEMENT** — un rang par pixel de l'écran, jamais un
+     * chevauchement.
+     *
+     * C'est la correction du défaut du propriétaire. La bande se dessinait en `InkZoneStrips`
+     * rectangles de **`pas + 1 px`** : ils se **chevauchaient** d'un pixel, donc leurs opacités se
+     * **composaient** (`1 − Π(1 − aᵢ)`) et la bande atteignait ≈ `0,39` d'opacité là où son plateau
+     * en vaut `0,16` — elle était **plus dense que son plateau**. Mesuré au pixel sur la liste,
+     * apparence claire, carte « scout » (`qa/liquide-unifie/shots/`) : la contribution de la zone
+     * valait **13,5** au creux de la bande haute contre **7,2** sur le plateau, avec une marche de
+     * **−4,0 puis −3,4** de luminance à `y = 1693`/`1694`. Et la bande basse lisait la rampe **à
+     * l'envers** (`ramp[i]` croissant vers le bord bas) : **presque opaque au bord** et transparente
+     * vers l'intérieur — le second liseré (marche de **−3,2 puis −4,0** à `y = 1829`/`1830`).
+     * Éteindre la zone fait disparaître **les deux** marches : c'est l'attribution, par ablation.
+     */
+    fun inkZoneBandRows(bandPx: Float): Int = kotlin.math.ceil(bandPx).toInt().coerceAtLeast(0)
+
+    /**
+     * **LE PROFIL RÉELLEMENT COMPOSITÉ PAR LA ZONE — rang par pixel.** Le dessin le suit tel quel
+     * (un `drawRect` de **exactement 1 px** par rang) : chaque rang est peint **une fois**, donc le
+     * profil composité **est** ce profil — il n'y a plus rien à composer.
+     *
+     * `bandPx` est la bande en **pixels** ([InkZoneFade] × densité), et `density` ramène le **centre**
+     * de chaque rang en dp pour lire [inkZoneAlphaAt] : le chiffre du verrou et celui du dessin
+     * viennent de la même fonction.
+     */
+    fun inkZoneRowAlphas(theme: ResolvedTheme, bandPx: Float, density: Float): List<Float> {
+        val rows = inkZoneBandRows(bandPx)
+        if (density <= 0f) return emptyList()
+        return List(rows) { i ->
+            inkZoneAlphaAt(theme, (((i + 0.5f) / density).dp))
+        }
     }
 
     /** Les encres préférées d'une carte, dans l'ordre de la hiérarchie : titre, aperçu, heure. */
@@ -493,58 +540,78 @@ fun BlocConversation(
  * ([BlocConversation.inkZoneAlpha]) : le rembourrage de la carte ([OnyxSocle.CardPadding], 16 dp)
  * place les glyphes dans le **plateau** du profil ([BlocConversation.inkZoneAlphaAt]).
  *
- * Le profil est **le même que celui que le verrou mesure** : la bande vient de
- * [BlocConversation.InkZoneFade], la marche de [BlocConversation.InkZoneStrips] et la valeur de crête
- * de [BlocConversation.inkZoneAlphaAt] — donc le chiffre du test et le dessin ne peuvent pas diverger.
+ * **LE CADRE VIENAIT D'ICI, ET IL EST RÉPARÉ — deux causes, mesurées à l'appareil.**
+ *
+ * 1. **Les bandes se chevauchaient.** Elles étaient peintes en `InkZoneStrips` rectangles de
+ *    `pas + 1 px` : d'un rang à l'autre, **deux ou trois** rectangles se recouvraient, et leurs
+ *    opacités se **composaient** (`1 − Π(1 − aᵢ)`). Une bande visant `0,16` atteignait donc ≈ `0,39`
+ *    et **contredisait le plateau**, qui restait à `0,16` — mesuré au pixel sur la liste, apparence
+ *    claire, carte « scout » : la contribution de la zone valait **13,5** au creux de la bande haute
+ *    contre **7,2** sur le plateau, avec une **marche de −4,0 puis −3,4** de luminance à
+ *    `y = 1693`/`1694` (l'éteinte de la zone fait disparaître ces deux marches : c'est **la** preuve
+ *    d'attribution).
+ * 2. **La bande basse était à l'envers.** Elle lisait `ramp[i]` **croissant** avec `i` en partant de
+ *    `size.height − band` : la zone était donc **transparente vers l'intérieur** et **presque opaque
+ *    au bord bas** — l'exact contraire de la bande haute, et le second liseré du propriétaire
+ *    (marche mesurée de **−3,2 puis −4,0** à `y = 1829`/`1830`, et un bord bas plus **clair** que le
+ *    milieu de la plaque, `220,6` contre `202,8`).
+ *
+ * **Le remède tient en une phrase : un rang par pixel, peint une seule fois.** Chaque rang reçoit
+ * l'opacité de [BlocConversation.inkZoneRowAlphas] (le profil lu **au centre du rang**), par un
+ * `drawRect` de **exactement 1 px** — donc **aucun recouvrement, aucune composition**, et la bande
+ * basse est le **miroir** de la haute. Le profil composité **égale** alors le profil visé, ce que le
+ * verrou mesure (`BlocsVerreVerrouTest`, section 5) : plus aucune marche au-delà d'un niveau sur 255,
+ * plus aucune bande plus dense que son plateau, et l'opacité au bord reste **zéro**.
  *
  * **Aucun dégradé.** Le verrou « plus aucune image générée sur une carte » interdit l'outil de
- * dégradé dans ce fichier, et il n'est **pas** désarmé : la bande se descend par **marches**
- * ([BlocConversation.InkZoneStrips]) dont la plus grande vaut `inkZoneAlpha / 48` — sous le niveau
- * de luminance que le verrou mesure.
+ * dégradé dans ce fichier, et il n'est **pas** désarmé : la bande se descend par **rangs** dont la
+ * plus grande marche vaut `inkZoneAlpha / (bande en pixels)` — sous le niveau de luminance que le
+ * verrou mesure.
  */
 @Composable
 private fun Modifier.blocConversationInkZone(theme: ResolvedTheme): Modifier {
     val colour = BlocConversation.inkZoneColour(theme)
-    val strips = BlocConversation.InkZoneStrips
-    // Le profil, échantillonné **une fois** par thème : la plus grande marche visible est la
-    // différence entre deux échantillons voisins, et le verrou lit exactement ces deux valeurs.
-    val ramp = remember(theme) {
-        List(strips) { i ->
-            BlocConversation.inkZoneAlphaAt(
-                theme,
-                BlocConversation.InkZoneFade * (i.toFloat() / strips),
-            )
-        }
-    }
     val full = remember(theme) { BlocConversation.inkZoneAlpha(theme) }
+    val density = LocalDensity.current
+    val band = remember(density) { with(density) { BlocConversation.InkZoneFade.toPx() } }
+    // Le profil **réellement composité**, rang par pixel : le verrou lit cette fonction, le dessin la
+    // suit — le chiffre du test et le chiffre peint ne peuvent pas diverger.
+    val rows = remember(theme, density, band) {
+        BlocConversation.inkZoneRowAlphas(theme, band, density.density)
+    }
     return this.drawWithContent {
-        val band = BlocConversation.InkZoneFade.toPx()
         if (band <= 0f || size.height <= band * 2f) {
             // Plaque plus courte que ses deux bandes : le plateau seul (la carte est minuscule).
             drawRect(colour.copy(alpha = full))
         } else {
-            val step = band / strips
-            // La bande haute : l'opacité monte de 0 (au bord) à plein (à InkZoneFade du bord).
-            ramp.forEachIndexed { i, a ->
-                drawRect(
-                    color = colour.copy(alpha = a),
-                    topLeft = Offset(0f, i * step),
-                    size = Size(size.width, step + 1f),
-                )
+            val count = rows.size
+            // La bande haute : un rang par pixel, **sans recouvrement** — donc sans composition.
+            rows.forEachIndexed { i, a ->
+                if (a > 0f) {
+                    drawRect(
+                        color = colour.copy(alpha = a),
+                        topLeft = Offset(0f, i.toFloat()),
+                        size = Size(size.width, 1f),
+                    )
+                }
             }
             // Le plateau : l'opacité pleine, sur toute la largeur, là où le texte est posé.
             drawRect(
                 color = colour.copy(alpha = full),
-                topLeft = Offset(0f, band),
-                size = Size(size.width, size.height - 2f * band),
+                topLeft = Offset(0f, count.toFloat()),
+                size = Size(size.width, size.height - 2f * count),
             )
-            // La bande basse : l'opacité redescend de plein à 0 (au bord bas).
-            ramp.forEachIndexed { i, a ->
-                drawRect(
-                    color = colour.copy(alpha = a),
-                    topLeft = Offset(0f, size.height - band + i * step),
-                    size = Size(size.width, step + 1f),
-                )
+            // La bande basse : le **MIROIR** de la haute — transparente au bord bas, pleine à
+            // InkZoneFade du bord. Le lot précédent la lisait à l'envers : c'était le second liseré.
+            rows.forEachIndexed { i, _ ->
+                val a = rows[count - 1 - i]
+                if (a > 0f) {
+                    drawRect(
+                        color = colour.copy(alpha = a),
+                        topLeft = Offset(0f, size.height - count + i),
+                        size = Size(size.width, 1f),
+                    )
+                }
             }
         }
         drawContent()
