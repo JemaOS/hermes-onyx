@@ -64,6 +64,7 @@ import com.onyx.app.ui.common.OnyxLoadingRows
 import com.onyx.app.ui.common.OnyxTroublePanel
 import com.onyx.app.ui.design.AlertAction
 import com.onyx.app.ui.design.ChipRowFit
+import com.onyx.app.ui.design.composerFieldSurface
 import com.onyx.app.ui.design.FrostSurface
 import com.onyx.app.ui.design.OnyxAlert
 import com.onyx.app.ui.design.OnyxEmptyState
@@ -636,16 +637,52 @@ private fun CodeComposer(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // **UNE SEULE VITRE POUR TOUT LE COMPOSITEUR** — le champ ET la rangée des puces. C'est
+            // la plaque de la maison ([FrostSurface.COMMAND_BAR], le même verre que la barre de
+            // commandes des conversations) : sa lumière de tête, son arête claire et son liseré
+            // interne sont peints **ici**, une fois.
             .frostedBar(FrostSurface.COMMAND_BAR, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // Le champ : « Décris un changement… ».
+        //
+        // **IL NE PEINT PLUS SA PROPRE VITRE, ET C'EST LE CORRECTIF.** Il portait un second
+        // `frostedBar(FrostSurface.FIELD)` **dans** celle du compositeur : la finition du verre —
+        // lumière de tête, arête claire de 0,5 dp ([edgeColour] : blanc 62 % en clair), liseré
+        // interne sombre de 1 dp — était donc peinte **deux fois**, et la seconde arête (blanc pur
+        // à L=253 sur une surface à L=232) se lisait comme **une ligne blanche qui coupe la
+        // surface**, 26 px (= 10 dp de rembourrage) sous le bord de la plaque. Mesuré sur la colonne
+        // `x=540` de l'écran Code au repos, apparence claire :
+        //
+        //     y=1873  L=253 +20,6  ← arête claire de la PLAQUE
+        //     y=1877  L=219 −28,0  ← liseré interne de la plaque
+        //     y=1899  L=253  +9,9  ← arête claire DU CHAMP (la ligne signalée)
+        //     y=1903  L=219 −28,0  ← liseré interne du champ  (la seconde surface)
+        //
+        // La même colonne relevée **hors du champ** (`x=20`, dans la plaque) n'en montre qu'**une**
+        // paire : c'est donc bien le champ qui en ajoutait une, et non la plaque.
+        //
+        // C'est la règle déjà écrite pour les deux compositeurs de l'app ([composerFieldSurface],
+        // `ComposerField.kt`) : « la vitre de la barre qui le porte passe au travers, et le champ
+        // n'ajoute que son arête ». Le compositeur des conversations ne trace même **aucun** contour
+        // autour de son champ sur la plaque (`outlined = !plate`). On applique donc ici la même
+        // règle, **au même endroit du code** : aucun aplat, aucune seconde arête — le champ se lit
+        // dans la surface du compositeur, parce que c'est la même surface.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .frostedBar(FrostSurface.FIELD, RoundedCornerShape(OnyxSpace.CardCorner))
+                .composerFieldSurface(
+                    theme = theme,
+                    // Le rayon reste celui du champ de la maison ([OnyxSpace.CardCorner]) : la règle
+                    // de forme ne change pas, seule la **seconde couche** disparaît.
+                    shape = RoundedCornerShape(OnyxSpace.CardCorner),
+                    focused = false,
+                    // **Aucun contour** : un second cadre dans une plaque déjà bordée se lit
+                    // « un champ dans un champ » — c'est exactement le défaut signalé.
+                    outlined = false,
+                )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             if (state.draft.isEmpty()) {
