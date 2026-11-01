@@ -106,7 +106,7 @@ private fun CardBox(content: @Composable androidx.compose.foundation.layout.Colu
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(GlassSurface.RESPONSE_BLOCK)
+            .liquidGlass(GlassSurface.RESPONSE_BLOCK, lens = false)
             .padding(OnyxSpace.CardPadding),
         verticalArrangement = Arrangement.spacedBy(OnyxSpace.CardGap),
         content = content,

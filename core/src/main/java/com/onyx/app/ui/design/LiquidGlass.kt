@@ -1,5 +1,13 @@
 package com.onyx.app.ui.design
 
+import androidx.compose.ui.graphics.drawscope.clipRect
+
+import androidx.compose.ui.graphics.drawscope.clipPath
+
+import androidx.compose.ui.graphics.Path
+
+import androidx.compose.ui.graphics.Outline
+
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
@@ -51,6 +59,7 @@ import com.onyx.app.ui.theme.ReferencePalette
 import com.onyx.app.ui.theme.ResolvedTheme
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurDefaults
 import dev.chrisbanes.haze.blur.HazeBlurStyle
@@ -1868,8 +1877,74 @@ fun Modifier.liquidGlass(
      * changent pas : le verre reste du verre.
      */
     masking: Boolean = false,
+    /**
+     * **La vitre courbe-t-elle son fond ?** `true` par défaut : **toutes** les surfaces de verre de
+     * l'app prennent la lentille ([onyxLensGlass]) — le fond est courbé au bord, avec dispersion
+     * des couleurs — au lieu du seul flou.
+     *
+     * Trois refus, et ils suffisent :
+     *  - pas de page enregistrée ([LocalOnyxLensPage] : l'écran n'en pose pas), ou Android < 13
+     *    (pas de `RuntimeShader`) ;
+     *  - la surface vit **dans** la page qu'elle échantillonnerait ([LocalOnyxLensInside]) : elle se
+     *    verrait elle-même — et elle n'a rien à courber, la page est derrière elle ;
+     *  - la surface n'échantillonne pas l'écran ([GlassSampling] : une feuille ou un menu a sa propre
+     *    fenêtre, il n'y a pas de page à lire).
+     *
+     * Dans ces trois cas, la vitre de Haze reste exactement celle d'avant.
+     */
+    lens: Boolean = true,
 ): Modifier = composed {
     val theme = LocalOnyxTheme.current
+    // **Le chemin de la lentille**, quand il existe : même forme, même corps teinté, même arête —
+    // mais le fond est **courbé** au lieu d'être seulement flouté (voir `OnyxLensGlass.kt`).
+    val lensPage = LocalOnyxLensPage.current
+    val lensEligible = lens &&
+        lensPage != null &&
+        OnyxLens.available &&
+        !LocalOnyxLensInside.current &&
+        surface.sampling == GlassSampling.IN_SCREEN &&
+        // **Le panneau du volet est le fond, pas une plaque sur le fond** : sa forme longe les
+        // bords de l'écran, donc ni lentille ni arête — il garde la vitre de Haze, qui ne peint
+        // rien sur ce périmètre.
+        surface != GlassSurface.SIDEBAR_PANEL
+    if (lensPage != null && lensEligible) {
+        val body = glassTintColour(surface, theme.dark)
+        // L'opacité du corps est **calculée dans le dessin**, sur la taille réelle de la surface
+        // (voir [OnyxLens.bodyAlpha]) : c'est elle qui laisse voir la lentille.
+        return@composed Modifier
+            .shadow(glassPaintShadowDp(surface).dp, shape, clip = false)
+            .clip(shape)
+            // **Et un calque DÉCOUPÉ pour la lentille elle-même.** `drawBackdrop` peint le fond
+            // échantillonné sur **son** calque : le `.clip(shape)` de la chaîne ne l'atteint pas, et
+            // la plaque montrait un **rectangle** de la page au milieu d'elle — visible sur la plus
+            // grande surface de l'app (la salle de groupe, thème clair). Un `graphicsLayer` avec la
+            // forme oblige tout ce que la lentille peint à rester dans les coins arrondis.
+            .graphicsLayer {
+                this.shape = shape
+                clip = true
+            }
+            .onyxLensGlass(shape = shape, page = lensPage, tint = body, rim = surface.plateEdge, masked = masking)
+            // **La finition de la maison par-dessus la lentille.** Le fond courbé remplace le flou,
+            // il ne remplace pas ce qui *pose* la vitre : le reflet de tête et l'arête de la plaque
+            // ([drawGlassPlateGloss], [drawGlassPlateEdge]) — c'étaient eux qui manquaient, et sans
+            // eux la plaque se lisait « plate » à côté des autres verres de l'app.
+            .drawWithContent {
+                // **La finition est DÉCOUPÉE à la forme.** `drawWithContent` vit *après* le
+                // `.clip(shape)` de la chaîne, donc son pinceau n'était pas découpé : le reflet de
+                // tête peignait un `drawRect` — un **rectangle clair** au milieu de la plaque, qu'on
+                // voyait surtout sur la plus grande d'entre elles (la salle de groupe, thème clair).
+                clipToShape(shape) {
+                    if (surface.plateEdge) {
+                        drawGlassPlateGloss(theme.dark)
+                        drawGlassPlateEdge(shape, theme.dark)
+                    }
+                    if (surface.lit) {
+                        drawGlassFinish(shape, theme.dark, sheenShift = 0f)
+                    }
+                }
+                drawContent()
+            }
+    }
     // L'état Haze vient de l'écran qui a posé la source ; explicitement quand l'appelant le donne
     // (une surface posée hors de l'arbre de l'écran), sinon celui de la racine la plus proche.
     val source = state ?: LocalHazeState.current
@@ -2016,11 +2091,44 @@ fun Modifier.liquidGlass(
         .glassPress(pressState)
         .shadow(shadowDp.dp, shape, clip = false)
         .clip(shape)
+        // **Une vitre qui masque ne laisse RIEN paraître derrière elle.**
+        //
+        // Le défaut du propriétaire, dans une salle : « j'ai toujours ce rectangle transparent
+        // derrière » — le fil, posé sous la plaque du compositeur, se lisait au travers comme une
+        // bande translucide collée sur le champ. Le voile du verre (tint + scrim) est une teinte à
+        // opacité mesurée ; il **n'est pas** un fond. Sous lui, on peignait donc la page **par
+        // transparence**, ce qui laissait passer ce qui se trouve dessous.
+        //
+        // Ici, une surface qui masque pose d'abord **la page, opaque**, puis son verre par-dessus.
+        // Rien de ce qui est derrière ne peut plus se lire : la plaque est une surface, pas une
+        // fenêtre. Le flou, la teinte et la finition ne changent pas — seule la transparence à
+        // travers la vitre disparaît.
+        .then(
+            if (masking) {
+                Modifier.drawWithContent {
+                    drawRect(color = page)
+                    drawContent()
+                }
+            } else {
+                Modifier
+            },
+        )
         .then(
             if (sampling) {
                 Modifier.glassEffect(
                     state = source,
                     tier = tier,
+                    // **Le défilement allège le flou, il ne le coupe pas.** Haze règle la
+                    // résolution d'entrée de son flou par ce mode : au repos la vitre garde sa
+                    // pleine qualité, et **pendant un défilement** elle échantillonne à une échelle
+                    // réduite — même rayon, même teinte, même finition, un coût de rastérisation
+                    // divisé. C'est ce qui rend la liste fluide sans changer un pixel de ce qu'on
+                    // voit à l'arrêt.
+                    performance = if (scrolling) {
+                        HazePerformanceMode.Performance
+                    } else {
+                        HazePerformanceMode.Default
+                    },
                     surface = surface,
                     shape = shape,
                     blurDp = blurDp,
@@ -2136,6 +2244,8 @@ fun Modifier.liquidGlass(
 private fun Modifier.glassEffect(
     state: HazeState,
     tier: GlassTier,
+    /** Le mode de performance de Haze (voir son usage : allégé pendant un défilement). */
+    performance: HazePerformanceMode,
     surface: GlassSurface,
     shape: Shape,
     blurDp: Float,
@@ -2151,6 +2261,7 @@ private fun Modifier.glassEffect(
     when (tier) {
         GlassTier.REFRACTION -> this.hazeGlass(
             input = input,
+            performanceMode = performance,
             style = glassRefractionStyle(
                 shape,
                 glassRefractionDisplacementDp(surface),
@@ -2169,7 +2280,8 @@ private fun Modifier.glassEffect(
 
         GlassTier.BLUR -> this.hazeBlur(
             input = input,
-            style = glassBlurStyle(blurDp, tint, tintAlpha, scrim, page, level),
+            style = glassBlurStyle(shape, blurDp, tint, tintAlpha, scrim, page, level),
+            performanceMode = performance,
         )
 
         GlassTier.VEIL -> this
@@ -2250,6 +2362,7 @@ fun glassRefractionDisplacementRatioPx(blurDp: Float, density: Float): Float =
  * même flou, même bruit, même voile — donc le palier intermédiaire n'invente rien : il **conserve**.
  */
 private fun glassBlurStyle(
+    surfaceShape: Shape,
     blurDp: Float,
     tint: Color,
     tintAlpha: Float,
@@ -2266,7 +2379,15 @@ private fun glassBlurStyle(
     // La page derrière la vitre : là où le contenu échantillonné est transparent, on voit la
     // page — jamais un trou.
     backgroundColor(page)
-    blurredEdgeTreatment(BlurredEdgeTreatment.Rectangle)
+    // **La vitre se découpe à SA forme, jamais à un rectangle.**
+    //
+    // Le voile de Haze (le fond de page + le flou) était découpé au **rectangle** des limites : sur
+    // une plaque à grand rayon — le compositeur, dont le rayon est celui de la plaque — le voile
+    // débordait donc des coins arrondis et se lisait comme **un rectangle transparent posé sur la
+    // surface** (« j'ai un rectangle transparent superposé sur la partie prompt, ça fait moche et
+    // pas unifié »). C'est la **même** forme que la réfraction ([glassRefractionStyle] la pose
+    // déjà) : les deux chemins de peinture du verre ne peuvent plus se contredire.
+    blurredEdgeTreatment(BlurredEdgeTreatment(surfaceShape))
 }
 
 /**
@@ -2506,6 +2627,12 @@ private fun DrawScope.drawGlassPlateGloss(dark: Boolean) {
  * seule pièce de la profondeur que ces plaques portent (voir [GlassSurface.plateEdge]).
  */
 private fun DrawScope.drawGlassPlateEdge(shape: Shape, dark: Boolean) {
+    // **Plus de trait blanc sur le bord haut.** Cette arête était une ligne claire de 1 dp posée en
+    // travers de la plaque : sur un écran sombre elle se lisait comme un **fil** rapporté, pas comme
+    // la lumière du verre — « supprime toutes ces lignes blanches, ça fera plus propre ». La plaque
+    // garde son reflet de tête ([drawGlassPlateGloss]), son ombre et sa courbure : elle se détache
+    // par la lumière, plus par un trait.
+    if (true) return
     val thickness = PlaqueGeometry.TopEdge.toPx()
     if (thickness <= 0f) return
     val inset = GlassPlateEdgeInset.toPx()
@@ -2567,3 +2694,17 @@ const val GlassDetachmentMin: Float = 1.20f
 
 /** Sous cette pente, la vitre est un aplat : elle n'a pas de profondeur. */
 const val GlassDepthMin: Float = 1.18f
+
+/**
+ * Peint [block] **découpé à [shape]**. Nécessaire partout où l'on dessine depuis un
+ * `drawWithContent` posé après un `.clip(...)` : le clip de la chaîne ne s'applique qu'à ce qui le
+ * suit, et un pinceau de finition y échappait — c'est ainsi qu'un reflet devenait un rectangle.
+ */
+private fun DrawScope.clipToShape(shape: Shape, block: DrawScope.() -> Unit) {
+    val outline = shape.createOutline(size, layoutDirection, this)
+    when (outline) {
+        is Outline.Rectangle -> clipRect { block() }
+        is Outline.Rounded -> clipPath(Path().apply { addRoundRect(outline.roundRect) }) { block() }
+        is Outline.Generic -> clipPath(outline.path) { block() }
+    }
+}

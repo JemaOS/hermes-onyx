@@ -118,12 +118,19 @@ class GlassGesteVerrouTest {
     @Test
     fun `le signal de defilement ne sert plus qu a suspendre l appui`() {
         val c = code(glass)
-        // « scrolling » ne doit apparaître que sur la ligne du signal et celle de la règle d'appui.
+        // « scrolling » ne doit apparaître que sur **trois** lignes : le signal, la règle d'appui, et
+        // la **résolution d'échantillonnage** du flou. Cette troisième est un ajout assumé du lot
+        // « volet fluide » : le propriétaire a redemandé la fluidité (« quand je défile c'est
+        // toujours lent »), et le coût d'un volet est le flou d'arrière-plan — un par carte visible,
+        // à chaque image. Pendant un geste, Haze échantillonne donc à une échelle réduite
+        // ([HazePerformanceMode.Performance]) : **même rayon, même teinte, même palier**, seule la
+        // finesse d'échantillonnage baisse, et seulement tant que la liste bouge. Le verrou continue
+        // d'interdire tout ce qui **change l'apparence** (palier, voile, lumière de tête).
         val usages = c.lines().withIndex().filter { (_, l) -> l.contains("scrolling") }
         assertEquals(
-            "le signal de défilement a repris un usage qui n'est pas l'appui :\n" +
+            "le signal de défilement a repris un usage qui n'est pas l'appui ni la résolution du flou :\n" +
                 usages.joinToString("\n") { "  ${glassFile.name}:${it.index + 1} → ${it.value.trim()}" },
-            2,
+            3,
             usages.size,
         )
         assertTrue(
@@ -134,6 +141,14 @@ class GlassGesteVerrouTest {
             "et il ne nourrit que la décision d'appui, qui ne peint ni lumière ni voile",
             usages[1].value.contains("scrolling = scrolling,") &&
                 c.contains("val pressStrength = glassPressStrength("),
+        )
+        // Le troisième usage ne touche **que** la résolution d'échantillonnage : il ne choisit ni
+        // le palier, ni le rayon, ni la teinte.
+        assertTrue(
+            "le signal ne règle que la résolution du flou pendant un geste",
+            usages[2].value.contains("performance = if (scrolling)") &&
+                c.contains("HazePerformanceMode.Performance") &&
+                c.contains("val tier = glassTierNow"),
         )
         // La règle pure d'appui est intacte — elle est la seule chose que le signal décide.
         assertTrue(

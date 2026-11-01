@@ -252,8 +252,24 @@ internal fun sidebarSubtitle(conversation: Conversation, kind: ActivityKind?, ag
     when (kind) {
         ActivityKind.WORKING -> "Working"
         ActivityKind.NEEDS_YOU -> "Waiting for you"
-        else -> null
+        // **La dernière phrase écrite**, pour retrouver la conversation qu'on cherche. Sans elle, la
+        // liste ne montrait que le nom du bot et l'heure : deux conversations du même bot étaient
+        // indiscernables (« on devrait voir la dernière phrase émise »).
+        else -> conversationPreview(conversation)
     }
+
+/** La dernière phrase d'une conversation, sur une ligne — `null` si elle n'en a pas encore. */
+internal fun conversationPreview(conversation: Conversation): String? {
+    val last = conversation.messages.lastOrNull { it.text.isNotBlank() } ?: return null
+    val line = last.text.replace(WhitespaceRun, " ").trim()
+    return line.take(PreviewMaxChars).ifBlank { null }
+}
+
+/** Ce que la liste montre d'un message : un blanc, jamais un saut de ligne dans la rangée. */
+private val WhitespaceRun = Regex("\\s+")
+
+/** Longueur retenue : la rangée tronque à l'affichage, on ne porte pas tout le message. */
+private const val PreviewMaxChars = 140
 
 /** Le filtre retient-il une ligne de ce ton ? */
 internal fun sidebarFilterKeeps(filter: SidebarFilter, tone: SidebarRowTone): Boolean = when (filter) {

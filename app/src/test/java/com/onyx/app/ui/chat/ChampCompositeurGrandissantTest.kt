@@ -51,7 +51,10 @@ class ChampCompositeurGrandissantTest {
     /** **La mesure du brouillon se fait-elle à une largeur FIXE ?** C'est ce qui interdit l'aller-retour. */
     private fun mesureALargeurFixe(source: String): Boolean =
         source.contains("ComposerGrowth.singleLineFieldWidthDp(composerWidthDp - 24f)") &&
-            source.contains("val multiline = ComposerGrowth.stacksCommands(draftLineCount)")
+            // **En grand de base** : sur la plaque, les commandes ont toujours leur rangée — la
+            // disposition ne change donc jamais pendant la frappe, et un brouillon d'une ligne
+            // s'écrit exactement là où les trois lignes tiendront.
+            source.contains("val multiline = plate || ComposerGrowth.stacksCommands(draftLineCount)")
 
     // — 1 · le champ grandit —
 

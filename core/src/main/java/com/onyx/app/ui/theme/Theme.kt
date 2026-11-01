@@ -13,6 +13,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.onyx.app.ui.design.GlassSourcePresence
 import com.onyx.app.ui.design.LocalBackdrop
+import com.onyx.app.ui.design.LocalOnyxLensPage
+import com.onyx.app.ui.design.OnyxLens
+import com.onyx.app.ui.design.rememberOnyxLensPage
 import com.onyx.app.ui.design.LocalFrostLevel
 import com.onyx.app.ui.design.LocalGlassFluidity
 import com.onyx.app.ui.design.LocalGlassSourcePresence
@@ -89,6 +92,10 @@ fun OnyxAppTheme(
     // échantillonner (sa liste de zones est `internal`), donc on tient le compte ici, à côté de
     // l'état — un écran qui pose sa source l'incrémente, et le retire en quittant.
     val glassSources = remember { GlassSourcePresence() }
+    // **La page de la lentille** (Android 13+) : l'écran qui défile l'enregistre une fois
+    // (`Modifier.onyxLensPage`), et les surfaces qui courbent l'échantillonnent (`onyxLensGlass`).
+    // `null` en dessous : sans `RuntimeShader`, ces surfaces reprennent la vitre de Haze.
+    val lensPage = if (OnyxLens.available) rememberOnyxLensPage() else null
 
     CompositionLocalProvider(
         LocalOnyxTheme provides scaled,
@@ -98,6 +105,7 @@ fun OnyxAppTheme(
         LocalGlassFluidity provides glass,
         LocalHazeState provides glassState,
         LocalGlassSourcePresence provides glassSources,
+        LocalOnyxLensPage provides lensPage,
         content = content,
     )
 }

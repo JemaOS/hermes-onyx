@@ -84,16 +84,34 @@ class AppLock(context: Context) {
         val features = context.packageManager
         val face = features.hasSystemFeature(PackageManager.FEATURE_FACE)
         val finger = features.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
+        // **Le visage ne se déduit pas d'un `hasSystemFeature`.** Beaucoup de téléphones
+        // reconnaissent le visage sans publier `FEATURE_FACE` (il n'existe que pour la classe
+        // standard) : le libellé annonçait donc « Exiger l'empreinte » sur un appareil qui a les
+        // deux, et le visage semblait absent. Seule l'absence **certaine** de visage (une empreinte
+        // publiée, et rien d'autre) autorise le libellé « empreinte ».
         return when {
-            face && !finger -> "Face unlock"
             finger && !face -> "Fingerprint"
             else -> "Face or fingerprint"
         }
     }
 
     /** Vrai si le téléphone a une biométrie utilisable : matériel présent **et** classe enrôlée. */
-    fun canAuthenticate(context: Context): Boolean =
-        BiometricManager.from(context).canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
+    fun canAuthenticate(context: Context): Boolean {
+        // **Une classe à la fois.** `canAuthenticate(FORT or FAIBLE)` est une **combinaison** que
+        // l'API évalue littéralement : sur les appareils où seule la reconnaissance faciale (classe
+        // faible) est enrôlée, elle rend `BIOMETRIC_ERROR_NONE_ENROLLED` — l'app se croyait sans
+        // biométrie alors que le téléphone en avait une (« l'empreinte ne fonctionne pas »). On
+        // demande donc chaque classe séparément, et l'identifiant de l'appareil en dernier recours.
+        val manager = BiometricManager.from(context)
+        fun ok(authenticators: Int) =
+            manager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+        return ok(BiometricManager.Authenticators.BIOMETRIC_STRONG) ||
+            ok(BiometricManager.Authenticators.BIOMETRIC_WEAK) ||
+            ok(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+            )
+    }
 
     private fun hash(pin: String, salt: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")

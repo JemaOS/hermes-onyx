@@ -220,6 +220,11 @@ class ChatCompletionsClient(
             .header("Content-Type", "application/json")
             .header("Accept", "text/event-stream")
             .header("User-Agent", OnyxHttp.USER_AGENT)
+            // **Le tour survit à la fermeture de l'app.** Le serveur ne coupe plus le run quand ce
+            // socket tombe : il le finit et écrit la réponse dans la session, que l'app relit en
+            // rouvrant (`ServeSessionMessages`). « Arrêter », lui, reste un ordre explicite
+            // (`POST /v1/runs/{id}/stop`) — partir n'est pas arrêter.
+            .header(KEEP_RUNNING_HEADER, "1")
             .apply {
                 val key = config.effectiveApiKey.trim()
                 if (key.isNotEmpty()) header("Authorization", "Bearer $key")
@@ -323,6 +328,9 @@ class ChatCompletionsClient(
         /** Le dernier modèle annoncé par le serveur, pour ne l'envoyer qu'au changement. */
         private var announcedModel: String? = null
 
+        /** Le run annoncé par le serveur : l'identifiant qu'arrête `POST /v1/runs/{id}/stop`. */
+        private var announcedRunId: String? = null
+
         private suspend fun handle(event: SseEvent?): Boolean {
             if (event == null) return false
 
@@ -399,6 +407,13 @@ class ChatCompletionsClient(
             }
 
             chunk.usage?.let { scope.send(TurnEvent.Usage(it.toTokenUsage())) }
+
+            // Le run que le serveur a ouvert : son identifiant est le seul moyen de l'arrêter
+            // quand le tour lui survit (`POST /v1/runs/{id}/stop`).
+            chunk.id?.takeIf { it.isNotBlank() && it != announcedRunId }?.let { run ->
+                announcedRunId = run
+                scope.send(TurnEvent.RunId(run))
+            }
 
             // Le modèle que la réponse dit servir : il peut différer de l'alias demandé, et la
             // barre du haut doit nommer le vrai (il suit donc un changement de modèle).
@@ -647,6 +662,15 @@ class ChatCompletionsClient(
     companion object {
         const val ENDPOINT_CHAT = "/v1/chat/completions"
         const val ENDPOINT_MODELS = "/v1/models"
+
+        /**
+         * L'en-tête qui dit au serveur de **finir le tour sans client**.
+         *
+         * Posé sur chaque tour : fermer l'app (ou perdre le réseau) n'arrête plus le bot — la
+         * réponse s'écrit dans la session et l'app la relit en rouvrant. L'arrêt volontaire, lui,
+         * reste un ordre explicite (`POST /v1/runs/{id}/stop`).
+         */
+        const val KEEP_RUNNING_HEADER = "X-Hermes-Keep-Running"
 
         private const val DONE_SENTINEL = "[DONE]"
         private const val HERMES_TOOL_PROGRESS_EVENT = "hermes.tool.progress"

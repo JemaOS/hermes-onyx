@@ -46,6 +46,8 @@ internal val onyxMenuSheetFrench: Map<String, String> = linkedMapOf(
     "A new conversation starts with the same bot, with a fresh context. The one you are in right now stays in your history, whole." to
         "Une nouvelle conversation démarre avec le même bot, le contexte à neuf. Celle dans laquelle vous êtes en ce moment reste dans l'historique, entière.",
     "Background processes" to "Processus en arrière-plan",
+    // Le sous-menu des modèles en salle : une ligne par membre, ouverte sur SA feuille de modèle.
+    "Bot Models" to "Modèles par bot",
     "Restore points" to "Points de restauration",
     "Copy session id" to "Copier l'identifiant de session",
     // Le détail de la consommation et du coût.

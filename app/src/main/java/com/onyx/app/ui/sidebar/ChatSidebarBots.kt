@@ -376,7 +376,11 @@ private fun BotCard(
         .filter { it.isNotBlank() }
         .joinToString(", ")
     // Où la carte est : son menu s'ouvre **contre elle**, comme celui d'une rangée.
-    var bounds by remember { mutableStateOf<Rect?>(null) }
+    //
+    // Le porteur est **muet** ([RowBounds]) : écrit dans un état, il republiait la carte à chaque
+    // image de défilement, puisque les coordonnées à la fenêtre changent pendant que la liste
+    // glisse. On le lit au seul moment où il sert — l'appui long.
+    val bounds = remember { RowBounds() }
 
     Column(
         modifier = modifier
@@ -408,7 +412,7 @@ private fun BotCard(
                 onClick = onClick,
                 // L'appui long ouvre le menu de la carte — le geste de la référence sur une carte
                 // de bot ; sans limites mesurées, il ne s'arme pas (le panneau n'aurait pas d'ancre).
-                onLongPress = onLongPress?.let { press -> { bounds?.let(press) } },
+                onLongPress = onLongPress?.let { press -> { bounds.rect?.let(press) } },
             )
             // **L'effet d'appui est celui de la carte, et il n'y en a qu'un** : `onyxTappable`
             // enfonce et relâche la surface d'un geste — doubler avec l'échelle d'`onyxClickable`
@@ -419,7 +423,7 @@ private fun BotCard(
             // lit la chaîne de modificateurs et s'arrête à un `.onGloballyPositioned { … }` — un
             // libellé posé après lui serait invisible à ses yeux.
             .tapLabel(botCardLabel)
-            .onGloballyPositioned { bounds = it.boundsInWindow() }
+            .onGloballyPositioned { bounds.rect = it.boundsInWindow() }
             .padding(OnyxSpace.CardPadding),
         verticalArrangement = Arrangement.spacedBy(gap),
     ) {

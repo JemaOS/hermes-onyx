@@ -72,6 +72,25 @@ import kotlinx.coroutines.delay
  */
 object BlocConversation {
 
+    // ---------------------------------------------------------------------------------------------
+    // **Les mesures d'encre, partagées par toutes les cartes.**
+    //
+    // Elles ne dépendent que de l'apparence (`ResolvedTheme`, dont l'instance est stable tant que le
+    // thème ne change pas) : les recalculer **par carte** faisait payer à chaque carte qui entre
+    // dans la liste des dizaines de milliers de rapports de contraste — c'est ce qui hachait le
+    // défilement du volet. Ces caches ne changent pas un pixel : le dessin lit exactement les mêmes
+    // chiffres, une seule fois.
+    //
+    // La clé est l'instance de thème : elle est retenue par `remember(theme, dark, fonts, colors,
+    // pureBlack, halo)` dans [com.onyx.app.ui.theme.OnyxTheme], donc il n'y a pas d'entrée morte à
+    // chaque image.
+    // ---------------------------------------------------------------------------------------------
+    private val zoneAlphas = java.util.concurrent.ConcurrentHashMap<ResolvedTheme, Float>()
+    private val groundsCache = java.util.concurrent.ConcurrentHashMap<ResolvedTheme, List<Color>>()
+    private val inks = java.util.concurrent.ConcurrentHashMap<Pair<ResolvedTheme, Color>, Color>()
+    private val rowProfiles =
+        java.util.concurrent.ConcurrentHashMap<Triple<ResolvedTheme, Float, Float>, List<Float>>()
+
     /**
      * **La taille du visage : 44 dp** — la vignette de la maison ([OnyxSocle.ThumbnailSize], la même
      * valeur que la vignette d'un fichier). Le visage est le « média » d'une ligne, il prend la
@@ -247,8 +266,7 @@ object BlocConversation {
      * au bord (aucune arête : l'écart de luminance au bord est **exactement nul**) et l'opacité pleine
      * ([inkZoneAlpha]) dès [InkZoneFade], donc partout où le texte est posé.
      */
-    fun inkZoneAlphaAt(theme: ResolvedTheme, edgeDistance: Dp): Float {
-        val full = inkZoneAlpha(theme)
+    fun inkZoneAlphaAt(theme: ResolvedTheme, edgeDistance: Dp, full: Float = inkZoneAlpha(theme)): Float {
         val fade = InkZoneFade.value
         if (fade <= 0f) return full
         return (full * (edgeDistance.value / fade)).coerceIn(0f, full)
@@ -281,10 +299,21 @@ object BlocConversation {
      * viennent de la même fonction.
      */
     fun inkZoneRowAlphas(theme: ResolvedTheme, bandPx: Float, density: Float): List<Float> {
-        val rows = inkZoneBandRows(bandPx)
         if (density <= 0f) return emptyList()
-        return List(rows) { i ->
-            inkZoneAlphaAt(theme, (((i + 0.5f) / density).dp))
+        // **Le profil se mesure une fois pour toutes les cartes.** Chaque rang interroge
+        // [inkZoneAlphaAt], qui interroge [inkZoneAlpha] — et celle-ci balaie les pas d'opacité et
+        // les fonds de la plaque. Recalculer ce profil **par carte** coûtait des dizaines de
+        // milliers de rapports de contraste à chaque carte qui entrait dans la liste : c'est ce qui
+        // hachait le défilement. Le profil ne dépend que du thème, de la bande et de la densité,
+        // donc il est partagé.
+        return rowProfiles.computeIfAbsent(Triple(theme, bandPx, density)) {
+            val rows = inkZoneBandRows(bandPx)
+            // L'opacité pleine est mesurée **une fois** pour toute la bande (c'était le coût : un
+            // balayage des fonds par rang), puis chaque rang garde la règle du verrou.
+            val full = inkZoneAlpha(theme)
+            List(rows) { i ->
+                inkZoneAlphaAt(theme, (((i + 0.5f) / density).dp), full)
+            }
         }
     }
 
@@ -318,7 +347,11 @@ object BlocConversation {
      * peindre, zone comprise. Fonction **sans état** : le chiffre que le verrou lit est celui que la
      * carte peint.
      */
-    fun inkZoneAlpha(theme: ResolvedTheme): Float {
+    fun inkZoneAlpha(theme: ResolvedTheme): Float =
+        zoneAlphas.computeIfAbsent(theme) { measureInkZoneAlpha(it) }
+
+    /** La mesure elle-même — appelée **une fois par apparence** (voir [inkZoneAlpha]). */
+    private fun measureInkZoneAlpha(theme: ResolvedTheme): Float {
         var alpha = InkZoneFloor
         while (alpha < 1f) {
             val fonds = groundsWithZone(theme, alpha)
@@ -337,7 +370,8 @@ object BlocConversation {
      * et noir pur) derrière **chacun** des deux voiles, **puis la zone d'encre protégée** posée
      * dessus. C'est cette liste — et rien d'autre — qui décide de l'encre.
      */
-    fun grounds(theme: ResolvedTheme): List<Color> = groundsWithZone(theme, inkZoneAlpha(theme))
+    fun grounds(theme: ResolvedTheme): List<Color> =
+        groundsCache.computeIfAbsent(theme) { groundsWithZone(it, inkZoneAlpha(it)) }
 
     /** Le fond le moins favorable à [preferred] : c'est lui qui décide de l'encre. */
     fun worstGround(theme: ResolvedTheme, preferred: Color): Color =
@@ -350,7 +384,8 @@ object BlocConversation {
      * appliquée jusqu'au point fixe : tant qu'un fond la fait passer sous le seuil, elle bouge du
      * pas de la maison. Elle converge au plus en trois pas (vers le noir ou le blanc pur).
      */
-    fun ink(theme: ResolvedTheme, preferred: Color): Color = inkOver(grounds(theme), preferred)
+    fun ink(theme: ResolvedTheme, preferred: Color): Color =
+        inks.computeIfAbsent(theme to preferred) { (appearance, tint) -> inkOver(grounds(appearance), tint) }
 
     /** L'encre du **titre** : l'encre pleine de la maison, tenue au seuil sur la plaque. */
     fun titleInk(theme: ResolvedTheme): Color = ink(theme, socleTitleInk(theme))
@@ -409,9 +444,13 @@ fun BlocConversation(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
-    val titleInk = BlocConversation.titleInk(theme)
-    val previewInk = BlocConversation.secondInk(theme)
-    val metaInk = BlocConversation.thirdInk(theme)
+    // **Les trois encres sont mesurées une fois par thème, pas à chaque recomposition.** `ink()`
+    // balaie les fonds possibles de la plaque et cherche l'encre qui tient 4,5:1 jusqu'au point
+    // fixe : trois de ces recherches à chaque composition d'une carte, sur une liste qui en montre
+    // huit, pèsent lourd pour un résultat qui ne dépend que du thème.
+    val titleInk = remember(theme) { BlocConversation.titleInk(theme) }
+    val previewInk = remember(theme) { BlocConversation.secondInk(theme) }
+    val metaInk = remember(theme) { BlocConversation.thirdInk(theme) }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -456,7 +495,9 @@ fun BlocConversation(
                 if (!preview.isNullOrBlank()) {
                     BasicText(
                         text = preview,
-                        localize = true,
+                        // **Le texte d'un message n'est pas une chaîne de l'app** : il ne se traduit
+                        // pas et ne passe pas par le catalogue.
+                        localize = false,
                         style = socleMetaStyle(theme).copy(
                             fontSize = BlocConversation.PreviewSize,
                             color = previewInk,
@@ -579,17 +620,24 @@ private fun Modifier.blocConversationInkZone(theme: ResolvedTheme): Modifier {
     val rows = remember(theme, density, band) {
         BlocConversation.inkZoneRowAlphas(theme, band, density.density)
     }
+    // **Les couleurs de la bande, calculées UNE fois.** Le dessin les lisait autrefois en composant
+    // `colour.copy(alpha = …)` à chaque rang et à chaque image : pendant un défilement, cela faisait
+    // ~90 allocations de couleur par carte et par image, pour un résultat identique d'une image à
+    // l'autre. Elles sont ici figées avec le profil — même peinture, aucune allocation dans la
+    // boucle.
+    val rowColours = remember(colour, rows) { rows.map { alpha -> colour.copy(alpha = alpha) } }
+    val plateau = remember(colour, full) { colour.copy(alpha = full) }
     return this.drawWithContent {
         if (band <= 0f || size.height <= band * 2f) {
             // Plaque plus courte que ses deux bandes : le plateau seul (la carte est minuscule).
-            drawRect(colour.copy(alpha = full))
+            drawRect(plateau)
         } else {
             val count = rows.size
             // La bande haute : un rang par pixel, **sans recouvrement** — donc sans composition.
             rows.forEachIndexed { i, a ->
                 if (a > 0f) {
                     drawRect(
-                        color = colour.copy(alpha = a),
+                        color = rowColours[i],
                         topLeft = Offset(0f, i.toFloat()),
                         size = Size(size.width, 1f),
                     )
@@ -597,7 +645,7 @@ private fun Modifier.blocConversationInkZone(theme: ResolvedTheme): Modifier {
             }
             // Le plateau : l'opacité pleine, sur toute la largeur, là où le texte est posé.
             drawRect(
-                color = colour.copy(alpha = full),
+                color = plateau,
                 topLeft = Offset(0f, count.toFloat()),
                 size = Size(size.width, size.height - 2f * count),
             )
@@ -607,7 +655,7 @@ private fun Modifier.blocConversationInkZone(theme: ResolvedTheme): Modifier {
                 val a = rows[count - 1 - i]
                 if (a > 0f) {
                     drawRect(
-                        color = colour.copy(alpha = a),
+                        color = rowColours[count - 1 - i],
                         topLeft = Offset(0f, size.height - count + i),
                         size = Size(size.width, 1f),
                     )
@@ -648,15 +696,22 @@ fun BlocConversationFace(
     size: Dp = BlocConversation.FaceSize,
 ) {
     val reduceMotion = LocalReduceMotion.current
+    // **Le visage se repose pendant un défilement.** Les pouls demandent une image à chaque trame
+    // (`withFrameNanos`) et repeignent le visage : sur une liste de dix cartes, deux ou trois
+    // visages battent à tout instant, et cette animation volait les trames du geste — c'est ce qui
+    // restait « lent » après les autres correctifs. Un doigt qui fait défiler ne regarde pas un
+    // clignement : le pouls se suspend, la pose reste celle du repos (la boîte du visage ne bouge
+    // pas), et la vie reprend seule à l'arrêt.
+    val scrolling = LocalGlassScrollFreeze.current
     // L'inclinaison propre du visage : un hochement part de là, jamais de zéro.
     val tilt = remember(name, faceCode) { BlocConversation.visage(name, faceCode).tilt.toFloat() }
     // La graine suit le bot : la carte montre la vie de **ce** bot, pas un rythme partagé.
     val seed = remember(name, faceCode) { BotIdle.seedFor(name, faceCode) }
     var frame by remember(name, faceCode) { mutableStateOf<BotIdleFrame?>(null) }
 
-    LaunchedEffect(seed, reduceMotion) {
+    LaunchedEffect(seed, reduceMotion, scrolling) {
         frame = null
-        if (reduceMotion) return@LaunchedEffect
+        if (reduceMotion || scrolling) return@LaunchedEffect
         var index = 0
         while (true) {
             val pulse = BotIdle.pulse(seed, index)

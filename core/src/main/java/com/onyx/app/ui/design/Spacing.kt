@@ -601,7 +601,7 @@ object OnyxSpace {
             where = "Bloc de réponse — la carte",
             file = "app/src/main/java/com/onyx/app/ui/chat/components/ReplyCardViews.kt",
             before = ".background(theme.surfaceColor)",
-            after = ".liquidGlass(GlassSurface.RESPONSE_BLOCK)",
+            after = ".liquidGlass(GlassSurface.RESPONSE_BLOCK, lens = false)",
             token = "CardPadding = 16",
             why = "La carte d'une réponse portait un aplat de surface cerné d'un filet de 0,5 dp : elle devient une vitre, avec le rembourrage de carte et l'écart de carte de la maison.",
         ),

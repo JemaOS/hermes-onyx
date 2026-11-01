@@ -18,8 +18,9 @@ import androidx.compose.ui.unit.dp
  *  2. **il grandit ligne par ligne**, de la hauteur d'une ligne rendue, sans jamais de coupure,
  *     jusqu'à [MaxLines] ;
  *  3. **au maximum, il défile en lui-même** ([scrollsInternally]) — la hauteur ne bouge plus ;
- *  4. **dès la deuxième ligne, les commandes descendent** sur leur propre rangée
- *     ([stacksCommands]) : le texte ne passe **jamais** sous elles.
+ *  4. **dès la troisième ligne, les commandes descendent** sur leur propre rangée
+ *     ([stacksCommands], tolérance de [StackAfterLines] = 2) : le texte ne passe **jamais** sous
+ *     elles, et la plaque ne change pas de forme pour dix caractères.
  *
  * **La valeur maximale retenue : [MaxLines] = 8.** La planche ne la donne pas — son `.ask` est à
  * hauteur fixe (`hcss.py:238`, `.ask{height:64px}`), elle ne montre que l'état au repos ; le champ
@@ -49,6 +50,46 @@ object ComposerGrowth {
      * la place de ses derniers messages.
      */
     const val MaxLines: Int = 8
+
+    /**
+     * **Le nombre de lignes tolérées avant que les commandes descendent : deux.**
+     *
+     * Le défaut du propriétaire (« dès que je dépasse dix caractères, la barre s'agrandit et déplace
+     * le clavier ») vient de la règle d'avant, qui descendait les commandes **dès la deuxième
+     * ligne**. Sur la plaque, le champ ne garde que ~127 dp de texte à 1,3× de police : la dixième
+     * lettre suffisait à le faire passer à deux lignes, donc à **doubler la hauteur de la plaque**
+     * (+ le champ pleine largeur, + la rangée des commandes, + son écart) au moment précis où l'on
+     * écrit le premier mot d'un message.
+     *
+     * Avec une tolérance de deux lignes, la plaque **ne bouge pas** tant que le brouillon tient dans
+     * la hauteur de repos : deux lignes rendues font `2 × 18,3 + 20 = 56,6 dp` à 1,0×, sous les
+     * 64 dp de la planche — croissance **nulle** ; à 1,3× elles font `2 × 23,8 + 20 = 67,6 dp`, soit
+     * **3,6 dp** de croissance, invisible. Les commandes descendent à la **troisième** ligne, quand
+     * le brouillon est vraiment long et que la place manque — c'est aussi le moment où le bouton
+     * « agrandir » approche.
+     *
+     * L'oscillation reste impossible : la mesure se fait toujours à la largeur de l'état d'une ligne
+     * (voir [singleLineFieldWidthDp]), donc [stacksCommands] est une fonction pure de
+     * (texte, largeur) — descendre une fois ne change pas la mesure qui l'a fait descendre.
+     */
+    const val StackAfterLines: Int = 2
+
+    /**
+     * **La hauteur au repos : trois lignes de champ, dès la première frappe.**
+     *
+     * Le propriétaire l'a demandé en ces mots : « il faut mieux déjà en grand de base ». Le défaut
+     * mesuré : à la deuxième ligne — dix-neuf caractères d'un mot continu — la plaque changeait de
+     * hauteur et **déplaçait le clavier**. Ce n'est pas la disposition qui bougeait, c'est la
+     * réserve : le champ ne réservait qu'une ligne au repos.
+     *
+     * Avec trois lignes réservées, écrire les trois premières lignes ne change **rien** : la plaque
+     * garde sa hauteur, le clavier ne bouge pas. Elle ne grandit qu'au-delà, et c'est alors un
+     * agrandissement qu'on a demandé en écrivant un vrai paragraphe.
+     *
+     * Trois, pas huit : à 1,3× de police, trois lignes font `3 × 23,8 + 20 = 91,4 dp` — la plaque
+     * tient à 167,4 dp avec sa rangée d'onglets, sous le cinquième de l'écran de référence (914 dp).
+     */
+    const val RestLines: Int = 3
 
     /**
      * **Le rembourrage vertical du champ** (haut + bas) : `OnyxComposer` pose `10.dp` de chaque
@@ -83,17 +124,21 @@ object ComposerGrowth {
 
     /**
      * **Les commandes descendent-elles sur leur propre rangée ?** Oui dès que le texte occupe plus
-     * d'une ligne ([lineCount] mesuré **à la largeur d'une ligne** — [singleLineFieldWidthDp], jamais
-     * à la largeur courante).
+     * de [StackAfterLines] lignes ([lineCount] mesuré **à la largeur d'une ligne** —
+     * [singleLineFieldWidthDp], jamais à la largeur courante).
      *
      * C'est cette **largeur fixe de mesure** qui empêche l'aller-retour pendant la frappe : quand les
      * commandes sont sur la rangée, le champ est étroit ; une fois descendues, il est **plus large**.
-     * Si on mesurait à la largeur courante, un texte qui passe à deux lignes ferait descendre les
-     * commandes, le champ s'élargirait, le texte repasserait à une ligne, les commandes remonteraient…
-     * En mesurant **toujours** à la largeur de l'état d'une ligne (la plus étroite), la décision est
-     * une **fonction pure** de (texte, largeur) : elle ne peut pas osciller.
+     * Si on mesurait à la largeur courante, un texte qui passe à plusieurs lignes ferait descendre
+     * les commandes, le champ s'élargirait, le texte repasserait à une ligne, les commandes
+     * remonteraient… En mesurant **toujours** à la largeur de l'état d'une ligne (la plus étroite),
+     * la décision est une **fonction pure** de (texte, largeur) : elle ne peut pas osciller.
+     *
+     * La **tolérance de deux lignes** est celle du correctif « la barre s'agrandit au dixième
+     * caractère » : voir [StackAfterLines]. Une ligne de plus tient dans la hauteur de repos, donc
+     * la plaque ne bouge pas ; c'est la troisième qui fait descendre les commandes.
      */
-    fun stacksCommands(lineCount: Int): Boolean = lineCount > 1
+    fun stacksCommands(lineCount: Int): Boolean = lineCount > StackAfterLines
 
     /** Les lignes réellement dessinées : au moins une, jamais plus de [MaxLines]. */
     fun shownLines(lineCount: Int): Int = lineCount.coerceIn(1, MaxLines)
@@ -110,7 +155,12 @@ object ComposerGrowth {
     fun fieldRowHeightDp(lineCount: Int, lineHeightDp: Float): Float =
         maxOf(
             PlaqueGeometry.FieldRowHeight.value,
-            shownLines(lineCount) * lineHeightDp + VerticalPaddingDp,
+            // **En grand de base** : le champ montre toujours [RestLines] lignes, même vide. Une
+            // plaque qui grandit à la deuxième ligne déplace le clavier au moment où l'on écrit le
+            // premier mot — c'est le défaut du propriétaire (« ça change la taille de l'entrée du
+            // prompt et déplace le clavier »). En réservant la place dès le repos, le passage d'une
+            // ligne à trois ne bouge plus rien.
+            maxOf(shownLines(lineCount), RestLines) * lineHeightDp + VerticalPaddingDp,
         )
 
     /**

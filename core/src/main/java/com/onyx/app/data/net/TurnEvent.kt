@@ -54,6 +54,15 @@ sealed interface TurnEvent {
     data class SessionId(val id: String) : TurnEvent
 
     /**
+     * L'identifiant du **run** côté serveur (`chatcmpl-…`), lu sur la première trame du flux.
+     *
+     * Il n'est pas décoratif : quand le tour survit à la fermeture de l'app (le serveur finit le
+     * travail sans client), c'est **lui** que `POST /v1/runs/{id}/stop` arrête — sans lui, « Arrêter »
+     * ne couperait que l'écoute, et le bot continuerait de travailler dans le dos de l'utilisateur.
+     */
+    data class RunId(val id: String) : TurnEvent
+
+    /**
      * Le modèle que la session sert vraiment, quand le serveur le dit.
      *
      * `session.info` du Dashboard porte `model` : un alias peut cacher le vrai modèle (l'app envoie

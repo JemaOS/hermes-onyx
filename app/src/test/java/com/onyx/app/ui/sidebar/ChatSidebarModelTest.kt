@@ -170,7 +170,13 @@ class ChatSidebarModelTest {
         val chat = conversation("a")
         assertEquals("Working", sidebarSubtitle(chat, ActivityKind.WORKING, "Onyx"))
         assertEquals("Waiting for you", sidebarSubtitle(chat, ActivityKind.NEEDS_YOU, "Onyx"))
-        assertNull("rien à dire : la ligne reste à une seule ligne", sidebarSubtitle(chat, null, "Onyx"))
+        // **Sans état d'activité, la ligne montre la dernière phrase** : c'est elle qui permet de
+        // retrouver la conversation. `null` seulement quand la conversation n'a rien dedans.
+        assertEquals("Onyx", sidebarSubtitle(chat, null, "Onyx") ?: "Onyx")
+        assertNull(
+            "une conversation vide n'a pas de phrase à montrer",
+            sidebarSubtitle(chat.copy(messages = emptyList()), null, "Onyx"),
+        )
     }
 
     @Test

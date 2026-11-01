@@ -68,7 +68,10 @@ class FinishWiringTest {
     @Test
     fun `le bloc de reponse porte sa vitre`() {
         val cards = read(app("chat/components/ReplyCardViews.kt"))
-        assertTrue("la carte d'une réponse doit porter GlassSurface.RESPONSE_BLOCK", cards.contains("liquidGlass(GlassSurface.RESPONSE_BLOCK)"))
+        assertTrue(
+            "la carte d'une réponse doit porter GlassSurface.RESPONSE_BLOCK (sans lentille : elle vit DANS le fil qu'elle recouvre)",
+            cards.contains("liquidGlass(GlassSurface.RESPONSE_BLOCK, lens = false)"),
+        )
         // **Le raisonnement a quitté la vitre** (lot « réflexion discrète ») : un pavé de verre
         // plein se détachait du fond papier et criait plus fort que le message. Il se lit
         // désormais **en retrait derrière un filet**, sur la page — et le verrou est re-pointé sur

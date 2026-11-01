@@ -84,6 +84,22 @@ android {
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
             }
+        } else {
+            // **Repli : la clé de mise au point.** Sans `keystore.properties`, la version de release
+            // restait non signée, donc ininstallable — et la seule version testable était la version
+            // **de débogage**, la plus lente de toutes (aucune minification, vérifications de
+            // Compose, `assertions`). Signée avec la clé de debug, la version optimisée s'installe
+            // **par-dessus** la version de test (même signature) : c'est ce qui rend la fluidité
+            // mesurable sur l'appareil. Ce repli ne convient qu'aux tests, jamais à une publication.
+            val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            if (debugKeystore.exists()) {
+                create("release") {
+                    storeFile = debugKeystore
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                }
+            }
         }
     }
 
@@ -125,6 +141,9 @@ kotlin {
 }
 
 dependencies {
+    // **Les travaux périodiques** : la seule voie gratuite pour prévenir d'une réponse alors
+    // que l'app est fermée (aucun service de push tiers, Android s'auto-enregistre).
+    implementation(libs.androidx.work.runtime)
     implementation(project(":core"))
 
     implementation(libs.androidx.core.ktx)
