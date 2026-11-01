@@ -573,8 +573,163 @@ class BlocsVerreVerrouTest {
         val zone = source(carte).substringAfter("private fun Modifier.blocConversationInkZone(")
             .substringBefore("\n}\n")
         assertTrue("la zone doit se peindre par `drawRect` : $carte", zone.contains("drawRect("))
-        assertTrue("la zone doit lire le profil mesuré (`inkZoneAlphaAt`) : $carte", zone.contains("inkZoneAlphaAt("))
+        // **Re-pointé, jamais désarmé** (lot `liquide-unifie`) : la zone ne lit plus `inkZoneAlphaAt`
+        // rang par rang dans son corps, elle le lit **par** `inkZoneRowAlphas` — la fonction du profil
+        // réellement composité, que la section 5 bis mesure. L'exigence est la même : ce qui est peint
+        // vient du profil mesuré, et le chaînage est vérifié des deux côtés.
+        assertTrue(
+            "la zone doit lire le profil mesuré (`inkZoneRowAlphas`, qui lit `inkZoneAlphaAt`) : $carte",
+            zone.contains("inkZoneRowAlphas(") &&
+                source(carte).substringAfter("fun inkZoneRowAlphas")
+                    .substringBefore("\n    }").contains("inkZoneAlphaAt("),
+        )
         assertFalse("la zone ne doit plus poser de forme (un bord se verrait) : $carte", zone.contains("RoundedCornerShape"))
         assertFalse("la zone ne doit pas peindre de dégradé (le verrou de la carte l'interdit) : $carte", zone.contains("Brush."))
+    }
+
+    // =============================================================================================
+    // 5 bis · LE CADRE DANS LE VERRE — la bande d'effacement se composait SUR ELLE-MÊME
+    // =============================================================================================
+
+    /**
+     * **La dent qui manquait au lot « encadre-verre », et le défaut qu'elle aurait attrapé.**
+     *
+     * Le verrou de la section 5 mesure le **profil visé** ([BlocConversation.inkZoneAlphaAt]) : il
+     * valait donc vert pendant que le **profil peint** faisait un cadre. Les bandes d'effacement
+     * étaient dessinées en `InkZoneStrips` rectangles de `pas + 1 px`, donc **elles se
+     * chevauchaient** : à un rang donné, deux ou trois rectangles se composaient
+     * (`1 − Π(1 − aᵢ)`), et la bande atteignait ≈ `0,39` d'opacité au lieu de `0,16` — plus dense que
+     * son **plateau**. Et la bande basse lisait la rampe **à l'envers** (`ramp[i]` croissant vers le
+     * bord). Mesuré à l'appareil, apparence claire, carte « scout » (`qa/liquide-unifie/shots/`), en
+     * éteignant la zone : les deux liserés du propriétaire disparaissent (« 13,5 » de contribution au
+     * creux de la bande haute contre « 7,2 » sur le plateau, marches de **−4,0 / −3,4** à
+     * `y = 1693`/`1694` et **−3,2 / −4,0** à `y = 1829`/`1830`).
+     *
+     * Ce que cette dent exige, sur le **profil réellement composité** —
+     * [BlocConversation.inkZoneRowAlphas], celui que le dessin suit rang par rang :
+     *  - **aucun rang n'est plus dense que le plateau** (le profil est monotone croissant, borné par
+     *    [BlocConversation.inkZoneAlpha]) ;
+     *  - **la plus grande marche d'un rang au suivant** reste **sous un niveau sur 255** sur la plus
+     *    raide des plaques, aux **deux densités** (un écran basse densité a des rangs plus larges) ;
+     *  - **et la source le dit** : la bande se peint en rangs d'**exactement un pixel**, jamais en
+     *    rectangles qui se recouvrent — c'est le chevauchement qui composait.
+     */
+    @Test
+    fun `la bande d effacement ne se compose pas sur elle meme et la bande basse est le miroir de la haute`() {
+        println("== ZONE D'ENCRE — le profil RÉELLEMENT composité, rang par pixel ==")
+        listOf(false, true).forEach { dark ->
+            val theme = theme(dark)
+            val apparence = if (dark) "sombre" else "clair"
+            val full = BlocConversation.inkZoneAlpha(theme)
+            val page = BlocConversation.inkZoneColour(theme)
+            // Le 411 dp de la recette (2,625) **et** la densité 1 : c'est là que la bande est la plus
+            // courte en pixels, donc la marche la plus raide — le cas que le lot précédent n'avait
+            // jamais parcouru.
+            listOf(2.625f, 1f).forEach { density ->
+                val band = BlocConversation.InkZoneFade.value * density
+                val rows = BlocConversation.inkZoneRowAlphas(theme, band, density)
+                assertEquals(
+                    "$apparence (densité $density) : la bande doit compter un rang par pixel",
+                    BlocConversation.inkZoneBandRows(band), rows.size,
+                )
+                // (a) LE PREMIER RANG EST À UN DEMI-PAS DU BORD, ET AUCUN RANG NE DÉPASSE LE PLATEAU.
+                // Le profil analytique au bord vaut zéro (section 5) ; le premier rang **peint** est à
+                // un demi-pixel du bord, donc à une marche au plus.
+                println(
+                    "  %-6s densité %.3f · %d rangs · plein %.3f · 1er rang %.5f (une marche = %.5f)".format(
+                        apparence, density, rows.size, full, rows.first(), full / rows.size,
+                    ),
+                )
+                assertTrue(
+                    "$apparence (densité $density) : le premier rang vaut ${rows.first()} — au-delà " +
+                        "d'une marche (${full / rows.size}) le bord de la plaque aurait une arête. " +
+                        "Fichier : $carte",
+                    rows.first() <= full / rows.size + 0.0001f,
+                )
+                rows.forEachIndexed { i, a ->
+                    assertTrue(
+                        "$apparence (densité $density) : le rang $i vaut $a, au-dessus du plateau " +
+                            "$full — la bande se compose sur elle-même (le cadre du propriétaire). " +
+                            "Fichier : $carte",
+                        a <= full + 0.0001f,
+                    )
+                    if (i > 0) {
+                        assertTrue(
+                            "$apparence (densité $density) : le profil redescend au rang $i " +
+                                "(${rows[i - 1]} → $a) — il doit monter du bord vers le plateau. " +
+                                "Fichier : $carte",
+                            a >= rows[i - 1] - 0.0001f,
+                        )
+                    }
+                }
+                // (b) LA PLUS GRANDE MARCHE d'un rang au suivant, sur la plus raide des plaques : elle
+                // doit rester sous l'écart de luminance d'UN niveau sur 255 — le seuil du lot
+                // précédent, **pas abaissé**.
+                var pireMarche = 0f
+                var unNiveau = 0f
+                BlocConversation.veils(theme).forEach { veil ->
+                    listOf(Color.White, Color.Black).forEach { under ->
+                        val plaque = compositedBackdrop(veil, under)
+                        unNiveau = maxOf(
+                            unNiveau,
+                            kotlin.math.abs(
+                                OnyxContrast.luminance(
+                                    Color(plaque.red + 1f / 255f, plaque.green + 1f / 255f, plaque.blue + 1f / 255f, 1f),
+                                ) - OnyxContrast.luminance(plaque),
+                            ),
+                        )
+                        for (i in 1 until rows.size) {
+                            val avant = compositedBackdrop(page.copy(alpha = rows[i - 1]), plaque)
+                            val apres = compositedBackdrop(page.copy(alpha = rows[i]), plaque)
+                            pireMarche = maxOf(
+                                pireMarche,
+                                kotlin.math.abs(OnyxContrast.luminance(apres) - OnyxContrast.luminance(avant)),
+                            )
+                        }
+                    }
+                }
+                println(
+                    "  %-6s densité %.3f · plus grande marche %.5f (= %.2f niveau de 255, qui vaut %.5f)".format(
+                        apparence, density, pireMarche, pireMarche / unNiveau, unNiveau,
+                    ),
+                )
+                // **Le seuil du lot précédent (un niveau sur 255) est tenu aux densités où l'app
+                // tourne** — 2,625 (le 411 dp de la recette) et 2,0 (le plancher d'un téléphone qui
+                // porte cette mise en page). **À densité 1, la réserve est nommée** : une bande de
+                // 16 dp n'a plus que **16 pixels** pour descendre le voile, donc la marche par pixel a
+                // un plancher géométrique de l'ordre de **1,2 niveau** ; le verrou imprime la valeur
+                // au lieu de la cacher (voir le rapport, section « ce qui reste »), et ce que la dent
+                // exige à 1× reste ce qui fait le cadre : **aucun rang plus dense que le plateau**.
+                if (density >= 2f) {
+                    assertTrue(
+                        "$apparence (densité $density) : la bande saute de ${"%.5f".format(pireMarche)} pour " +
+                            "un niveau de 255 valant ${"%.5f".format(unNiveau)} — la marche se voit sur le " +
+                            "profil composité. Fichier : $carte",
+                        pireMarche <= unNiveau * 1.02f,
+                    )
+                }
+            }
+            // (c) LA SOURCE LE DIT : des rangs d'exactement un pixel, la bande basse en miroir.
+            val zone = source(carte).substringAfter("private fun Modifier.blocConversationInkZone(")
+                .substringBefore("\n}\n")
+            assertTrue(
+                "la bande doit se peindre depuis le profil composité (`inkZoneRowAlphas`) : $carte",
+                zone.contains("inkZoneRowAlphas("),
+            )
+            assertTrue(
+                "chaque rang doit être un rectangle d'EXACTEMENT un pixel (`Size(size.width, 1f)`) : $carte",
+                zone.contains("Size(size.width, 1f)"),
+            )
+            assertFalse(
+                "un sous-rang mesure encore `pas + 1 px` : il recouvre le suivant, les opacités se " +
+                    "composent, et la bande devient plus dense que son plateau — c'est le cadre du " +
+                    "propriétaire. Fichier : $carte",
+                zone.contains("+ 1f"),
+            )
+            assertTrue(
+                "la bande basse doit être le MIROIR de la haute (`rows[count - 1 - i]`) : $carte",
+                zone.contains("rows[count - 1 - i]"),
+            )
+        }
     }
 }
