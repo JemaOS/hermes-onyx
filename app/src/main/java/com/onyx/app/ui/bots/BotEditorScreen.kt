@@ -784,9 +784,12 @@ private fun IdentitySection(
     Column(modifier = Modifier.fillMaxWidth().padding(top = OnyxSocle.Loose)) {
         header?.let {
             BasicText(
-                text = it.uppercase(),
+                // **La majuscule vient APRÈS la traduction.** L'inverser affichait l'en-tête en
+                // anglais dans une interface française : « WHAT IT DOES » au lieu de « SA FONCTION ».
+                // Le catalogue contient la traduction (« What it does » → « Sa fonction ») ; c'est
+                // l'ordre des deux opérations qui l'ignorait.
+                text = OnyxLocalization.translate(it).uppercase(),
                 style = socleSectionStyle(theme).copy(color = theme.secondaryText),
-                localize = false,
                 modifier = Modifier.padding(
                     start = OnyxSocle.ScreenMargin,
                     end = OnyxSocle.ScreenMargin,

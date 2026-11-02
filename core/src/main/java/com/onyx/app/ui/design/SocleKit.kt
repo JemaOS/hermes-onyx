@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ResolvedTheme
+import com.onyx.app.localization.OnyxLocalization
 
 /**
  * **Le vocabulaire du socle, en composables.** C'est ici que les jetons de [OnyxSocle] deviennent
@@ -249,10 +250,11 @@ fun SocleLargeHeader(
 fun SocleSectionLabel(text: String) {
     val theme = LocalOnyxTheme.current
     BasicText(
-        text = text.uppercase(),
+        // **La majuscule vient APRÈS la traduction** : l'inverser laissait l'intitulé en anglais
+        // dans une interface française.
+        text = OnyxLocalization.translate(text).uppercase(),
         style = socleSectionStyle(theme).copy(color = theme.secondaryText),
         maxLines = 1,
-        localize = false,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = OnyxSocle.ScreenMargin, end = OnyxSocle.ScreenMargin, top = OnyxSocle.Loose, bottom = OnyxSocle.Tight),
