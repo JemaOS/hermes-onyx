@@ -191,6 +191,12 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
             put("name", profile)
             if (model == null) put("model", JsonNull) else put("model", model)
             if (!provider.isNullOrBlank()) put("provider", provider)
+            // **Le serveur n'écrit rien sans provider**, et il exige en plus une confirmation pour
+            // un modèle gardé : `profiles.configure` répond `confirm_required` et n'enregistre
+            // rien tant que `confirm_expensive_model` n'est pas vrai. Choisir le modèle dans la
+            // feuille **est** cette confirmation — le drapeau part donc avec la demande, sinon le
+            // choix restait local et les bots continuaient avec leur ancien modèle.
+            put("confirm_expensive_model", true)
         }
         rpc.call("profiles.configure", params, CALL_TIMEOUT)
     }

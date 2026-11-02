@@ -1107,7 +1107,11 @@ fun ChatScreen(
                 feedback = feedFeedback,
                 botName = threadSpeaker.label,
                 faceName = threadSpeaker.faceName,
-                faceCode = threadSpeaker.faceCode,
+                // Une conversation à un bot n'a **qu'un** auteur : celui du fil. Le résolveur le
+                // nomme quand une carte le porte, et le repli garde son visage — la carte d'une
+                // salle, elle, y met celui du bot qui a répondu.
+                face = { name -> threadSpeaker.faceCode.takeIf { name == threadSpeaker.faceName } },
+                fallbackFaceCode = threadSpeaker.faceCode,
                 accent = tabAccent,
                 nowMillis = nowMillis,
                 onFeedback = { cardId, value ->

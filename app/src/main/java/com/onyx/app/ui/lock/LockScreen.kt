@@ -119,7 +119,7 @@ fun LockScreen(
             // Les classes **fortes et faibles** : sur beaucoup d'appareils (Honor, Xiaomi), seules
             // les fortes sont proposées, et l'ancienne demande (faible seule) restait sans réponse.
             // **`BIOMETRIC_STRONG or BIOMETRIC_WEAK` est refusé par l'API** (`setAllowedAuthenticators`
-            // n'accepte qu'une classe, éventuellement avec `DEVICE_CREDENTIAL`) : la boîte levait une
+            // n'accepte qu'une classe, éventuellement accompagnée de l'identifiant de l'appareil) : la boîte levait une
             // `IllegalArgumentException` attrapée par le `runCatching` du dessous, et l'écran de
             // verrouillage restait muet — ni empreinte, ni visage. Une seule classe, la plus large :
             // la faible couvre l'empreinte comme le visage.
@@ -188,6 +188,18 @@ fun LockScreen(
                         } else {
                             "Face or fingerprint isn't set up on this phone. Add one in Settings › Lock."
                         },
+                        style = theme.subheadline.copy(color = theme.secondaryText, textAlign = TextAlign.Center),
+                    )
+                }
+
+                // **Le code est toujours une sortie.** Quand la biométrie échoue (doigt mouillé,
+                // capteur qui ne répond pas, visage non reconnu), le champ du code doit être là,
+                // sous les yeux — sans qu'il faille deviner un geste. Il était conditionné à
+                // `hasPin` sans que rien ne dise pourquoi il manquait : si aucun code n'est
+                // enregistré, la phrase ci-dessous le dit et envoie le créer.
+                if (!lock.hasPin) {
+                    BasicText(
+                        text = "No passcode is set on this phone. Add one in Settings › Lock, so you can unlock when face or fingerprint fails.",
                         style = theme.subheadline.copy(color = theme.secondaryText, textAlign = TextAlign.Center),
                     )
                 }

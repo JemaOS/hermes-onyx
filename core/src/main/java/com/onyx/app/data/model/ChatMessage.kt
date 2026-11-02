@@ -270,6 +270,17 @@ data class ChatMessage(
      * (`Message.isSteer`). Elle s'affiche en pastille, sans bulle, et n'est pas une question.
      */
     val isSteer: Boolean = false,
+    /**
+     * Le **nom de profil** du bot qui a écrit ce message, quand plusieurs bots partagent le même
+     * fil — une salle de groupe. C'est la même clé que le fil emploie pour poser le nom et le
+     * visage d'une réponse (`GroupMember.profile`, `ThreadSpeaker.faceName`), donc l'onglet Flux y
+     * résout le visage de **chaque** carte.
+     *
+     * Vide dans une conversation à un bot : l'auteur y est la conversation elle-même, et c'est son
+     * visage qui s'affiche. Aucune donnée serveur n'est inventée ici : la salle la remplit depuis
+     * l'`actorID` de son journal.
+     */
+    val authorProfile: String = "",
 ) {
     val isUser: Boolean get() = role == Role.USER
     val hasBody: Boolean get() =

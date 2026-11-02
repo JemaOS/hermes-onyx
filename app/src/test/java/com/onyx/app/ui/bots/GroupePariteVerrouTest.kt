@@ -3,6 +3,7 @@ package com.onyx.app.ui.bots
 import androidx.compose.ui.graphics.Color
 import com.onyx.app.data.model.Role
 import com.onyx.app.data.model.serve.GroupEvent
+import com.onyx.app.data.model.serve.GroupMember
 import com.onyx.app.ui.design.OnyxContrast
 import com.onyx.app.ui.design.readableInk
 import com.onyx.app.ui.theme.ReferencePalette
@@ -220,5 +221,37 @@ class GroupePariteVerrouTest {
         assertEquals(Role.USER, messages[0].role)
         assertEquals(Role.ASSISTANT, messages[1].role)
         assertEquals("salut", messages[1].text)
+    }
+
+    @Test
+    fun `le journal nomme l auteur de chaque reponse, par le profil du membre`() {
+        // Le Flux d'une salle tirait son visage du **nom de la salle** pour toutes ses cartes. Le
+        // journal porte donc l'auteur de chaque message : le **profil** du membre qui a parlé —
+        // exactement la clé que le fil emploie pour poser son nom et son visage.
+        val members = listOf(
+            GroupMember(id = "bot-1", profile = "scout", handle = "scout"),
+            GroupMember(id = "bot-2", profile = "quill", handle = "quille"),
+        )
+        val rows = listOf(
+            GroupEvent(seq = 1, kind = "message.user", actorKind = "user", actorID = null,
+                payload = JsonObject(mapOf("text" to kotlinx.serialization.json.JsonPrimitive("bonjour"))),
+                createdAtMillis = 1L),
+            GroupEvent(seq = 2, kind = "message.member", actorKind = "member", actorID = "bot-1",
+                payload = JsonObject(mapOf("text" to kotlinx.serialization.json.JsonPrimitive("salut"))),
+                createdAtMillis = 2L),
+            GroupEvent(seq = 3, kind = "message.member", actorKind = "member", actorID = "bot-2",
+                payload = JsonObject(mapOf("text" to kotlinx.serialization.json.JsonPrimitive("et moi"))),
+                createdAtMillis = 3L),
+        )
+        val messages = roomThreadMessages(rows, members)
+        // La personne n'a pas de profil de bot : aucun auteur nommé, donc le visage de repli.
+        assertEquals("la personne n'a pas d'auteur de bot", "", messages[0].authorProfile)
+        assertEquals("chaque réponse porte le profil de son bot", listOf("scout", "quill"),
+            messages.drop(1).map { it.authorProfile })
+        // Et sans la liste des membres, rien n'est inventé : la carte retombe sur le repli.
+        assertTrue(
+            "aucun auteur deviné sans les membres",
+            roomThreadMessages(rows).all { it.authorProfile.isEmpty() },
+        )
     }
 }

@@ -362,7 +362,21 @@ fun SettingsScreen(
                 OnyxFormSection(header = "Notifications") {
                     OnyxValueRow(
                         label = "Notifications",
-                        value = if (notifyInBackground) "On" else "Off",
+                        // **L'état du système, pas un drapeau recopié.** Cette ligne affichait
+                        // « Désactivé » alors que l'écran des notifications annonçait « Activé » :
+                        // elle lisait un booléen figé au lieu du réglage réel d'Android. Elle
+                        // interroge donc le système à chaque composition — le retour de l'écran
+                        // des notifications recompose, et la ligne suit.
+                        value = if (
+                            notifyInBackground &&
+                            androidx.core.app.NotificationManagerCompat
+                                .from(LocalContext.current)
+                                .areNotificationsEnabled()
+                        ) {
+                            "On"
+                        } else {
+                            "Off"
+                        },
                         symbol = Symbols.Bell,
                         onClick = openNotifications,
                     )

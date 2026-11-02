@@ -175,6 +175,8 @@ import com.onyx.app.ui.design.tapLabel
  */
 @Composable
 internal fun ChatSidebar(
+    /** Le pied est-il dessiné ? Faux quand un écran de détail est posé sur le volet. */
+    footerVisible: Boolean = true,
     /** Le nom de la passerelle : celui du serveur où l'app est signée. */
     gatewayName: String,
     /** Son adresse, montrée telle quelle sous le nom. */
@@ -508,7 +510,7 @@ internal fun ChatSidebar(
                     onArchive = { onArchiveSelected(selection.selectedIds) },
                     onDelete = { onDeleteSelected(selection.selectedIds) },
                 )
-            } else {
+            } else if (footerVisible) {
                 SidebarFooter(
                     onNewConversation = onNewConversation,
                     onOpenAccount = onOpenAccount,

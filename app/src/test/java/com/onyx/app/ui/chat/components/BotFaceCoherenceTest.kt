@@ -110,6 +110,48 @@ class BotFaceCoherenceTest {
     }
 
     @Test
+    fun `chaque carte du flux resout le visage de SON auteur`() {
+        // Le défaut : dans le Flux d'une salle de groupe, toutes les cartes peignaient le visage de
+        // la salle, là où le fil montrait celui de chaque bot. La carte porte donc son auteur, et le
+        // panneau le résout par carte.
+        assertTrue(
+            "la carte porte son auteur",
+            panels.contains("val author: String = \"\","),
+        )
+        assertTrue(
+            "l'auteur est lu sur le message, jamais deviné",
+            panels.contains("author = message.authorProfile,"),
+        )
+        assertTrue(
+            "le panneau résout le visage sur l'auteur de la carte",
+            panels.contains("face(card.author) ?: fallbackFaceCode"),
+        )
+        assertTrue(
+            "et le repli est celui de la salle",
+            panels.contains("fallbackFaceCode: String? = null,"),
+        )
+        // Le visage unique a disparu de la signature du panneau : plus de `faceCode` reçu de
+        // l'extérieur, donc plus moyen de peindre le même visage sur toutes les cartes.
+        val pane = panels.substringAfter("fun ChatFeedPane(").substringBefore(") {")
+        assertFalse("plus de visage unique dans la signature du Flux", pane.contains("faceCode: String?"))
+        assertTrue("le résolveur y est", pane.contains("face: (String) -> String?"))
+        // Et la salle passe bien le résolveur de ses membres, plus un visage figé.
+        val roomScreen = File("src/main/java/com/onyx/app/ui/bots/GroupRoomScreen.kt").readText()
+        assertTrue(
+            "la salle passe le résolveur, carte par carte",
+            roomScreen.contains("face = { name -> face(name) }"),
+        )
+        assertTrue(
+            "et le visage de la salle comme repli",
+            roomScreen.contains("fallbackFaceCode = face(room.name)"),
+        )
+        assertTrue(
+            "le journal nomme l'auteur de chaque message",
+            roomScreen.contains("roomThreadMessages(rows, room.members)"),
+        )
+    }
+
+    @Test
     fun `la liste et les salles resolvent sur le nom de profil`() {
         // L'écran des conversations a été retiré : sa liste **et ses salles** vivent dans le volet.
         // Les salons y portent les noms de **profil** de leurs membres, et la pile se dessine par

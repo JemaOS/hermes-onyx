@@ -76,6 +76,7 @@ fun PushSettingsScreen(
     val context = LocalContext.current
     val notifyInBackground by viewModel.notifyInBackground.collectAsStateWithLifecycle()
     val notificationSound by viewModel.notificationSound.collectAsStateWithLifecycle()
+    val replyWatch by viewModel.replyWatch.collectAsStateWithLifecycle()
     val workTracking by viewModel.workTracking.collectAsStateWithLifecycle()
     var systemEnabled by remember { mutableStateOf(context.notificationsEnabled()) }
     var channels by remember { mutableStateOf(context.onyxChannels()) }
@@ -113,6 +114,29 @@ fun PushSettingsScreen(
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else -> context.openNotificationSettings()
+        }
+    }
+
+    /**
+     * Allume le surveillant de réponses (« Me prévenir quand une réponse arrive, app fermée »).
+     *
+     * Même portier que l'alerte d'arrière-plan : sans la permission d'Android, le travail
+     * périodique lirait les sessions pour rien. On la demande donc ici, et le geste reprend une
+     * fois qu'elle est accordée.
+     */
+    fun enableReplyWatch() {
+        when {
+            systemEnabled -> viewModel.setReplyWatch(true)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED -> {
+                afterGrant = { viewModel.setReplyWatch(true) }
+                permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            else -> {
+                viewModel.setReplyWatch(true)
+                context.openNotificationSettings()
+            }
         }
     }
 
@@ -236,6 +260,14 @@ fun PushSettingsScreen(
                     checked = notifyInBackground,
                     onCheckedChange = { enabled ->
                         if (enabled) enableBackgroundNotifications() else viewModel.setNotifyInBackground(false)
+                    },
+                )
+                OnyxRowDivider()
+                OnyxToggleRow(
+                    label = "Notify me when a reply arrives, app closed",
+                    checked = replyWatch,
+                    onCheckedChange = { enabled ->
+                        if (enabled) enableReplyWatch() else viewModel.setReplyWatch(false)
                     },
                 )
                 OnyxRowDivider()

@@ -2,6 +2,8 @@ package com.onyx.app
 
 import android.app.Application
 import com.onyx.app.di.AppContainer
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * Installe les singletons de l'app. Rien d'autre n'est fait ici : les services (voix, widgets)
@@ -25,6 +27,17 @@ class OnyxApplication : Application() {
             com.onyx.app.notifications.TurnNotification.ensureChannel(this)
             com.onyx.app.notifications.CallRinger.ensureChannel(this)
             com.onyx.app.notifications.AgentCallService.ensureChannel(this)
+        }
+        // « Me prévenir quand une réponse arrive, app fermée » : le travail périodique suit le
+        // réglage — au démarrage (un téléphone redémarré le retrouve planifié sans qu'aucun écran
+        // n'ait été ouvert) comme à chaque bascule de l'interrupteur. `apply` est idempotent :
+        // planifier un travail déjà planifié ne recule pas son échéance.
+        AppContainer.processScope.launch {
+            // On attend la lecture du disque : avant elle, le flux porte son défaut, pas le choix.
+            AppContainer.settings.loaded.first { it }
+            AppContainer.settings.replyWatch.collect { enabled ->
+                com.onyx.app.notifications.ReplyWatchScheduler.apply(this@OnyxApplication, enabled)
+            }
         }
     }
 }
