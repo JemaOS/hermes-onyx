@@ -1,40 +1,24 @@
-# Onyx 1.0.0+1123 — le menu ancré devient du verre
+# Onyx 1.0.0+1123 — the anchored menu is real glass
 
-Le menu ancré se lisait comme un **rectangle gris translucide** posé sur l'écran. Ce n'était pas une teinte trop forte : c'était **quatre fautes empilées**, dont aucune ne se voyait à l'écran.
+The anchored menu read as a **grey rectangle** laid over the screen. That was not an over-strong tint: it was **four faults stacked**, none of them visible on screen.
 
-## 1. Le menu vivait dans une `Dialog` — une autre fenêtre
+**1. The menu lived in a `Dialog` — a different window.** It could see neither the Haze source (posed by the screen, in the main window), nor the lens page, nor the backdrop layer. A panel that lives there can therefore **sample nothing**: it can only paint a veil. It now goes through an **overlay of the main window** (`OverlayHost`), which fixes all **29 call sites** at once. Hardware back closes it — the `Dialog` no longer did.
 
-Elle ne voit ni la source de flou Haze (posée par l'écran, dans la fenêtre principale), ni la page de la lentille, ni le calque de fond. Un panneau qui y vit ne peut donc **rien** échantillonner : il ne peut que se peindre d'un voile.
+**2. The lens path painted a tint but sampled nothing** (the recorded texture came back empty), so the panel let the text underneath through **unblurred**. The menu now runs on the **Haze** path, the only path measured as actually sampling.
 
-Il passe désormais dans un **overlay de la fenêtre principale** (`OverlayHost`) — ce qui corrige les **29 appelants** d'un coup. Le retour matériel ferme le menu, la `Dialog` ne le faisait plus.
+**3. The group room's page material was posed outside the Haze source**, so the glass had nothing but a flat fill to eat. It is now inside the source, as in the 1:1 thread — the same fault the thread had, and the same fix.
 
-## 2. Le chemin de la lentille peignait une teinte mais n'échantillonnait rien
+**4. `masking = true`** raised the body to 0.92: the panel became the very **flat** block the fix was meant to remove. Dropped — legibility here is carried by the **blur**, not by opacity.
 
-La texture enregistrée rendait vide : le panneau laissait passer le texte dessous **net**. Le menu passe sur le **chemin de Haze**, seul chemin mesuré comme échantillonnant — le volet le prouve (`count=1`).
+**Measured on the device** (the room, the menu over the thread):
 
-## 3. La matière de la page de la salle était posée hors de la source Haze
-
-La vitre n'avait qu'un aplat à manger. Elle est désormais posée **dans** la source, comme dans le fil de bot. C'était la même faute que le fil avait, et la même correction.
-
-## 4. `masking = true` remontait le corps à 0,92
-
-Le panneau redevenait l'aplat qu'on voulait supprimer. Retiré — la lisibilité, ici, c'est le **flou** qui la porte, pas l'opacité.
-
-## Mesuré sur l'appareil
-
-La salle, le menu au-dessus du fil :
-
-| | avant | après |
+| | before | after |
 |---|---|---|
-| corrélation avec l'image nette (1,0 = texte net) | 0,9927 | **0,2804** |
-| écart-type du fond sous le panneau | 1,3 (aplat) | contenu réel, 0,6 → 94,7 |
+| correlation with the sharp capture (1.0 = text passes net) | 0.9927 | **0.2804** |
+| standard deviation of the background under the panel | 1.3 (flat) | the real content, 0.6 → 94.7 |
 
-Le texte sous le panneau n'est plus net : il est **flouté**. Le panneau porte l'arête lumineuse et le texte du menu reste lisible.
+The text under the panel is no longer sharp: it is **blurred**. The panel carries the bright edge and the menu text stays readable.
 
-## Ce qui n'a pas bougé
+Surfaces that are not menus keep their path: the sidebar sheet stays deliberately opaque (locked by `DialogueSurfaceVerrouTest`), and `SHEET`/`ALERT` stay declared as own-window.
 
-Les surfaces qui ne sont pas des menus gardent leur chemin : la feuille du volet reste volontairement opaque (verrou `DialogueSurfaceVerrouTest`), et `SHEET`/`ALERT` restent déclarées à fenêtre propre.
-
-## Tests
-
-**3755 tests, 0 échec.** Le verrou `GlassLuminanceTest` dit maintenant ce que dit la table (le menu est dans la fenêtre), et `VerreFondVerrouTest` a un verrou de plus pour la matière de la salle.
+**Tests: 3755, 0 failures.** `GlassLuminanceTest` now says what the table says (the menu is in the window), and `VerreFondVerrouTest` has one more lock for the room's page material.
