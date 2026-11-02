@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -266,6 +267,22 @@ fun BotEditorScreen(
     faceCode: String?,
     mainName: String,
     onFaceChosen: (String?) -> Unit,
+    /**
+     * Le nom du bot en cours de creation, pour que l'ecran de visage ait un titre vrai.
+     *
+     * Pour un bot deja fait, c'est son nom de profil ; pour un bot en creation, celui que la
+     * personne tape. L'ecran de visage s'ouvre sur un autre ecran (une route) : il lui faut donc
+     * ce nom, et il ne peut pas le deduire — le bot n'existe pas encore sur le serveur.
+     */
+    onFaceChosenNamed: (String?, String) -> Unit = { code, _ -> onFaceChosen(code) },
+    /**
+     * Le visage choisi dans l'écran de visage dédié, pour un bot **en création**.
+     *
+     * L'écran de visage s'ouvre sur un autre écran (une route) : le choix revient donc par ici.
+     * Sans ce paramètre, « Change Face » de « New Bot » ne pouvait aboutir — le bot n'existe pas
+     * encore, et l'éditeur ne savait rien du choix fait ailleurs.
+     */
+    chosenFaceCode: String? = null,
     onOpenPrompt: () -> Unit,
     onOpenSchedules: () -> Unit,
     onOpenVoice: () -> Unit,
@@ -326,6 +343,13 @@ fun BotEditorScreen(
     // c'est lui que le bot créé reçoit. Rien pour « Blank » (et pour un bot déjà fait, dont le
     // visage est celui de son profil).
     var pickedFace by remember { mutableStateOf<BotFace?>(null) }
+    // Le visage choisi dans l'écran dédié (« Change Face »), pour un bot **en création**. Il
+    // arrive par un autre écran : c'est donc un état du parent, et il est posé ici à son retour.
+    // Sans cela, le choix ne pouvait pas revenir — et « Change Face » ne faisait rien.
+    val chosenFace = remember(chosenFaceCode) { BotFace.parse(chosenFaceCode) }
+    LaunchedEffect(chosenFaceCode) {
+        if (chosenFace != null) pickedFace = chosenFace
+    }
     var shown by remember(bot?.name) { mutableStateOf(bot?.isHidden != true) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var showModels by remember { mutableStateOf(false) }
@@ -427,7 +451,12 @@ fun BotEditorScreen(
                     style = socleBodyStyle(theme).copy(color = theme.accent),
                     modifier = Modifier
                         .defaultMinSize(minHeight = OnyxSocle.TouchTarget)
-                        .onyxClickable { onFaceChosen(faceCode) }
+                        .onyxClickable {
+                            onFaceChosenNamed(
+                                faceCode,
+                                bot?.name ?: title.ifEmpty { "new-bot" },
+                            )
+                        }
                         .padding(horizontal = OnyxSocle.Loose, vertical = OnyxSocle.Tight),
                 )
             }

@@ -651,6 +651,12 @@ fun OnyxApp() {
         // La page d'où l'on vient, pour que « retour » ramène au bon endroit.
         var contextReturn by rememberSaveable { mutableStateOf(Route.CONTEXT.name) }
         var selectedBot by remember { mutableStateOf<BotProfile?>(null) }
+        // Le bot **en cours de création** : son nom et son visage. « Change Face » de l'écran
+        // « New Bot » n'avait nulle part où poser son choix — l'écran de visage s'ouvre sur un bot
+        // du serveur, et un bot qui n'existe pas encore n'en est pas un. Le geste ne faisait donc
+        // rien, et le visage du modèle restait le seul possible.
+        var newBotName by rememberSaveable { mutableStateOf<String?>(null) }
+        var newBotFaceCode by rememberSaveable { mutableStateOf<String?>(null) }
         // La salle choisie dans la liste des bots : elle teinte sa rangée et pré-remplit le chat
         // de groupe avec ses membres (le fil d'une salle du serveur n'est pas encore porté).
         var openedRoom by remember { mutableStateOf<GroupChat?>(null) }
@@ -3316,9 +3322,21 @@ fun OnyxApp() {
                 BotEditorScreen(
                     bot = bot,
                     faceCode = bot?.let { botsViewModel.faceFor(it) },
+                    // Le visage choisi dans l'écran dédié, pour un bot en création : il revient ici
+                    // par le même état, et l'aperçu le montre.
+                    chosenFaceCode = if (bot == null) newBotFaceCode else null,
                     mainName = state.server.displayName,
                     onFaceChosen = {
                         if (bot != null) navTo(Route.BOT_FACE.name)
+                    },
+                    onFaceChosenNamed = { _, name ->
+                        // Un bot en création n'existe pas encore sur le serveur : l'écran de
+                        // visage s'ouvre sur lui par son nom, et le choix revient à l'éditeur.
+                        if (bot == null) {
+                            newBotName = name
+                            newBotFaceCode = null
+                        }
+                        navTo(Route.BOT_FACE.name)
                     },
                     onOpenPrompt = {
                         contextFileName = null
@@ -3405,8 +3423,28 @@ fun OnyxApp() {
 
             Route.BOT_FACE -> {
                 val bot = selectedBot
-                if (bot == null) {
+                // Un bot **en création** n'existe pas encore sur le serveur : l'écran de visage
+                // s'ouvre quand même sur lui, et le choix revient à l'éditeur qui le crée.
+                val pendingName = newBotName
+                if (bot == null && pendingName == null) {
                     LaunchedEffect(Unit) { if (!navBack()) navTo(Route.BOTS.name) }
+                } else if (bot == null) {
+                    BotFacePickerScreen(
+                        botName = pendingName.orEmpty(),
+                        displayName = pendingName.orEmpty(),
+                        current = newBotFaceCode,
+                        isDefault = false,
+                        hasPickedFace = newBotFaceCode != null,
+                        // Un bot qui n'existe pas encore n'a rien à écrire sur le serveur : le
+                        // visage est posé **avec lui**, à la création.
+                        serverBacked = false,
+                        keptWithBot = true,
+                        onSave = { code ->
+                            newBotFaceCode = code
+                            if (!navBack()) navTo(Route.BOT_EDITOR.name)
+                        },
+                        onCancel = { if (!navBack()) navTo(Route.BOT_EDITOR.name) },
+                    )
                 } else {
                     BotFacePickerScreen(
                         botName = bot.name,
