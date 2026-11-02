@@ -60,6 +60,24 @@ class ServeBotsRpcWriteTest {
     }
 
     @Test
+    fun `le visage s ecrit sur la revision de la cle onyx`() = runBlocking {
+        val fake = Fake()
+
+        ServeBotsRpc(fake).setFace("scout", "1:round:round:oh:none:4:0:0", revision = 3)
+
+        assertEquals("profiles.configure", fake.method)
+        val params = fake.params!!
+        assertEquals("scout", params["name"]!!.toString().trim('"'))
+        // Le visage vit sous `ui_meta.onyx`…
+        assertEquals(
+            "1:round:round:oh:none:4:0:0",
+            (params["ui_meta"] as JsonObject)["onyx"]!!.jsonObject["face"]!!.toString().trim('"'),
+        )
+        // … et sa révision est celle de **cette** clé, comptée à part de `hermes-bots`.
+        assertEquals("3", params["ui_meta_expected_revisions"]!!.jsonObject["onyx"]!!.toString())
+    }
+
+    @Test
     fun `un ui_meta change ailleurs est refuse et dit en clair`() = runBlocking {
         val fake = Fake {
             json("""{"applied":{"ui_meta":true,"ui_meta_conflicts":{"hermes-bots":{"expected":0,"actual":9}}}}""")

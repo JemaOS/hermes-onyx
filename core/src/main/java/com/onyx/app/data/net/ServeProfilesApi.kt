@@ -58,6 +58,9 @@ internal fun botProfileFromRow(row: JsonObject): BotProfile? {
         // « Pin to top » de la référence : le même `ui_meta` que la visibilité, la même lecture.
         pinned = meta?.get("pinned").asBool() ?: false,
         setUpRevision = row.obj("ui_meta_revisions")?.int("hermes-bots") ?: 0,
+        // La révision du **visage** : le serveur compte `ui_meta.onyx` à part de
+        // `ui_meta.hermes-bots`, et une écriture du visage doit dire celle-là.
+        faceRevision = row.obj("ui_meta_revisions")?.int("onyx") ?: 0,
         setUp = meta != null,
         chatId = chat?.firstString("resolved_id", "id"),
         preview = chat?.strOrNull("preview"),
