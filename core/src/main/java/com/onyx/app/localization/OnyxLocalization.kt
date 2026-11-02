@@ -220,7 +220,11 @@ object OnyxLocalization {
     // et les phrases de l'écran de verrouillage passent en dernier.
     private val french = onyxSharedFrench + criticalFrench + onyxAdditionalFrench + onyxSettingsFrench + onyxCommonFrench + onyxRemainingFrench + onyxSetupTerminalFrench + onyxCardsFrench + onyxLockFrench + onyxToolsFrench + onyxToolsPageFrench + onyxLanguageFrench + onyxCodeFrench + onyxTabsFrench + onyxMenuSheetFrench + onyxCapabilitiesFrench + onyxInsightsFrench + onyxOrganisationFrench + onyxLedgerFrench + onyxSidebarTilesFrench
 
-    private val frenchPatterns: List<Pair<Regex, (MatchResult) -> String>> = onyxSetupTerminalFrenchPatterns + onyxCardsFrenchPatterns + onyxCodeFrenchPatterns + onyxMenuSheetFrenchPatterns + listOf(
+    // **Les motifs de `onyxMissingFrenchPatterns` passent EN DERNIER** : ce sont les formes les
+    // plus larges (« Delete … ? »), et le dictionnaire — qui a ses propres motifs, plus précis —
+    // doit avoir la parole avant eux. L'inverse casserait « Delete “Rapport du lundi”? », dont le
+    // motif du dictionnaire met les guillemets français.
+    private val frenchPatterns: List<Pair<Regex, (MatchResult) -> String>> = onyxSetupTerminalFrenchPatterns + onyxCardsFrenchPatterns + onyxCodeFrenchPatterns + onyxMenuSheetFrenchPatterns + onyxMissingFrenchPatterns + listOf(
         Regex("^(\\d+) selected$") to { match ->
             val count = match.groupValues[1]
             if (count == "1") "1 élément sélectionné" else "$count éléments sélectionnés"

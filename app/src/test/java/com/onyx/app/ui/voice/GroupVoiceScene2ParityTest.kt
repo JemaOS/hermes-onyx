@@ -102,7 +102,10 @@ class GroupVoiceScene2ParityTest {
                     "        )",
             ),
         )
-        assertTrue(screen.contains("text = title.uppercase()"))
+        // La majuscule vient **APRÈS** la traduction : l'inverser affichait « READY » /
+        // « LISTENING » en anglais dans une interface française. Le libellé est donc traduit, puis
+        // mis en capitales.
+        assertTrue(screen.contains("text = OnyxLocalization.translate(title).uppercase()"))
         assertTrue(screen.contains("letterSpacing = 1.2.sp"))
         // La légende prend la couleur du bot qui parle (`titleColor`), pas celle de la phase : c'est
         // le tour de ce bot, et sa couleur le dit.

@@ -368,8 +368,9 @@ fun VoiceScreen(
                 label = "voicePhaseTitle",
             ) { title ->
                 BasicText(
-                    text = title.uppercase(),
-                    localize = false,
+                    // **La majuscule vient APRÈS la traduction** : l'inverser affichait
+                    // « READY » / « LISTENING » en anglais dans une interface française.
+                    text = OnyxLocalization.translate(title).uppercase(),
                     // `VoiceView:46` : `.footnote.weight(.semibold)` et `.tracking(1.2)`.
                     // **Centré sous l'orbe**, comme la référence : le noeud occupe toute la largeur
                     // (c'est ce qui laisse le mot suivant pousser le précédent d'un bloc), donc

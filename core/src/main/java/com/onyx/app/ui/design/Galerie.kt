@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ResolvedTheme
+import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.delay
 
 /**
@@ -796,8 +797,9 @@ fun GalerieSectionLabel(
         horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
     ) {
         BasicText(
-            text = text.uppercase(),
-            localize = false,
+            // **La majuscule vient APRÈS la traduction** : l'inverser laissait l'intitulé en
+            // anglais dans une interface française.
+            text = OnyxLocalization.translate(text).uppercase(),
             style = socleSectionStyle(theme).copy(color = theme.secondaryText),
             maxLines = 1,
             modifier = Modifier.weight(1f),
