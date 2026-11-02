@@ -38,6 +38,14 @@ fun JsonObject.int(key: String): Int? = this[key]?.asInt()
 
 fun JsonObject.long(key: String): Long? = this[key]?.asLong()
 
+/**
+ * Un nombre **décimal** (le gateway écrit `updated_at` et `created_at` en flottant : `asLong()`
+ * les refusait, et la date d'une salle disparaissait — elle s'affichait « 2965w », puis plus rien).
+ * Un nom à part : `double` existe déjà, privé, dans un autre fichier du même paquet.
+ */
+fun JsonObject.decimal(key: String): Double? =
+    (this[key] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull()
+
 fun JsonObject.bool(key: String): Boolean? = this[key]?.asBool()
 
 fun JsonObject.obj(key: String): JsonObject? = this[key].asObject()

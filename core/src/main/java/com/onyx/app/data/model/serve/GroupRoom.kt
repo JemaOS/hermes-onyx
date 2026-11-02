@@ -3,6 +3,7 @@ package com.onyx.app.data.model.serve
 import com.onyx.app.data.net.array
 import com.onyx.app.data.net.asObject
 import com.onyx.app.data.net.asString
+import com.onyx.app.data.net.decimal
 import com.onyx.app.data.net.firstString
 import com.onyx.app.data.net.int
 import com.onyx.app.data.net.long
@@ -64,6 +65,8 @@ data class GroupRoom(
     val members: List<GroupMember> = emptyList(),
     /** Dernière activité, en millisecondes Unix (`updated_at` du serveur, `at` de la copie Desktop). */
     val updatedAtMillis: Long? = null,
+    /** La création de la salle (`created_at`), en millisecondes Unix — le repli quand il n'y a pas d'activité. */
+    val createdAtMillis: Long? = null,
     val latestSeq: Int? = null,
     /**
      * Une salle qu'Hermes Desktop tient lui-même, montrée depuis sa copie : lecture seule.
@@ -131,7 +134,11 @@ data class GroupRoom(
                 id = id,
                 name = json.firstString("name") ?: id,
                 members = json.array("members").mapNotNull { it.asObject()?.let(GroupMember::from) },
-                updatedAtMillis = json.long("updated_at")?.let(::secondsToMillis),
+                // **Un flottant se lit comme un flottant.** `updated_at` et `created_at` arrivent
+                // en secondes décimales : `asLong()` les refusait, la date se perdait, et la salle
+                // n'affichait plus ni son âge ni celui de son dernier message.
+                updatedAtMillis = json.decimal("updated_at")?.let { secondsToMillis(it.toLong()) },
+                createdAtMillis = json.decimal("created_at")?.let { secondsToMillis(it.toLong()) },
                 latestSeq = json.int("latest_seq"),
             )
         }
