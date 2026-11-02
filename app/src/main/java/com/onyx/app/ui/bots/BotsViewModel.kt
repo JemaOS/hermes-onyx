@@ -626,10 +626,25 @@ class BotsViewModel(
         // Le visage part sur le serveur quand le Dashboard est joignable ; sinon il reste ici.
         if (config.hasServeCredentials) {
             viewModelScope.launch {
-                runCatching {
+                try {
                     val rpc = ServeRpc(config)
-                    ServeBotsRpc(rpc).setFace(bot.name, code, revision = 0)
-                    rpc.close()
+                    try {
+                        // La révision **du visage** (`ui_meta.onyx`), pas celle des réglages de bot
+                        // (`ui_meta.hermes-bots`) : le serveur les compte à part. Envoyer `0`
+                        // faisait répondre « this bot was just changed elsewhere » — l'écriture
+                        // était refusée, et son échec étant avalé, le serveur gardait l'ancien
+                        // visage : la bouche choisie n'apparaissait jamais dans la scène vocale.
+                        ServeBotsRpc(rpc).setFace(bot.name, code, revision = bot.faceRevision)
+                    } finally {
+                        rpc.close()
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    // Un échec d'écriture se **dit** : sans cela, le geste semblait passer et le
+                    // visage ne changeait jamais.
+                    val message = OnyxLocalization.format("Couldn't set that up: %1\$s", error.said())
+                    _state.update { it.copy(problem = message) }
                 }
             }
         }

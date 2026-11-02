@@ -24,6 +24,17 @@ data class BotProfile(
     val pinned: Boolean = false,
     /** La révision d'Hermes pour les réglages de bot de ce profil : une écriture la dit attendue. */
     val setUpRevision: Int = 0,
+    /**
+     * La révision d'Hermes pour le **visage** de ce profil (`ui_meta.onyx`).
+     *
+     * C'est une révision **distincte** de [setUpRevision] (`ui_meta.hermes-bots`) : le serveur
+     * les compte séparément, et une écriture du visage doit dire la revision du visage — sinon
+     * Hermes répond « this bot was just changed elsewhere » et **refuse** l'ecriture. C'est ce
+     * qui faisait qu'un visage choisi dans l'editeur n'apparait jamais dans la scene vocale :
+     * l'ecriture partait avec une revision fictive, echouait en silence, et le serveur gardait
+     * l'ancien visage.
+     */
+    val faceRevision: Int = 0,
     val setUp: Boolean = false,
     val chatId: String? = null,
     /**
