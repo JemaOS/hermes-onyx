@@ -359,6 +359,9 @@ internal const val TileLabelWordLimit: Int = 11
  */
 internal fun sidebarAgeLabel(ageSeconds: Double): String {
     if (ageSeconds <= 0.0) return ""
+    // **Aucun âge absurde.** Une date manquante (zéro) produisait 57 ans, soit « 2965w » : au-delà
+    // de cent ans, la ligne n'écrit rien plutôt qu'un nombre qui n'existe pas.
+    if (ageSeconds > 365.0 * 24.0 * 3600.0 * 100.0) return ""
     val minutes = ageSeconds / 60.0
     val hours = minutes / 60.0
     val days = hours / 24.0
@@ -367,7 +370,9 @@ internal fun sidebarAgeLabel(ageSeconds: Double): String {
         minutes < 60.0 -> "${minutes.toInt()}m"
         hours < 24.0 -> "${hours.toInt()}h"
         days < 7.0 -> "${days.toInt()}d"
-        else -> "${(days / 7.0).toInt()}w"
+        // **Au-delà d'un an, on compte en années** : « 2965w » ne se lit pas, « 3y » se lit.
+        days < 365.0 -> "${(days / 7.0).toInt()}w"
+        else -> "${(days / 365.0).toInt()}y"
     }
 }
 

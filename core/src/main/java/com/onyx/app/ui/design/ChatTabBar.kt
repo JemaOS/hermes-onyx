@@ -1337,7 +1337,10 @@ private fun androidx.compose.foundation.layout.BoxScope.TabPill(
                 )
             }
             .width((cellWidthDp + PillOverhangDp * 2f).dp)
-            .height(PlaqueGeometry.TabCellHeight)
+            // **La pastille enveloppe TOUTE la cellule** — l'icône ET le libellé. Elle s'arrêtait à
+            // la hauteur de l'icône : le mot restait **sous** la capsule, collé à son bord bas, sans
+            // l'espace symétrique de la référence (le mot est centré dans la forme, comme « Accueil »).
+            .fillMaxHeight()
             .align(Alignment.CenterStart)
             .graphicsLayer {
                 // **Saisie** : au-delà de la levée (1), l'excédent gonfle la capsule dans les deux
