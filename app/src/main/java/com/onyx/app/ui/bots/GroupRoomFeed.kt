@@ -13,6 +13,8 @@ import com.onyx.app.data.net.strOrNull
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.voice.VoiceDiagnostics
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -232,7 +234,16 @@ class GroupRoomFeed(
     suspend fun look() {
         if (state.value.room.inDesktop) return lookInDesktop()
         try {
-            val fresh = api.log(state.value.room.id, state.value.cursor)
+            // **Le journal et l'état sont demandés ensemble.** Ce sont deux lectures
+            // indépendantes du même canal ; en série, le tick payait deux allers-retours
+            // (le tunnel en ajoute ~60 ms) alors qu'en parallèle il en paie un.
+            val room = state.value.room.id
+            val cursor = state.value.cursor
+            val (fresh, roomStatus) = coroutineScope {
+                val freshCall = async { api.log(room, cursor) }
+                val stateCall = async { api.roomState(room) }
+                freshCall.await() to stateCall.await()
+            }
             if (fresh.isNotEmpty()) {
                 _state.update { current ->
                     val renamed = fresh.lastOrNull { it.kind == "room.renamed" }?.payload?.strOrNull("name")
@@ -240,7 +251,7 @@ class GroupRoomFeed(
                         events = current.events + fresh,
                         cursor = fresh.last().seq,
                         // Un message de la personne maintenant dans le journal n'attend plus (Hermes
-                        // rogne ce qu'on lui donne : c'est le texte dit qui les fait se rejoindre).
+                        // rogne ce qu'on lui donne : c'est le texte dit qui les font se rejoindre).
                         sending = current.sending.filterNot { pending ->
                             fresh.any { it.kind == "message.user" && it.text.trim() == pending.delivered.trim() }
                         },
@@ -248,7 +259,7 @@ class GroupRoomFeed(
                     )
                 }
             }
-            val (current, status) = api.roomState(state.value.room.id)
+            val (current, status) = roomStatus
             _state.update { state ->
                 val members = current?.members?.takeIf { it.isNotEmpty() && it != state.room.members }
                 state.copy(
@@ -289,18 +300,35 @@ class GroupRoomFeed(
             return
         }
         var next = _state.value.drafts
-        for (session in live) {
+        // Le rattachement des sessions aux membres se résout **une fois**, avant les lectures :
+        // chercher la session de chaque membre à chaque bot, à chaque tick, était un voyage de
+        // plus par membre.
+        if (live.any { memberSessions[it.key] == null }) findMemberSessions()
+        // **Les sessions vivantes se lisent en parallèle.** Une à une, chaque bot rajoutait
+        // un aller-retour complet (le tunnel en ajoute ~60 ms) avant que le suivant ne parte :
+        // avec quatre bots, la réponse du quatrième attendait trois voyages. En parallèle,
+        // tous les brouillons arrivent ensemble.
+        val slices = coroutineScope {
+            live.map { session ->
+                async {
+                    val index = next.indexOfFirst { it.id == session.id }
+                    // Une session au travail, ou une dont la réponse est encore suivie.
+                    val following = index >= 0 && next[index].finishedAtMillis == null
+                    if (session.status !in BUSY_STATUSES && !following) return@async null
+                    val since = draftSeen[session.id] ?: 0
+                    val slice = try {
+                        api.sessionEvents(session.id, since)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    session to slice
+                }
+            }.mapNotNull { it.await() }
+        }
+        for ((session, slice) in slices) {
+            if (slice == null) continue
             val index = next.indexOfFirst { it.id == session.id }
-            // Une session au travail, ou une dont la réponse est encore suivie.
-            val following = index >= 0 && next[index].finishedAtMillis == null
-            if (session.status !in BUSY_STATUSES && !following) continue
-            if (memberSessions[session.key] == null) findMemberSessions()
             val first = draftSeen[session.id] == null
-            val slice = try {
-                api.sessionEvents(session.id, draftSeen[session.id] ?: 0)
-            } catch (_: Exception) {
-                continue
-            }
             draftSeen[session.id] = slice.latest
             var draft = if (index >= 0) next[index] else GroupDraft(id = session.id, after = _state.value.cursor)
             draft = draft.copy(memberID = memberSessions[session.key])
@@ -324,12 +352,23 @@ class GroupRoomFeed(
         val last = lookedForMembers
         if (last != null && clock() - last < MEMBER_LOOK) return
         lookedForMembers = clock()
-        for (member in state.value.room.members) {
-            val key = try {
-                api.memberSession(state.value.room.id, member.profile)
-            } catch (_: Exception) {
-                null
-            }
+        val room = state.value.room.id
+        val members = state.value.room.members
+        // **Les membres se cherchent en parallèle.** Un par un, chaque membre rajoutait un
+        // aller-retour avant que le suivant ne parte ; en parallèle, une seule attente.
+        val found = coroutineScope {
+            members.map { member ->
+                async {
+                    val key = try {
+                        api.memberSession(room, member.profile)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    member to key
+                }
+            }.mapNotNull { it.await() }
+        }
+        for ((member, key) in found) {
             if (key != null) memberSessions[key] = member.id
         }
     }

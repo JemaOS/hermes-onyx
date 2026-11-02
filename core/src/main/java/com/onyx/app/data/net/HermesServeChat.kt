@@ -78,13 +78,23 @@ class HermesServeChat(
          */
         onRuntimeSessionId: ((String) -> Unit)? = null,
     ): Flow<TurnEvent> = channelFlow {
-        val scope = this
-        val events = Channel<ServeEvent>(Channel.UNLIMITED)
-        val listener = link.addListener { event -> events.trySend(event) }
-        // `runtime` sert au nettoyage : un arrêt de l'utilisateur interrompt le tour côté serveur.
-        var runtime: String? = null
-        var completed = false
-        try {
+        // Le tour est repris après une coupure : voir le `catch` plus bas.
+        var attempt = 0
+        // Ce que le bot a **déjà dit**. Si le canal coupe après le début de la réponse, on ne
+        // rejoue pas la question — le bot recommencerait à répondre et la personne verrait la
+        // même réponse deux fois. On se contente de lui rendre le canal.
+        var streamed = false
+        while (true) {
+            val scope = this
+            val events = Channel<ServeEvent>(Channel.UNLIMITED)
+            val listener = link.addListener { event -> events.trySend(event) }
+            // `runtime` sert au nettoyage : un arrêt de l'utilisateur interrompt le tour côté serveur.
+            var runtime: String? = null
+            var completed = false
+            // Le canal est mort sur cette itération : le `finally` ne doit alors ni fermer le
+            // socket que la reprise vient de rouvrir, ni interrompre le tour qu'on va rejouer.
+            var lost = false
+            try {
             // `ServeRpc.connect` ouvre déjà la session du Dashboard (bocal à cookies partagé) :
             // le ticket WebSocket part avec elle.
             link.connect()
@@ -113,7 +123,6 @@ class HermesServeChat(
                 send(TurnEvent.Status(OnyxLocalization["queued behind a running turn…"]))
             }
 
-            var streamed = false
             var underWay = false
             withTimeout(timeoutMillis()) {
                 for (event in events) {
@@ -139,16 +148,35 @@ class HermesServeChat(
                             completed = true
                             return@withTimeout
                         }
-                        is ServeStep.Failed -> throw TransportError.Malformed(step.message)
+                        // Une **coupure** n'est pas une erreur du serveur : le tour mérite un nouvel
+                        // essai (le canal rouvre tout seul), alors qu'une erreur du serveur, elle,
+                        // ne se rejoue pas — la question est peut-être déjà traitée.
+                        is ServeStep.Failed ->
+                            throw if (step.connectionLost) {
+                                TransportError.StreamLost(step.message)
+                            } else {
+                                TransportError.Malformed(step.message)
+                            }
                     }
                 }
             }
+        } catch (error: TransportError.StreamLost) {
+            // **Le tour est repris après une coupure.** Le tunnel coupe les connexions longues
+            // quand le réseau change ; avant, le tour mourait là et la personne devait le
+            // relancer à la main — en pleine conversation vocale, c'est le silence.
+            //
+            // On ne rejoue que si le bot **n'a pas encore répondu** : rejouer une question
+            // déjà commencée enverrait la même chose deux fois au bot.
+            lost = true
+            attempt++
+            if (attempt > TURN_RETRY_LIMIT || streamed) throw error
         } finally {
             link.removeListener(listener)
             // Interrompu par l'utilisateur : le tour s'arrête aussi côté serveur (le nôtre, sans
             // travail : on n'attend pas la réponse). Un tour dont on s'est **détaché** n'est pas
             // arrêté : l'hôte le finit, et sa réponse est là au retour. Un tour fini ne l'est jamais.
-            if (!completed && runtime != null && departure?.hasLeft != true) {
+            // Un tour **coupé** n'est pas interrompu non plus : on va le rejouer.
+            if (!lost && !completed && runtime != null && departure?.hasLeft != true) {
                 val session = runtime
                 withContext(NonCancellable) {
                     runCatching {
@@ -156,7 +184,11 @@ class HermesServeChat(
                     }
                 }
             }
-            if (ownsLink) link.close()
+            if (ownsLink && !lost) link.close()
+        }
+            if (!lost) break
+            // Le canal est revenu : on repart sur le même tour.
+            withTimeout(RECONNECT_WAIT_MS) { link.connect() }
         }
     }
 
@@ -235,6 +267,17 @@ class HermesServeChat(
 
         /** Une image se dépose en un appel court : ses octets sont déjà sur le fil. */
         const val ATTACH_TIMEOUT_MS = 60_000L
+
+        /**
+         * Combien de fois un tour est repris après une coupure.
+         *
+         * Une seule : au-delà, ce n'est plus une coupure, c'est un serveur qui ne répond pas —
+         * et marteler le serveur n'aide personne.
+         */
+        const val TURN_RETRY_LIMIT = 1
+
+        /** Combien de temps on attend le retour du canal avant de rejouer le tour. */
+        const val RECONNECT_WAIT_MS = 12_000L
     }
 }
 
@@ -316,7 +359,13 @@ internal sealed interface ServeStep {
 
     data object Continue : ServeStep
     data object Done : ServeStep
-    data class Failed(val message: String) : ServeStep
+
+    /**
+     * Le tour s'est arrêté. [connectionLost] distingue les deux cas : une **coupure** (le canal
+     * est mort, le tour mérite un nouvel essai) d'une **erreur du serveur** (reprendre ne
+     * servirait à rien — la question est peut-être déjà traitée).
+     */
+    data class Failed(val message: String, val connectionLost: Boolean = false) : ServeStep
 }
 
 /**
@@ -429,7 +478,10 @@ internal object ServeChatEvents {
 
             "error" -> ServeStep.Failed(payload.strOrNull("message") ?: "the Dashboard reported an error")
 
-            "connection.lost" -> ServeStep.Failed(OnyxLocalization["Lost the connection to the Hermes Dashboard."])
+            "connection.lost" -> ServeStep.Failed(
+                OnyxLocalization["Lost the connection to the Hermes Dashboard."],
+                connectionLost = true,
+            )
 
             else -> ServeStep.Continue
         }

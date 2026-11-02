@@ -3,7 +3,13 @@ package com.onyx.app.data.net
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
@@ -83,9 +89,63 @@ class ServeRpc(
 
     val isReady: Boolean get() = ready && socket != null
 
+    /**
+     * **Le verrou de connexion.** `connect()` est `suspend` et fait des allers-retours réseau ;
+     * deux coroutines qui l'appellent en même temps ouvraient **deux** WebSocket, et la seconde
+     * écrasait la première (`socket = webSocket`) : la socket jetée restait ouverte côté serveur
+     * jusqu'au keepalive, et la première coroutine attendait un `opened` que plus personne ne
+     * compléterait. Le journal le montre : cinq `ws: tunnel ouvert` en deux secondes.
+     *
+     * Le verrou rend l'ouverture **unique** : le second appelant attend celui qui a le verrou,
+     * puis repart sur `isReady` — un seul socket, une seule connexion.
+     */
+    private val connectMutex = Mutex()
+
+    /**
+     * Le client du WebSocket, **créé une fois**.
+     *
+     * Il lui faut une connexion HTTP/1.1 neuve, que le pool partagé du REST ne peut pas lui
+     * donner : ce pool porte déjà la connexion h2 (ALPN) du REST vers la même origine, et une
+     * connexion h2 ne sait pas porter un upgrade — la requête partait alors dans le vide, sans
+     * jamais atteindre le serveur.
+     *
+     * Un client par ouverture serait une **fuite** : chaque reprise ajouterait un client et ses
+     * fils, jamais rendus. Le client est donc unique, et la reprise rouvre le canal dessus.
+     */
+    private val webSocketClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+            .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.SECONDS))
+            .build()
+    }
+
+    /**
+     * Le fil de la reprise. Il vit dans la classe : la reconnexion doit survivre au tour qui
+     * l'a déclenchée, sinon c'est le `call()` en cours qui la tuerait — et c'est précisément le
+     * tour qui a besoin d'elle.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var reconnecting = false
+
     /** Ouvre le canal si besoin. */
     suspend fun connect() = withContext(Dispatchers.IO) {
         if (isReady) return@withContext
+        connectMutex.withLock {
+            // Le premier appelant a pu ouvrir le canal pendant qu'on attendait le verrou.
+            if (isReady) return@withLock
+            openChannel()
+        }
+    }
+
+    /** L'ouverture réelle ; le verrou est pris par [connect]. */
+    private suspend fun openChannel() {
         // La session du Dashboard est ouverte d'abord (bocal à cookies partagé par tout le
         // processus) : le ticket part avec elle. Un Dashboard sans login exigé passe la sonde de
         // `login` sans rien faire. L'échec n'est pas avalé pour autant : si le ticket est ensuite
@@ -122,15 +182,11 @@ class ServeRpc(
         // zéro `/api/ws` côté serveur et une liste de bots vide alors que le REST répondait.
         // `ConnectionPool(0, ...)` = aucun pool partagé, et `protocols(HTTP_1_1)` verrouille
         // la négociation sur HTTP/1.1.
-        val client = OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .followRedirects(true)
-            .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
-            .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.SECONDS))
-            .build()
+        //
+        // Le client est **créé une fois** : la reconnexion rouvre le canal sur le même client,
+        // sinon chaque reprise ajouterait un client et ses fils — une fuite qui se paie en
+        // lenteur au bout de quelques coupures.
+        val client = webSocketClient
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -175,19 +231,71 @@ class ServeRpc(
                 pending.values.forEach { it.completeExceptionally(TransportError.from(t, afterHeaders = true)) }
                 pending.clear()
                 opened.complete(false)
-                notify(ServeEvent("connection.lost", null, JsonObject(emptyMap())))
+                announceLoss()
+                // La reprise part **ici**, dans le fil de la classe : la coupure est signalée à
+                // l'app, puis on tente de rouvrir tout seul.
+                scope.launch { reconnect() }
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 socket = null
                 ready = false
                 opened.complete(false)
-                notify(ServeEvent("connection.lost", null, JsonObject(emptyMap())))
+                announceLoss()
+                scope.launch { reconnect() }
             }
         }
 
         client.newWebSocket(request, listener)
         withTimeoutOrNull(10_000) { opened.await() }
+    }
+
+    /**
+     * **Rouvrir tout seul après une coupure.**
+     *
+     * Le tunnel Cloudflare coupe les connexions longues quand le réseau change (Wi-Fi → 4G,
+     * écran qui dort, tunnel qui redémarre). Avant, la coupure était **définitive** : l'app
+     * apprenait `connection.lost`, affichait « connexion perdue », et le canal ne revenait qu'à
+     * la prochaine action manuelle — en pleine conversation vocale, c'est le tour qui meurt.
+     *
+     * Ici, la coupure déclenche une **tentative de reprise** : on rouvre le canal, et si ça
+     * marche, l'app repart sur un canal sain sans que la personne ait à relancer quoi que ce
+     * soit. La reprise est **limitée** (un nombre de tentatives, espacées) pour ne pas boucler
+     * quand le serveur est vraiment down : mieux vaut une coupure franche qu'une tentative
+     * sans fin.
+     */
+    private suspend fun reconnect() {
+        if (reconnecting) return
+        reconnecting = true
+        try {
+            var attempt = 0
+            while (attempt < RECONNECT_ATTEMPTS && !isReady) {
+                attempt++
+                delay(RECONNECT_DELAY_MS * attempt)
+                val recovered = runCatching {
+                    connectMutex.withLock {
+                        if (isReady) return@withLock true
+                        openChannel()
+                        isReady
+                    }
+                }.getOrDefault(false)
+                if (recovered) {
+                    notify(ServeEvent("connection.restored", null, JsonObject(emptyMap())))
+                    return
+                }
+            }
+        } finally {
+            reconnecting = false
+        }
+    }
+
+    /**
+     * La coupure est signalée **et** rattrapée : l'app affiche « connexion perdue » puis reçoit
+     * `connection.restored` si la reprise marche. Les deux événements sont ce qui permet à
+     * l'interface de distinguer « ça va revenir » de « c'est fini ».
+     */
+    private fun announceLoss() {
+        notify(ServeEvent("connection.lost", null, JsonObject(emptyMap())))
     }
 
     /** Un appel JSON-RPC ; le profil est ajouté aux paramètres comme sur la référence. */
@@ -267,6 +375,18 @@ class ServeRpc(
             "complete.slash", "skills.list", "skills.read", "tools.list",
             "cron.list", "files.list", "files.read", "files.write",
         )
+
+        /**
+         * Combien de fois on tente de rouvrir le canal après une coupure.
+         *
+         * Trois suffisent : une coupure réseau se répare en quelques secondes, et une reprise
+         * qui échoue trois fois veut dire que le **serveur** est down — mieux vaut une coupure
+         * franche que l'app qui réessaie sans fin.
+         */
+        const val RECONNECT_ATTEMPTS = 3
+
+        /** Le délai entre deux tentatives ; il croît à chaque essai (1 s, 2 s, 3 s). */
+        const val RECONNECT_DELAY_MS = 1_000L
     }
 }
 
