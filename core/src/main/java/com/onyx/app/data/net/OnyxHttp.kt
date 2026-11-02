@@ -38,11 +38,36 @@ object OnyxHttp {
 
     /** Client court, pour les sondes de connexion et les petits GET. */
     fun shortClient(timeoutSeconds: Long = PROBE_TIMEOUT_SECONDS): OkHttpClient = base.newBuilder()
+        .connectTimeout(connectTimeoutFor(timeoutSeconds), TimeUnit.SECONDS)
         .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
         .callTimeout(timeoutSeconds, TimeUnit.SECONDS)
         .build()
 
-    private const val PROBE_TIMEOUT_SECONDS = 8L
+    /**
+     * Le délai de connexion est **plus court** que le budget global de l'appel.
+     *
+     * Sans cette règle, un réseau où une famille d'adresses est morte — IPv6 noire en 4G/5G, ou
+     * la route d'un tunnel qui ne répond pas — fait expirer l'appel **pendant la connexion** :
+     * OkHttp n'essaie jamais l'adresse suivante, et la requête est déclarée morte alors que le
+     * serveur répond très bien sur l'autre famille. C'est ce que l'écran de configuration
+     * montrait : « le serveur n'a pas répondu à temps » sur un serveur joignable, pendant que
+     * le reste de l'app — qui a un budget de 120 s et réutilise une connexion ouverte —
+     * fonctionnait sans problème.
+     *
+     * Le plancher est de **une seconde** : en dessous, une connexion serait déclarée morte
+     * avant même d'avoir été tentée. Le budget de 2 s est le plus petit cas possible — il ne
+     * peut pas avoir de délai de connexion plus court que lui, il n'y a alors rien à tenter.
+     */
+    fun connectTimeoutFor(callSeconds: Long): Long = when {
+        callSeconds <= MIN_CONNECT_TIMEOUT_SECONDS -> 1L
+        else -> (callSeconds / 2).coerceIn(MIN_CONNECT_TIMEOUT_SECONDS, MAX_CONNECT_TIMEOUT_SECONDS)
+    }
+
+    /** Budget d'une sonde de connexion : assez large pour un aller-retour par tunnel mobile. */
+    const val PROBE_TIMEOUT_SECONDS = 15L
+
+    private const val MIN_CONNECT_TIMEOUT_SECONDS = 2L
+    private const val MAX_CONNECT_TIMEOUT_SECONDS = 15L
 
     private val base: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)

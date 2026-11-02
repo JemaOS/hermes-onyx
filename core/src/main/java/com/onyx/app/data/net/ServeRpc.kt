@@ -115,8 +115,21 @@ class ServeRpc(
             .build()
 
         val opened = CompletableDeferred<Boolean>()
-        val client = httpClient.newBuilder()
-            .readTimeout(0, TimeUnit.MILLISECONDS)
+        // Le WebSocket a son **propre client** : il lui faut une connexion HTTP/1.1 neuve, que
+        // le pool partagé ne peut pas lui donner. Ce pool porte déjà la connexion h2 du REST
+        // vers la même origine (ALPN), et une connexion h2 ne sait pas porter un upgrade :
+        // la requête partait alors dans le vide, sans jamais atteindre le serveur — d'où
+        // zéro `/api/ws` côté serveur et une liste de bots vide alors que le REST répondait.
+        // `ConnectionPool(0, ...)` = aucun pool partagé, et `protocols(HTTP_1_1)` verrouille
+        // la négociation sur HTTP/1.1.
+        val client = OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+            .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.SECONDS))
             .build()
 
         val listener = object : WebSocketListener() {

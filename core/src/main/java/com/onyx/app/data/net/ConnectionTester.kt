@@ -40,8 +40,9 @@ object ConnectionTester {
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
         val client = OnyxHttp.clientFor(config).newBuilder()
-            .readTimeout(8, TimeUnit.SECONDS)
-            .callTimeout(8, TimeUnit.SECONDS)
+            .connectTimeout(OnyxHttp.connectTimeoutFor(DASHBOARD_PROBE_SECONDS), TimeUnit.SECONDS)
+            .readTimeout(DASHBOARD_PROBE_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(DASHBOARD_PROBE_SECONDS, TimeUnit.SECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
             .build()
@@ -114,4 +115,14 @@ object ConnectionTester {
     }
 
     private fun elapsed(started: Long): Long = System.currentTimeMillis() - started
+
+    /**
+     * Budget d'une sonde de Dashboard.
+     *
+     * Il doit laisser au délai de connexion la place de se faire **dépasser** — sinon une
+     * adresse morte consomme tout le budget et l'appel expire « pendant la connexion », donc
+     * n'atteint jamais le serveur : l'écran disait alors « le serveur n'a pas répondu à
+     * temps » sur un serveur joignable.
+     */
+    private const val DASHBOARD_PROBE_SECONDS = 15L
 }

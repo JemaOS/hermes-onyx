@@ -190,7 +190,10 @@ class ConversationRepository(
         _conversations.value.firstOrNull { it.id != excluding && it.turnCount > 0 }
 
     private suspend fun persist() {
-        val snapshot = _conversations.value
+        // Les conversations **du serveur** ne sont pas persistées : elles ne sont qu'une
+        // projection du registre du serveur, relue à chaque connexion. Les écrire ici les
+        // transformerait en copies locales — et une conversation supprimée reviendrait.
+        val snapshot = _conversations.value.filterNot { it.remote }
         withContext(Dispatchers.IO) { store.updateData { snapshot } }
     }
 }

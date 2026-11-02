@@ -69,8 +69,19 @@ class ServerRepository(
         refreshActive()
     }
 
-    /** Ajoute ou remplace un serveur ; la clé API part dans le Keystore. */
-    suspend fun upsert(config: ServerConfig) {
+    /**
+     * Ajoute ou remplace un serveur ; la clé API part dans le Keystore.
+     *
+     * Un serveur enregistré ou corrigé **devient le serveur actif** : c'est le geste
+     * « je configure cette passerelle-là », et l'app doit répondre à celle qu'on vient
+     * de renseigner. Sans cela, le serveur tout juste modifié reste dans la liste et
+     * l'app continue de parler à l'ancien — dont l'adresse est périmée — d'où l'écran
+     * « No server set up yet » ou une liste de bots vide alors que le test passe.
+     *
+     * [activate] vaut `false` quand l'appelant veut garder un autre serveur actif
+     * (l'import d'un code de configuration restaure le serveur précédent).
+     */
+    suspend fun upsert(config: ServerConfig, activate: Boolean = true) {
         val clean = config.copy(
             // Le nom par défaut a changé avec le renommage : un serveur encore appelé « Onyx »
             // est l'ancien nom par défaut, pas un choix — il s'affiche « Onyx » dans Réglages.
@@ -84,7 +95,7 @@ class ServerRepository(
             val index = current.indexOfFirst { it.id == clean.id }
             if (index < 0) current + clean else current.toMutableList().also { it[index] = clean }
         }
-        if (clean.id == _activeId.value || _activeId.value.isEmpty()) _activeId.value = clean.id
+        if (activate) _activeId.value = clean.id
         refreshActive()
         persist()
     }
