@@ -1296,10 +1296,16 @@ enum class GlassSurface(
     ALERT(40f, GlassInk.TEXT, 14f, RoundedCornerShape(GlassPanelCorner), GlassSampling.OWN_WINDOW),
 
     /**
-     * Le menu ancré, posé près de la rangée touchée : sa propre fenêtre lui aussi, avec un voile
-     * léger devant le reste de l'écran — donc un panneau qui laisse voir.
+     * Le menu ancré, posé près de la rangée touchée : un voile léger devant le reste de l'écran —
+     * donc un panneau qui laisse voir.
+     *
+     * Il vit dans la **fenêtre principale** (l'hôte des calques, pas une `Dialog` à part) : il peut
+     * donc échantillonner ce qui passe dessous et le courber — d'où `IN_SCREEN` et non
+     * `OWN_WINDOW`. C'est le changement qui a fait passer le menu du **lavis** (un voile gris, le
+     * texte dessous lisible) au **verre** : le fond est le contenu réel, flouté et courbé, et la
+     * finition de la maison se pose par-dessus.
      */
-    MENU(40f, GlassInk.TEXT, 12f, RoundedCornerShape(GlassPanelCorner), GlassSampling.OWN_WINDOW),
+    MENU(40f, GlassInk.TEXT, 12f, RoundedCornerShape(GlassPanelCorner), GlassSampling.IN_SCREEN),
 
     /**
      * Le volet latéral. En surimpression (téléphone, paysage, pliable replié) il **recouvre le

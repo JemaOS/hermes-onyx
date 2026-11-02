@@ -155,8 +155,16 @@ class GlassLuminanceTest {
         // Les barres du fil et le volet sont dans la fenêtre : ce sont eux qui floutent pour de vrai.
         assertTrue(inScreen.contains(GlassSurface.THREAD_TOP_BAR))
         assertTrue(inScreen.contains(GlassSurface.SIDEBAR_PANEL))
-        // Les deux feuilles, le menu et l'alerte vivent dans leur propre fenêtre.
-        listOf(GlassSurface.SHEET, GlassSurface.ALERT, GlassSurface.MENU).forEach {
+        // **Le menu est dans la fenêtre, lui aussi.** Il y vit depuis qu'il est passé de sa `Dialog`
+        // à l'overlay de la fenêtre principale : une fenêtre à part ne voit ni la source de flou ni
+        // la lentille, et le panneau se lisait alors comme un voile gris (texte dessous lisible :
+        // corrélation 0,99 avec l'image nette). Dans la fenêtre, il échantillonne — et c'est mesuré.
+        assertTrue(
+            "le menu est dans la fenêtre principale : c'est ce qui lui donne le verre",
+            inScreen.contains(GlassSurface.MENU),
+        )
+        // Les deux feuilles et l'alerte vivent dans leur propre fenêtre.
+        listOf(GlassSurface.SHEET, GlassSurface.ALERT).forEach {
             assertTrue("${it.name} doit être déclarée à fenêtre propre", ownWindow.contains(it))
         }
     }
