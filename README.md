@@ -153,70 +153,69 @@ a server that keeps them switched off; **Background processes** come from `proce
 too. **Usage & cost** reads `session.usage`, which carries **no price field**: the panel shows `—` and
 the sentence the server gave it, never a made-up figure.
 
-## Ce que 1.0.0+1049 apporte
+## What 1.0.0+1049 brought
 
-Chaque point ci-dessous cite le commit, le fichier ou la mesure qui le porte — rien n'est annoncé ici
-qui ne puisse être montré. Le détail complet est dans
+Each point below cites the commit, the file or the measurement that carries it — nothing is claimed
+here that cannot be shown. The full detail is in
 [`releases/NOTES-1.0.0+1049.md`](releases/NOTES-1.0.0+1049.md).
 
-- **La carte n'a plus de rectangle interieur** — la bande d'effacement ne se compose plus
-  sur elle-meme, et la bande basse est son miroir (`567feca1`, `ui/design/Galerie.kt` ;
+- **The card no longer has an inner rectangle** — the erase band no longer composes over itself,
+  and the lower band is its mirror (`567feca1`, `ui/design/Galerie.kt` ;
   `BlocsVerreVerrouTest`).
-- **La fiche d'usage vient d'une source unique** — le modèle en vigueur (`ModelInForce`) alimente le
-  relevé d'agent **et** la fiche par bot ; les compteurs à zéro sont expliqués au lieu de rester
-  muets (`FicheUsageModeleEnVigueurVerrouTest`, `ModeleEnVigueurFicheCasTest`, `ChatUsageCoherenceTest`).
-- **L'encadré dans le verre de la carte est retiré** — le bord retombe à 0 et l'encre sur la plaque
-  de contenu tient **4,53:1** ; la feuille « Modèle » n'empile plus deux surfaces
+- **The usage card comes from a single source** — the model in force (`ModelInForce`) feeds both
+  the agent report **and** the per-bot card; zero counters are explained instead of staying silent
+  (`FicheUsageModeleEnVigueurVerrouTest`, `ModeleEnVigueurFicheCasTest`, `ChatUsageCoherenceTest`).
+- **The frame inside the card's glass is removed** — the border falls back to 0 and the ink on the
+  content plate holds **4.53:1**; the "Model" sheet no longer stacks two surfaces
   (`BlocsVerreVerrouTest`, `CartesAbstraitesVerrouTest`, `PlaqueTraversanteVerrouTest`).
-- **La lecture de voix ne hache plus** — pré-tampon avant lecture, priorité de fil audio, piste
-  remplie avant `play()` ; le verrou de lecture est `PcmPlaybackTest`.
-- **Le repère-visage tient dans la marque** (`RepereVisageVerrouTest`) et la synchro des visages se
-  résout par conversation (`CarteVisageSynchroTest`).
+- **Voice playback no longer stutters** — pre-buffer before playing, audio track priority, track
+  filled before `play()`; the playback lock is `PcmPlaybackTest`.
+- **The face marker fits inside the mark** (`RepereVisageVerrouTest`) and face sync resolves per
+  conversation (`CarteVisageSynchroTest`).
 
-- **Le verre des plaques est peint** — le **grain** de la planche, qui n'était **jamais peint**
-  (mesuré σ 3,199), et son **arête** de 1,5 dp (**3,0:1** en sombre, contre 1,20:1 avant) ; la plaque
-  de contenu des onglets **Flux** et **Fichiers** se pose et **suit le doigt** pendant le glissement
-  (`GlassSurface.PANE`, `panePlate`). L'encre posée sur la plaque reste au-dessus du seuil de la
-  maison : **4,73:1 en clair, 4,79:1 en sombre** pour un minimum de 4,5:1 (`VerrePlaquesVerrouTest`).
-- **Les visages des bots défilent dans une conversation de groupe** — le repère du bas présente les
-  bots du groupe l'un après l'autre, la teinte suivant le visage affiché, et le défilement **se fige**
-  quand « Réduire les animations » est actif ; une conversation à un seul bot ne défile pas
-  (`VisagesGroupeVerrouTest`).
-- **Le certificat de signature a changé** — `1.0.0+980` est signé par un **nouveau certificat** ; une
-  mise à jour en place depuis `1.0.0+972` (ou une version antérieure) est **refusée** par Android. Il
-  faut **désinstaller l'ancienne application** avant d'installer celle-ci (voir *Install*).
-- **Plus aucune trace de l'ancien nom, ni dans les sources, ni dans le paquet** — le schéma d'URL et
-  l'hôte hérités sont **assemblés à l'exécution** (`SetupCode.kt`) : le dex ne porte plus le littéral,
-  et un lien à l'ancien schéma ouvre toujours la feuille de configuration.
-- **La palette et les surfaces sont lues dans la source** — six palettes de la référence comparées
-  champ par champ : **54 valeurs, 54 identiques, 0 écart** ; le verrou de palette relève **412 sources
-  lues, 0 couleur hors palette** (`3cd0f588`).
-- **Le thème sombre est mesuré, barreau par barreau** — le compositeur passe de **1,058:1** à
-  **1,314:1** sur sa page, la capsule d'onglet actif tient **1,201:1** contre sa barre, son encre
-  d'accent **5,165:1** ; une seule famille de formes (coins **22 → 26 dp**) et d'ombres (`a8c50987`,
+- **The plates' glass is painted** — the board's **grain**, which was **never painted** (measured
+  σ 3.199), and its **1.5 dp edge** (**3.0:1** in dark, against 1.20:1 before); the content plate
+  of the **Feed** and **Files** tabs sits and **follows the finger** while swiping
+  (`GlassSurface.PANE`, `panePlate`). The ink laid on the plate stays above the house threshold:
+  **4.73:1 in light, 4.79:1 in dark** for a 4.5:1 minimum (`VerrePlaquesVerrouTest`).
+- **Bot faces scroll through a group conversation** — the bottom marker presents the group's bots
+  one after another, the tint following the displayed face, and the scroll **freezes** when
+  "Reduce animations" is on; a one-bot conversation does not scroll (`VisagesGroupeVerrouTest`).
+- **The signing certificate changed** — `1.0.0+980` is signed by a **new certificate**; an
+  in-place update from `1.0.0+972` (or earlier) is **refused** by Android. You must **uninstall the
+  old app** before installing this one (see *Install*).
+- **No trace of the old name is left, neither in the sources nor in the package** — the inherited
+  URL scheme and host are **assembled at runtime** (`SetupCode.kt`): the dex no longer carries the
+  literal, and a link with the old scheme still opens the setup sheet.
+- **The palette and the surfaces are read from the source** — six palettes of the reference compared
+  field by field: **54 values, 54 identical, 0 difference**; the palette lock reads **412 sources,
+  0 colour outside the palette** (`3cd0f588`).
+- **The dark theme is measured, bar by bar** — the composer goes from **1.058:1** to **1.314:1**
+  against its page, the active-tab capsule holds **1.201:1** against its bar, its accent ink
+  **5.165:1**; a single family of shapes (corners **22 → 26 dp**) and shadows (`a8c50987`,
   `UI-UNIFORMITY-SOMBRE.md`).
-- **Le verre liquide passe en Haze 2.0.1, avec réfraction et soudure** — modules `haze`, `haze-blur`,
-  `haze-glass` ; la réfraction déplace le contenu échantillonné selon le profil d'arête
-  (`RefractionProfile.Edge`), et `GlassRefractionAvailable = true` est une **mesure** ; la soudure des
-  formes sort des traces (`13033ee5`, `4f414fde`).
-- **Une barre du bas flottante** (`52d0a4cf`) et **des boutons ronds sans facettes** — les octogones
-  deviennent des cercles (`794472c7`).
-- **Le suivi du défilement** du fil (`af6f86e6`) et **le glissement des conversations à deux sens**
+- **The liquid glass moves to Haze 2.0.1, with refraction and welding** — modules `haze`,
+  `haze-blur`, `haze-glass`; the refraction displaces the sampled content according to the edge
+  profile (`RefractionProfile.Edge`), and `GlassRefractionAvailable = true` is a **measurement**; the
+  welding of the shapes leaves no traces (`13033ee5`, `4f414fde`).
+- **A floating bottom bar** (`52d0a4cf`) and **round buttons without facets** — the octagons
+  become circles (`794472c7`).
+- **The thread's scroll tracking** (`af6f86e6`) and **two-way conversation swiping**
   (`da32ba08`).
-- **L'appel entrant et les heures de tranquillité** — le téléphone sonne comme un appel, plein écran,
-  et les heures de tranquillité coupent la sonnerie (`4cc98475` ; `CallRinger.kt`, `QuietHours`,
-  `CallsScreen.kt`).
-- **TIFF, HEIC et AVIF** en plus des formats courants (`363a1cb0`, `02f7a517`) ; **le widget HTML
-  réparé** — repli immédiat, pont et mesure de la page de nouveau en scripts (`b7afc4dd`, `b523abef`).
-- **L'organisation du fil et les sous-agents** — liste de tâches, transcription, durée et arrêt
+- **The incoming call and the quiet hours** — the phone rings like a call, full screen, and the
+  quiet hours cut the ringer (`4cc98475`; `CallRinger.kt`, `QuietHours`, `CallsScreen.kt`).
+- **TIFF, HEIC and AVIF** on top of the usual formats (`363a1cb0`, `02f7a517`); **the HTML widget
+  repaired** — immediate fallback, bridge and page measurement working again in scripts (`b7afc4dd`,
+  `b523abef`).
+- **Thread organisation and sub-agents** — task list, transcription, duration and stop
   (`5ddc604e`, `170ed926`).
-- **Le doublon « Compétences » retiré** — la tuile du volet et la ligne des Réglages quittent
-  l'interface, le groupe « Onyx » passe à quatre tuiles, tout est **dans** « Capacités » (`64d8e756`).
-- **Les retours corrigés** — la page quittée n'est plus perdue au sortir du volet, et un banc mesure les
-  trois chemins (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
+- **The duplicate "Skills" removed** — the sidebar tile and the Settings row leave the interface,
+  the "Onyx" group drops to four tiles, everything is **inside** "Capabilities" (`64d8e756`).
+- **The back navigation fixed** — the page you left is no longer lost on the way out of the
+  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
 
-**3674 tests, 0 échec.** Les trois paquets — téléphone, Android Auto et Wear OS — sont fournis dans
-cette release.
+**3674 tests, 0 failures.** The three packages — phone, Android Auto and Wear OS — ship in this
+release.
 
 ## What 1.0.0+547 brought
 
