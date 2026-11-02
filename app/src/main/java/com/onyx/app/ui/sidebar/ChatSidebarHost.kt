@@ -330,7 +330,10 @@ internal fun ChatSidebarHost(
                     members = room.members.map { it.label(mainName) },
                     memberProfiles = room.members.map { it.name },
                     updatedAt = last / 1000.0,
-                    ageSeconds = now - last / 1000.0,
+                    // **Une salle sans horodatage n'a pas d'âge.** Le serveur peut ne pas renvoyer
+                    // `updatedAt` : la ligne calculait alors `now - 0`, soit **57 ans** — la salle
+                    // s'affichait « 2965w ». Sans date, la ligne est simplement d'aujourd'hui.
+                    ageSeconds = if (last > 0) now - last / 1000.0 else 0.0,
                 )
             },
             unreadRoomIds = groups.mapNotNull { room ->
