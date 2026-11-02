@@ -296,12 +296,16 @@ class VoiceSession(
      */
     private var notedTrouble: ListenTrouble = ListenTrouble.NONE
 
-    /** Vrai si la phrase entendue est un ordre d'arrêt (`StopPhrase`). */
-    private fun isStopPhrase(text: String): Boolean {
-        val heard = normalizeStopPhrase(text)
-        if (heard.isEmpty()) return false
-        return heard in BUILT_IN_STOP_PHRASES || stopPhrases.any { normalizeStopPhrase(it) == heard }
-    }
+    /**
+     * Vrai si la phrase entendue est un ordre d'arrêt (`StopPhrase`).
+     *
+     * La **même** règle que pendant la lecture ([StopWord.heardIn]) : les phrases intégrées
+     * (français et anglais) et les phrases de la personne, reconnues n'importe où dans ce qui a
+     * été dit. Avant, cette branche comparait le transcript **entier** à la liste : « arrête
+     * d'écouter » ne passait que si c'était la seule chose dite, et « arrête d'écouter arrête »
+     * ne passait jamais.
+     */
+    private fun isStopPhrase(text: String): Boolean = StopWord.heardIn(text, stopPhrases)
 
     private var watchJob: Job? = null
     private var reopenMicJob: Job? = null
@@ -408,7 +412,12 @@ class VoiceSession(
                         }
                         if (speech.isFinal && speech.transcript.isNotBlank()) {
                             if (isStopPhrase(speech.transcript)) {
-                                stop()
+                                // **Par le chemin commun**, comme pendant la lecture : l'ordre
+                                // d'arrêt coupe le mains-libres **et** prévient l'app. Avant,
+                                // l'écoute appelait `stop()` — qui ne prévient personne : la salle
+                                // voyait la phase au repos et **rouvrait le micro** au tour suivant,
+                                // si bien que l'ordre d'arrêt n'était jamais obéi.
+                                stoppedByWord()
                                 return@collect
                             }
                             // Une phrase identique à la précédente vient d'un état qui traîne : on
