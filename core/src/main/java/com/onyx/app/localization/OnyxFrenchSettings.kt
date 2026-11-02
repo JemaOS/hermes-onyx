@@ -124,6 +124,10 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "Notification settings" to "Réglages de notifications",
     "Notify me in the background" to "M’alerter en arrière-plan",
     "Notification sound" to "Son des notifications",
+    // LOT veille-des-reponses : la ligne qui fait relire le journal des sessions en arrière-plan.
+    // Sans relais ni service de push : c'est une lecture HTTP directe, toutes les quinze minutes
+    // au plus tôt, vers le serveur déjà configuré.
+    "Notify me when a reply arrives, app closed" to "Me prévenir quand une réponse arrive, app fermée",
     "Ongoing answer notification" to "Notification de réponse en cours",
     "Channels" to "Canaux",
     "No channels yet." to "Aucun canal pour le moment.",

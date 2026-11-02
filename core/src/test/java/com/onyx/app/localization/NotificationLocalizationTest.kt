@@ -58,6 +58,16 @@ class NotificationLocalizationTest {
     }
 
     @Test
+    fun `la veille des reponses en arriere-plan est traduite`() {
+        // La ligne de Réglages → Notifications qui fait relire le journal des sessions : sans cette
+        // entrée, elle s'affichait en anglais sous une interface française.
+        assertEquals(
+            "Me prévenir quand une réponse arrive, app fermée",
+            OnyxLocalization.translate("Notify me when a reply arrives, app closed", fr),
+        )
+    }
+
+    @Test
     fun `le suivi du travail et la fin d'un tour sont traduits`() {
         assertEquals("Suivi du travail", OnyxLocalization.translate("Work tracking", fr))
         assertEquals("Jamais", OnyxLocalization.translate("Never", fr))

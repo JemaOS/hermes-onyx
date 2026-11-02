@@ -38,7 +38,13 @@ class LockScreenLockTest {
         assertTrue(screen.contains("val biometry = remember(context, lock) { lock.biometryLabel(context) }"))
         assertTrue(screen.contains("if (biometry != null)"))
         assertTrue(lock.contains("fun canAuthenticate(context: Context): Boolean"))
-        assertTrue(lock.contains("canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS"))
+        // **Une classe à la fois.** La formule combinée `canAuthenticate(FORT or FAIBLE)` est évaluée
+        // littéralement par l'API et répond « rien d'enrôlé » sur un appareil où seul le visage
+        // l'est : l'app se croyait sans biométrie. Le verrou exige donc les trois appels séparés.
+        assertTrue(lock.contains("manager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS"))
+        assertTrue(lock.contains("BIOMETRIC_STRONG)"))
+        assertTrue(lock.contains("BIOMETRIC_WEAK)"))
+        assertTrue(lock.contains("DEVICE_CREDENTIAL"))
         assertTrue(lock.contains("PackageManager.FEATURE_FACE"))
         assertTrue(lock.contains("PackageManager.FEATURE_FINGERPRINT"))
         assertFalse("pas de vocabulaire le téléphone de référence ici", lock.contains("Touch ID"))
@@ -46,8 +52,18 @@ class LockScreenLockTest {
 
     @Test
     fun `la demande accepte les classes fortes et faibles et ne se confirme pas`() {
-        assertTrue(screen.contains("BiometricManager.Authenticators.BIOMETRIC_STRONG or"))
-        assertTrue(screen.contains("BiometricManager.Authenticators.BIOMETRIC_WEAK,"))
+        // La combinaison `STRONG or WEAK` est **refusée** par `setAllowedAuthenticators` et levait une
+        // exception attrapée : la boîte système restait muette. Une seule classe, la plus large.
+        assertTrue(
+            screen.contains(
+                "setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)",
+            ),
+        )
+        // **Aucune combinaison** `STRONG or WEAK` : c'est elle que l'API refuse.
+        assertFalse(
+            "la boîte ne doit plus combiner deux classes",
+            screen.contains("BiometricManager.Authenticators.BIOMETRIC_STRONG or"),
+        )
         assertTrue(screen.contains(".setConfirmationRequired(false)"))
         assertFalse(
             "l'identifiant de l'appareil interdirait le bouton négatif",

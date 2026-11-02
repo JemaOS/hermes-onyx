@@ -9,6 +9,7 @@ import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.data.model.serve.GroupApproval
 import com.onyx.app.data.model.serve.GroupMember
 import com.onyx.app.data.model.serve.GroupRoom
+import com.onyx.app.data.model.serve.GroupRoomDraft
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.ServeGroupsRpc
@@ -16,6 +17,7 @@ import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServerAttachment
 import com.onyx.app.data.net.ServerAttachments
 import com.onyx.app.data.net.humanFailure
+import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.PendingAttachment
 import com.onyx.app.ui.conversations.GroupChat
 import kotlinx.coroutines.CancellationException
@@ -43,7 +45,7 @@ class GroupRoomViewModel(
     private val config: ServerConfig,
     initialRoom: GroupRoom,
     /** Le nom que Onyx donne au bot principal : les membres d'une salle Desktop en héritent. */
-    mainName: String = "",
+    private val mainName: String = "",
 ) : AndroidViewModel(application), GroupVoiceThread {
 
     private val rpc = ServeGroupsRpc(ServeRpc(config))
@@ -172,6 +174,41 @@ class GroupRoomViewModel(
                 onDone(null)
             } catch (error: Exception) {
                 onDone(humanFailure(error))
+            }
+        }
+    }
+
+    /**
+     * Le crayon de la salle : une **conversation neuve de la même salle**.
+     *
+     * Une salle d'Hermes **est** une conversation : sa neuve se demande donc au serveur
+     * (`groups.create`), avec les mêmes membres et le même nom, sous un identifiant neuf. Le
+     * journal repart à vide, et la salle d'hier reste dans la liste avec son fil — rien n'est
+     * effacé, rien n'est réécrit.
+     *
+     * `onOpened` reçoit la salle telle que le serveur l'a faite : l'appelant l'ouvre **dans le
+     * même écran** (`GroupRoomScreen`), donc avec la même plaque, les mêmes onglets et les mêmes
+     * visages. Un refus se lit dans la salle et l'écran ne bouge pas.
+     */
+    fun startNewConversation(onOpened: (GroupRoom) -> Unit) {
+        val room = state.value.room
+        viewModelScope.launch {
+            try {
+                // Les membres passent **tels quels** : mêmes profils, mêmes poignées, mêmes noms
+                // de salle — la conversation neuve est celle de cette salle, pas une autre.
+                val draft = GroupRoomDraft(
+                    id = GroupRoomDraft.newID(),
+                    name = room.name,
+                    members = room.members,
+                    createdAtMillis = System.currentTimeMillis(),
+                )
+                val made = rpc.create(draft.id, draft.name, draft.members)
+                    ?: throw IOException(OnyxLocalization["The server made no group."])
+                onOpened(made)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                feed.report(error)
             }
         }
     }

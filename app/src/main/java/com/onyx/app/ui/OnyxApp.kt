@@ -120,6 +120,7 @@ import com.onyx.app.ui.bots.GroupChatScreen
 import com.onyx.app.ui.bots.GroupChatViewModel
 import com.onyx.app.ui.bots.GroupRoomScreen
 import com.onyx.app.ui.bots.GroupRoomViewModel
+import com.onyx.app.ui.bots.roomChat
 import com.onyx.app.ui.bots.roomStartsAnotherConversation
 import com.onyx.app.ui.bots.toRoom
 import com.onyx.app.ui.bots.GroupVoice
@@ -1767,6 +1768,18 @@ fun OnyxApp() {
         // sont traités dans la mise en page (voir le `BackHandler` du `BoxWithConstraints`), qui sait
         // si l'écran est en deux panneaux et quelle route est présentée.
 
+
+        // **Le fournisseur vient du CATALOGUE, pas du préfixe du modèle.** `providerOf("deepseek/…")`
+        // rendait « deepseek », alors que ce modèle est servi par **kilocode** : le gateway
+        // n'écrivait donc pas le choix (le couple modèle/fournisseur ne correspondait à rien), et
+        // les bots gardaient leur ancien modèle. On lit le fournisseur de l'entrée réellement
+        // affichée dans la feuille, et on ne retombe sur le préfixe que si elle manque.
+        fun providerForChosen(model: String?): String? {
+            if (model.isNullOrBlank()) return null
+            return modelChoices.firstOrNull { it.id == model }?.provider
+                ?: com.onyx.app.ui.design.ModelChoice.providerOf(model)
+        }
+
         val chatPane: @Composable (Boolean, (@Composable () -> Unit)?) -> Unit = { showListButton, sidebarToggle ->
             // La conversation ouverte est-elle celle d'un bot ? (`BotProfile.chatId`, le
             // `canonical_session` du serveur.) Elle le dit deux fois : l'en-tête du fil montre son
@@ -2101,7 +2114,7 @@ fun OnyxApp() {
                         if (bot != null) {
                             // Le modèle d'un bot : écrit sur le serveur (`profiles.configure`) et
                             // gardé localement — c'est ce qui le fait survivre à un arrêt forcé.
-                            botsViewModel.setModel(bot, model)
+                            botsViewModel.setModel(bot, model, providerForChosen(model))
                         } else {
                             // Une conversation simple : le modèle du serveur actif, comme l'écran
                             // des modèles le fait.
@@ -2253,6 +2266,11 @@ fun OnyxApp() {
                     // Ouverte depuis la liste : la salle reprend ses membres, sans nom imposé.
                     groupPicked = null
                     groupTitle = null
+                    // **Et la salle précédemment ouverte est oubliée.** Sans cela, la route
+                    // `GROUP_CHAT` retrouvait `openedRoom` et réaffichait la salle qu'on venait de
+                    // quitter, au lieu d'ouvrir une conversation neuve : le même défaut que le
+                    // crayon, par une autre porte.
+                    openedRoom = null
                     navTo(Route.GROUP_CHAT.name)
                 },
                 // La grille des bots lit l'activité des conversations déjà chargées, comme la
@@ -3323,7 +3341,7 @@ fun OnyxApp() {
                     voiceSummary = BotVoicePicker.summary(botVoicesHere[state.server.id]?.get(bot?.name)),
                     models = botModels,
                     onPickModel = { model ->
-                        selectedBot?.let { botsViewModel.setModel(it, model) }
+                        selectedBot?.let { botsViewModel.setModel(it, model, providerForChosen(model)) }
                     },
                     toolsets = editorState.toolsets,
                     toolsSelection = editorState.toolsSelection,
@@ -3438,16 +3456,26 @@ fun OnyxApp() {
                         // Bots : le retour revient donc là d'où l'on vient, et ne saute plus
                         // systématiquement sur Bots.
                         onBack = { if (!navBack()) navTo(Route.BOTS.name) },
-                        // Le crayon : une conversation de **cette** salle — ses membres et son nom,
-                        // ouverts neufs. Le journal de la salle reste chez Hermes, et la liste le
-                        // retrouve ; une salle encore vierge se reprend telle quelle, pour ne pas
-                        // empiler deux conversations vides.
+                        // Le crayon : une conversation **neuve de cette salle** — ses membres et son
+                        // nom, un journal neuf chez Hermes (`groups.create`) — ouverte **dans la
+                        // salle** : le même écran, donc la même plaque, les mêmes onglets et les
+                        // mêmes visages. Il ne quitte plus la route : l'ancien chemin vidait
+                        // `openedRoom` et retombait sur le compositeur local de `GroupChatScreen`,
+                        // qui apparaissait par-dessus la plaque pendant la transition (« un second
+                        // compositeur vide en flou, décalé à droite »).
                         onNewConversation = {
+                            // Une salle encore vierge se reprend telle quelle, pour ne pas empiler
+                            // deux conversations vides : la conversation y est déjà neuve.
                             if (roomStartsAnotherConversation(roomViewModel.state.value.rows)) {
-                                openedRoom = null
-                                groupPicked = room.members.map { it.name }.toSet()
-                                groupTitle = room.name
-                                navTo(Route.GROUP_CHAT.name)
+                                roomViewModel.startNewConversation { made ->
+                                    // La salle neuve s'ouvre **ici** : la route ne change pas, et
+                                    // son identifiant neuf fait composer son propre fil (état
+                                    // vierge) sous la même plaque. La liste se relit ensuite, pour
+                                    // que la conversation neuve y prenne sa place — comme après
+                                    // toute salle faite.
+                                    openedRoom = roomChat(made, bots)
+                                    botsViewModel.refresh()
+                                }
                             }
                         },
                         // Le bouton Talk de la salle ouvre la scène vocale, qui lit ce fil
@@ -3494,7 +3522,15 @@ fun OnyxApp() {
                             // conversation, et la salle n'en a pas — la ligne ne se dessine pas.
                             fastMode = null,
                             onPickModel = { model ->
-                                botsViewModel.setModel(roomModelBotProfile, model)
+                                botsViewModel.setModel(roomModelBotProfile, model, providerForChosen(model))
+                                // **Le roster est relu ; le choix est poussé dans la salle elle-même.**
+                                // `setModel` écrit `profiles.configure` côté serveur et le profil
+                                // local : sans relire le roster, la feuille rouvrait l'ancien modèle
+                                // et la salle ne voyait rien changer — « le changement n'est pas
+                                // pris en temps réel ». La fusion locale donne le nouveau modèle à
+                                // l'écran immédiatement, la relecture confirme ce que le serveur a
+                                // retenu.
+                                botsViewModel.refresh()
                                 modelPrefs.noteRecent(state.server.id, model)
                                 modelRecents = modelPrefs.recents(state.server.id)
                                 roomModelBot = null

@@ -79,6 +79,28 @@ class ChatPanelsTest {
     }
 
     @Test
+    fun `une carte porte l auteur de sa reponse, et deux bots ne se confondent pas`() {
+        // Le défaut du Flux d'une salle : toutes les cartes peignaient le même visage. La carte
+        // garde donc **son** auteur — le nom de profil du bot qui a répondu —, lu sur le message.
+        val messages = listOf(
+            ChatMessage(
+                id = "a1", role = Role.ASSISTANT, text = "Premier point.", createdAt = 1_000L,
+                authorProfile = "scout",
+            ),
+            ChatMessage(
+                id = "a2", role = Role.ASSISTANT, text = "Second point.", createdAt = 2_000L,
+                authorProfile = "quill",
+            ),
+            // Une conversation à un bot : l'auteur n'est pas nommé, la carte retombe sur le repli.
+            bot("a3", "Sans auteur.", at = 3_000L),
+        )
+        val cards = ChatFeed.cards(messages, "Salle")
+        assertEquals("le dernier d'abord", listOf("a3", "a2", "a1"), cards.map { it.id })
+        assertEquals("chaque carte garde son auteur", listOf("", "quill", "scout"), cards.map { it.author })
+        assertEquals("un auteur non nommé reste vide, jamais inventé", "", cards[0].author)
+    }
+
+    @Test
     fun `les cartes se groupent par jour`() {
         val now = Instant.parse("2026-10-27T20:00:00Z").toEpochMilli()
         fun at(text: String) = Instant.parse(text).toEpochMilli()

@@ -68,6 +68,9 @@ class SettingsViewModel(
     val notifyInBackground: StateFlow<Boolean> = settingsRepo.notifyInBackground
     val notificationSound: StateFlow<Boolean> = settingsRepo.notificationSound
 
+    /** « Me prévenir quand une réponse arrive, app fermée » : le surveillant de réponses. */
+    val replyWatch: StateFlow<Boolean> = settingsRepo.replyWatch
+
     /** « Suivi du travail » : jamais, à la fin seulement, ou à chaque étape. */
     val workTracking: StateFlow<WorkTracking> = settingsRepo.workTracking
     val displayName: StateFlow<String> = settingsRepo.displayName
@@ -309,6 +312,14 @@ class SettingsViewModel(
 
     fun setNotificationSound(value: Boolean) {
         viewModelScope.launch { settingsRepo.setNotificationSound(value) }
+    }
+
+    /**
+     * « Me prévenir quand une réponse arrive, app fermée ». Le réglage est écrit d'abord : c'est lui
+     * qui fait foi, et le surveillant lit la même valeur au passage suivant.
+     */
+    fun setReplyWatch(value: Boolean) {
+        viewModelScope.launch { settingsRepo.setReplyWatch(value) }
     }
 
     fun setWorkTracking(value: WorkTracking) {

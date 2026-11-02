@@ -236,13 +236,16 @@ class ModelSheetWiringTest {
 
     @Test
     fun `le modele choisi se memorise par bot`() {
+        // Le choix d'un bot s'écrit **par bot** : sur le serveur (`profiles.configure`) et sur le
+        // téléphone. Le fournisseur accompagne le modèle depuis que le modèle se choisit par bot —
+        // la forme vérifiée laisse donc passer son argument, jamais l'identité du bot.
         assertTrue(
             "le choix d'un bot écrit sur le serveur",
-            app.contains("botsViewModel.setModel(bot, model)"),
+            Regex("""botsViewModel\.setModel\(bot, model[,)]""").containsMatchIn(app),
         )
         assertTrue(
             "et le dépôt du bot l'écrit sur le serveur (profiles.configure)",
-            bots.contains("ServeBotsRpc(rpc).setModel(bot.name, model)"),
+            Regex("""ServeBotsRpc\(rpc\)\.setModel\(bot\.name, model[,)]""").containsMatchIn(bots),
         )
         assertTrue(
             "il est aussi gardé sur le téléphone",

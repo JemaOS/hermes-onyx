@@ -270,7 +270,7 @@ fun GroupRoomScreen(
 
     // Le journal de la salle, lu comme des messages : le flux et l'onglet Fichiers lisent le
     // **même** journal que le fil — donc chaque salon garde SES fichiers.
-    val roomMessages = remember(rows) { roomThreadMessages(rows) }
+    val roomMessages = remember(rows, room.members) { roomThreadMessages(rows, room.members) }
     val feedCards = remember(roomMessages, room.name) {
         ChatFeed.cards(roomMessages.map { it.copy(text = AttachedFileNote.strip(it.text)) }, room.name)
     }
@@ -516,8 +516,12 @@ fun GroupRoomScreen(
                     cards = feedCards,
                     feedback = feedFeedback,
                     botName = room.name,
+                    // La tête garde le profil de la salle ; **chaque carte** peint le sien par le
+                    // même résolveur que le fil — le visage du bot qui a répondu, et non celui de
+                    // la salle (le défaut « toutes les cartes ont le même visage »).
                     faceName = room.name,
-                    faceCode = face(room.name),
+                    face = { name -> face(name) },
+                    fallbackFaceCode = face(room.name),
                     accent = tabAccent,
                     nowMillis = nowMillis,
                     onFeedback = { cardId, value ->

@@ -39,6 +39,8 @@ internal val onyxLockFrench: Map<String, String> = linkedMapOf(
         "Le déverrouillage biométrique n’est pas disponible sur cet écran. Utilisez le code.",
 
     // Réglages → Verrouillage : la ligne « Exiger … » nomme la biométrie du téléphone.
-    "Require Fingerprint" to "Exiger l’empreinte",
+        "No passcode is set on this phone. Add one in Settings › Lock, so you can unlock when face or fingerprint fails." to
+        "Aucun code n’est enregistré sur ce téléphone. Ajoutez-en un dans Réglages › Verrouillage, pour pouvoir déverrouiller quand le visage ou l’empreinte échoue.",
+"Require Fingerprint" to "Exiger l’empreinte",
     "Require Face unlock" to "Exiger le visage",
 )

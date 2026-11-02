@@ -192,11 +192,49 @@ class PencilNewConversationTest {
         val room = File("src/main/java/com/onyx/app/ui/bots/GroupRoomScreen.kt").readText()
         val group = File("src/main/java/com/onyx/app/ui/bots/GroupChatScreen.kt").readText()
 
-        assertTrue("les membres de la salle deviennent ceux de la conversation", app.contains("groupPicked = room.members.map { it.name }.toSet()"))
-        assertTrue("le nom de la salle aussi", app.contains("groupTitle = room.name"))
         assertTrue("la salle vierge ne s'empile pas", app.contains("roomStartsAnotherConversation(roomViewModel.state.value.rows)"))
         assertTrue("et le groupe repart à vide", app.contains("onNewConversation = groupViewModel::startNewConversation"))
         assertTrue("le crayon de la salle est bien câblé", room.contains("onClick = onNewConversation"))
         assertTrue("celui du groupe aussi", group.contains("onClick = onNewConversation"))
+    }
+
+    /**
+     * **Le crayon d'une salle garde la salle.** Le bloc du crayon est découpé dans la route de la
+     * salle : il ne doit ni vider `openedRoom` (c'est ce qui faisait retomber la route sur
+     * `GroupChatScreen`, d'où le second compositeur — carré, sans onglets — dessiné par-dessus la
+     * plaque) ni changer de route. La conversation neuve se demande au serveur, et s'ouvre **ici**.
+     */
+    @Test
+    fun `le crayon d une salle ne quitte plus la salle`() {
+        val app = File("src/main/java/com/onyx/app/ui/OnyxApp.kt").readText()
+        val viewModel = File("src/main/java/com/onyx/app/ui/bots/GroupRoomViewModel.kt").readText()
+
+        val branch = app.indexOf("Route.GROUP_CHAT ->")
+        assertTrue("la route de la salle est là", branch >= 0)
+        val pencilStart = app.indexOf("onNewConversation = {", branch)
+        val pencilEnd = app.indexOf("onOpenVoice", pencilStart)
+        assertTrue("le crayon de la salle est câblé", pencilStart > branch && pencilEnd > pencilStart)
+        val pencil = app.substring(pencilStart, pencilEnd)
+
+        assertFalse(
+            "le crayon ne vide plus la salle (c'était la cause du compositeur fantôme)",
+            pencil.contains("openedRoom = null"),
+        )
+        assertFalse("et il ne change plus de route", pencil.contains("navTo("))
+        assertTrue(
+            "la conversation neuve s'ouvre dans la même salle",
+            pencil.contains("roomViewModel.startNewConversation"),
+        )
+        assertTrue(
+            "la salle neuve reprend l'écran de la salle",
+            pencil.contains("openedRoom = roomChat(made, bots)"),
+        )
+
+        // La conversation neuve d'une salle **est** une salle neuve chez Hermes : mêmes membres
+        // (`members = room.members`), même nom, identifiant neuf, par `groups.create`.
+        assertTrue("la salle neuve se demande au serveur", viewModel.contains("rpc.create(draft.id, draft.name, draft.members)"))
+        assertTrue("avec les membres de la salle, tels quels", viewModel.contains("members = room.members"))
+        assertTrue("sous un identifiant neuf", viewModel.contains("GroupRoomDraft.newID()"))
+        assertTrue("et le même nom", viewModel.contains("name = room.name"))
     }
 }

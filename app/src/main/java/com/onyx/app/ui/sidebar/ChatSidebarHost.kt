@@ -340,6 +340,11 @@ internal fun ChatSidebarHost(
     }
 
     ChatSidebar(
+        // **Un écran de détail posé sur le volet n'a pas de pied.** Les Réglages, les Serveurs,
+        // les Capacités occupent la colonne : le pied du volet (« Nouvelle conversation » et le
+        // rond du profil) restait peint **par-dessus** leur bas de page. Il ne se dessine donc
+        // que quand la liste est réellement l'écran.
+        footerVisible = !sidebarState.isNavigating,
         gatewayName = serverName,
         gatewayAddress = serverAddress,
         reachable = reachable,

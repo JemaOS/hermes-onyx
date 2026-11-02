@@ -95,6 +95,15 @@ data class FeedCard(
     /** Le texte entier, pour le détail ouvert par le bouton d'information. */
     val detail: String,
     val atMillis: Long,
+    /**
+     * Le **nom de profil** du bot qui a écrit cette réponse — celui par qui le visage se résout
+     * (`BotFaceResolver.codeOf`). C'est lui, et non le visage du panneau, que la carte peint : dans
+     * une salle de groupe, chaque carte montre donc le visage de **son** bot, comme le fil.
+     *
+     * Vide quand l'auteur n'est pas nommé (une conversation à un bot, une carte forgée par un
+     * test) : la carte retombe alors sur le visage de repli du panneau.
+     */
+    val author: String = "",
 )
 
 object ChatFeed {
@@ -112,6 +121,9 @@ object ChatFeed {
      * Les cartes que ce bot a produites dans cette conversation : une par réponse écrite, la plus
      * récente en tête. Une réponse sans texte (outil seul, tour interrompu) n'a rien à montrer,
      * donc elle ne fait pas de carte.
+     *
+     * Chaque carte garde **son** auteur (`ChatMessage.authorProfile`) : c'est le nom de profil du
+     * bot qui a répondu, donc le panneau peut peindre le visage de chacune et non un visage unique.
      */
     fun cards(messages: List<ChatMessage>, botName: String, limit: Int = 40): List<FeedCard> =
         messages.asSequence()
@@ -134,6 +146,9 @@ object ChatFeed {
             text = if (rest.isBlank()) flat.take(Excerpt) else rest,
             detail = flat.take(DetailLimit),
             atMillis = message.createdAt,
+            // L'auteur est **lu** sur le message, jamais deviné : c'est le profil que le fil
+            // emploie déjà pour le nom et le visage de cette réponse.
+            author = message.authorProfile,
         )
     }
 
@@ -412,15 +427,36 @@ private fun PanelEmpty(title: String, detail: String?, modifier: Modifier = Modi
 // Le Feed
 // ---------------------------------------------------------------------------------------------
 
-/** Le flux daté des cartes d'un bot, avec sa rangée d'actions et le détail de chaque carte. */
+/**
+ * Le flux daté des cartes d'un bot, avec sa rangée d'actions et le détail de chaque carte.
+ *
+ * **Le visage est résolu carte par carte.** Le panneau ne reçoit plus un visage unique : il reçoit
+ * un résolveur ([face], le `BotFaceResolver.codeOf` de l'écran) et le **visage de repli** de la
+ * conversation ([fallbackFaceCode]). Chaque carte peint `face(card.author)` — le bot qui a répondu,
+ * celui que le fil nomme — et retombe sur le repli quand la carte n'a pas d'auteur nommé. Une salle
+ * de groupe montrait donc le visage de la salle sur **toutes** ses cartes, là où le fil montrait
+ * celui de chaque bot : c'est ce défaut que ce câblage supprime.
+ */
 @Composable
 fun ChatFeedPane(
     cards: List<FeedCard>,
     feedback: Map<String, String>,
+    /** Le nom **affiché** de la conversation (le libellé du bot, ou le nom de la salle). */
     botName: String,
-    /** Le nom de **profil** du bot : le visage s'y résout (`ThreadSpeaker.faceName`). */
+    /**
+     * Le **nom de profil** de la tête d'onglet : une carte lit le sien dans `card.author`, mais la
+     * tête n'a pas de carte à lire — elle garde donc le profil de la conversation (le nom de la
+     * salle pour un salon). C'est la clé que la barre du haut emploie aussi, jamais le libellé.
+     */
     faceName: String,
-    faceCode: String?,
+    /**
+     * Le visage d'un **profil**, carte par carte : le résolveur de l'écran
+     * (`BotFaceResolver.codeOf`, toujours `face = { name -> face(name) }` chez l'appelant).
+     * `null` quand rien ne fixe ce profil — le repli décide alors.
+     */
+    face: (String) -> String? = { null },
+    /** **Le visage de repli** : celui de la conversation (la salle), quand une carte n'a pas d'auteur. */
+    fallbackFaceCode: String? = null,
     accent: Color,
     nowMillis: Long,
     onFeedback: (cardId: String, value: String) -> Unit,
@@ -434,7 +470,7 @@ fun ChatFeedPane(
             PanelHeader(
                 botName = botName,
                 faceName = faceName,
-                faceCode = faceCode,
+                faceCode = face(faceName) ?: fallbackFaceCode,
                 accent = accent,
                 note = OnyxLocalization["Your thumbs are kept on this phone, per bot and per card."],
                 actionLabel = OnyxLocalization["Compose"],
@@ -455,7 +491,7 @@ fun ChatFeedPane(
             PanelHeader(
                 botName = botName,
                 faceName = faceName,
-                faceCode = faceCode,
+                faceCode = face(faceName) ?: fallbackFaceCode,
                 accent = accent,
                 note = OnyxLocalization["Your thumbs are kept on this phone, per bot and per card."],
                 actionLabel = OnyxLocalization["Compose"],
@@ -477,13 +513,18 @@ fun ChatFeedPane(
                 }
             }
             item(key = card.id) {
+                // **Le visage de CETTE carte**, résolu sur son auteur — le bot qui a répondu —,
+                // jamais un visage unique pour tout le flux. Le nom vient du même auteur ; une
+                // carte sans auteur garde le profil de la conversation et le visage de repli.
+                val cardFace = face(card.author) ?: fallbackFaceCode
+                val cardName = card.author.ifBlank { faceName }
                 FeedCardRow(
                     card = card,
                     choice = feedback[card.id],
                     accent = accent,
                     botName = botName,
-                    faceName = faceName,
-                    faceCode = faceCode,
+                    faceName = cardName,
+                    faceCode = cardFace,
                     onFeedback = { value -> onFeedback(card.id, value) },
                     onDiscuss = { onDiscuss(card) },
                 )
@@ -496,7 +537,13 @@ fun ChatFeedPane(
     }
 }
 
-/** Une carte du Feed : source, titre en gras, résumé, rangée d'actions, et le détail à droite. */
+/**
+ * Une carte du Feed : source, titre en gras, résumé, rangée d'actions, et le détail à droite.
+ *
+ * Sa pastille de source est **le visage de son auteur** (`faceName` + `faceCode`, résolus par le
+ * panneau sur `card.author`) : dans une salle, deux cartes de deux bots ne montrent donc pas le
+ * même visage.
+ */
 @Composable
 private fun FeedCardRow(
     card: FeedCard,

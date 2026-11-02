@@ -200,7 +200,13 @@ internal fun SidebarScaffold(
                     // Le **fondu du contenu**, dans la même famille que le glissement : les deux
                     // portent la même durée, donc le contenu ne se pose jamais avant ni après le
                     // panneau. Le fondu est porté par le panneau entier — donc par sa vitre aussi.
-                    .graphicsLayer { alpha = contentFade }
+                    // **Rien ne se peint quand le volet est fermé.** Le panneau était translaté de
+                    // « largeur × (1 − progression) » ; quand cette progression vaut 0 sur une largeur
+                    // nulle, la translation vaut 0 : le volet restait dessiné **sous** la page, et
+                    // seul son pied (« Nouvelle conversation ») dépassait en bas des Réglages. La
+                    // garde est ici, sur le seul dessin : fermé, le volet est **invisible**, quel que
+                    // soit l'écran posé par-dessus.
+                    .graphicsLayer { alpha = if (p <= 0.001f) 0f else contentFade }
                     // **L'ombre douce, en clair (n° 4).** Elle est posée **avant tout `clip`** : un
                     // `graphicsLayer` d'ombre dessine hors de ses bornes, donc c'est cet ordre qui
                     // la laisse dépasser du panneau. Et l'ombre se **tait en sombre** — le verre y
@@ -283,7 +289,17 @@ private fun DockedSidebar(
                         )
                     },
             ) {
-                Box(Modifier.requiredWidth(width).fillMaxHeight().align(Alignment.CenterEnd)) { sidebar() }
+                // **Le volet est découpé à sa largeur.** Sans ce découpage, son pied
+                // (« Nouvelle conversation ») continuait d'être peint alors que la colonne est
+                // refermée : la pilule flottait en bas des Réglages, sur un écran qui n'a rien à
+                // voir avec les conversations.
+                Box(
+                    Modifier
+                        .requiredWidth(width)
+                        .fillMaxHeight()
+                        .align(Alignment.CenterEnd)
+                        .clipToBounds(),
+                ) { sidebar() }
             }
         }
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) { content() }

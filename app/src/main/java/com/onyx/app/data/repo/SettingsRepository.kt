@@ -47,6 +47,17 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     private val _theme = MutableStateFlow(OnyxTheme.STANDARD)
     val theme: StateFlow<OnyxTheme> = _theme.asStateFlow()
 
+    /**
+     * Vrai une fois [load] passé : les valeurs portées par les flux sont alors **celles du disque**,
+     * et non les défauts.
+     *
+     * C'est ce que lit le travail de fond ([com.onyx.app.notifications.ReplyWatcher]) : démarré par
+     * Android, il peut interroger le dépôt avant que le chargement du démarrage ne soit fini — et un
+     * réglage éteint se lirait alors comme son défaut.
+     */
+    private val _loaded = MutableStateFlow(false)
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
     private val _appearance = MutableStateFlow(AppearanceMode.SYSTEM)
     val appearance: StateFlow<AppearanceMode> = _appearance.asStateFlow()
 
@@ -185,6 +196,15 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Son des alertes ; Android utilise deux canaux, avec et sans son. */
     private val _notificationSound = MutableStateFlow(true)
     val notificationSound: StateFlow<Boolean> = _notificationSound.asStateFlow()
+
+    /**
+     * « Me prévenir quand une réponse arrive, app fermée » : le surveillant de réponses
+     * ([com.onyx.app.notifications.ReplyWatcher]) relit le journal des sessions suivies toutes les
+     * quinze minutes et publie la réponse arrivée entre-temps. **Vrai par défaut** : sans cela, un
+     * bot qui finit son tour pendant que le téléphone est dans la poche ne s'annonce jamais.
+     */
+    private val _replyWatch = MutableStateFlow(true)
+    val replyWatch: StateFlow<Boolean> = _replyWatch.asStateFlow()
 
     /**
      * « Appels pour une réponse » (`phone_call_me` / `phoneRings` de la référence) : une approbation
@@ -393,6 +413,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         _reasoningEffort.value = preferences[Keys.REASONING_EFFORT] ?: ""
         _notifyInBackground.value = preferences[Keys.NOTIFY_IN_BACKGROUND] ?: false
         _notificationSound.value = preferences[Keys.NOTIFICATION_SOUND] ?: true
+        // « Me prévenir quand une réponse arrive, app fermée » : vrai par défaut, cf. `_replyWatch`.
+        _replyWatch.value = preferences[Keys.REPLY_WATCH] ?: true
         // « Appels pour une réponse » et les heures de tranquillité : les quatre clés du lot d'appel.
         _phoneRings.value = preferences[Keys.PHONE_RINGS] ?: false
         _phoneRingsTalk.value = preferences[Keys.PHONE_RINGS_TALK] ?: true
@@ -444,6 +466,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             )
         }.getOrDefault(emptyList())
         _stopPhrases.value = preferences[Keys.STOP_PHRASES]?.split("\u001F")?.filter { it.isNotEmpty() }.orEmpty()
+        // Le disque a été lu en entier : les flux portent désormais la vérité, pas les défauts.
+        _loaded.value = true
     }
 
     suspend fun setTheme(theme: OnyxTheme) {
@@ -659,6 +683,12 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.NOTIFICATION_SOUND] = value }
     }
 
+    /** « Me prévenir quand une réponse arrive, app fermée » : le surveillant de réponses. */
+    suspend fun setReplyWatch(value: Boolean) {
+        _replyWatch.value = value
+        store.edit { it[Keys.REPLY_WATCH] = value }
+    }
+
     /** « Appels pour une réponse » : faire sonner le téléphone pour une approbation ou une question. */
     suspend fun setPhoneRings(value: Boolean) {
         _phoneRings.value = value
@@ -840,6 +870,11 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
         val NOTIFY_IN_BACKGROUND = booleanPreferencesKey("notify_in_background")
         val NOTIFICATION_SOUND = booleanPreferencesKey("notification_sound")
+        /**
+         * « Me prévenir quand une réponse arrive, app fermée » : la clé du surveillant de réponses.
+         * Neuve et **vraie par défaut** — une app qui n'a jamais rien réglé surveille ses sessions.
+         */
+        val REPLY_WATCH = booleanPreferencesKey("reply_watch")
         /** « Appels pour une réponse » et sa suite : les clés du lot d'appel. */
         val PHONE_RINGS = booleanPreferencesKey("phoneRings")
         val PHONE_RINGS_TALK = booleanPreferencesKey("phoneRingsTalk")

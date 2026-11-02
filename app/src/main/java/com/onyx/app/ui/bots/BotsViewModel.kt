@@ -598,12 +598,12 @@ class BotsViewModel(
     fun modelOf(bot: BotProfile): String? = faces.modelOf(bot.name) ?: bot.model
 
     /** Change le modèle d'un bot : sur le serveur quand c'est possible, ici sinon. */
-    fun setModel(bot: BotProfile, model: String?) {
+    fun setModel(bot: BotProfile, model: String?, provider: String? = null) {
         if (config.hasServeCredentials) {
             viewModelScope.launch {
                 runCatching {
                     val rpc = ServeRpc(config)
-                    ServeBotsRpc(rpc).setModel(bot.name, model)
+                    ServeBotsRpc(rpc).setModel(bot.name, model, provider)
                     rpc.close()
                 }
             }
