@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.activity.compose.BackHandler
 import com.onyx.app.ui.localization.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -116,18 +118,27 @@ fun OnyxMenu(
     onDismiss: () -> Unit,
     anchor: Rect? = null,
 ) {
-    // Le voile et le panneau vivent dans la fenêtre du menu, pas sous les barres système : celui
-    // d'une rangée couvre tout l'écran, si bien que rien ne dépasse du voile.
-    val properties = if (anchor == null) {
-        DialogProperties(usePlatformDefaultWidth = false)
-    } else {
-        DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    // **La fenêtre principale, pas une fenêtre à part.** Un `Dialog` est une *autre* fenêtre : il ne
+    // voit ni la source de flou Haze (posée par l'écran, dans la fenêtre principale), ni la page de
+    // la lentille, ni le calque de fond. Un panneau qui y vit ne peut donc rien échantillonner — il ne
+    // peut que se peindre d'un voile, et le résultat se lit comme du **lavis** : un rectangle gris
+    // translucide posé sur l'écran, le contenu dessous restant lisible.
+    //
+    // Passé par l'hôte, le panneau est dessiné **au-dessus de la route, dans la fenêtre principale** :
+    // il y lit la source de flou, courbe ce qu'il recouvre, et porte la finition de verre du reste de
+    // l'app. L'ancrage ne bouge pas : il est calculé en coordonnées de fenêtre (`boundsInWindow`),
+    // et les deux fenêtres ont la même.
+    val host = LocalOverlayHost.current
+    // Le jeton du calque : il garantit que la fermeture de CE menu ne retire pas le calque d'un
+    // autre panneau qui l'aurait remplacé entre-temps (un sous-menu s'ouvrant sur un menu).
+    var token by remember { mutableStateOf<Any?>(null) }
+    LaunchedEffect(host, items, anchor) {
+        token = host?.show {
+            MenuOverlay(items = items, onDismiss = onDismiss, anchor = anchor)
+        }
     }
-    Dialog(onDismissRequest = onDismiss, properties = properties) {
-        // Le panneau vit dans sa fenêtre : le flou vient du système (ce qui passe **derrière** la
-        // fenêtre), et le voile prend le relais quand il n'est pas disponible.
-        DialogWindowBlur(FrostSurface.MENU)
-        MenuOverlay(items = items, onDismiss = onDismiss, anchor = anchor)
+    DisposableEffect(host) {
+        onDispose { token?.let { host?.dismiss(it) } }
     }
 }
 
@@ -148,6 +159,12 @@ private fun MenuOverlay(
     // Où le voile lui-même tombe : la rangée touchée est dans la fenêtre, le voile peut être
     // décalé par une barre système. On mesure, on ne devine pas.
     var placed by remember { mutableStateOf<Offset?>(null) }
+
+    // **Le retour système referme le menu.** Dans une `Dialog`, c'était la fenêtre qui s'en
+    // chargeait ; hors `Dialog` — le menu vit désormais dans la fenêtre principale, pour lire la
+    // source de flou et se peindre comme du verre — il faut le dire explicitement, sinon le retour
+    // système déporterait l'écran au lieu de refermer le panneau.
+    BackHandler(onBack = onDismiss)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -269,15 +286,33 @@ private fun MenuPanel(
             // Le panneau lui-même n'est pas une zone de fermeture : appuyer entre deux lignes ne
             // doit rien faire (l'appui est avalé ici, pas transmis au voile).
             .onyxTappable(onClick = {})
-            // Le barreau des surfaces **flottantes** ([OnyxSurfaces.surfaceHigh]) : un menu posé sur
-            // une page sombre ne se détachait pas de `surfaceColor` (1,096:1). Le filet de la maison
-            // suit la forme du panneau — un seul filet pour toute l'app.
-            .frostedBar(
-                FrostSurface.MENU,
+            // **Le verre du panneau**, et non plus un voile.
+            //
+            // Avant, le fond était peint par `frostedBar` : un **voile plat** — aucun calque flouté,
+            // aucune lentille. Le contenu dessous restait lisible (mesuré : contraste 179 → 30, les
+            // arêtes du texte restaient des marches nettes) et le panneau n'avait ni lumière ni
+            // arête : c'était du **lavis**, pas du verre.
+            //
+            // Ici le panneau prend la surface de la **table du verre** ([GlassSurface.MENU]) : le fond
+            // est le contenu réel, flouté et courbé par la lentille, et la finition de la maison
+            // (lumière de tête, ombre de pied, liseré, reflet de tranche) se pose par-dessus.
+            //
+            // **Pas de `masking`**, et c'est délibéré : le panneau ancré se pose sur une **rangée**,
+            // pas sur un fil qui défile sous une plaque. Il doit **laisser voir** ce qu'il recouvre —
+            // c'est le verre qu'on cherche. `masking` remonterait le voile jusqu'à 0,92 et le
+            // panneau redeviendrait l'**aplat** qu'on voulait supprimer (mesuré : fond uniforme, plus
+            // aucune forme derrière). La lisibilité, ici, c'est le **flou** qui la porte, pas
+            // l'opacité.
+            // **Le chemin de Haze, pas celui de la lentille.** Mesuré : le chemin de la lentille
+            // peint une **teinte** mais n'échantillonne **rien** (la texture enregistrée rend vide) —
+            // le panneau laissait alors passer le texte dessous net (corrélation 0,99 avec l'image
+            // non floutée). Le chemin de Haze, lui, échantillonne vraiment (le volet lit la source à
+            // `count=1`) : c'est lui qui donne le fond **flouté** du verre.
+            .liquidGlass(
+                GlassSurface.MENU,
                 RoundedCornerShape(MenuCorner),
-                tint = OnyxSurfaces.surfaceHigh(theme),
+                lens = false,
             )
-            .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), RoundedCornerShape(MenuCorner))
             .padding(vertical = OnyxSpace.Half),
     ) {
         items.forEachIndexed { index, item ->

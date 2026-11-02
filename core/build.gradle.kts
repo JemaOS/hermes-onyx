@@ -41,6 +41,11 @@ dependencies {
     api(libs.androidx.ui.graphics)
     api(libs.androidx.core.ktx)
 
+    // Le retour système : le menu ancré vit désormais dans la **fenêtre principale** (pour lire la
+    // source de flou et se peindre comme du verre), et n'est plus une `Dialog` qui le refermerait
+    // toute seule. `BackHandler` (activity-compose) le referme explicitement.
+    implementation(libs.androidx.activity.compose)
+
     // Le verre liquide (`LiquidGlass`) : `dev.chrisbanes.haze`, découpé en trois modules depuis la
     // version 2 — le cœur, le flou, et le verre.
     //

@@ -86,7 +86,6 @@ import com.onyx.app.ui.design.SelectableText
 import com.onyx.app.ui.design.SurfaceRole
 import com.onyx.app.ui.design.glassBarShell
 import com.onyx.app.ui.design.Symbols
-import com.onyx.app.ui.design.matierePage
 import com.onyx.app.ui.design.onyxHazeSource
 import com.onyx.app.ui.design.LocalGlassSourcePresence
 import com.onyx.app.ui.design.OnyxLens
@@ -330,8 +329,7 @@ fun GroupRoomScreen(
 
     Box(
         modifier = modifier
-            .fillMaxSize()
-            .onyxPage(theme),
+            .fillMaxSize(),
     ) {
     // **LA PAGE DU VERRE, SUR TOUT L'ÉCRAN.** C'est elle que la barre et la plaque de la salle
     // échantillonnent (voir `OnyxLensGlass`). Elle est enregistrée **ici**, et l'en-tête comme la
@@ -354,6 +352,14 @@ fun GroupRoomScreen(
                     ?: Modifier,
             ),
     ) {
+        // **LA MATIÈRE DE LA PAGE, DANS LA SOURCE HAZE.** Elle était sur la `Box` racine, donc
+        // **hors** de la source : la vitre n'échantillonnait que le fil et jamais le fond — elle se
+        // posait donc sur un aplat, et le verre qu'on lisait dessous n'était qu'une teinte posée sur
+        // du vide (mesuré : derrière le menu ancré, l'écart-type du fond valait 1,3 pour un contenu
+        // réel variant de 0,6 à 94,7). Posée **ici**, elle est ce que la vitre échantillonne — c'est
+        // exactement ce que fait le fil de bot (`Box(Modifier.matchParentSize().matierePage(theme))`
+        // dans la source).
+        Box(Modifier.matchParentSize().onyxPage(theme))
         Column(
             modifier = Modifier
                 .fillMaxSize()

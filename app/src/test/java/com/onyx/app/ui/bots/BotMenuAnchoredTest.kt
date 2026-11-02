@@ -39,11 +39,20 @@ class BotMenuAnchoredTest {
     fun `le panneau s ouvre pres de la rangee touchee, pas au centre de l ecran`() {
         assertTrue("le menu prend une ancre", menu.contains("anchor: Rect? = null"))
         assertTrue("l'ancre est la rangée touchée, dans la fenêtre", menu.contains("boundsInWindow()"))
-        // Ancrée, la feuille couvre tout l'écran (au-dessus des barres système) : ses coordonnées
-        // sont celles de la fenêtre, et le voile ne laisse pas de bande claire.
-        assertTrue(
-            "une fenêtre plein écran",
+        // Le panneau vit dans la **fenêtre principale**, pas dans une `Dialog` : une fenêtre à part
+        // ne voit ni la source de flou ni la page de la lentille, et le panneau ne pouvait alors
+        // que se peindre d'un voile — du lavis, pas du verre.
+        assertFalse(
+            "le menu ne vit plus dans une fenêtre à part",
             menu.contains("DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)"),
+        )
+        assertTrue(
+            "il passe par l'hôte des calques de la fenêtre principale",
+            menu.contains("LocalOverlayHost.current") && menu.contains("host?.show"),
+        )
+        assertTrue(
+            "et il se peint en verre",
+            Regex("""\.liquidGlass\(\s*GlassSurface\.MENU""").containsMatchIn(menu),
         )
         // L'origine du voile est mesurée, pas devinée : la rangée et le panneau vivent dans le
         // même repère.
@@ -97,17 +106,36 @@ class BotMenuAnchoredTest {
         assertTrue("une ligne reste une cible confortable", OnyxSpace.RowHeight.value >= 48f)
         assertEquals(OnyxSpace.RowHeight, 56.dp)
         assertEquals("l'icône d'une ligne", 17, Regex("private val MenuIconSize = (\\d+)\\.dp").find(menu)!!.groupValues[1].toInt())
-        // Le fond est celui de la surface, translucide, sous un voile léger.
-        // Le panneau garde la couleur de surface a 94 % en clair : la valeur est celle de la
-        // reference, et elle se verifie par la fonction de voile, pas par le texte.
-        assertTrue(menu.contains("tint = OnyxSurfaces.surfaceHigh(theme),"))
-        // Le panneau se détache de la page d'une **marche**, et non de son opacité : le barreau des
-        // surfaces flottantes mesure 1,314:1 sur la page sombre (voir `OnyxSurfaces`).
+        // **Le fond est du VERRE, pas un voile.**
+        //
+        // Le défaut mesuré : le menu peignait son fond avec `frostedBar`, c'est-à-dire un **voile
+        // plat** — aucun calque flouté, aucune finition. Le contenu dessous se lisait à travers
+        // (contraste 179 → 30) et le panneau n'avait ni lumière ni arête : du lavis, pas du verre.
+        //
+        // Le panneau prend donc la surface de la **table du verre** ([GlassSurface.MENU]), qui
+        // porte le rayon de flou, l'ombre et l'encre attendue — et il vit dans la **fenêtre
+        // principale**, où la source de flou existe (dans une `Dialog`, il ne pouvait rien
+        // échantillonner : il ne restait qu'un voile).
         assertTrue(
-            "le panneau prend le barreau des surfaces flottantes",
-            menu.contains("tint = OnyxSurfaces.surfaceHigh(theme),"),
+            "le panneau prend la surface de verre de la table",
+            menu.contains("GlassSurface.MENU,"),
         )
-        assertEquals(0.94f, frostVeilAlpha(FrostSurface.MENU, FrostLevel.FULL, dark = false), 0.001f)
+        assertTrue(
+            "et il passe par le panneau de verre (calque flouté + finition), pas par un voile plat",
+            Regex("""\.liquidGlass\(\s*GlassSurface\.MENU""").containsMatchIn(menu),
+        )
+        assertFalse(
+            "plus de voile plat sur le panneau du menu",
+            menu.contains("frostedBar(\n                FrostSurface.MENU"),
+        )
+        // Le voile du menu : mesuré sur un fond flouté, il descend bien sous le voile opaque
+        // d'avant (0,94 en clair) — c'est ce qui laisse voir le verre.
+        assertTrue(
+            "le voile du menu se mesure sur le fond flouté",
+            Regex("""glassMaskingTintAlphaBlurred\(""").containsMatchIn(
+                File("../core/src/main/java/com/onyx/app/ui/design/LiquidGlass.kt").readText(),
+            ),
+        )
         assertTrue(menu.contains("Color.Black.copy(alpha = 0.18f)"))
     }
 
@@ -118,7 +146,8 @@ class BotMenuAnchoredTest {
         // Le panneau n'est pas une zone de fermeture : un appui entre deux lignes ne fait rien.
         assertTrue(menu.contains(".onyxTappable(onClick = {})"))
         assertTrue("Échap ferme", menu.contains("Key.Escape"))
-        assertTrue("et le retour aussi", menu.contains("Dialog(onDismissRequest = onDismiss"))
+        // Le menu n'est plus dans une `Dialog` : c'est le **retour matériel** qui le ferme.
+        assertTrue("et le retour aussi", menu.contains("BackHandler(onBack = onDismiss)"))
     }
 
     // MARK: - Les lignes : icône, libellé, chevron, filets entre les groupes

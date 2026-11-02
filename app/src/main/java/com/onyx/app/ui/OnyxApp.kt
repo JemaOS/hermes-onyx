@@ -1,6 +1,8 @@
 package com.onyx.app.ui
 import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.design.LocalBackdrop
+import com.onyx.app.ui.design.LocalOverlayHost
+import com.onyx.app.ui.design.OverlayHost
 import com.onyx.app.ui.design.recordBackdrop
 
 import androidx.compose.animation.AnimatedContent
@@ -14,6 +16,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -435,6 +438,12 @@ fun OnyxApp() {
     val servers = AppContainer.servers
     val settingsRepo = AppContainer.settings
     val conversationRepo = AppContainer.conversations
+
+    // **L'hôte des calques de la fenêtre principale.** Le menu ancré y vit : il est ainsi dessiné
+    // dans la **fenêtre principale** — là où la source de flou de l'écran existe — et non dans une
+    // `Dialog`, qui ne peut rien échantillonner. C'est ce qui fait du panneau du menu du **verre**
+    // (le contenu réel dessous, flouté et courbé) et non du lavis.
+    val overlayHost = remember { OverlayHost() }
 
     // **L'identité d'une conversation, PAR CONVERSATION** : le **nom de profil de son bot** — la clé
     // unique de la maison pour résoudre un visage (`BotLook`). C'est `conversationProfile`
@@ -2914,6 +2923,7 @@ fun OnyxApp() {
         // s'en décalent pas une seconde fois. Sans ça, un champ bas d'un formulaire long
         // (« Identifiant » de la configuration) restait sous le clavier : la zone défilante
         // gardait toute la hauteur de l'écran, donc Compose n'avait rien à faire remonter.
+        CompositionLocalProvider(LocalOverlayHost provides overlayHost) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
@@ -4660,7 +4670,14 @@ fun OnyxApp() {
             }
                     }
                 }
-            
+
+              // **Le calque flottant.** Le menu ancré s'y pose. Il est dessiné ici, dans la **même
+              // couche** que la route — c'est ce qui lui permet de lire la source de flou de
+              // l'écran (posée dans cette fenêtre) et de se peindre comme du **verre** : le
+              // contenu réel dessous, flouté et courbé par la lentille. Dans une `Dialog` — une
+              // autre fenêtre — il ne pouvait rien échantillonner, et le panneau se lisait comme un
+              // voile gris posé sur l'écran.
+              OverlayLayer(overlayHost)
               }}
         }
 
@@ -4797,11 +4814,26 @@ fun OnyxApp() {
                 onDismiss = { renaming = false },
             )
         }
+        }
     }
     }
     }
 }
 
+
+/**
+ * **Le calque de la fenêtre principale** — le menu ancré y vit.
+ *
+ * Il est dessiné **au-dessus de la route**, dans la **fenêtre principale** : c'est ce qui lui
+ * permet de lire la source de flou de l'écran (posée dans cette fenêtre) et donc de peindre du
+ * **verre** plutôt qu'un voile. Un `Dialog` ne lecouldait pas — c'est une autre fenêtre, et le
+ * panneau se lisait alors comme un rectangle gris translucide posé sur l'écran.
+ */
+@Composable
+private fun OverlayLayer(host: OverlayHost) {
+    val layer = host.layer ?: return
+    Box(modifier = Modifier.fillMaxSize()) { layer() }
+}
 /**
  * Le niveau d'une **parole simulée** pour la maquette vocale (`onyx.voiceDemo`).
  *
