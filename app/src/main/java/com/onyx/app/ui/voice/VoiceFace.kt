@@ -74,7 +74,13 @@ fun voicePose(seconds: Float, phase: VoicePhase, level: Float, tilt: Float = 0f)
             Offset(from.x + (to.x - from.x) * eased, from.y + (to.y - from.y) * eased)
         }
     }
-    val mouth = if (phase == VoicePhase.SPEAKING) (level * 1.8f).coerceIn(0f, 1f) else 0f
+    // La bouche qui bat avec la voix ne remplace la bouche du visage que **pendant** la parole.
+    // A l'ecoute, en reflexion ou au repos, la valeur doit etre `null` : c'est `null` qui dit
+    // « garde la bouche du visage ». Un `0f` veut dire « une bouche qui parle, ferme » — et une
+    // bouche fermee ne dessine rien : la bouche choisie (un sourire, un rictus) disparait de
+    // l'orbe, et il ne reste que les yeux. C'etait le defaut vu : « seules les bouches ne sont
+    // pas prises en charge ».
+    val mouth = if (phase == VoicePhase.SPEAKING) (level * 1.8f).coerceIn(0f, 1f) else null
     // Les **micro-expressions** de la phase : sourcils et paupières suivent ce que le visage fait —
     // sourcils hauts à l'écoute, rapprochés en réflexion, vivants pendant la parole, une petite
     // houle au repos. Lentes et de faible amplitude : de la vie, jamais du bruit.

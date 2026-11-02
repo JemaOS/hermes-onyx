@@ -1171,16 +1171,17 @@ private fun DrawScope.drawMouth(face: BotFace, geometry: FaceGeometry, palette: 
     val y = geometry.eyeY + if (face.mark == FaceMark.FRECKLES || face.mark == FaceMark.BLUSH) 15f else 13f
     if (talking != null) {
         val open = talking.coerceIn(0f, 1f)
-        if (open > 0.03f) {
-            val w = 7f + open * 3f
-            val h = 1.6f + open * 8f
-            drawRoundRect(
-                color = palette.features,
-                topLeft = Offset(51f - w / 2f, y - 1f),
-                size = Size(w, h),
-                cornerRadius = CornerRadius(minOf(w, h) / 2f, minOf(w, h) / 2f),
-            )
-        }
+        // La bouche qui parle est **toujours** tracee, meme fermee : une ligne fine, qui s'ouvre
+        // avec la voix. Sans elle, un silence au milieu d'une phrase laissait un **trou** la ou
+        // la bouche du visage aurait du etre — et la bouche choisie, absente.
+        val w = 7f + open * 3f
+        val h = 1.6f + open * 8f
+        drawRoundRect(
+            color = palette.features,
+            topLeft = Offset(51f - w / 2f, y - 1f),
+            size = Size(w, h),
+            cornerRadius = CornerRadius(minOf(w, h) / 2f, minOf(w, h) / 2f),
+        )
         return
     }
     when (face.mouth) {
