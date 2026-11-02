@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -85,6 +86,7 @@ import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.design.readableInk
+import com.onyx.app.ui.design.semanticsLabel
 import com.onyx.app.ui.design.socleHeadingStyle
 import com.onyx.app.ui.design.socleSectionStyle
 import com.onyx.app.ui.localization.BasicText
@@ -611,15 +613,26 @@ private fun ModelSheetTitleRow(title: String, mention: String, onDismiss: () -> 
                 modifier = Modifier.padding(top = OnyxSpace.Hair),
             )
         }
-        OnyxIcon(
-            symbol = Symbols.Xmark,
-            tint = theme.secondaryText,
-            size = 15.dp,
-            contentDescription = "Close",
+        // **La croix de fermeture.** La cible tactile fait 48 dp (un doigt), mais le **glyphe**
+        // doit rester à sa taille : mesuré sur la capture, il sortait à 32 dp — plus du double de
+        // ses 15 dp annoncés. La cause : `OnyxIcon` applique son `size` **après** le `modifier`
+        // de l'appelant, et le `.size(ModelControlTarget)` de ce dernier l'écrasait — l'icône
+        // héritait de la taille de la zone tactile. On met donc la cible sur un `Box` séparé, et le
+        // glyphe garde ses 15 dp (la forme juste des autres icônes de la maison).
+        Box(
             modifier = Modifier
                 .size(ModelControlTarget)
-                .onyxClickable(onClick = onDismiss),
-        )
+                .onyxClickable(onClick = onDismiss)
+                .semanticsLabel("Close"),
+            contentAlignment = Alignment.Center,
+        ) {
+            OnyxIcon(
+                symbol = Symbols.Xmark,
+                tint = theme.secondaryText,
+                size = 15.dp,
+                contentDescription = "Close",
+            )
+        }
     }
 }
 
@@ -673,13 +686,22 @@ private fun ModelSearchField(query: String, onQuery: (String) -> Unit) {
             style = theme.body,
         )
         if (query.isNotEmpty()) {
-            OnyxIcon(
-                symbol = Symbols.XmarkCircle,
-                tint = theme.tertiaryText,
-                size = 16.dp,
-                contentDescription = "Clear the search",
-                modifier = Modifier.size(ModelControlTarget).onyxClickable { onQuery("") },
-            )
+            // Même règle que la croix de fermeture : la cible tactile fait 48 dp, le glyphe garde
+            // ses 16 dp — sinon l'icône sortait à la taille de la zone, démesurée dans le champ.
+            Box(
+                modifier = Modifier
+                    .size(ModelControlTarget)
+                    .onyxClickable { onQuery("") }
+                    .semanticsLabel("Clear the search"),
+                contentAlignment = Alignment.Center,
+            ) {
+                OnyxIcon(
+                    symbol = Symbols.XmarkCircle,
+                    tint = theme.tertiaryText,
+                    size = 16.dp,
+                    contentDescription = "Clear the search",
+                )
+            }
         }
     }
 }
@@ -733,22 +755,40 @@ private fun ChipFlow(
     ) {
         labels.forEach { face ->
             val on = face.value == selected
+            // **La pastille est à sa hauteur, la cible tactile autour.** Mesuré sur la capture du
+            // propriétaire, la pastille sortait à 54,8 dp — le `heightIn(min = 48 dp)` du chip
+            // **cumulé** au padding vertical. Un chip de 55 dp pour un texte de 10 dp se lisait
+            // « tout gros », et il surchargeait la rangée (huit pastilles sur deux lignes).
+            //
+            // La cible d'un doigt (48 dp) est donc portée par un `Box` transparent qui **entoure**
+            // la pastille, sans la déformer : elle reste à sa hauteur, et l'appui reste aussi
+            // large qu'un doigt.
             Box(
                 modifier = Modifier
-                    .heightIn(min = ModelControlTarget)
-                    .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
-                    .background(if (on) active else idle)
-                    .onyxTappable { onPick(face.value) }
-                    .padding(horizontal = OnyxSpace.Snug, vertical = OnyxSocle.Tight),
+                    // **La cible d'un doigt, sans déformer la pastille.** Le `minWidth` de 48 dp
+                    // vaut pour les pastilles larges (« Très élevé ») ; pour une pastille courte
+                    // (« Max », 46,8 dp mesuré), c'est le **fond** qui s'arrête au texte — donc
+                    // la cible ne force pas la largeur, elle ne fait qu'atteindre 48 dp de haut.
+                    .sizeIn(minHeight = ModelControlTarget)
+                    .semanticsLabel("Reasoning effort"),
                 contentAlignment = Alignment.Center,
             ) {
-                // Le libellé : traduit s'il vient de la maison (un cran de réflexion), puis
-                // **abrégé au milieu** si la place manque — une pastille ne se coupe pas net.
-                IdentifierText(
-                    text = if (face.localize) OnyxLocalization.translate(face.label) else face.label,
-                    style = theme.footnote.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (on) activeInk else idleInk,
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
+                        .background(if (on) active else idle)
+                        .onyxTappable { onPick(face.value) }
+                        .padding(horizontal = OnyxSpace.Snug, vertical = OnyxSpace.Half),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // Le libellé : traduit s'il vient de la maison (un cran de réflexion), puis
+                    // **abrégé au milieu** si la place manque — une pastille ne se coupe pas net.
+                    IdentifierText(
+                        text = if (face.localize) OnyxLocalization.translate(face.label) else face.label,
+                        style = theme.footnote.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (on) activeInk else idleInk,
+                    )
+                }
             }
         }
     }
@@ -1038,18 +1078,31 @@ private fun ModelRow(
                 OnyxIcon(Symbols.Checkmark, tint = theme.accentInk, size = 15.dp)
             }
             // L'étoile : elle se pose et se retire, et **se garde** d'une relance à l'autre. Sa cible
-            // fait la taille d'un doigt, comme les autres contrôles de la feuille. Au repos, son
-            // encre est **mesurée sur la feuille** ([ModelContrast.sheetTertiaryInk]) : le tertiaire
-            // du jeton partagé y tombait à 4,41:1 et l'étoile se lisait à peine comme un contrôle.
-            OnyxIcon(
-                symbol = if (favourite) Symbols.StarFill else Symbols.Star,
-                tint = if (favourite) readableInk(theme.accent, surface, 3.0) else ModelContrast.sheetTertiaryInk(theme),
-                size = 17.dp,
-                contentDescription = if (favourite) "Remove from favourites" else "Add to favourites",
+            // fait la taille d'un doigt, comme les autres contrôles de la feuille ; son **glyphe**,
+            // lui, garde 17 dp — mesuré sur la capture, il sortait à 42 dp (la cible tactile
+            // l'écrasait, voir la croix de fermeture plus haut). Au repos, son encre est **mesurée
+            // sur la feuille** ([ModelContrast.sheetTertiaryInk]) : le tertiaire du jeton partagé y
+            // tombait à 4,41:1 et l'étoile se lisait à peine comme un contrôle.
+            Box(
                 modifier = Modifier
                     .size(ModelControlTarget)
-                    .onyxClickable(onClick = { onToggleFavourite(entry.id, !favourite) }),
-            )
+                    .onyxClickable(onClick = { onToggleFavourite(entry.id, !favourite) })
+                    .semanticsLabel(
+                        if (favourite) "Remove from favourites" else "Add to favourites",
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                OnyxIcon(
+                    symbol = if (favourite) Symbols.StarFill else Symbols.Star,
+                    tint = if (favourite) readableInk(theme.accent, surface, 3.0) else ModelContrast.sheetTertiaryInk(theme),
+                    size = 17.dp,
+                    contentDescription = if (favourite) {
+                        "Remove from favourites"
+                    } else {
+                        "Add to favourites"
+                    },
+                )
+            }
         }
         OnyxRowDivider(inset = ModelRowDividerInset, endInset = ModelRowDividerEndInset)
     }
