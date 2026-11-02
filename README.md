@@ -13,10 +13,10 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p>
-  <img src="docs/screenshots/conversation-chat.png" width="19%" alt="The Chat tab of a conversation" />
-  <img src="docs/screenshots/conversation-feed.png" width="19%" alt="The Feed tab of a conversation" />
-  <img src="docs/screenshots/voice-listening.png" width="19%" alt="Hands-free voice, listening" />
-  <img src="docs/screenshots/code-sessions.png" width="19%" alt="Code sessions, with branch and status" />
+  <img src="docs/captures/01-salle-chat-clair.png" width="19%" alt="A room, in the Chat tab" />
+  <img src="docs/captures/02-salle-flux-clair.png" width="19%" alt="A room, in the Feed tab" />
+  <img src="docs/captures/04-liste-conversations-clair.png" width="19%" alt="The conversation list" />
+  <img src="docs/captures/05-reglages-notifications-clair.png" width="19%" alt="Notification channels" />
 </p>
 
 </div>
@@ -285,47 +285,22 @@ emulator (it renders in software), so it still has to be checked on a real devic
 
 ## Screenshots
 
-The gallery is the **`1.0.0+1049`** build (`versionCode 1049`) — and it shows **both appearances**:
-the **dark theme** (the default, file name without a suffix) and the **light theme** (the same
-screens, file name with the `-light` suffix), each pair taken on the **same** build, screen for
-screen. The naming convention and the list of the files actually present are in
-[`docs/screenshots/README.md`](docs/screenshots/README.md). Every capture was taken on an emulator,
-against a test server holding demo data: no real machine, no real conversation, no token. The
-**status bar is cropped out** of every shot and the demo server's **address is blurred** (the panel
-header that prints it is cropped off).
+Every shot below comes from the **`1.0.0+1113`** release build, taken on an emulator
+(`onyxclair`, Android 16, 1080×2400) against a real gateway — a real round trip, not mock data.
+Each screen appears twice: the **light** theme and the **dark** one, captured from the same build.
 
-Each table below reads **Dark** then **Light** down the same columns: the light twin sits directly
-under its dark counterpart.
+| Screen | Light | Dark |
+|---|---|---|
+| A room, Chat tab | <img src="docs/captures/01-salle-chat-clair.png" width="45%"> | <img src="docs/captures/01-salle-chat-sombre.png" width="45%"> |
+| A room, Feed tab | <img src="docs/captures/02-salle-flux-clair.png" width="45%"> | <img src="docs/captures/02-salle-flux-sombre.png" width="45%"> |
+| Attaching a file | <img src="docs/captures/03-composer-piece-jointe-clair.png" width="45%"> | <img src="docs/captures/03-composer-piece-jointe-sombre.png" width="45%"> |
+| The conversation list | <img src="docs/captures/04-liste-conversations-clair.png" width="45%"> | <img src="docs/captures/04-liste-conversations-sombre.png" width="45%"> |
+| Notification channels | <img src="docs/captures/05-reglages-notifications-clair.png" width="45%"> | <img src="docs/captures/05-reglages-notifications-sombre.png" width="45%"> |
+| The lock settings | <img src="docs/captures/06-reglages-verrouillage-clair.png" width="45%"> | <img src="docs/captures/06-reglages-verrouillage-sombre.png" width="45%"> |
+| The lock screen | <img src="docs/captures/07-verrouillage-clair.png" width="45%"> | <img src="docs/captures/07-verrouillage-sombre.png" width="45%"> |
 
-**The conversation.**
-| | Chat | Feed | Files | Files — filters | File viewer |
-|:--|:---:|:---:|:---:|:---:|:---:|
-| **Dark** | <img src="docs/screenshots/conversation-chat.png" width="100%"> | <img src="docs/screenshots/conversation-feed.png" width="100%"> | <img src="docs/screenshots/conversation-files.png" width="100%"> | <img src="docs/screenshots/conversation-files-filters.png" width="100%"> | <img src="docs/screenshots/file-viewer.png" width="100%"> |
-| **Light** | <img src="docs/screenshots/conversation-chat-light.png" width="100%"> | <img src="docs/screenshots/conversation-feed-light.png" width="100%"> | <img src="docs/screenshots/conversation-files-light.png" width="100%"> | <img src="docs/screenshots/conversation-files-filters-light.png" width="100%"> | <img src="docs/screenshots/file-viewer-light.png" width="100%"> |
+Provenance and the list of the files actually present: [`docs/captures/INDEX.md`](docs/captures/INDEX.md).
 
-**Actions, sessions and the machine.**
-| | Conversation actions | Code sessions | Kanban | Models | Computer |
-|:--|:---:|:---:|:---:|:---:|:---:|
-| **Dark** | <img src="docs/screenshots/conversation-actions-sheet.png" width="100%"> | <img src="docs/screenshots/code-sessions.png" width="100%"> | <img src="docs/screenshots/kanban.png" width="100%"> | <img src="docs/screenshots/models.png" width="100%"> | <img src="docs/screenshots/computer.png" width="100%"> |
-| **Light** | <img src="docs/screenshots/conversation-actions-sheet-light.png" width="100%"> | <img src="docs/screenshots/code-sessions-light.png" width="100%"> | <img src="docs/screenshots/kanban-light.png" width="100%"> | <img src="docs/screenshots/models-light.png" width="100%"> | <img src="docs/screenshots/computer-light.png" width="100%"> |
-
-**Voice, terminal and settings.**
-| | Voice — listening | Voice — ready | Terminal | Settings — gateway | Settings — about |
-|:--|:---:|:---:|:---:|:---:|:---:|
-| **Dark** | <img src="docs/screenshots/voice-listening.png" width="100%"> | <img src="docs/screenshots/voice-ready.png" width="100%"> | <img src="docs/screenshots/terminal.png" width="100%"> | <img src="docs/screenshots/settings-connection.png" width="100%"> | <img src="docs/screenshots/settings-about.png" width="100%"> |
-| **Light** | <img src="docs/screenshots/voice-listening-light.png" width="100%"> | <img src="docs/screenshots/voice-ready-light.png" width="100%"> | <img src="docs/screenshots/terminal-light.png" width="100%"> | <img src="docs/screenshots/settings-connection-light.png" width="100%"> | <img src="docs/screenshots/settings-about-light.png" width="100%"> |
-
-**Voice &amp; notifications, the panel, and the screens.**
-| | Settings — voice &amp; notifications | The panel, over the thread on a phone | The panel, docked beside the thread | Capabilities | Archive |
-|:--|:---:|:---:|:---:|:---:|:---:|
-| **Dark** | <img src="docs/screenshots/settings-voice-notifications.png" width="100%"> | <img src="docs/screenshots/conversations.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar.png" width="100%"> | <img src="docs/screenshots/capabilities.png" width="100%"> | <img src="docs/screenshots/archive.png" width="100%"> |
-| **Light** | <img src="docs/screenshots/settings-voice-notifications-light.png" width="100%"> | <img src="docs/screenshots/conversations-light.png" width="100%"> | <img src="docs/screenshots/conversation-sidebar-light.png" width="100%"> | <img src="docs/screenshots/capabilities-light.png" width="100%"> | <img src="docs/screenshots/archive-light.png" width="100%"> |
-
-Every capture here is **`1.0.0+1049`** — the build it was taken from — and each shot is labelled with
-its build in [`docs/screenshots/README.md`](docs/screenshots/README.md). The bot
-roster and the name on the cards are read from the server — the app lists the profiles it exposes, it
-never invents one — and the name on the panel (`Onyx`) with the letter chip derived from it is the
-test double's, not a real machine.
 
 ## Install
 
