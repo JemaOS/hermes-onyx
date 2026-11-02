@@ -64,6 +64,9 @@ fun BotFacePickerScreen(
     isDefault: Boolean = botName == "default",
     hasPickedFace: Boolean = current != null,
     serverBacked: Boolean = true,
+    /** Le visage sera-t-il pose **avec** le bot, a sa creation ? Alors il n'est sur aucun
+     *  serveur : le dire, plutot que d'annoncer une garde serveur qui n'a pas lieu. */
+    keptWithBot: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
@@ -189,10 +192,10 @@ fun BotFacePickerScreen(
             }
 
             OnyxFormSection(
-                footer = if (serverBacked) {
-                    "Kept on your Hermes server, so Onyx on your other devices shows it too."
-                } else {
-                    "Kept on this phone; this connection has no Hermes server login."
+                footer = when {
+                    keptWithBot -> "This face goes with the bot you are creating, on your server."
+                    serverBacked -> "Kept on your Hermes server, so Onyx on your other devices shows it too."
+                    else -> "Kept on this phone; this connection has no Hermes server login."
                 },
             ) {
                 OnyxRow(onClick = { face = BotFace.random(keeping = face) }) {
