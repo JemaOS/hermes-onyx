@@ -1,6 +1,7 @@
 package com.onyx.app.ui.voice
 
 import com.onyx.app.voice.VoicePhase
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -38,10 +39,30 @@ class VoiceFacePoseTest {
         val speaking = voicePose(1f, VoicePhase.SPEAKING, level = 0.5f)
         assertEquals("ouverture = niveau × 1,8", 0.9f, speaking.mouth!!, 0.0001f)
         assertEquals("une voix forte ouvre la bouche sans la déborder", 1f, voicePose(1f, VoicePhase.SPEAKING, 1.2f).mouth!!, 0.0001f)
-        // Au repos, à l'écoute et en réflexion, la bouche reste celle du visage.
-        assertEquals(0f, voicePose(1f, VoicePhase.IDLE, 0.8f).mouth!!, 0.0001f)
-        assertEquals(0f, voicePose(1f, VoicePhase.LISTENING, 0.8f).mouth!!, 0.0001f)
-        assertEquals(0f, voicePose(1f, VoicePhase.THINKING, 0.8f).mouth!!, 0.0001f)
+        // Au repos, à l'écoute et en réflexion, la bouche reste **celle du visage** : c'est `null`
+        // qui le dit. Un `0f` veut dire « une bouche qui parle, fermée » — et une bouche fermée
+        // ne dessine rien : la bouche choisie disparaissait de l'orbe, et il ne restait que les
+        // yeux (« seules les bouches ne sont pas prises en charge »).
+        assertNull("au repos", voicePose(1f, VoicePhase.IDLE, 0.8f).mouth)
+        assertNull("à l'écoute", voicePose(1f, VoicePhase.LISTENING, 0.8f).mouth)
+        assertNull("en réflexion", voicePose(1f, VoicePhase.THINKING, 0.8f).mouth)
+    }
+
+    @Test
+    fun `la bouche du visage reste dessinee hors parole`() {
+        // La règle de dessin : `talking == null` -> la bouche choisie (un sourire, un rictus, un
+        // « O ») ; `talking != null` -> la bouche qui bat avec la voix, **toujours tracée** (une
+        // ligne fine quand elle est fermée, pour qu'un silence au milieu d'une phrase ne laisse
+        // pas un trou).
+        val source = File("../core/src/main/java/com/onyx/app/ui/design/BotAvatar.kt").readText()
+        assertTrue(
+            "la bouche du visage est gardée quand la pose ne dit pas « parle »",
+            source.contains("when (face.mouth) {"),
+        )
+        assertTrue(
+            "et la bouche qui parle est tracée même fermée",
+            source.contains("La bouche qui parle est **toujours** tracee"),
+        )
     }
 
     @Test
