@@ -1389,8 +1389,9 @@ fun OnyxApp() {
                 offersEditing = setupOffersEditing,
                 newServerId = servers::newId,
                 onInstall = { config, activate ->
-                    servers.upsert(config)
-                    if (activate) servers.setActive(config.id)
+                    // `upsert` active le serveur par défaut ; l'import d'un code peut vouloir
+                    // garder l'ancien actif — c'est lui qui décide.
+                    servers.upsert(config, activate = activate)
                 },
                 onRemoveAdded = { added, previous ->
                     servers.setActive(previous)

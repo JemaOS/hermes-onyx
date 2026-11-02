@@ -25,6 +25,9 @@ import com.onyx.app.data.net.ChatCompletionsClient
 import com.onyx.app.data.net.GatewayApprovalClient
 import com.onyx.app.data.net.HermesServeChat
 import com.onyx.app.data.net.ServeRpc
+import com.onyx.app.data.net.ServeClient
+import com.onyx.app.data.net.ServeSessionsApi
+import com.onyx.app.data.net.ServerSessions
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.TurnEvent
 import com.onyx.app.data.net.asChatChannel
@@ -203,6 +206,15 @@ class ChatViewModel(
                 .flatMapLatest { id -> if (id == null) flowOf(null) else turns.live(id) }
                 .collect { live -> follow(live) }
         }
+        // Les conversations du **serveur** : le registre local ne montre que ce que l'app a
+        // écrit sur ce téléphone. Les sessions du serveur — d'autres appareils, la CLI, les
+        // anciennes — s'importent ici, une fois par serveur : sans cela, le volet restait vide
+        // alors que le serveur en comptait des dizaines.
+        viewModelScope.launch {
+            servers.activeServer.collect { server ->
+                if (server.hasServeCredentials) importServerSessions(server)
+            }
+        }
         // Le menu qui s'ouvre sur un appui long sur l'icône : un raccourci de **bot** ouvre la
         // conversation de ce bot. La demande a été déposée par l'activité ([BotShortcutInbox]) ;
         // elle s'ouvre ici, une fois, puis se consomme — reprendre le même raccourci deux fois
@@ -214,6 +226,29 @@ class ChatViewModel(
                 openBotShortcut(request)
             }
         }
+    }
+
+    /**
+     * Importe les sessions du serveur dans le registre local, pour que le volet les montre.
+     *
+     * Le registre local ne connaît que les conversations **écrites sur ce téléphone**. Les
+     * sessions du serveur — celles d'autres appareils, celles de la CLI, les anciennes —
+     * n'y sont pas : le volet paraissait alors vide alors que le serveur en comptait des
+     * dizaines. Chaque session devient une conversation sans message : le fil se lit à
+     * l'ouverture, jamais d'avance.
+     *
+     * Un échec de lecture ne casse rien : le registre local reste, et l'app continue.
+     */
+    private suspend fun importServerSessions(server: ServerConfig) {
+        if (conversations.conversations.value.isEmpty()) conversations.load()
+        val summaries = runCatching {
+            ServeSessionsApi(ServeClient(server)).allSummaries()
+        }.getOrElse { return }
+        if (summaries.isEmpty()) return
+        val known = conversations.conversations.value
+        val imported = ServerSessions.conversations(server, summaries, known)
+        if (imported.isEmpty()) return
+        imported.forEach { conversation -> conversations.save(conversation) }
     }
 
     /**
@@ -758,6 +793,41 @@ class ChatViewModel(
         }
         scheduleRetry()
         resumeDetachedTurn(conversation)
+        loadRemoteThread(conversation)
+    }
+
+    /**
+     * Le fil d'une conversation **du serveur** : la projection qu'on a dans le registre n'a que
+     * son titre, pas ses messages. Le fil se lit ici, à l'ouverture — le serveur en garde la
+     * source, et rien n'est écrit sur ce téléphone.
+     *
+     * Un fil déjà chargé (une conversation locale qui a aussi une session) n'est pas relu :
+     * ce qu'on a ici est plus frais que ce que le serveur en sait.
+     */
+    private fun loadRemoteThread(conversation: com.onyx.app.data.model.Conversation) {
+        if (!conversation.remote) return
+        if (conversation.messages.isNotEmpty()) return
+        val sessionId = conversation.serverSessionId?.takeIf { it.isNotBlank() } ?: return
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
+        viewModelScope.launch {
+            val rows = runCatching {
+                com.onyx.app.data.net.ServeSessionMessages(server).rows(sessionId)
+            }.getOrElse { return@launch }
+            if (rows.isEmpty()) return@launch
+            val loaded = rows.mapIndexed { index, row ->
+                com.onyx.app.data.model.ChatMessage(
+                    id = java.util.UUID.randomUUID().toString(),
+                    role = if (row.role == "user") com.onyx.app.data.model.Role.USER
+                    else com.onyx.app.data.model.Role.ASSISTANT,
+                    text = row.text,
+                    createdAt = conversation.createdAt + index,
+                )
+            }
+            if (conversationId != conversation.id) return@launch
+            _state.update { state ->
+                state.copy(messages = state.messages + loaded.map { it.copy(isStreaming = false) })
+            }
+        }
     }
 
     /**

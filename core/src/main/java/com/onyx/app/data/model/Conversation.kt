@@ -20,6 +20,13 @@ data class Conversation(
     val serverId: String = "",
     /** Session côté gateway, quand le transport en tient une. */
     val serverSessionId: String? = null,
+    /**
+     * Conversation **du serveur**, et non de ce téléphone : elle n'est qu'une projection de la
+     * session listée par le registre du serveur. Le fil se lit à l'ouverture ; rien n'est
+     * écrit ici. Une telle conversation n'est pas persistée comme une conversation locale —
+     * le serveur en reste la seule source.
+     */
+    val remote: Boolean = false,
     /** Épinglée en tête de liste. */
     val pinned: Boolean = false,
     /** Rangée dans les archives. */

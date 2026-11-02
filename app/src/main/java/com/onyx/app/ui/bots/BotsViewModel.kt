@@ -289,13 +289,16 @@ class BotsViewModel(
                 else -> rpcBots
             }
             val known = fromServer.map { it.name }.toSet()
-            // Ajoutés à la main (`Add Bot`) : sans Dashboard pour lister le serveur, c'est ici
+            // Ajoutés à la main (`Add Bot`): sans Dashboard pour lister le serveur, c'est ici
             // qu'ils vivent — et c'est d'ici qu'ils se retirent (`Remove from Onyx` du menu).
             val extra = faces.localBots()
                 .filterNot { it in known }
                 .map { BotProfile(name = it, title = faces.titleOf(it), isDefault = false, viaAPI = true) }
             sourceBots = fromServer + extra
-            readRoomsAndActivity()
+            // Les salles et l'activité sont un supplément : si le Dashboard ne répond pas, le
+            // roster déjà lu doit rester affiché. Sans cette garde, un échec ici effaçait la
+            // liste des bots — l'app paraissait vide alors que le serveur répondait.
+            runCatching { readRoomsAndActivity() }
             publish()
         } catch (error: CancellationException) {
             throw error
