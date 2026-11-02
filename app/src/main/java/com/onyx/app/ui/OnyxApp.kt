@@ -3795,10 +3795,16 @@ fun OnyxApp() {
                     if (granted) groupVoice.listen() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                 }
                 DisposableEffect(groupVoice, demo) {
+                    // **L'ordre d'arrêt coupe le tour de la salle**, pas le chat du fil : dire
+                    // « arrête d'écouter » dans une salle doit arrêter les bots, sinon le tour
+                    // repart et le micro se rouvre — l'ordre n'était jamais obéi.
+                    val soloStop = voice.onStoppedByWord
+                    if (demo == null) voice.onStoppedByWord = { groupVoice.halt() }
                     onDispose {
                         if (demo == null) {
                             groupVoice.stop()
                             voice.onQuestion = onSoloVoiceQuestion
+                            voice.onStoppedByWord = soloStop
                         }
                     }
                 }

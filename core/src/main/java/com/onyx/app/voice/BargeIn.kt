@@ -135,10 +135,29 @@ object StopWord {
     )
 
     /**
+     * Les phrases d'arrêt **intégrées**, en suites de mots : le français de l'app et l'anglais de
+     * la référence.
+     *
+     * Elles sont reconnues **partout** dans ce qui a été entendu, et pas seulement quand la
+     * phrase est la seule chose dite. Avant, la liste n'était lue que d'un côté (celui de
+     * l'écoute) et par **égalité** du transcript entier : « arrête d'écouter » ne était jamais
+     * reconnu pendant que le bot parlait, et « arrête d'écouter arrête » ne l'était jamais du
+     * tout.
+     */
+    private val builtIn: List<List<String>> = BUILT_IN_STOP_PHRASES
+        .map { words(it) }
+        .filter { it.isNotEmpty() }
+        .distinct()
+
+    /**
      * Vrai quand [text] contient « stop » comme mot à part entière, et pas dans « don't stop ».
      * L'une des phrases propres de la personne ([own]) compte pareil, dite comme une suite de mots
      * n'importe où dans ce qui a été entendu ; une phrase écrite sans espaces (chinois, japonais)
      * compte où qu'elle se trouve.
+     *
+     * Les phrases **intégrées** ([builtIn]) comptent aussi, n'importe où — sauf les plus courtes,
+     * qui ne valent que si elles sont **tout** ce qui a été dit : « arrête » seul dit dans
+     * « l'auto s'arrête » ne doit pas arrêter l'écoute.
      */
     fun heardIn(text: String, own: List<String> = emptyList()): Boolean {
         val normalized = own(own)
@@ -148,7 +167,20 @@ object StopWord {
             if (words.size < phrase.size) continue
             for (i in 0..(words.size - phrase.size)) {
                 if (words.subList(i, i + phrase.size) == phrase) {
-                    if (!(i > 0 && words[i - 1] in negations)) return true
+                    if (!isNegated(words, i, phrase.size)) return true
+                }
+            }
+        }
+        // Les phrases intégrées : une suite **longue** se repère n'importe où ; une suite
+        // **courte** (un mot) ne vaut que seule.
+        for (phrase in builtIn) {
+            val anywhere = phrase.size >= 2
+            if (words.size < phrase.size) continue
+            if (words == phrase) return true
+            if (!anywhere) continue
+            for (i in 0..(words.size - phrase.size)) {
+                if (words.subList(i, i + phrase.size) == phrase) {
+                    if (!isNegated(words, i, phrase.size)) return true
                 }
             }
         }
@@ -156,6 +188,16 @@ object StopWord {
         return normalized.any { phrase ->
             !phrase.contains(" ") && phrase.any { it.code >= 0x2E80 } && run.contains(phrase)
         }
+    }
+
+    /**
+     * La phrase est-elle **niée** ? La négation se place avant (« ne t'arrête pas ») ou après
+     * (« arrête pas ») — en français comme en anglais, il faut regarder les deux côtés.
+     */
+    private fun isNegated(words: List<String>, at: Int, size: Int): Boolean {
+        val before = if (at > 0) words[at - 1] else null
+        val after = words.getOrNull(at + size)
+        return (before != null && before in negations) || (after != null && after in negations)
     }
 
     /** Les phrases propres, telles qu'on les compare : minuscules, sans ponctuation, sans doublons. */
