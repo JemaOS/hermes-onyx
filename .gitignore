@@ -5,6 +5,8 @@ local.properties
 .idea/
 .DS_Store
 captures/
+# **Les captures du README sont versionnées** : ce sont elles qu'on montre.
+!docs/captures/**
 .externalNativeBuild/
 .cxx/
 *.apk
