@@ -363,6 +363,22 @@ sha256sum -c SHA256SUMS-1049.txt
 The app talks to one host only: the one you typed. The API key sits in the Android Keystore, and
 conversations stay in DataStore on the device.
 
+## Screenshots — light and dark
+
+Every screen below is captured from the release build, in the light and the dark theme.
+
+| Screen | Light | Dark |
+|---|---|---|
+| A room, in the Chat tab | ![A room, in the Chat tab (light)](docs/captures/01-salle-chat-clair.png) | ![A room, in the Chat tab (dark)](docs/captures/01-salle-chat-sombre.png) |
+| A room, in the Feed tab | ![A room, in the Feed tab (light)](docs/captures/02-salle-flux-clair.png) | ![A room, in the Feed tab (dark)](docs/captures/02-salle-flux-sombre.png) |
+| Attaching a file from the composer | ![Attaching a file from the composer (light)](docs/captures/03-composer-piece-jointe-clair.png) | ![Attaching a file from the composer (dark)](docs/captures/03-composer-piece-jointe-sombre.png) |
+| The conversation list | ![The conversation list (light)](docs/captures/04-liste-conversations-clair.png) | ![The conversation list (dark)](docs/captures/04-liste-conversations-sombre.png) |
+| Notification channels | ![Notification channels (light)](docs/captures/05-reglages-notifications-clair.png) | ![Notification channels (dark)](docs/captures/05-reglages-notifications-sombre.png) |
+| The lock settings | ![The lock settings (light)](docs/captures/06-reglages-verrouillage-clair.png) | ![The lock settings (dark)](docs/captures/06-reglages-verrouillage-sombre.png) |
+| The lock screen | ![The lock screen (light)](docs/captures/07-verrouillage-clair.png) | ![The lock screen (dark)](docs/captures/07-verrouillage-sombre.png) |
+
+Full index: [`docs/captures/INDEX.md`](docs/captures/INDEX.md).
+
 ## Requirements
 
 - **Android 8.0 (API 26)** or newer — **Wear OS 3 (API 30)** for the watch.
