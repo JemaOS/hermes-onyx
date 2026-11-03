@@ -113,6 +113,10 @@ import com.onyx.app.ui.bots.BotsViewModel
 import com.onyx.app.ui.bots.BotRosterStandIn
 import com.onyx.app.ui.bots.botChatToOpen
 import com.onyx.app.ui.bots.BotMenuHandlers
+import com.onyx.app.ui.bots.BotTemplateImportOutcome
+import com.onyx.app.ui.bots.BotTemplateImportSheet
+import com.onyx.app.ui.bots.BotTemplateOfferOutcome
+import com.onyx.app.ui.bots.BotTemplateShareSheet
 import com.onyx.app.ui.bots.botRecentConversation
 import com.onyx.app.ui.bots.botOfConversation
 import com.onyx.app.ui.bots.conversationProfile
@@ -1390,15 +1394,34 @@ fun OnyxApp() {
         // s'ouvre sur la note, **sans toucher à la conversation ouverte**.
         val captureRequested by ShareInbox.captureRequested.collectAsStateWithLifecycle()
 
+        // Un **lien de modèle de bot** reçu de l'extérieur (navigateur, autre app, texte partagé) :
+        // il n'entre pas dans le composeur, il ouvre l'aperçu du modèle — et l'ajout ne se fait
+        // qu'après l'avoir vu.
+        val pendingTemplate by ShareInbox.pendingTemplate.collectAsStateWithLifecycle()
+        var importLink by remember { mutableStateOf<String?>(null) }
+        var importBusy by remember { mutableStateOf(false) }
+        var importProblem by remember { mutableStateOf<String?>(null) }
+        // Le bot dont la feuille de partage est ouverte, et ce que la préparation a rendu.
+        var sharingBot by remember { mutableStateOf<BotProfile?>(null) }
+        var templateShare by remember { mutableStateOf<BotTemplateOfferOutcome?>(null) }
+
         // « L'app reparaît » : les notes en attente retentent leur remise, comme le
         // `CaptureInbox.file()` appelé quand l'app revient au premier plan dans la référence.
         // Sans ça, une note restée en attente n'aurait reparti qu'au prochain appui.
         LaunchedEffect(Unit) { com.onyx.app.data.capture.QuickCapture.fileNow() }
 
-        LaunchedEffect(pendingIntake, pendingShare, voiceRequested, captureRequested) {
+        LaunchedEffect(pendingIntake, pendingShare, voiceRequested, captureRequested, pendingTemplate) {
             val question = pendingIntake
             val shared = pendingShare
             when {
+                // Un lien de modèle : l'aperçu, jamais le composeur. Rien ne part avant « Ajouter ».
+                pendingTemplate != null -> {
+                    importProblem = null
+                    importBusy = false
+                    importLink = pendingTemplate
+                    ShareInbox.consume()
+                }
+
                 // Un fichier partagé se joint au message : le texte du partage, s'il y en a un,
                 // part avec lui, comme le fait le bouton d'envoi du composeur.
                 shared != null -> {
@@ -2268,6 +2291,12 @@ fun OnyxApp() {
             },
             onDuplicate = { bot -> scope.launch { botsViewModel.duplicate(bot) } },
             onDelete = { bot -> scope.launch { botsViewModel.deleteBot(bot) } },
+            // « Partager comme modèle » : la feuille s'ouvre tout de suite ; le lien se lit sur le
+            // serveur (`SOUL.md`, outils, compétences) et arrive dans la feuille quand il est prêt.
+            onShareTemplate = { bot ->
+                sharingBot = bot
+                templateShare = null
+            },
             onMarkSeen = { bot -> botsViewModel.markBotSeen(bot) },
             onMarkUnread = { bot -> botsViewModel.markBotUnread(bot) },
             onVoice = { bot ->
@@ -2282,6 +2311,59 @@ fun OnyxApp() {
             onRemoveFromOnyx = { bot -> botsViewModel.removeAPIBot(bot) },
             hasRecent = { bot -> botRecentConversation(bot, history, botsState.bots, state.server.displayName) != null },
         )
+
+        // ————— « Partager comme modèle » : la feuille du lien, et l'arrivée d'un lien —————
+        // Le lien se lit une fois par ouverture : son `SOUL.md`, ses jeux d'outils, ses compétences.
+        // Tant qu'il n'est pas là, la feuille attend — elle ne montre jamais un lien partiel.
+        LaunchedEffect(sharingBot) {
+            val bot = sharingBot ?: return@LaunchedEffect
+            templateShare = botsViewModel.templateOffer(bot)
+        }
+        sharingBot?.let { bot ->
+            BotTemplateShareSheet(
+                link = (templateShare as? BotTemplateOfferOutcome.Ready)?.offer?.link,
+                withoutPrompt = (templateShare as? BotTemplateOfferOutcome.Ready)?.offer?.withoutPrompt == true,
+                problem = (templateShare as? BotTemplateOfferOutcome.Refused)?.reason,
+                onDismiss = {
+                    sharingBot = null
+                    templateShare = null
+                },
+            )
+        }
+        // L'aperçu d'un lien reçu : obligatoire avant l'ajout, et l'ajout écrit un vrai profil.
+        importLink?.let { link ->
+            BotTemplateImportSheet(
+                link = link,
+                busy = importBusy,
+                problem = importProblem,
+                onAdd = { share ->
+                    scope.launch {
+                        importBusy = true
+                        importProblem = null
+                        when (val outcome = botsViewModel.importTemplate(share)) {
+                            is BotTemplateImportOutcome.Added -> {
+                                importBusy = false
+                                importLink = null
+                                // Un ajout partiel se dit sur la liste des bots : la feuille se
+                                // ferme parce que le bot existe, pas parce que tout est passé.
+                                botsViewModel.reportPartialImport(outcome)
+                            }
+
+                            is BotTemplateImportOutcome.Refused -> {
+                                importBusy = false
+                                importProblem = outcome.reason
+                            }
+                        }
+                    }
+                },
+                onDismiss = {
+                    if (!importBusy) {
+                        importLink = null
+                        importProblem = null
+                    }
+                },
+            )
+        }
 
         // « Let bots message each other » installe le réglage serveur : la question d'abord, puis
         // l'écriture, et l'échec se dit au lieu de rester muet.
