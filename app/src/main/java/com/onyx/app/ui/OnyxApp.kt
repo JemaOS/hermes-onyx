@@ -2715,6 +2715,13 @@ fun OnyxApp() {
                     )
                 }
             }
+            // **La mise à jour de l'app** : le contrôle est **gratuit** (l'API publique de
+            // GitHub, sans compte ni clé) et **ponctuel** — une fois au lancement, une fois à
+            // l'ouverture du volet. Un `null` (pas de réseau, GitHub indisponible) ne dit rien
+            // à l'écran : le tiroir reste ce qu'il est.
+            val updateGate = remember { com.onyx.app.ui.sidebar.UpdateGate(context) }
+            val updateOffer by updateGate.offer.collectAsStateWithLifecycle()
+            LaunchedEffect(updateGate) { updateGate.refresh() }
             val faceCodeOf: (String) -> String? = remember(knownBots, botsState.faces) {
                 { name -> knownBots.firstOrNull { it.name == name }?.faceCode ?: botsState.faces[name] }
             }
@@ -2767,6 +2774,14 @@ fun OnyxApp() {
                 // « Réglages » : elle s'ouvre dans le volet, comme les autres.
                 onOpenSettings = {
                     sidebarState.pushDestination(Route.SETTINGS.name)
+                },
+                // **La mise à jour** : la carte du volet, le téléchargement, et l'écarter.
+                updateOffer = updateOffer,
+                onDownloadUpdate = {
+                    updateOffer?.let(updateGate::download)
+                },
+                onDismissUpdate = {
+                    updateGate.dismiss()
                 },
                 onOpenAccount = {
                     // Le rond de l'initiale — et le nom de la passerelle dans la tête du volet —
