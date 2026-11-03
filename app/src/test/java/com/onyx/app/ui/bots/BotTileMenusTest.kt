@@ -86,6 +86,10 @@ class BotTileMenusTest {
                 BotMenuAction.Mute,
                 BotMenuAction.ChangeFace,
                 BotMenuAction.Reorder,
+                // « Partager comme modèle » : ajoutée par le lot du partage, **après** toutes les
+                // entrées de la maison, comme le propriétaire l'a demandé. C'est la seule ligne
+                // que ce lot ajoute à cette liste.
+                BotMenuAction.ShareTemplate,
             ),
             botMenuActions(bot, isOpen = false, unread = false, hasOrder = false, hasRecent = true),
         )

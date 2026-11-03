@@ -75,6 +75,9 @@ class BotMenuReferenceTest {
                 BotMenuAction.Mute,
                 BotMenuAction.ChangeFace,
                 BotMenuAction.Reorder,
+                // « Partager comme modèle » : ajoutée par le lot du partage, **après** toutes les
+                // entrées de la maison.
+                BotMenuAction.ShareTemplate,
             ),
             actions.drop(9),
         )
@@ -137,6 +140,8 @@ class BotMenuReferenceTest {
             onDelete = {},
             onReorder = {},
             onSortByRecent = {},
+            // « Partager comme modèle » : son geste, pour que la ligne compte comme les autres.
+            onShareTemplate = {},
         )
         assertEquals("une ligne par entrée : aucune ne manque, aucune ne s'ajoute", actions.size, items.size)
         assertEquals(nine.map { botMenuLabel(it, frame()) }, items.take(9).map { it.label })
