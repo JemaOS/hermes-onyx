@@ -268,9 +268,16 @@ class PlaqueFinaleWiringTest {
             "et le glissement latéral du contenu reste : c'est le pageur qui le translate",
             screen.contains("HorizontalPager("),
         )
+        // **RE-POINTÉ — le menu « / » remonte par son propre rembourrage.** L'ancien `Spacer`
+        // posait la liste au bas du pane du fil : la plaque la recouvrait, et ses dernières lignes
+        // n'étaient ni lisibles ni cliquables (défaut relevé sur l'appareil : « ça passe derrière »).
+        // Le menu est désormais un composant à part (`SlashMenu`), et c'est son rembourrage bas —
+        // la réserve du fil plus la voie flottante — qui le tient au-dessus de la plaque. C'est ce
+        // contrat-ci que le verrou surveille, parce que c'est celui qui tient à l'écran.
         assertTrue(
             "et la liste des commandes se pose au-dessus d'elle, pas dedans",
-            screen.contains("Spacer(Modifier.height(glassBottomInset + floatLane))"),
+            screen.contains("SlashMenu(") &&
+                screen.contains("bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap,"),
         )
     }
 

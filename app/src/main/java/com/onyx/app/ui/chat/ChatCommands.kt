@@ -37,14 +37,22 @@ internal fun withModelCommand(items: List<SlashItem>, draft: String): List<Slash
     ) + items
 }
 
+/** La taille du menu : la référence en montre huit. */
+internal const val SLASH_MENU_LINES = 8
+
 /**
  * Ajoute au menu les commandes que l'app connaît — les six fixes et les **compétences du profil** —
- * quand le gateway ne les propose pas déjà.
+ * et les fait **passer devant** ce que le gateway propose.
  *
- * Le menu d'une connexion Dashboard vient de `complete.slash`, qui liste normalement les
- * compétences installées. Mais un serveur qui ne les sert pas dans cette réponse, ou une réponse
- * arrivée trop tard, laisserait le menu sans elles : la **même liste fournie** que l'exécution
- * ([SlashCommands.commands]) les rend visibles, sans doublon et sans copie codée.
+ * Défaut relevé sur l'appareil : « les compétences sont inutilisables ». `complete.slash` d'un
+ * serveur qui remplit les huit lignes du menu (ses propres commandes) ne laissait aucune place aux
+ * compétences, ajoutées *après* puis coupées par `take(8)` : elles existaient sans jamais
+ * s'afficher. Rien n'était cassé dans la liste fournie — c'est la place qui manquait.
+ *
+ * L'ordre est donc : les commandes de l'app qui répondent au préfixe (les six fixes, puis les
+ * compétences), puis ce que le serveur propose, dédoublonné, le tout coupé à [SLASH_MENU_LINES].
+ * Un préfixe plus précis (`/you`, `/re`) fait la part belle au serveur dès que les commandes de
+ * l'app ne répondent plus.
  */
 internal fun withLocalCommands(
     items: List<SlashItem>,
@@ -54,11 +62,11 @@ internal fun withLocalCommands(
     val typed = draft.trim().lowercase().substringBefore(' ')
     if (!typed.startsWith("/")) return items
     val present = items.map { it.text.lowercase() }.toSet()
-    val extra = commands
+    val local = commands
         .filter { it.name.startsWith(typed) && it.name.lowercase() !in present }
         .map { command ->
             SlashItem(text = command.name, display = command.display, detail = command.shownDetail)
         }
-    // Le menu garde sa taille : la référence en montre huit.
-    return (items + extra).take(8)
+    if (local.isEmpty()) return items
+    return (local + items).take(SLASH_MENU_LINES)
 }
