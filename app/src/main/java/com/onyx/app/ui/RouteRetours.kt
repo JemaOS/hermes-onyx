@@ -56,7 +56,7 @@ data class RetourRoute(
 )
 
 /**
- * **Les 67 destinations de l'app, chacune avec son retour déclaré.**
+ * **Les 68 destinations de l'app, chacune avec son retour déclaré.**
  *
  * L'ordre est celui de l'énum pour que la table se lise comme le graphe. Aucune ligne n'est écrite
  * « de mémoire » : chaque [RetourRoute.declaration] est le texte relevé dans `OnyxApp.kt`, et le
@@ -575,6 +575,14 @@ object TableDesRetours {
             nature = NatureRetour.PILE,
             declaration = "onBack = { if (!navBack()) navTo(Route.SETTINGS.name) }",
             repli = "SETTINGS",
+            support = SUPPORT_BRANCHE,
+        ),
+        RetourRoute(
+            route = "VAULT",
+            ecran = "le Coffre de secrets",
+            nature = NatureRetour.PILE,
+            declaration = "onBack = { if (!navBack()) navTo(Route.CAPABILITIES.name) }",
+            repli = "CAPABILITIES",
             support = SUPPORT_BRANCHE,
         ),
         RetourRoute(
