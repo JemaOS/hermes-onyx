@@ -421,6 +421,9 @@ class OnyxSocleVerrouTest {
                 "app/src/main/java/com/onyx/app/ui/capabilities/McpPages.kt",
                 "app/src/main/java/com/onyx/app/ui/capabilities/SkillEditorScreen.kt",
                 "app/src/main/java/com/onyx/app/ui/capabilities/SkillPages.kt",
+                // **Le Coffre** : ouvert par la ligne « Secrets › » de « Capacités », il est audité
+                // avec les capacités du serveur — mêmes corps, mêmes jetons, même plancher.
+                "app/src/main/java/com/onyx/app/ui/vault/VaultScreen.kt",
             ),
             "Capture rapide" to listOf(
                 "app/src/main/java/com/onyx/app/ui/capture/QuickCaptureScreen.kt",
