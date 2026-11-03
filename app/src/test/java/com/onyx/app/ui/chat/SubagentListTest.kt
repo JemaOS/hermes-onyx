@@ -10,6 +10,7 @@ import com.onyx.app.ui.chat.components.subagentGoal
 import com.onyx.app.ui.chat.components.subagentListDetail
 import com.onyx.app.ui.chat.components.subagentStateLabel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -223,5 +224,62 @@ class SubagentListTest {
 
         assertEquals(1, state.subagents.count { it.status == SubagentStatus.RUNNING })
         assertEquals("quatre lignes restent visibles dans la liste", 4, state.subagents.size)
+    }
+
+    /**
+     * **Une tâche que le serveur ne liste plus ne tourne plus.**
+     *
+     * C'est le défaut vu en capture : onze tâches lancées puis interrompues restaient « En cours »
+     * dans l'écran des tâches, avec un compteur qui montait jusqu'à 238 min. Le message les croyait
+     * vivantes ; le roster du serveur ne les connaissait plus. Une fois le roster lu, c'est lui qui
+     * tranche — et une tâche absente prend l'état « sans issue », jamais « en cours ».
+     */
+    @Test
+    fun `une tache absente du roster ne tourne plus`() {
+        val zombie = agent("sa-1", SubagentStatus.RUNNING, startedAt = 0, toolCount = 162)
+        val state = ChatUiState(
+            server = ServerConfig(id = "s", name = "x"),
+            messages = listOf(
+                ChatMessage(id = "m1", role = Role.ASSISTANT, createdAt = 0, subagents = listOf(zombie)),
+            ),
+            subagentRoster = emptyList(),
+            subagentRosterRead = true,
+        )
+
+        val row = state.subagents.single()
+        assertEquals(SubagentStatus.UNKNOWN, row.status)
+        assertFalse("une tâche sans issue n'est plus vivante", row.isLive)
+        // Et la ligne ne compte plus dans la capsule « N en cours ».
+        assertEquals(0, state.subagents.count { it.status == SubagentStatus.RUNNING })
+    }
+
+    @Test
+    fun `une tache que le serveur liste encore reste vivante`() {
+        val running = agent("sa-1", SubagentStatus.RUNNING, startedAt = 0)
+        val state = ChatUiState(
+            server = ServerConfig(id = "s", name = "x"),
+            messages = listOf(
+                ChatMessage(id = "m1", role = Role.ASSISTANT, createdAt = 0, subagents = listOf(running)),
+            ),
+            subagentRoster = listOf(agent("sa-1", SubagentStatus.RUNNING, startedAt = 0)),
+            subagentRosterRead = true,
+        )
+
+        assertTrue("le serveur la voit travailler", state.subagents.single().isLive)
+    }
+
+    @Test
+    fun `un roster pas encore lu ne condamne aucune tache`() {
+        // Tant que `subagent.list` n'a pas répondu, une liste vide ne dit rien : les lignes du fil
+        // gardent leur état. C'est ce qui évite que tout passe « sans issue » à l'ouverture.
+        val running = agent("sa-1", SubagentStatus.RUNNING, startedAt = 0)
+        val state = ChatUiState(
+            server = ServerConfig(id = "s", name = "x"),
+            messages = listOf(
+                ChatMessage(id = "m1", role = Role.ASSISTANT, createdAt = 0, subagents = listOf(running)),
+            ),
+        )
+
+        assertEquals(SubagentStatus.RUNNING, state.subagents.single().status)
     }
 }

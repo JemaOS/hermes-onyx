@@ -25,6 +25,7 @@ fun subagentStateLabel(status: SubagentStatus): String = when (status) {
     SubagentStatus.DISPATCHED -> "Dispatched"
     SubagentStatus.COMPLETED -> "Finished"
     SubagentStatus.FAILED -> "Failed"
+    SubagentStatus.UNKNOWN -> "Unfinished"
 }
 
 /** L'icône de l'état (`person.2.wave.2` / `clock.arrow.2.circlepath` / les deux coches). */
@@ -33,6 +34,7 @@ fun subagentIcon(status: SubagentStatus): Int = when (status) {
     SubagentStatus.DISPATCHED -> Symbols.Clock
     SubagentStatus.COMPLETED -> Symbols.CheckmarkCircle
     SubagentStatus.FAILED -> Symbols.XmarkCircle
+    SubagentStatus.UNKNOWN -> Symbols.ClockBadgeQuestionmark
 }
 
 /** La teinte de l'état. */
@@ -41,6 +43,7 @@ fun subagentTint(status: SubagentStatus, theme: ResolvedTheme): Color = when (st
     SubagentStatus.DISPATCHED -> theme.secondaryText
     SubagentStatus.COMPLETED -> theme.success
     SubagentStatus.FAILED -> theme.error
+    SubagentStatus.UNKNOWN -> theme.secondaryText
 }
 
 /**
@@ -75,6 +78,12 @@ fun subagentDetail(agent: SubagentActivity, now: Long): String {
             add(subagentDuration(agent.elapsedSeconds(now)))
             agent.summary?.takeIf { it.isNotBlank() }?.let { add(it.take(140)) }
         }.joinToString(" · ")
+
+        // Le fil n'a jamais reçu sa fin : on dit ce qu'on a vu, et rien de plus.
+        SubagentStatus.UNKNOWN -> buildList {
+            if (tools > 0) add(if (tools == 1) "1 tool" else "$tools tools")
+            add("The thread never received its end")
+        }.joinToString(" · ")
     }
 }
 
@@ -95,4 +104,8 @@ fun subagentListDetail(agent: SubagentActivity, now: Long): String = when (agent
     // Finie : [subagentDetail] porte déjà la durée retenue par le serveur — la préfixer la dirait
     // deux fois (« 23 s · 4 outils · 23 s · … », vu en capture).
     SubagentStatus.COMPLETED, SubagentStatus.FAILED -> subagentDetail(agent, now)
+
+    // Morte sans issue connue : **aucune durée** — on ne sait pas quand elle s'est arrêtée, et un
+    // compteur qui continue d'avancer serait un mensonge de plus.
+    SubagentStatus.UNKNOWN -> subagentDetail(agent, now)
 }

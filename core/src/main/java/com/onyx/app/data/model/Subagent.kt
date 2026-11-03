@@ -121,6 +121,17 @@ enum class SubagentStatus(val wire: String) {
 
     @SerialName("failed")
     FAILED("failed"),
+
+    /**
+     * **Le fil n'a jamais reçu la fin de cette tâche.** Le tour qui l'avait lancée s'est arrêté
+     * (interruption, coupure, reprise) avant le `subagent.end`, et rien ne tourne plus.
+     *
+     * Ce n'est pas « en cours » : une tâche ne peut pas travailler quand le message qui l'a lancée
+     * est terminé. Ce n'est pas « terminé » non plus — on ne sait pas. Cet état existe pour que la
+     * liste cesse de faire clignoter indéfiniment une tâche morte, sans mentir sur son issue.
+     */
+    @SerialName("unknown")
+    UNKNOWN("unknown"),
     ;
 
     val isLive: Boolean get() = this == RUNNING || this == DISPATCHED

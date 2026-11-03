@@ -7,6 +7,7 @@ import com.onyx.app.data.model.OutboxItem
 import com.onyx.app.data.model.PrefillProgress
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.model.SubagentActivity
+import com.onyx.app.data.model.SubagentStatus
 
 /**
  * Tout ce que l'écran de chat doit rendre.
@@ -109,6 +110,13 @@ data class ChatUiState(
      * la source vive ; le roster les complète.
      */
     val subagentRoster: List<SubagentActivity> = emptyList(),
+
+    /**
+     * **Le roster a été lu au moins une fois.** Tant qu'il ne l'a pas été, une liste vide ne dit
+     * rien — elle peut être « pas encore demandé ». Une fois lu, elle **fait autorité** : une tâche
+     * que le serveur ne liste plus ne tourne plus, même si un message la croit encore vivante.
+     */
+    val subagentRosterRead: Boolean = false,
     /**
      * La restauration qui attend **confirmation** : le message visé et ce qui serait défait.
      * Rien n'est retiré tant que ce champ est posé — c'est la confirmation demandée.
@@ -138,7 +146,24 @@ data class ChatUiState(
             // identifiant, et la liste la dessinait deux fois — c'est ce doublon qui faisait
             // tomber l'écran des tâches (`Key … was already used` dans la `LazyColumn`). On garde
             // la **dernière** version connue de chaque tâche : c'est la plus fraîche.
-            val fromMessages = messages.flatMap { it.subagents }
+            val fromMessages = messages.flatMap { message ->
+                message.subagents.map { row ->
+                    // **Le roster est la seule autorité sur ce qui tourne encore.** Une tâche que
+                    // le serveur ne liste plus ne travaille plus, quoi qu'en dise un message : sans
+                    // cette règle, une tâche lancée puis interrompue (coupure, reprise, tour
+                    // arrêté) restait « En cours » pour toujours, avec un compteur qui montait
+                    // jusqu'à 238 min — la liste des tâches ne se vidait jamais.
+                    val onServer = subagentRoster.firstOrNull { it.id == row.id }
+                    when {
+                        !subagentRosterRead -> row
+                        message.isStreaming -> row
+                        !row.status.isLive -> row
+                        onServer == null -> row.copy(status = SubagentStatus.UNKNOWN)
+                        // Le serveur a le dernier mot sur l'état : c'est lui qui la voit travailler.
+                        else -> row.copy(status = onServer.status)
+                    }
+                }
+            }
                 .asReversed()
                 .distinctBy { it.id }
                 .asReversed()

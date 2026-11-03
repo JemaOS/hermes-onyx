@@ -589,7 +589,10 @@ class ChatViewModel(
             val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
             com.onyx.app.data.net.ServeSubagentRpc(channel).list(parentSessionId())
         }.getOrNull()?.let { rows ->
-            _state.update { it.copy(subagentRoster = rows) }
+            // Lu, même vide : c'est ce qui autorise l'écran à clore les tâches que le serveur ne
+            // liste plus (sinon une liste vide ne distinguerait pas « rien ne tourne » de « pas
+            // encore demandé »).
+            _state.update { it.copy(subagentRoster = rows, subagentRosterRead = true) }
         }
     }
 
