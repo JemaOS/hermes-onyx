@@ -14,6 +14,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
@@ -195,10 +196,13 @@ class HermesServeChatTest {
     }
 
     @Test
-    fun `une connexion perdue pendant le tour ne passe pas pour un succes`() = runBlocking {
+    fun `une connexion perdue pendant le tour ne le coupe plus l app se rattache`() = runBlocking {
         val channel = FakeChannel { method, _ ->
             when (method) {
-                "session.create" -> Reply(buildJsonObject { put("session_id", "r") })
+                "session.create" -> Reply(buildJsonObject {
+                    put("session_id", "r")
+                    put("stored_session_id", "stored-1")
+                })
                 "prompt.submit" -> Reply(
                     buildJsonObject { },
                     emit = listOf(
@@ -206,15 +210,36 @@ class HermesServeChatTest {
                         ServeEvent("connection.lost", null, buildJsonObject { }),
                     ),
                 )
+                // Le rattachement : le tour a fini pendant la coupure, l'hôte rend sa réponse.
+                "session.resume" -> Reply(buildJsonObject {
+                    put("session_id", "r")
+                    put("running", false)
+                    put("messages", buildJsonArray {
+                        add(buildJsonObject {
+                            put("role", "user")
+                            put("content", "Bonjour")
+                        })
+                        add(buildJsonObject {
+                            put("role", "assistant")
+                            put("content", "commence et finit")
+                        })
+                    })
+                })
                 else -> Reply(buildJsonObject { })
             }
         }
 
-        val failure = runCatching {
-            withTimeout(5_000) { HermesServeChat(config, channel).stream(request()).toList() }
-        }.exceptionOrNull()
+        val events = withTimeout(5_000) { HermesServeChat(config, channel).stream(request()).toList() }
 
-        assertTrue(failure is TransportError)
+        assertEquals(
+            "la question ne se rejoue pas : le bot ne doit pas y répondre deux fois",
+            1,
+            channel.calls.count { it.first == "prompt.submit" },
+        )
+        assertTrue(
+            "la réponse de l'hôte est reprise en entier",
+            events.any { it is TurnEvent.TextFinal && it.text == "commence et finit" },
+        )
     }
 
     @Test
@@ -278,8 +303,12 @@ class HermesServeChatTest {
         }
 
         val stopped = channel()
+        // Un arrêt est marqué comme tel : c'est le seul droit qui interrompt l'hôte. Une simple
+        // annulation — l'app qui s'en va — le laisse finir.
+        val stopDeparture = TurnDeparture()
+        stopDeparture.stop()
         val stop = launch {
-            HermesServeChat(config, stopped).stream(request(), null, TurnDeparture()).collect { }
+            HermesServeChat(config, stopped).stream(request(), null, stopDeparture).collect { }
         }
         withTimeout(5_000) { while (stopped.calls.none { it.first == "prompt.submit" }) delay(10) }
         stop.cancelAndJoin()

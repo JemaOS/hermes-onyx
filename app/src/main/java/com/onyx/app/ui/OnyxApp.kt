@@ -1226,8 +1226,12 @@ fun OnyxApp() {
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
-                    Lifecycle.Event.ON_RESUME -> inForeground = true
-                    Lifecycle.Event.ON_PAUSE -> inForeground = false
+                    // `ON_START`/`ON_STOP`, pas `ON_RESUME`/`ON_PAUSE` : une pause va avec tout ce
+                    // qui passe devant l'app — un dialogue, le volet des notifications, une demande
+                    // d'autorisation. Le service de premier plan n'a rien à y faire, et la personne
+                    // n'a rien demandé.
+                    Lifecycle.Event.ON_START -> inForeground = true
+                    Lifecycle.Event.ON_STOP -> inForeground = false
                     else -> Unit
                 }
             }

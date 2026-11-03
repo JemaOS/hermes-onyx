@@ -6,8 +6,9 @@ package com.onyx.app.notifications
  * C'est le réglage « Suivi du travail » de Réglages → Notifications, en trois choix :
  *
  *  - [NEVER] : rien, jamais ;
- *  - [ON_FINISH] (le défaut) : **une** notification de fin, avec l'extrait de la réponse — rien
- *    ne s'installe dans la barre d'état pendant le tour, donc rien à subir à chaque tour ;
+ *  - [ON_FINISH] (le défaut) : **une** notification de fin, avec l'extrait de la réponse. Pendant
+ *    le tour, une notification discrète tient le processus — sans elle Android endort l'app, le
+ *    canal meurt, et le tour est perdu au moment où la personne l'attendait ;
  *  - [EVERY_STEP] : la notification d'avancement reste dans la barre d'état pendant tout le
  *    travail — étape en cours, temps écoulé, bouton Arrêter, et pastille sur Android 16 — puis la
  *    notification de fin.

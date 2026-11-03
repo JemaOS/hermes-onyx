@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.put
 
 /**
@@ -84,6 +85,16 @@ class HermesServeChat(
         // rejoue pas la question — le bot recommencerait à répondre et la personne verrait la
         // même réponse deux fois. On se contente de lui rendre le canal.
         var streamed = false
+        // La question est-elle partie chez l'hôte ? Une coupure ne se rejoue plus dès qu'elle est
+        // partie : l'hôte finit le travail, et l'app se rattache à lui pour recevoir la réponse.
+        var submitted = false
+        // On s'est rattaché à un tour déjà parti : le serveur renvoie le texte **entier** de la
+        // réponse, il remplace le fragment reçu avant la coupure.
+        var reattaching = false
+        // La session **où le tour tourne**. Au rattachement, c'est elle qu'on reprend — pas la
+        // session de la conversation, qui peut n'exister pas encore : une session neuve ne
+        // reverrait pas le tour en cours.
+        var runningStored: String? = null
         while (true) {
             val scope = this
             val events = Channel<ServeEvent>(Channel.UNLIMITED)
@@ -99,28 +110,50 @@ class HermesServeChat(
             // le ticket WebSocket part avec elle.
             link.connect()
 
-            val session = openSession(request, storedSessionId)
+            // Au rattachement, on reprend la session **du tour** : c'est elle que l'hôte tient
+            // ouverte, et c'est la seule d'où la réponse peut sortir.
+            val session = openSession(
+                request,
+                if (reattaching) runningStored else storedSessionId,
+                reattaching,
+            )
             runtime = session.runtime
             onRuntimeSessionId?.invoke(session.runtime)
-            send(TurnEvent.SessionId(session.stored))
+            if (reattaching) {
+                // Le tour a pu finir pendant la coupure : l'hôte garde la réponse, on la prend.
+                // Sans elle, le tour est encore en cours : on attend ses événements.
+                val finished = session.finishedReply
+                if (finished != null) {
+                    send(TurnEvent.TextFinal(finished))
+                    send(TurnEvent.Done)
+                    completed = true
+                    return@channelFlow
+                }
+            } else {
+                send(TurnEvent.SessionId(session.stored))
+                // La session où le tour tourne : c'est elle qu'on reprendra au rattachement.
+                runningStored = session.stored
 
-            // Les images d'abord : le Dashboard ne prend que du texte sur `prompt.submit`, et une
-            // image se dépose sur la session par `image.attach_bytes` (voir [attachImages]). Sans
-            // cet appel, l'image jointe était **silencieusement perdue** : le message partait et la
-            // silhouette ne l'avait jamais reçue. Un refus ne bloque pas le tour : il est dit, et le
-            // texte part quand même.
-            attachImages(request, session.runtime)?.let { send(TurnEvent.Status(it)) }
+                // Les images d'abord : le Dashboard ne prend que du texte sur `prompt.submit`, et une
+                // image se dépose sur la session par `image.attach_bytes` (voir [attachImages]). Sans
+                // cet appel, l'image jointe était **silencieusement perdue** : le message partait et la
+                // silhouette ne l'avait jamais reçue. Un refus ne bloque pas le tour : il est dit, et le
+                // texte part quand même.
+                attachImages(request, session.runtime)?.let { send(TurnEvent.Status(it)) }
 
-            val submitted = link.call(
-                "prompt.submit",
-                buildJsonObject {
-                    put("session_id", session.runtime)
-                    put("text", promptText(request))
-                },
-                PROMPT_TIMEOUT_MS,
-            )
-            if (submitted.asObject()?.str("status") == "queued") {
-                send(TurnEvent.Status(OnyxLocalization["queued behind a running turn…"]))
+                val submit = link.call(
+                    "prompt.submit",
+                    buildJsonObject {
+                        put("session_id", session.runtime)
+                        put("text", promptText(request))
+                    },
+                    PROMPT_TIMEOUT_MS,
+                )
+                // La question est partie : un retour arrière ne la rejouera plus.
+                submitted = true
+                if (submit.asObject()?.str("status") == "queued") {
+                    send(TurnEvent.Status(OnyxLocalization["queued behind a running turn…"]))
+                }
             }
 
             var underWay = false
@@ -128,7 +161,7 @@ class HermesServeChat(
                 for (event in events) {
                     if (!ServeChatEvents.matches(event, session.runtime, session.stored)) continue
                     if (ServeChatEvents.isTurnEvent(event.type)) underWay = true
-                    when (val step = ServeChatEvents.step(event, streamed = streamed, underWay = underWay)) {
+                    when (val step = ServeChatEvents.step(event, streamed = streamed, underWay = underWay, reattaching = reattaching)) {
                         is ServeStep.Emit -> for (mapped in step.events) {
                             if (mapped is TurnEvent.TextDelta) streamed = true
                             send(mapped)
@@ -165,18 +198,22 @@ class HermesServeChat(
             // quand le réseau change ; avant, le tour mourait là et la personne devait le
             // relancer à la main — en pleine conversation vocale, c'est le silence.
             //
-            // On ne rejoue que si le bot **n'a pas encore répondu** : rejouer une question
-            // déjà commencée enverrait la même chose deux fois au bot.
+            // On ne rejoue que si la question **n'est pas partie** : renvoyer une question déjà
+            // envoyée ferait répondre le bot deux fois. Sinon on se **rattache** au tour en cours :
+            // l'hôte finit le travail, et l'app reçoit la réponse — que le tour ait fini pendant la
+            // coupure, ou qu'il finisse après.
             lost = true
             attempt++
-            if (attempt > TURN_RETRY_LIMIT || streamed) throw error
+            if (attempt > TURN_RETRY_LIMIT) throw error
+            reattaching = submitted
         } finally {
             link.removeListener(listener)
-            // Interrompu par l'utilisateur : le tour s'arrête aussi côté serveur (le nôtre, sans
-            // travail : on n'attend pas la réponse). Un tour dont on s'est **détaché** n'est pas
-            // arrêté : l'hôte le finit, et sa réponse est là au retour. Un tour fini ne l'est jamais.
-            // Un tour **coupé** n'est pas interrompu non plus : on va le rejouer.
-            if (!lost && !completed && runtime != null && departure?.hasLeft != true) {
+            // Seul l'**utilisateur** interrompt le tour chez l'hôte. Une annulation — l'app qui
+            // s'en va, le processus qui meurt, le tiroir qui se ferme — le laisse finir : sa réponse
+            // est là au retour. Avant, toute annulation envoyait `session.interrupt`, et le tour
+            // mourait au moment précis où la personne était sortie de l'app.
+            val stoppedByUser = departure == null || departure.isStopped
+            if (!lost && !completed && stoppedByUser && runtime != null && departure?.hasLeft != true) {
                 val session = runtime
                 withContext(NonCancellable) {
                     runCatching {
@@ -192,11 +229,13 @@ class HermesServeChat(
         }
     }
 
-    private suspend fun openSession(request: ChatRequest, stored: String?): ServeSession {
+    private suspend fun openSession(request: ChatRequest, stored: String?, reattaching: Boolean = false): ServeSession {
         val params = buildJsonObject {
             if (stored != null) {
                 put("session_id", stored)
-                put("omit_messages", true)
+                // Le rattachement demande l'historique : c'est lui qui porte la réponse si le tour
+                // a fini pendant la coupure. Le tour normal ne le demande pas — il est déjà connu.
+                put("omit_messages", !reattaching)
             } else {
                 // « desktop », pas « mobile » : le hint plateforme du prompt système (comme référence).
                 put("source", "desktop")
@@ -211,7 +250,18 @@ class HermesServeChat(
             ?: throw TransportError.Malformed(OnyxLocalization.format("%1\$s gave no session", method))
         val runtime = result.strOrNull("session_id")
             ?: throw TransportError.Malformed(OnyxLocalization.format("%1\$s gave no session id", method))
-        if (stored != null) return ServeSession(runtime, stored)
+        if (stored != null) {
+            // Rattachement : si le tour a fini pendant la coupure, l'hôte a la réponse dans son
+            // historique. `running == false` le dit — tant qu'il court, on attend ses événements.
+            val finished = if (reattaching && result.bool("running") == false) {
+                val rows = result["messages"]
+                    ?.let { element -> runCatching { element.jsonArray }.getOrNull() }
+                    ?.let { array -> ServeSessionMessages.rowsOf(array) }
+                    .orEmpty()
+                ServeSessionMessages.trailingReply(rows)
+            } else null
+            return ServeSession(runtime, stored, finished)
+        }
         val storedID = result.strOrNull("stored_session_id") ?: runtime
         return ServeSession(runtime, storedID)
     }
@@ -314,8 +364,17 @@ internal data class DataImage(val base64: String, val name: String) {
     }
 }
 
-/** La session ouverte : l'identifiant runtime du tour, et l'identifiant à garder côté app. */
-internal data class ServeSession(val runtime: String, val stored: String)
+/**
+ * La session ouverte : l'identifiant runtime du tour, et l'identifiant à garder côté app.
+ *
+ * [finishedReply] : la réponse **complète** que l'hôte a terminée pendant une coupure, quand on
+ * s'est rattaché à un tour déjà parti. Elle remplace le fragment reçu avant la coupure.
+ */
+internal data class ServeSession(
+    val runtime: String,
+    val stored: String,
+    val finishedReply: String? = null,
+)
 
 /**
  * Le canal minimal dont le chat du Dashboard a besoin : vrai `ServeRpc` en production, faux en
@@ -388,7 +447,7 @@ internal object ServeChatEvents {
     fun matches(event: ServeEvent, runtime: String, stored: String): Boolean =
         event.sessionId == null || event.sessionId == runtime || event.sessionId == stored
 
-    fun step(event: ServeEvent, streamed: Boolean, underWay: Boolean): ServeStep {
+    fun step(event: ServeEvent, streamed: Boolean, underWay: Boolean, reattaching: Boolean = false): ServeStep {
         val payload = event.payload
         return when (event.type) {
             "message.delta" -> payload.strOrNull("text")
@@ -440,8 +499,13 @@ internal object ServeChatEvents {
 
             "message.complete" -> {
                 val events = buildList {
-                    if (!streamed) {
-                        payload.strOrNull("text")?.takeIf { it.isNotEmpty() }?.let { add(TurnEvent.TextDelta(it)) }
+                    val text = payload.strOrNull("text")?.takeIf { it.isNotEmpty() }
+                    if (reattaching) {
+                        // On s'est rattaché à un tour déjà parti : le serveur renvoie le texte
+                        // **entier** de la réponse, il remplace le fragment reçu avant la coupure.
+                        text?.let { add(TurnEvent.TextFinal(it)) }
+                    } else if (!streamed) {
+                        text?.let { add(TurnEvent.TextDelta(it)) }
                     }
                     usageOf(payload.obj("usage"))?.let { add(TurnEvent.Usage(it)) }
                 }

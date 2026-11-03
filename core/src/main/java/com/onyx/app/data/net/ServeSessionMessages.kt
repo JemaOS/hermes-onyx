@@ -110,12 +110,20 @@ class ServeSessionMessages(
                 }
                 else -> null
             } ?: return emptyList()
-            return array.mapNotNull { element ->
-                val row = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
-                val role = (row["role"] as? JsonPrimitive)?.content?.trim()?.lowercase()
-                    ?: return@mapNotNull null
-                Row(role = role, text = textOf(row["content"]))
-            }
+            return rowsOf(array)
+        }
+
+        /**
+         * Les mêmes lignes, depuis un tableau **déjà parsé**.
+         *
+         * C'est ce que rend `session.resume` quand on demande l'historique : le rattachement après
+         * une coupure a besoin de la réponse que l'hôte a terminée pendant l'absence.
+         */
+        fun rowsOf(array: JsonArray): List<Row> = array.mapNotNull { element ->
+            val row = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
+            val role = (row["role"] as? JsonPrimitive)?.content?.trim()?.lowercase()
+                ?: return@mapNotNull null
+            Row(role = role, text = textOf(row["content"]))
         }
 
         /** Le texte d'un contenu : une chaîne, ou des blocs dont on ne garde que les parties texte. */

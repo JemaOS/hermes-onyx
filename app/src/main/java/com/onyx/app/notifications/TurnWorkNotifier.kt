@@ -76,14 +76,19 @@ class TurnNoticePlanner(
         val notices = mutableListOf<TurnNotice>()
 
         val shown = WorkTrackingPolicy.tracked(sessions.values, choice, appInForeground, visibleConversationId)
-        notices += if (shown == null) {
+        // Le processus doit tenir tant qu'un tour tourne, même si la politique ne demande pas de
+        // suivi visible : la politique décide *ce qu'on montre*, pas *si le travail survit*.
+        val held = shown ?: WorkTrackingPolicy.holding(sessions.values, choice, appInForeground)
+        notices += if (held == null) {
             TurnNotice.Idle
         } else {
             TurnNotice.Keep(
-                conversationId = shown.conversationId,
-                title = titleOf(shown.conversationId),
-                text = progressText(shown),
-                percent = percentOf(shown),
+                conversationId = held.conversationId,
+                title = titleOf(held.conversationId),
+                text = progressText(held),
+                // Le suivi visible montre la progression ; le simple maintien du processus s'en
+                // passe — la personne ne voit qu'un mot, pas un bandeau qui compte.
+                percent = if (shown != null) percentOf(shown) else null,
             )
         }
 

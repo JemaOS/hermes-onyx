@@ -116,6 +116,9 @@ class TurnStore(
     fun stop(conversationId: String) {
         val session = _sessions.value[conversationId] ?: return
         session.stop(clock())
+        // L'arrêt de l'utilisateur est le seul droit qui.interrompt l'hôte : on le dit au
+        // transport avant l'annulation, sinon il ne pourrait pas distinguer un arrêt d'un départ.
+        session.departure.stop()
         session.job?.cancel()
         session.job = null
         journal.turnEnded(conversationId, session)
