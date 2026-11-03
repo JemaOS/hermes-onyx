@@ -251,8 +251,21 @@ class GroupRoomViewModel(
         val read = roomLeadRead(_lead.value, current.handoffs, through)
         handoffThrough = read.through
         if (read.lead != _lead.value) {
+            val from = _lead.value
             _lead.value = read.lead
             leadStore.set(current.room.id, read.lead)
+            // **Le passage devient un fait du salon.** Le meneur a écrit « @Coder prend la suite » :
+            // la salle l'enregistre (`groups.handoff`), les autres appareils le voient, et le tour
+            // du meneur qui part est arrêté. Un serveur sans la route rend `false` — la ligne de
+            // journal locale reste, exactement comme avant.
+            if (from != null && read.lead != null) {
+                val memberOf = { profile: String ->
+                    current.room.members.firstOrNull { it.profile == profile }?.id ?: profile
+                }
+                viewModelScope.launch {
+                    feed.handOver(memberOf(from), memberOf(read.lead))
+                }
+            }
         }
     }
 
