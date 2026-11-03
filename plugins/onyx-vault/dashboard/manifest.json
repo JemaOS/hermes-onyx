@@ -1,0 +1,11 @@
+{
+  "name": "onyx-vault",
+  "label": "Onyx Vault",
+  "description": "Coffre de secrets par profil, chiffré au repos, pour Onyx. API backend uniquement (aucun onglet dans la sidebar).",
+  "icon": "Lock",
+  "version": "1.0.0",
+  "tab": { "hidden": true },
+  "slots": [],
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}
