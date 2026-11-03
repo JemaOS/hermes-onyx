@@ -27,6 +27,7 @@ import com.onyx.app.data.net.HermesServeChat
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeSessionsApi
+import com.onyx.app.data.net.ServeSkillsApi
 import com.onyx.app.data.net.ServerSessions
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.TurnEvent
@@ -127,6 +128,21 @@ class ChatViewModel(
     private var slashJob: kotlinx.coroutines.Job? = null
 
     /**
+     * **La liste que le menu et l'exécution lisent**, et rien d'autre : les six commandes fixes,
+     * puis les compétences du profil ([refreshSlashCommands]).
+     *
+     * Elle démarre sans compétence : avant la première lecture, l'app se comporte exactement comme
+     * avant ce lot.
+     */
+    private var slashCommands: List<SlashCommand> = SlashCommands.commands()
+
+    /** La lecture des compétences en cours (`api/skills`). */
+    private var skillsJob: Job? = null
+
+    /** Quand `api/skills` a été lu pour la dernière fois : une relecture par minute au plus. */
+    private var skillsLoadedAt = 0L
+
+    /**
      * Vrai une fois la conversation la plus récente rétablie (ou une nouvelle commencée).
      *
      * Sans ce verrou, le fil vide d'une nouvelle conversation ressemblerait au démarrage de
@@ -180,6 +196,9 @@ class ChatViewModel(
                     val modelChanged = server.model != current.model
                     _state.update { it.copy(server = server, modelInUse = if (modelChanged) null else it.modelInUse) }
                 }
+                // Les compétences vivent dans le profil : un autre serveur, un autre profil ou
+                // d'autres identifiants changent la liste des commandes « / ».
+                refreshSlashCommands()
             }
         }
         // La conversation la plus récente pour ce serveur, une seule fois, s'il y en a une.
@@ -671,11 +690,14 @@ class ChatViewModel(
             _state.update { it.copy(slashItems = emptyList()) }
             return
         }
+        // Les compétences du profil peuvent avoir changé (une installation dans « Compétences »,
+        // un autre bot) : on les relit, au plus une fois par minute.
+        if (now() - skillsLoadedAt > SKILLS_TTL_MS) refreshSlashCommands()
         // Sans connexion Dashboard, il n'y a pas de `complete.slash` : le menu montre les
         // commandes que l'app sait exécuter elle-même, plutôt que rien.
         if (!_state.value.server.hasServeCredentials) {
-            val local = SlashCommands.matches(value).map { command ->
-                SlashItem(text = command.name, display = command.display, detail = command.detail)
+            val local = SlashCommands.matches(value, slashCommands).map { command ->
+                SlashItem(text = command.name, display = command.display, detail = command.shownDetail)
             }
             _state.update { it.copy(slashItems = local) }
             return
@@ -702,7 +724,10 @@ class ChatViewModel(
                     detail = obj.firstString("meta", "detail", "description").orEmpty(),
                 )
             }.take(8)
-            _state.update { it.copy(slashItems = withModelCommand(items, value)) }
+            // Le menu du gateway, complété de ce que l'app sait déjà exécuter — `/model` et les
+            // compétences du profil (`withLocalCommands`) : la même liste que l'exécution.
+            val merged = withModelCommand(items, value)
+            _state.update { it.copy(slashItems = withLocalCommands(merged, value, slashCommands)) }
         }
     }
 
@@ -951,7 +976,11 @@ class ChatViewModel(
      */
     fun setBotProfile(profile: String?) {
         val clean = profile?.trim()
+        val changed = _state.value.botProfile != clean
         _state.update { if (it.botProfile == clean) it else it.copy(botProfile = clean) }
+        // Les compétences sont celles **du profil** : changer de bot change la liste des
+        // commandes « / » (celles d'un profil ne sont pas celles d'un autre).
+        if (changed) refreshSlashCommands()
     }
 
     /**
@@ -1011,20 +1040,108 @@ class ChatViewModel(
      */
     private fun submitSlash(text: String, clearInput: Boolean) {
         if (clearInput) clearDraft()
-        when (SlashCommands.action(text)) {
+        when (SlashCommands.action(text, slashCommands)) {
             SlashAction.OPEN_MODEL_PICKER,
             SlashAction.NEW_CONVERSATION,
             SlashAction.FIND,
             SlashAction.SETTINGS,
             SlashAction.VOICE,
-            -> _state.update { it.copy(pendingSlash = SlashCommands.action(text), slashItems = emptyList()) }
+            -> _state.update {
+                it.copy(pendingSlash = SlashCommands.action(text, slashCommands), slashItems = emptyList())
+            }
 
             SlashAction.HELP -> {
                 _state.update { it.copy(slashItems = emptyList()) }
-                appendLocalReply(SlashCommands.helpText())
+                appendLocalReply(SlashCommands.helpText(slashCommands))
             }
 
+            // Une compétence du profil n'est pas une commande du worker : `slash.exec` la refuse
+            // exprès (« skill command: use command.dispatch »).
+            SlashAction.INVOKE_SKILL -> invokeSkill(text)
+
             SlashAction.GATEWAY -> runSlashOnGateway(text)
+        }
+    }
+
+    /**
+     * Invoque une compétence du profil, et **envoie** le message qui la charge.
+     *
+     * `command.dispatch` rend le message destiné au modèle (`type: skill`) : c'est lui qui part
+     * comme le tour suivant, exactement le contrat de la référence (`gateway_chat_commands.forward`
+     * appelle `view.submit(reply["message"])`). Le fil, lui, garde la ligne tapée — le corps de la
+     * compétence n'est pas une parole de l'utilisateur.
+     */
+    private fun invokeSkill(text: String) {
+        val server = _state.value.server
+        if (!server.hasServeCredentials) {
+            appendLocalReply(OnyxLocalization["Slash commands need a connection to the Dashboard."])
+            return
+        }
+        val line = text.trim().removePrefix("/")
+        val name = line.substringBefore(' ').trim()
+        val argument = line.substringAfter(' ', "").trim()
+        _state.update { it.copy(slashItems = emptyList()) }
+        viewModelScope.launch {
+            // Un tour est déjà en cours : la compétence attend son tour au lieu d'ouvrir un second
+            // flux sur la même conversation.
+            while (_state.value.isStreaming) delay(200)
+            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val result = runCatching {
+                channel.call(
+                    method = "command.dispatch",
+                    params = buildJsonObject {
+                        // La session vivante, quand elle existe : `command.dispatch` s'en sert pour
+                        // nommer la tâche de la compétence, et accepte une valeur vide.
+                        put("session_id", parentSessionId())
+                        put("name", name)
+                        put("arg", argument)
+                    },
+                    timeoutMillis = 30_000,
+                )
+            }
+            val payload = result.getOrNull()?.asObject()
+            val message = payload?.firstString("message")
+            if (message != null) {
+                val history = _state.value.messages
+                    .filter { it.error == null && it.text.isNotBlank() }
+                    .map { ChatTurn(role = it.role, text = it.text) }
+                appendTurn(text = message, history = history, displayText = text.trim())
+                return@launch
+            }
+            val error = result.exceptionOrNull()
+            val reason = (error as? TransportError)?.userMessage() ?: error?.message.orEmpty()
+            appendLocalReply(
+                OnyxLocalization["The command did not run."] + " " + reason,
+            )
+        }
+    }
+
+    /**
+     * Relit les compétences du profil : `api/skills`, la route que l'écran « Compétences » utilise
+     * déjà. C'est **la** source de la liste que le menu et l'exécution partagent.
+     *
+     * Sans connexion Dashboard, il n'y a pas de route : la liste reste celle des six commandes
+     * fixes. Une lecture qui échoue ne casse rien non plus — un profil sans compétence donne
+     * exactement la liste d'avant.
+     */
+    private fun refreshSlashCommands() {
+        skillsJob?.cancel()
+        skillsLoadedAt = now()
+        val server = _state.value.server
+        if (!server.hasServeCredentials) {
+            slashCommands = SlashCommands.commands()
+            return
+        }
+        // Les compétences sont celles du profil du bot quand la conversation en porte un ; sinon
+        // celles du profil du serveur (`ServeClient` s'en charge quand on ne nomme personne).
+        val profile = _state.value.botProfile?.takeIf { it.isNotBlank() }
+        skillsJob = viewModelScope.launch {
+            val skills = runCatching { ServeSkillsApi(ServeClient(server)).skills(profile) }
+                .getOrDefault(emptyList())
+            slashCommands = SlashCommands.commands(skills)
+            // Le menu déjà ouvert se relit avec la liste fraîche : les compétences y entrent.
+            val draft = _state.value.input
+            if (draft.startsWith("/")) updateSlashMenu(draft)
         }
     }
 
@@ -1093,8 +1210,22 @@ class ChatViewModel(
                 timeoutMillis = 30_000,
             )
         }
-        val shown = result.getOrNull()?.asObject()
-            ?.let { it.firstString("display") ?: it.firstString("output") ?: it.firstString("message") }
+        val reply = result.getOrNull()?.asObject()
+        // Une compétence (ou une commande qui compose un tour, `/plan`…) : le gateway rend le
+        // message **destiné au modèle**, et c'est lui qui part — jamais dans une bulle. C'est le
+        // repli d'une compétence que la liste connue ne portait pas encore.
+        val message = reply?.firstString("message")
+        val type = reply?.firstString("type")
+        if (message != null && (type == "skill" || type == "send")) {
+            val history = _state.value.messages
+                .filter { it.error == null && it.text.isNotBlank() }
+                .map { ChatTurn(role = it.role, text = it.text) }
+            val typed = "/" + name + if (argument.isEmpty()) "" else " " + argument
+            appendTurn(text = message, history = history, displayText = typed)
+            return
+        }
+        val shown = reply
+            ?.let { it.firstString("display") ?: it.firstString("output") }
             ?: humanFailure(result.exceptionOrNull(), "(done)")
         appendLocalReply(shown)
     }
@@ -1431,6 +1562,12 @@ class ChatViewModel(
         clearInput: Boolean = true,
         modelOverride: String? = null,
         outgoing: OutboxItem? = null,
+        /**
+         * Ce que le fil montre comme parole de l'utilisateur, quand le texte **envoyé** n'est pas le
+         * sien : l'invocation d'une compétence envoie le corps de la compétence, et la bulle garde
+         * la ligne tapée (`/resume ce fil`).
+         */
+        displayText: String? = null,
     ) {
         // L'état **et** le serveur : le modèle en vigueur se lit sur l'état — la **même** résolution
         // que la pilule du haut, pour que ce qui est nommé soit exactement ce qui part. Et le
@@ -1442,7 +1579,7 @@ class ChatViewModel(
         val userMessage = ChatMessage(
             id = outgoing?.id ?: UUID.randomUUID().toString(),
             role = Role.USER,
-            text = text,
+            text = displayText ?: text,
             createdAt = now(),
             attachments = attachments.map { it.toAttachment() },
         )
@@ -1780,6 +1917,12 @@ class ChatViewModel(
 
         /** Le gateway rend 4018 quand la ligne n'est pas une commande de son worker. */
         const val SLASH_NOT_A_COMMAND = 4018
+
+        /**
+         * Combien de temps la liste des compétences reste fraîche : `api/skills` est relu au plus
+         * une fois par minute, quand le menu « / » s'ouvre.
+         */
+        const val SKILLS_TTL_MS = 60_000L
 
         /**
          * Le rattrapage d'un tour fini sans client : combien de relectures, et à quel rythme.
