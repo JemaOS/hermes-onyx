@@ -24,10 +24,12 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.onyx.app.MainActivity
+import com.onyx.app.data.local.BotPresenceIndex
 import com.onyx.app.data.model.Conversation
 import com.onyx.app.data.model.Role
 import com.onyx.app.di.AppContainer
 import com.onyx.app.localization.OnyxLocalization
+import com.onyx.app.notifications.NotificationCopy
 import com.onyx.app.ui.theme.OnyxSystem
 import com.onyx.app.ui.theme.OnyxTheme
 import kotlinx.coroutines.flow.first
@@ -56,6 +58,13 @@ private data class WidgetSnapshot(
     val theme: OnyxTheme,
     val contextPercent: Int? = null,
     val agentNote: String = "",
+    /**
+     * De qui la réponse est la réponse : le libellé du bot de la conversation quand le téléphone
+     * le connaît ([BotPresenceIndex] : le chat serveur du bot, puis le titre posé), « Onyx » sinon.
+     * C'était le défaut : le widget écrivait « Onyx » en dur, et une réponse de bot s'y lisait sous
+     * l'identité d'Onyx.
+     */
+    val speaker: String = NotificationCopy.ONYX,
 )
 
 private suspend fun widgetContext(): Int? {
@@ -85,12 +94,18 @@ private suspend fun widgetSnapshot(context: Context): WidgetSnapshot {
     val theme = runCatching { withTimeoutOrNull(1500) { AppContainer.settings.theme.first() } }.getOrNull()
         ?: OnyxTheme.STANDARD
 
+    // De qui la réponse : le bot de la conversation, quand cette table le nomme — sinon « Onyx ».
+    val speaker = runCatching {
+        BotPresenceIndex.labelOf(conversation, BotPresenceIndex(context).entries())
+    }.getOrNull() ?: NotificationCopy.ONYX
+
     return WidgetSnapshot(
         question = lastUser?.text.orEmpty(),
         answer = if (answered) lastAssistant?.text else null,
         theme = theme,
         contextPercent = percent,
         agentNote = agentNote,
+        speaker = speaker,
     )
 }
 
@@ -128,7 +143,7 @@ private fun WidgetContent(snapshot: WidgetSnapshot) {
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             Text(
-                text = "Onyx",
+                text = snapshot.speaker,
                 style = TextStyle(color = ColorProvider(accent), fontSize = 12.sp, fontWeight = FontWeight.Bold),
             )
             snapshot.contextPercent?.let { percent ->

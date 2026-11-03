@@ -2860,8 +2860,12 @@ fun OnyxApp() {
             val updateGate = remember { com.onyx.app.ui.sidebar.UpdateGate(context) }
             val updateOffer by updateGate.offer.collectAsStateWithLifecycle()
             LaunchedEffect(updateGate) { updateGate.refresh() }
-            val faceCodeOf: (String) -> String? = remember(knownBots, botsState.faces) {
-                { name -> knownBots.firstOrNull { it.name == name }?.faceCode ?: botsState.faces[name] }
+            // Le visage d'une ligne du volet, par **la résolution unique** — la même instance que
+            // le fil, la salle et la scène vocale. Ce n'était pas le cas : ce lambda refaisait le
+            // calcul (`knownBots.firstOrNull { … }?.faceCode ?: botsState.faces[name]`), une
+            // seconde écriture de la règle qui pouvait diverger de `BotFaceResolver`.
+            val faceCodeOf: (String) -> String? = remember(faceResolver) {
+                faceResolver::codeOf
             }
             ChatSidebarHost(
                 serverName = state.server.displayName,
