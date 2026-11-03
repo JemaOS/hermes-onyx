@@ -687,7 +687,17 @@ class OnyxSocleVerrouTest {
  * `ui/setup/QrCodeDecoder.kt` : le résultat d'un décodage s'y nomme `ScanOutcome.Text(...)` — une
  * **valeur** décodée, pas un texte peint. Rien n'y dessine, et il n'a donc pas de route à déclarer.
  */
-private val NOT_SCREENS: Set<String> = setOf("ui/setup/QrCodeDecoder.kt")
+/**
+ * Les fichiers d'interface qui ne sont **pas** des écrans : des composants dessinés dans un écran
+ * existant, sans route à eux.
+ *
+ * `SlashMenu` est le menu « / » : il se dessine **dans** le fil (`ChatScreen`), pas sur une route
+ * — il n'a donc rien à déclarer, et le socle n'a rien à lui imposer.
+ */
+private val NOT_SCREENS: Set<String> = setOf(
+    "ui/setup/QrCodeDecoder.kt",
+    "ui/chat/components/SlashMenu.kt",
+)
 
 /** Les racines d'interface et le préfixe de clé qui va avec (`com/onyx/app/`). */
 private val UI_ROOTS: List<Pair<String, String>> = listOf(

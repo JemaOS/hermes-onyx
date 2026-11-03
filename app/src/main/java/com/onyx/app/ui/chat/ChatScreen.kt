@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.onyx.app.data.model.PrefillProgress
 import com.onyx.app.data.model.SubagentStatus
+import com.onyx.app.ui.design.LocalGlassScrollFreeze
 import com.onyx.app.data.model.serve.BotMentions
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.components.FollowUpChips
@@ -970,7 +971,17 @@ fun ChatScreen(
                 // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
                 // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
                 // une seconde fois (1,23 × 1,23 = 1,51).
-                CompositionLocalProvider(LocalOnyxTheme provides theme) {
+                // **Le fil gèle le verre pendant le défilement, comme le volet le fait déjà.**
+                //
+                // Défaut relevé : « ça lag » sur une grosse conversation, sur un téléphone
+                // pourtant puissant. Le gel n'était posé que par `ChatSidebar` — le fil, lui,
+                // laissait `LocalGlassScrollFreeze` à faux, donc **chaque carte visible**
+                // continuait à pulsar et chaque vitre gardait son échantillonnage pleine qualité
+                // pendant que le doigt défilait. Un geste ne regarde pas une lumière respirer.
+                CompositionLocalProvider(
+                    LocalOnyxTheme provides theme,
+                    LocalGlassScrollFreeze provides listState.isScrollInProgress,
+                ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
