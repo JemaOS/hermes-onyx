@@ -190,7 +190,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     val earpieceAtEar: StateFlow<Boolean> = _earpieceAtEar.asStateFlow()
 
     /** Alertes d'approbation reçues pendant que Onyx est en arrière-plan. */
-    private val _notifyInBackground = MutableStateFlow(false)
+    private val _notifyInBackground = MutableStateFlow(true)
     val notifyInBackground: StateFlow<Boolean> = _notifyInBackground.asStateFlow()
 
     /** Son des alertes ; Android utilise deux canaux, avec et sans son. */
@@ -411,7 +411,10 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         _earpieceAtEar.value = preferences[Keys.EARPIECE_AT_EAR] ?: true
         _suggestFollowUps.value = preferences[Keys.SUGGEST_FOLLOW_UPS] ?: false
         _reasoningEffort.value = preferences[Keys.REASONING_EFFORT] ?: ""
-        _notifyInBackground.value = preferences[Keys.NOTIFY_IN_BACKGROUND] ?: false
+        // **Vrai par défaut** : une app de conversation doit parler en arrière-plan. Le réglage
+        // était à faux, ce qui laissait une installation neuve muette — le travail continuait chez
+        // l'hôte, mais personne n'était prévenu.
+        _notifyInBackground.value = preferences[Keys.NOTIFY_IN_BACKGROUND] ?: true
         _notificationSound.value = preferences[Keys.NOTIFICATION_SOUND] ?: true
         // « Me prévenir quand une réponse arrive, app fermée » : vrai par défaut, cf. `_replyWatch`.
         _replyWatch.value = preferences[Keys.REPLY_WATCH] ?: true

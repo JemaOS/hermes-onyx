@@ -79,7 +79,8 @@ class NotificationActionsWiringTest {
         // l'état d'un écran : un tour fini sans écran doit quand même s'annoncer.
         val tracker = read("src/main/java/com/onyx/app/notifications/TurnWorkNotifier.kt")
         assertTrue(tracker.contains("turns.sessions.value"))
-        assertTrue(tracker.contains("WorkTrackingPolicy.tracked("))
+        // C'est la politique qui décide de ce qui est montré — et de ce qui tient le processus.
+        assertTrue(tracker.contains("WorkTrackingPolicy.holding("))
         assertTrue(tracker.contains("TurnService.start("))
         assertTrue(tracker.contains("TurnService.phase(context, notice.text, notice.percent)"))
 

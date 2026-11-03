@@ -50,12 +50,13 @@ class TourTenuProcessusTest {
     }
 
     @Test
-    fun `l app au premier plan ne tient pas de service`() {
+    fun `un tour qui tourne tient le service, meme quand l app est au premier plan`() {
         val notices = planner(WorkTracking.ON_FINISH)
             .plan(mapOf("fil" to session()), appInForeground = true, visibleConversationId = "fil")
 
-        assertTrue("rien à tenir : l'app est là", keeps(notices).isEmpty())
-        assertTrue(TurnNotice.Idle in notices)
+        val keep = keeps(notices).single()
+        assertEquals("fil", keep.conversationId)
+        assertNull("le maintien se passe de progression : un mot, pas un bandeau", keep.percent)
     }
 
     @Test

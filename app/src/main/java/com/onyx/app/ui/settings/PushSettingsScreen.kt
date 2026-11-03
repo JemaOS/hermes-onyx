@@ -228,10 +228,10 @@ fun PushSettingsScreen(
             // « Suivi du travail » : ce qu'un bot annonce pendant et après son travail.
             OnyxFormSection(
                 header = "Work tracking",
-                footer = "Tells you when a bot finishes its work. “At every step” also keeps a progress " +
-                    "notification in the status bar — a live update on Android 16 — with the current step, " +
-                    "the elapsed time and a Stop button. Nothing is posted while Onyx is open on the conversation " +
-                    "itself, and nothing at all once Android stops allowing Onyx's notifications.",
+                footer = "Tells you when a bot finishes its work. While a bot works, Onyx keeps a notification in the " +
+                    "status bar — that is what keeps the work alive when Android puts the app to sleep. “At every step” " +
+                    "turns it into a live update — the current step, the elapsed time and a Stop button. Nothing is " +
+                    "posted once Android stops allowing Onyx's notifications.",
             ) {
                 WorkTracking.choices.forEachIndexed { index, choice ->
                     if (index > 0) OnyxRowDivider()

@@ -41,12 +41,19 @@ object WorkTrackingPolicy {
     }
 
     /**
-     * Le tour qui doit **tenir le processus vivant**.
+     * Le tour que le service doit **tenir**.
      *
      * Indépendant de la politique de notification : une politique dit *ce qu'on montre*, pas
-     * *si le travail survit*. Un tour qui tourne et une app en arrière-plan, ça doit tenir — sinon
-     * Android endort le processus, le canal meurt, et le tour est perdu au moment précis où la
-     * personne l'attendait.
+     * *si le travail survit*. Un tour qui tourne pendant que l'app s'endort, ça doit tenir —
+     * sinon Android endort le processus, le canal meurt, et le tour est perdu au moment précis
+     * où la personne l'attendait.
+     *
+     * Le service est **tied au tour**, pas à l'arrière-plan : il démarre quand le tour commence et
+     * vit jusqu'à sa fin. C'est une contrainte d'Android, pas un goût : depuis l'API 31, un
+     * service de premier plan ne peut pas être lancé depuis l'arrière-plan (seule une brève
+     * fenêtre existe juste après le bouton accueil — trop courte pour un battement d'une
+     * seconde). Le démarrer au moment où le tour commence, c'est le mettre au premier plan
+     * pendant que l'app est **visible** : c'est permis, et c'est le seul moment fiable.
      *
      * Le choix « jamais » est respecté : c'est une demande explicite de ne rien montrer, et un
      * service de premier plan se voit forcément dans la barre d'état.
@@ -54,10 +61,8 @@ object WorkTrackingPolicy {
     fun holding(
         sessions: Collection<TurnSession>,
         tracking: WorkTracking,
-        appInForeground: Boolean,
     ): TurnSession? {
         if (tracking == WorkTracking.NEVER) return null
-        if (appInForeground) return null
         return sessions.filter { !it.isFinished }.maxByOrNull { it.startedAt }
     }
 

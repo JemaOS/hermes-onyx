@@ -75,10 +75,11 @@ class TurnNoticePlanner(
         val choice = tracking()
         val notices = mutableListOf<TurnNotice>()
 
-        val shown = WorkTrackingPolicy.tracked(sessions.values, choice, appInForeground, visibleConversationId)
-        // Le processus doit tenir tant qu'un tour tourne, même si la politique ne demande pas de
-        // suivi visible : la politique décide *ce qu'on montre*, pas *si le travail survit*.
-        val held = shown ?: WorkTrackingPolicy.holding(sessions.values, choice, appInForeground)
+        // Le service tient le processus, et il est **tied au tour** : il démarre quand le tour
+        // commence — l'app est visible, c'est le seul moment où Android permet de lancer un
+        // service de premier plan — et il vit jusqu'à la fin du tour. La politique décide *ce
+        // qu'on montre*, pas *si le travail survit*.
+        val held = WorkTrackingPolicy.holding(sessions.values, choice)
         notices += if (held == null) {
             TurnNotice.Idle
         } else {
@@ -87,8 +88,8 @@ class TurnNoticePlanner(
                 title = titleOf(held.conversationId),
                 text = progressText(held),
                 // Le suivi visible montre la progression ; le simple maintien du processus s'en
-                // passe — la personne ne voit qu'un mot, pas un bandeau qui compte.
-                percent = if (shown != null) percentOf(shown) else null,
+                // passe — un mot, pas un bandeau qui compte.
+                percent = if (choice.live) percentOf(held) else null,
             )
         }
 

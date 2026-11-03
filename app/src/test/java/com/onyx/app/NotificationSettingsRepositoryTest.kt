@@ -35,7 +35,10 @@ class NotificationSettingsRepositoryTest {
 
             repository.load()
 
-            assertFalse(repository.notifyInBackground.value)
+            // Les alertes d'arrière-plan sont **allumées** par défaut : une app de conversation doit
+            // parler même quand on la quitte. C'était le seul réglage qui ne collait pas à l'écran
+            // « Notifications » — tout y était actif, sauf celui-là.
+            assertTrue(repository.notifyInBackground.value)
             assertTrue(repository.notificationSound.value)
             assertEquals(
                 "le défaut proposé est « à la fin seulement »",
