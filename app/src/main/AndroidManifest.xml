@@ -114,6 +114,16 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
+            <!-- Un **lien de modèle de bot** (`onyx://bot?v=1&t=…`) ouvert depuis un navigateur ou
+                 une autre app : Onyx s'ouvre sur l'aperçu du modèle, jamais sur le composeur. Le
+                 lien ne porte ni clé ni adresse de serveur (le codec les refuse). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="onyx" android:host="bot" />
+            </intent-filter>
+
             <!-- Une photo, un PDF, une vidéo ou un fichier partagé se joint au message : le PDF
                  s'ouvre ensuite dans le lecteur de l'app, l'image en plein écran, la vidéo dans
                  son lecteur. -->

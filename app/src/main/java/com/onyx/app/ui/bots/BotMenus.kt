@@ -76,6 +76,15 @@ internal enum class BotMenuAction {
 
     /** « Sort Bots by Recent », dès qu'un ordre a été mis à la main. */
     SortByRecent,
+
+    /**
+     * « Partager comme modèle » (`Symbols.Share`) : le lien `onyx://bot?v=1&…` du bot, son QR, et
+     * rien qui parte au serveur avant que le destinataire n'ait vu l'aperçu.
+     *
+     * Elle vient **après** toutes celles de la maison : c'est la dernière chose qu'un bot propose,
+     * comme « Supprimer » ferme le bloc de la référence.
+     */
+    ShareTemplate,
 }
 
 /**
@@ -141,6 +150,12 @@ internal fun botMenuActions(
     }
     add(BotMenuAction.Reorder)
     if (hasOrder) add(BotMenuAction.SortByRecent)
+
+    // ————— « Partager comme modèle », la dernière —————
+    // Le lien se lit sur le serveur : son `SOUL.md` (`api/profiles/{nom}/soul`), ses jeux d'outils
+    // et ses compétences. Un bot ajouté à la main n'a pas de profil sur le Dashboard, et le profil
+    // principal est l'agent de la personne — ni l'un ni l'autre ne se partagent comme modèle.
+    if (!bot.viaAPI && !bot.isDefault) add(BotMenuAction.ShareTemplate)
 }
 
 /**
@@ -187,6 +202,7 @@ internal fun botMenuLabel(action: BotMenuAction, frame: BotMenuFrame = BotMenuFr
     BotMenuAction.ChangeFace -> "Change Face…"
     BotMenuAction.Reorder -> "Reorder Bots"
     BotMenuAction.SortByRecent -> "Sort Bots by Recent"
+    BotMenuAction.ShareTemplate -> "Share as Template…"
 }
 
 /**
@@ -215,6 +231,7 @@ internal fun botMenuSymbol(action: BotMenuAction, frame: BotMenuFrame = BotMenuF
     BotMenuAction.ChangeFace -> Symbols.FaceSmiling
     BotMenuAction.Reorder -> Symbols.ArrowUpArrowDown
     BotMenuAction.SortByRecent -> Symbols.Clock
+    BotMenuAction.ShareTemplate -> Symbols.Share
 }
 
 /**
@@ -263,6 +280,8 @@ internal fun BotTileMenu(
     onDelete: (() -> Unit)? = null,
     onReorder: (() -> Unit)? = null,
     onSortByRecent: (() -> Unit)? = null,
+    /** « Partager comme modèle » : la feuille du lien et de son QR. */
+    onShareTemplate: (() -> Unit)? = null,
 ) {
     val actions = botMenuActions(
         bot,
@@ -294,6 +313,7 @@ internal fun BotTileMenu(
             onDelete = onDelete,
             onReorder = onReorder,
             onSortByRecent = onSortByRecent,
+            onShareTemplate = onShareTemplate,
         ),
         onDismiss = onDismiss,
         anchor = anchor,
@@ -364,6 +384,7 @@ internal fun menuItems(
     onDelete: (() -> Unit)? = null,
     onReorder: (() -> Unit)? = null,
     onSortByRecent: (() -> Unit)? = null,
+    onShareTemplate: (() -> Unit)? = null,
 ): List<MenuItem> = actions.flatMap { action ->
     // Le silence est un sous-menu (« Mute › »), comme celui du modèle : ses durées ne sont pas
     // quatre lignes du panneau, et la ligne ouvre les quatre — plus « Unmute » s'il est déjà tu.
@@ -394,6 +415,7 @@ internal fun menuItems(
         onDelete = onDelete,
         onReorder = onReorder,
         onSortByRecent = onSortByRecent,
+        onShareTemplate = onShareTemplate,
     )
     run?.let {
         listOf(
@@ -463,6 +485,8 @@ data class BotMenuHandlers(
     val onDuplicate: ((BotProfile) -> Unit)? = null,
     /** « Supprimer » : c'est l'écran qui demande confirmation avant d'agir. */
     val onDelete: ((BotProfile) -> Unit)? = null,
+    /** « Partager comme modèle » : la feuille du lien et de son QR. */
+    val onShareTemplate: ((BotProfile) -> Unit)? = null,
     // ————— Les entrées propres à Onyx, celles d'avant —————
     val onMarkSeen: ((BotProfile) -> Unit)? = null,
     val onMarkUnread: ((BotProfile) -> Unit)? = null,
@@ -522,6 +546,7 @@ internal fun BotCardMenu(
         onDelete = onAskDelete?.let { ask -> { ask(bot) } },
         onReorder = handlers.onReorder,
         onSortByRecent = handlers.onSortByRecent,
+        onShareTemplate = handlers.onShareTemplate?.let { act -> { act(bot) } },
     )
 }
 
@@ -549,6 +574,7 @@ private fun BotMenuAction.handler(
     onDelete: (() -> Unit)?,
     onReorder: (() -> Unit)?,
     onSortByRecent: (() -> Unit)?,
+    onShareTemplate: (() -> Unit)?,
 ): (() -> Unit)? = when (this) {
     BotMenuAction.MarkRead -> onMarkRead
     BotMenuAction.MarkUnread -> onMarkUnread
@@ -567,4 +593,5 @@ private fun BotMenuAction.handler(
     BotMenuAction.Delete -> onDelete
     BotMenuAction.Reorder -> onReorder
     BotMenuAction.SortByRecent -> onSortByRecent
+    BotMenuAction.ShareTemplate -> onShareTemplate
 }
