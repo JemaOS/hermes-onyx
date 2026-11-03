@@ -130,6 +130,44 @@ class FilesViewModel(private val config: ServerConfig) : ViewModel() {
     /** Les octets d'un fichier, pour l'ouvrir ailleurs. */
     suspend fun bytes(entry: FileEntry): ByteArray? = runCatching { files.bytes(entry.path) }.getOrNull()
 
+    /**
+     * **Récupère** un fichier du serveur dans [destination], sans jamais le tenir en mémoire.
+     *
+     * Le défaut que ce chemin corrige : la rangée d'un binaire passait par [bytes], donc un APK de
+     * 34 Mo était lu d'un bloc dans le tas de l'application avant d'être écrit — la mémoire du
+     * téléphone décidait si « n'importe quel fichier » voulait dire « n'importe quel petit
+     * fichier ». Ici le corps est écrit au fil de l'eau dans un `.part` renommé à la fin
+     * (`ServeFileDownload.toFile`), et le poids reçu s'affiche pendant le transfert.
+     *
+     * Rend `true` quand le fichier est là, `false` sinon — la raison est alors dans [FilesUiState.problem].
+     */
+    suspend fun download(
+        entry: FileEntry,
+        destination: java.io.File,
+        onProgress: (received: Long, total: Long?) -> Unit = { _, _ -> },
+    ): Boolean {
+        _state.update { it.copy(working = "Downloading ${entry.name}…", problem = null) }
+        return try {
+            com.onyx.app.data.net.ServeFileDownload(config)
+                .toFile(entry.path, destination) { received, total ->
+                    val label = if (total != null && total > 0) {
+                        "Downloading ${entry.name}… ${received * 100 / total} %"
+                    } else {
+                        "Downloading ${entry.name}… ${received / 1024} KB"
+                    }
+                    _state.update { it.copy(working = label) }
+                    onProgress(received, total)
+                }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            _state.update { it.copy(problem = humanFailure(error)) }
+            false
+        } finally {
+            _state.update { it.copy(working = null) }
+        }
+    }
+
     fun clearProblem() {
         _state.update { it.copy(problem = null) }
     }
