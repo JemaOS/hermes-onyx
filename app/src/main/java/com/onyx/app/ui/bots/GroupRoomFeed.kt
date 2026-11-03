@@ -439,6 +439,20 @@ class GroupRoomFeed(
     }
 
     /**
+     * **Nomme le meneur de la salle côté serveur** (`groups.lead`), ou le retire (`memberId = null`).
+     *
+     * Rend `true` quand le serveur a accepté — il écrit alors un `room.lead_changed` dans le journal,
+     * et la salle interroge ce membre en premier quand personne n'est nommé. Rend `false` quand le
+     * serveur ne connaît pas la route : le réglage reste sur le téléphone, et le journal n'a rien à
+     * relire.
+     */
+    suspend fun nameLead(memberId: String?): Boolean {
+        val named = api.nameLead(state.value.room.id, memberId)
+        if (named) look()
+        return named
+    }
+
+    /**
      * Dit le message dans la salle (`groups.send`) et relit le journal.
      *
      * **Un message ne se perd pas.** Un envoi qui échoue pour une raison passagère (réseau, 5xx,

@@ -443,4 +443,43 @@ class ServeGroupsRpcTest {
         assertTrue(failure is TransportError)
         assertTrue((failure as TransportError).userMessage(java.util.Locale.US).contains("room worker is not running"))
     }
+
+    // — Le meneur de la salle (`groups.lead`) —
+
+    @Test
+    fun `nommer le meneur ecrit la salle et le membre`() = runBlocking {
+        val said = mutableListOf<Pair<String, String>>()
+        val rpc = RpcChannel { method, params, _ ->
+            said += method to params.toString()
+            json("""{"room_id":"r1","lead":{"member_id":"planner"},"previous_member_id":null,"seq":14}""")
+        }
+
+        assertTrue("le serveur a accepté", ServeGroupsRpc(rpc).nameLead("r1", "planner"))
+
+        assertEquals("groups.lead", said.single().first)
+        assertTrue("la salle est nommée : ${said.single().second}", said.single().second.contains("\"room_id\":\"r1\""))
+        assertTrue("le membre est nommé : ${said.single().second}", said.single().second.contains("\"member_id\":\"planner\""))
+    }
+
+    @Test
+    fun `retirer le meneur envoie un member_id null, jamais une cle absente`() = runBlocking {
+        // Le serveur refuse une requête SANS `member_id` (c'est `bad_request`) : `null` veut dire
+        // « efface », absent veut dire « je ne sais pas ce que je demande ». La clé est donc
+        // toujours écrite.
+        var body = ""
+        val rpc = RpcChannel { _, params, _ -> body = params.toString(); json("""{"room_id":"r1","lead":null,"seq":9}""") }
+
+        assertTrue(ServeGroupsRpc(rpc).nameLead("r1", null))
+
+        assertTrue("member_id null explicite : $body", body.contains("\"member_id\":null"))
+    }
+
+    @Test
+    fun `un serveur sans groups lead laisse le meneur au telephone`() = runBlocking {
+        // Hermes d'avant le lot 5 : la route n'existe pas. L'app ne doit pas prétendre l'avoir
+        // écrite — elle rend `false` et garde le réglage local.
+        val rpc = RpcChannel { _, _, _ -> throw TransportError.Malformed("Method not found") }
+
+        assertFalse(ServeGroupsRpc(rpc).nameLead("r1", "planner"))
+    }
 }

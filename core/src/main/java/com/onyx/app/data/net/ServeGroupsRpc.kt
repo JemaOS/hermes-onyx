@@ -9,7 +9,10 @@ import com.onyx.app.data.model.serve.GroupRoom
 import com.onyx.app.data.model.serve.GroupRoomStatus
 import com.onyx.app.data.model.serve.GroupSessionSlice
 import com.onyx.app.data.model.serve.GroupState
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -126,6 +129,35 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
             },
             CALL_TIMEOUT,
         )
+    }
+
+    /**
+     * Nomme le meneur de la salle **côté serveur** (`groups.lead`), ou le retire (`memberId = null`).
+     *
+     * Le serveur écrit alors un `room.lead_changed` dans le journal de la salle : le meneur devient
+     * un fait du salon, que les bots lisent — et la salle l'interroge **en premier** quand personne
+     * n'est nommé. Sans cette route (un Hermes d'avant), [nameLead] rend `false` et le meneur reste
+     * le réglage de ce téléphone : l'app ne prétend jamais avoir écrit au salon quand elle ne l'a
+     * pas fait.
+     */
+    override suspend fun nameLead(room: String, memberId: String?): Boolean {
+        return try {
+            rpc.call(
+                "groups.lead",
+                buildJsonObject {
+                    put("room_id", room)
+                    // `null` est explicite : « membre absent » (le serveur refuse) n'est pas
+                    // « meneur effacé ». La clé est toujours écrite.
+                    put("member_id", memberId?.let { JsonPrimitive(it) } ?: JsonNull)
+                },
+                CALL_TIMEOUT,
+            )
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** Le journal de la salle après `since`, page après page (`groups.log`). */
@@ -327,6 +359,16 @@ interface GroupRoomApi {
     suspend fun log(room: String, since: Int): List<GroupEvent>
     suspend fun roomState(room: String): GroupRoomStatus
     suspend fun send(room: String, text: String, eventID: String)
+
+    /**
+     * Nomme le meneur **de la salle** (`groups.lead`), ou le retire (`memberId = null`), et rend
+     * `true` quand ce serveur l'a accepté.
+     *
+     * Le défaut `false` est la règle, pas un oubli : une API de salle qui ne sait pas écrire le
+     * meneur ne doit pas laisser croire qu'elle l'a fait. L'app garde alors le choix sur le
+     * téléphone, comme avant, et le dit.
+     */
+    suspend fun nameLead(room: String, memberId: String?): Boolean = false
     suspend fun stop(room: String)
     suspend fun rename(room: String, name: String)
     suspend fun disband(room: String)

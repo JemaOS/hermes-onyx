@@ -70,8 +70,10 @@ class GroupRoomViewModel(
     private fun BotFaceResolver.faceOf(profile: String): String? = codeOf(profile)
 
     /**
-     * **Le meneur de cette salle, gardé sur ce téléphone** (`RoomLeadStore`) : un réglage local,
-     * comme l'onglet ouvert d'une conversation. Rien n'est envoyé au serveur.
+     * **Le meneur de cette salle.** Il vit d'abord ici (`RoomLeadStore`), comme l'onglet ouvert
+     * d'une conversation — c'est ce qui le garde d'une session à l'autre, même hors ligne. Quand le
+     * serveur connaît `groups.lead`, [setLead] l'écrit **aussi dans la salle** : le meneur devient
+     * alors un fait du salon, que les bots lisent et que la salle interroge en premier.
      */
     private val leadStore = RoomLeadStore(application)
 
@@ -215,14 +217,22 @@ class GroupRoomViewModel(
     }
 
     /**
-     * **Choisit le meneur de la salle** — ou l'enlève (`null`, « No lead »). Le choix est gardé sur
-     * ce téléphone (`RoomLeadStore`) : il survit à la fermeture de l'app, et une salle sans meneur
-     * se comporte exactement comme avant.
+     * **Choisit le meneur de la salle** — ou l'enlève (`null`, « No lead »).
+     *
+     * Deux endroits, dans cet ordre : le téléphone (`RoomLeadStore`, toujours), puis la salle
+     * elle-même quand ce serveur connaît `groups.lead`. Écrire au salon est ce qui rend le choix
+     * **visible aux bots** : ils lisent le `room.lead_changed` du journal, et la salle interroge le
+     * meneur en premier quand personne n'est nommé. Un serveur sans cette route laisse simplement
+     * le réglage ici — et [leadIsRooms] le dit à l'écran.
      */
-    fun setLead(profile: String?) {
+    fun setLead(profile: String?, memberId: String? = profile) {
         val clean = profile?.takeIf { it.isNotBlank() }
         _lead.value = clean
         leadStore.set(state.value.room.id, clean)
+        // Le salon d'abord quand il sait le recevoir : c'est ce qui rend le meneur lisible aux bots
+        // (un `room.lead_changed` dans le journal) et fait interroger ce membre en premier. Un
+        // serveur sans la route rend `false` — le réglage local reste, exactement comme avant.
+        viewModelScope.launch { feed.nameLead(memberId?.takeIf { it.isNotBlank() }) }
     }
 
     /**

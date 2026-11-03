@@ -505,6 +505,7 @@ class OnyxSocleVerrouTest {
                 "app/src/main/java/com/onyx/app/ui/chat/components/OnyxTopBar.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/OsmMapImage.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/ReplyCardViews.kt",
+                "app/src/main/java/com/onyx/app/ui/chat/components/SlashMenu.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/StartScreen.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/SubagentRows.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/ThreadOrganisation.kt",
