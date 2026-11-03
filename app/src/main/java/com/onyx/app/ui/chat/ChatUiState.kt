@@ -133,7 +133,15 @@ data class ChatUiState(
      */
     val subagents: List<SubagentActivity>
         get() {
+            // **Une seule ligne par `subagent_id`**, y compris entre deux messages : une tâche
+            // rejouée par le fil (ou reprise dans une réponse suivante) portait le même
+            // identifiant, et la liste la dessinait deux fois — c'est ce doublon qui faisait
+            // tomber l'écran des tâches (`Key … was already used` dans la `LazyColumn`). On garde
+            // la **dernière** version connue de chaque tâche : c'est la plus fraîche.
             val fromMessages = messages.flatMap { it.subagents }
+                .asReversed()
+                .distinctBy { it.id }
+                .asReversed()
             if (subagentRoster.isEmpty()) return fromMessages
             val known = fromMessages.map { it.id }.toSet()
             val merged = fromMessages.map { row ->
