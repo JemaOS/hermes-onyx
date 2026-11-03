@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import com.onyx.app.ui.localization.BasicText
@@ -84,7 +85,8 @@ fun ToolsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .onyxPage(theme),
+            .onyxPage(theme)
+            .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             OnyxPageHeader(title = "Tools", onBack = onBack)

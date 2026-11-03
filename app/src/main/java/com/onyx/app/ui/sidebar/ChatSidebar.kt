@@ -365,24 +365,36 @@ internal fun ChatSidebar(
                 // **Le halo de la maison** : le volet porte la matière comme les autres écrans,
                 // pour que sa vitre ait quelque chose à voir derrière elle (voir `onyxPage`).
                 .haloBackdrop(theme)
-                // **Le volet est une vitre** — en apparence **sombre**. En clair, la vitre opaque
+                // Le volet est une **vitre** — en apparence **sombre**. En clair, la vitre opaque
                 // est retirée : sur un panneau quasi blanc elle n'apportait que son voile, son
                 // filet interne et son liseré, c'est-à-dire du bruit. Le choix est dans
                 // [sidebarPaneSurface], un seul point de décision, donc le sombre ne peut pas être
                 // dégradé en ré-habillant le clair.
-                .sidebarPaneSurface()
-                // Le volet est une **surface à lui** : il porte ses propres marges système, sinon sa
-                // tête glisse sous la barre d'état et son pied sous la barre de navigation (mesuré :
-                // le nom de la passerelle passait sous l'heure, « Nouvelle conversation » sous le
-                // geste Android).
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .sidebarPaneSurface(),
         ) {
             if (showingScreen) {
-                // L'écran prend la place de la tête, de la recherche, du sélecteur et de la liste —
-                // et **rien d'autre** ne change : le pied reste au volet, sous l'écran.
+                // **La destination possède toute la surface du volet**, barres système comprises.
+                //
+                // Les marges ne sont **pas** portées par le volet ici : un écran les porte
+                // lui-même (la règle de la maison — l'hôte plein écran n'en pose aucune). Le
+                // volet qui les posait **en plus** les faisait descendre deux fois : le titre
+                // tombait à deux hauteurs de barre d'état (mesuré sur la capture des Réglages).
+                //
+                // Et surtout, les bandes de la barre d'état et de la barre de navigation
+                // restaient au **volet** — son verre, qui montre le fil derrière — au lieu de la
+                // page. C'était le défaut relevé : « la page doit être à elle seule ».
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) { screen() }
             } else {
+                // **La liste porte les marges système** : elle n'est pas un écran, et c'est elle
+                // qui se glisse sous l'heure et sous le geste Android (mesuré : le nom de la
+                // passerelle passait sous l'heure, « Nouvelle conversation » sous le geste).
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
+                ) {
                 SidebarHeader(
                     name = gatewayName,
                     address = gatewayAddress,
@@ -545,7 +557,8 @@ internal fun ChatSidebar(
                     modifier = Modifier.onSizeChanged { plateHeightPx = it.height },
                 )
             }
-        }
+                }
+            }
 
         // **La pastille de rattrapage, posée AU-DESSUS de la plaque du bas.** Le dégagement vaut la
         // hauteur **mesurée** du pied plus la marche de la maison ([OnyxSpace.BlockGap] = 12) : la
