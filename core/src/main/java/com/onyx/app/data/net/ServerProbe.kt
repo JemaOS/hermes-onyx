@@ -48,13 +48,26 @@ enum class Support {
  * (`ServeClient.request` les ajoute à la base).
  */
 enum class ServerCapability(val route: String) {
-    /** Les secrets et références du serveur. */
-    VAULT("api/vault"),
+    /**
+     * Le coffre : la route de **santé** du plugin `onyx-vault` — installée, elle répond et dit si
+     * la clé de chiffrement est là ; absente, le serveur rend 404.
+     *
+     * Le chemin est celui du plugin réel, pas un nom d'attente : une sonde qui interroge
+     * `api/vault` sur un serveur où le coffre est installé répondrait « absent » et l'écran
+     * mentirait. Vérifié sur l'installation : `/api/plugins/onyx-vault/health`.
+     */
+    VAULT("api/plugins/onyx-vault/health"),
 
-    /** L'enregistrement d'une session (la trace réutilisable d'un tour). */
-    RECORD("api/record"),
+    /**
+     * L'enregistrement d'une démonstration — second plugin (`onyx-record`), décision des specs du
+     * lot 3 : un journal relisible n'entre pas dans le coffre.
+     */
+    RECORD("api/plugins/onyx-record/health"),
 
-    /** La passation d'une session à un autre appareil ou à un autre agent. */
+    /**
+     * La passation d'une room : notion **du core** Hermes (specs du lot 5), pas d'un plugin — la
+     * route définitive viendra avec `groups.lead` / `groups.handoff`.
+     */
     HANDOFF("api/handoff"),
 }
 

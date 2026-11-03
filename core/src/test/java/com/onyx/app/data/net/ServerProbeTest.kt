@@ -59,7 +59,7 @@ class ServerProbeTest {
 
     @Test
     fun `une route absente vaut NO`() = runBlocking {
-        answering(404, route = "/api/vault")
+        answering(404, route = "/api/plugins/onyx-vault/health")
 
         val probe = probe()
 
@@ -149,7 +149,7 @@ class ServerProbeTest {
         assertTrue(all.values.all { it == Support.YES })
         assertTrue(
             "trois capacités, trois routes",
-            paths.containsAll(listOf("/api/vault", "/api/record", "/api/handoff")),
+            paths.containsAll(listOf("/api/plugins/onyx-vault/health", "/api/plugins/onyx-record/health", "/api/handoff")),
         )
     }
 
@@ -232,6 +232,6 @@ class ServerProbeTest {
     }
 
     private companion object {
-        const val VAULT_PATH = "/api/vault"
+        const val VAULT_PATH = "/api/plugins/onyx-vault/health"
     }
 }
