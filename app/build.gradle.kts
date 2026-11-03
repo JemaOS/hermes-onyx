@@ -67,7 +67,14 @@ android {
             ?: providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
             ?: providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
                 .standardOutput.asText.get().trim().toIntOrNull() ?: 1
-        versionName = "1.0.0+" + versionCode
+        // La version **affichée** : 1.3.1, puis 1.3.2 à chaque publication. Elle est **dérivée**
+        // du `versionCode` — une seule source de vérité, impossible d'en oublier une — à partir du
+        // code qui porte le premier 1.3.1 (`onyx.versionBase`). Le tag de la release suit la même
+        // forme (`v1.3.1+<versionCode>`) : c'est le numéro, dans le tag, que la mise à jour
+        // compare — le nom lisible ne décide de rien.
+        versionName = providers.gradleProperty("onyx.versionBase").orNull?.toIntOrNull()
+            ?.let { base -> "1.3." + ((versionCode ?: 1) - base) }
+            ?: ("1.0.0+" + (versionCode ?: 1))
         // Le jeton du service vocal pour la version de test (voir plus haut `voiceToken`).
         buildConfigField("String", "VOICE_TOKEN", "\"" + voiceToken + "\"")
 

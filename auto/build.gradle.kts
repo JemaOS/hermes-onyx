@@ -42,7 +42,11 @@ android {
             ?: providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
             ?: providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
                 .standardOutput.asText.get().trim().toIntOrNull() ?: 1
-        versionName = "1.0.0+" + versionCode
+        // La version **affichée** : 1.3.1, puis 1.3.2 à chaque publication — dérivée du
+        // `versionCode`, comme dans `app` (voir `onyx.versionBase`).
+        versionName = providers.gradleProperty("onyx.versionBase").orNull?.toIntOrNull()
+            ?.let { base -> "1.3." + ((versionCode ?: 1) - base) }
+            ?: ("1.0.0+" + (versionCode ?: 1))
     }
 
     signingConfigs {

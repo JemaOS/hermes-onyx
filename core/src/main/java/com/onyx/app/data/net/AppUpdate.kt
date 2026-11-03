@@ -72,7 +72,8 @@ fun parseLatestRelease(payload: String): AppUpdate? {
     if (asset.downloadUrl.isBlank()) return null
     return AppUpdate(
         versionCode = code,
-        versionName = release.tag.removePrefix("v"),
+        // Le nom lisible, sans le numéro : le tag est `v1.3.1+1133`, la carte doit dire « 1.3.1 ».
+        versionName = release.tag.removePrefix("v").substringBefore('+'),
         downloadUrl = asset.downloadUrl,
         releaseUrl = release.htmlUrl,
     )

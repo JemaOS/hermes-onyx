@@ -42,7 +42,7 @@ class AppUpdateTest {
     fun `la release publiee est lue`() {
         val update = parseLatestRelease(release())
         assertEquals(1129, update?.versionCode)
-        assertEquals("1.0.0+1129", update?.versionName)
+        assertEquals("1.0.0", update?.versionName)
         assertEquals("https://ex/onyx-1129-release.apk", update?.downloadUrl)
         assertTrue("la page de la release est gardée", update?.releaseUrl?.contains("releases/tag") == true)
     }
@@ -61,6 +61,17 @@ class AppUpdateTest {
     fun `une release sans APK de telephone ne propose rien`() {
         val assets = """[{"name": "onyx-wear-1130-release.apk", "browser_download_url": "https://ex/wear.apk"}]"""
         assertNull(parseLatestRelease(release(tag = "v1.0.0+1130", assets = assets)))
+    }
+
+    @Test
+    fun `la version affichee ne porte pas le numero`() {
+        // Le tag est `v1.3.1+1133` : le **numero** décide de l'ordre (c'est lui qu'Android
+        // compare pour accepter l'installation par-dessus l'autre), le nom lisible est ce que la
+        // carte affiche — « 1.3.1 », pas « 1.3.1+1133 ».
+        val update = parseLatestRelease(release(tag = "v1.3.1+1133"))
+
+        assertEquals(1133, update?.versionCode)
+        assertEquals("1.3.1", update?.versionName)
     }
 
     @Test
