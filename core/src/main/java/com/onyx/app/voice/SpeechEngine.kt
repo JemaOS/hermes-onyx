@@ -112,6 +112,15 @@ class SpeechEngine(
     private var needsFreshRecognizer = false
 
     /**
+     * La session a-t-elle **commencé** ? `onReadyForSpeech` le dit : c'est la preuve que le
+     * service de reconnaissance a pris la session.
+     *
+     * C'est ce qui distingue un moteur **mort** d'un service **pas encore lié** — et la
+     * différence est décisive au premier démarrage (voir [needsFreshRecognizerAfter]).
+     */
+    private var readyForSpeech = false
+
+    /**
      * Le moteur a-t-il **répondu** ? Vrai dès qu'un rappel du moteur arrive (`onReadyForSpeech`,
      * une mesure de niveau, un résultat, une erreur). C'est la seule preuve que
      * « À L'ÉCOUTE » n'est pas un mensonge : [SpeechState.isListening] est posé au départ, avant
@@ -157,7 +166,14 @@ class SpeechEngine(
      * [MAX_ENGINE_ATTEMPTS] fois d'affilée : au-delà, [VoiceSession] s'arrête et le bandeau dit
      * pourquoi (le repli de la référence). Une session réussie remet le compteur à zéro.
      */
-    override val canRetry: Boolean get() = shouldRetryEngine(consecutiveErrors)
+    override val canRetry: Boolean get() = shouldRetryEngine(consecutiveErrors, engineMaxAttempts(lastFailureStartedSession))
+
+    /**
+     * La session avait-elle commencé lors du dernier échec ? C'est ce qui décide du **budget**
+     * de départs : un moteur qui n'a jamais pris la session (service pas encore lié) a droit à
+     * plus d'essais qu'un moteur qui a pris la session puis est mort.
+     */
+    private var lastFailureStartedSession = false
 
     /**
      * Les refus consécutifs du moteur. C'est ce compteur qui **espace** les reprises
@@ -204,6 +220,9 @@ class SpeechEngine(
                 createRecognizer().also { recognizer = it }
             }
         needsFreshRecognizer = false
+        // Une session neuve : le moteur n'a pas encore pris la parole. C'est ce qui distingue
+        // un moteur mort d'un service pas encore lié.
+        readyForSpeech = false
         sessionActive = true
         frameCount = 0
         VoiceDiagnostics.note(
@@ -276,6 +295,7 @@ class SpeechEngine(
                     // Le premier rappel : le moteur a bien pris la session. C'est la preuve que
                     // « À L'ÉCOUTE » n'est pas un mensonge.
                     answered = true
+                    readyForSpeech = true
                     _state.update { it.copy(isListening = true, problem = null) }
                 }
 
@@ -307,10 +327,13 @@ class SpeechEngine(
                     // **La décision, code par code** (`engineStopDecision`) : reprendre, basculer
                     // en ligne, ou s'arrêter en le disant. Elle est prise ici, une fois, et la
                     // session ne fait que la suivre.
+                    val sessionStarted = readyForSpeech
+                    lastFailureStartedSession = sessionStarted
                     val decision = engineStopDecision(
                         error = error,
                         preferOffline = preferOffline,
                         attempts = consecutiveErrors,
+                        maxAttempts = engineMaxAttempts(sessionStarted),
                     )
                     if (decision == EngineStopDecision.GO_ONLINE) {
                         // Le moteur hors ligne ne sait pas cette langue. La bascule n'est **pas**
@@ -332,8 +355,12 @@ class SpeechEngine(
                         }), trames reçues=$frameCount, décision=${decision.name}",
                     )
                     sessionActive = false
-                    // Une session qui vient d'échouer repartira d'un moteur neuf.
-                    needsFreshRecognizer = !silence
+                    // **Un moteur neuf seulement si la session avait commencé.** Sinon le service
+                    // de reconnaissance n'était pas encore lié : le jeter et en créer un autre
+                    // relance la même course — et c'est exactement le premier démarrage. La
+                    // reprise rejoue alors sur le **même** moteur, dont le service est lié depuis.
+                    needsFreshRecognizer = needsFreshRecognizerAfter(error, readyForSpeech)
+                    readyForSpeech = false
                     // **Le message suit la décision** (`engineMessage`) : rien à dire pour une fin
                     // de session normale, une reprise espacée ou une bascule en ligne — elles
                     // agissent ; un arrêt définitif porte la cause en toutes lettres, sans jamais
