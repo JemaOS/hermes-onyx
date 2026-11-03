@@ -602,7 +602,13 @@ class VoiceSession(
                 // l'app ouvre son propre micro : c'est le signal qu'elle contrôle, et c'est lui
                 // qui fait bouger les points quand le moteur n'en donne aucun.
                 levelFusion.observe(engineSpeech.level, engine.frameCount)
-                if (levelFusion.wantsMeter && !meterAttempted && !meter.isAvailable) {
+                if (mayOpenAppMic(
+                        wantsMeter = levelFusion.wantsMeter,
+                        alreadyAttempted = meterAttempted,
+                        meterAvailable = meter.isAvailable,
+                        engineListening = engine.state.value.isListening,
+                    )
+                ) {
                     // Une seule tentative par écoute : un échec ne se répète pas.
                     meterAttempted = true
                     meter.start()
@@ -1004,7 +1010,26 @@ class VoiceSession(
 }
 
 /**
- * Faut-il rouvrir l'écoute tout seul après une fin de session ?
+ * L'app peut-elle ouvrir son **propre** micro ?
+ *
+ * Non quand le moteur de reconnaissance **tient** le micro : c'est une ressource partagée, et
+ * l'un des deux se fait évincer. Ouvrir un `AudioRecord` par-dessus une session de
+ * reconnaissance, c'est s'attirer le refus du moteur — et l'app se voit alors reprocher l'échec
+ * qu'elle vient de provoquer.
+ *
+ * C'est ce qui faisait échouer la **première** entrée dans la scène vocale : le moteur ne livre
+ * ses niveaux qu'à la parole, donc l'app jugeait qu'il n'y avait rien et prenait le micro juste
+ * au moment où il le lançait. Les entrées suivantes, elles, trouvaient le service déjà lié.
+ */
+internal fun mayOpenAppMic(
+    wantsMeter: Boolean,
+    alreadyAttempted: Boolean,
+    meterAvailable: Boolean,
+    engineListening: Boolean,
+): Boolean = wantsMeter && !alreadyAttempted && !meterAvailable && !engineListening
+
+/**
+ * Faut-il surveiller l'écoute tout seul après une fin de session ?
  *
  * Un moteur de reconnaissance Android termine sa session **tout seul** — au silence, ou à la durée
  * maximale — sans que ce soit une panne : ce n'est pas une raison pour couper l'écoute.

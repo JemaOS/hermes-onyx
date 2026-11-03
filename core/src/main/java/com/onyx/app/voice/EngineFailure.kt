@@ -31,6 +31,22 @@ package com.onyx.app.voice
 const val MAX_ENGINE_ATTEMPTS = 3
 
 /**
+ * Combien de départs quand le moteur n'a **jamais** pris la session ?
+ *
+ * C'est le **premier démarrage** : le service de reconnaissance se lie, et ce temps n'est pas
+ * borné par l'app. Cinq essais espacés suffisent à lui laisser le temps — et ils rejouent sur
+ * le **même** moteur, dont le service est lié entre-temps.
+ *
+ * Un moteur qui avait pris la session puis est mort, lui, se compte avec [MAX_ENGINE_ATTEMPTS] :
+ * là, c'est le moteur qui est en cause, et un moteur mort ne se répare pas en insistant.
+ */
+const val MAX_ENGINE_START_ATTEMPTS = 5
+
+/** Le budget de départs, selon que la session avait commencé ou non. */
+internal fun engineMaxAttempts(sessionStarted: Boolean): Int =
+    if (sessionStarted) MAX_ENGINE_ATTEMPTS else MAX_ENGINE_START_ATTEMPTS
+
+/**
  * Le délai de base de la reprise, en millisecondes. Plus long que le délai ordinaire de relance
  * ([SpeechEngine.RESTART_DELAY_MS], 250 ms) : le moteur doit avoir réellement rendu le micro,
  * sinon il refuse encore.
@@ -71,6 +87,25 @@ internal fun isTransientEngineFailure(error: Int): Boolean =
 internal fun isEngineSilence(error: Int): Boolean =
     error == android.speech.SpeechRecognizer.ERROR_NO_MATCH ||
         error == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+
+/**
+ * Faut-il faire un **moteur neuf** après cet échec ?
+ *
+ * [readyForSpeech] : la session avait commencé (`onReadyForSpeech` a été appelé).
+ *
+ * - **Elle avait commencé** : le moteur peut être mort (session_left, service tombé) — on en
+ *   fait un neuf, c'est la seule façon de repartir.
+ * - **Elle n'avait pas commencé** : le service de reconnaissance n'était **pas encore lié**.
+ *   Le moteur n'est pas cassé : c'est la **liaison** qui manquait. Le jeter et en créer un
+ *   autre relance la même course — et la course, c'est le premier démarrage, celui où le
+ *   service se lie. D'où le symptôme : la **première** entrée dans la scène vocale échoue, et
+ *   les suivantes marchent (le service, lui, est lié depuis).
+ *
+ * C'est aussi ce qui rendait la reprise automatique inutile : elle jetait le moteur à chaque
+ * fois, donc elle reproduisait l'échec qu'elle était censée réparer.
+ */
+internal fun needsFreshRecognizerAfter(error: Int, readyForSpeech: Boolean): Boolean =
+    !isEngineSilence(error) && readyForSpeech
 
 /**
  * Le moteur **hors ligne** a-t-il avoué ne pas pouvoir servir cette langue ?
