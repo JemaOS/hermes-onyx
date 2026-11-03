@@ -140,8 +140,13 @@ class SilentListeningGuardTest {
         assertTrue("la décision du moteur muet est prise", session.contains("levelFusion.observe(engineSpeech.level, engine.frameCount)"))
         assertTrue(
             "et le micro de l'app ne s'ouvre que **sur décision**, et **une seule fois** par écoute",
-            session.contains("if (levelFusion.wantsMeter && !meterAttempted && !meter.isAvailable) {") &&
+            session.contains("mayOpenAppMic(") &&
                 session.contains("meterAttempted = true"),
+        )
+        assertTrue(
+            "et **jamais** pendant que le moteur tient le micro : le micro est partagé, " +
+                "et l'app se ferait evincer — puis reprocher l'echec qu'elle a provoke",
+            session.contains("engineListening = engine.state.value.isListening"),
         )
         assertTrue(
             "les trames jugées sont celles du moteur **plus** celles du micro de l'app",

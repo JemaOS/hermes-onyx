@@ -889,4 +889,9 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
         "Aucune tâche ne démarre tant que vous n’envoyez rien dans la nouvelle.",
     "The copy lives on this phone: %1\$s, attachments included." to
         "La copie vit sur ce téléphone : %1\$s, pièces jointes comprises.",
+    // ---- La mise à jour de l'app (la carte du volet) ----
+    "Version %1\$s is out" to "La version %1\$s est sortie",
+    "Install it over this one; your sign-in and settings stay." to
+        "Installez-la par-dessus celle-ci : votre session et vos réglages restent.",
+    "Download" to "Télécharger",
 )

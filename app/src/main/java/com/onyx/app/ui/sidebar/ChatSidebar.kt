@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.onyx.app.data.model.Conversation
+import com.onyx.app.data.net.AppUpdate
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.conversations.ConversationActionSheet
 import com.onyx.app.ui.conversations.ConversationSheetRow
@@ -265,6 +266,16 @@ internal fun ChatSidebar(
      */
     onRetry: (() -> Unit)? = null,
     /**
+     * **La mise à jour de l'app** : la version publiée, quand elle est plus récente que celle
+     * installée. Absente, la carte n'est pas dessinée — c'est le cas le plus fréquent (l'app est
+     * à jour), et une place prise pour rien.
+     */
+    updateOffer: AppUpdate? = null,
+    /** « Download » : le gestionnaire de téléchargement prend le relais. */
+    onDownloadUpdate: (() -> Unit)? = null,
+    /** La croix : la proposition est écartée, et **mémorisée**. */
+    onDismissUpdate: (() -> Unit)? = null,
+    /**
      * **Depuis combien de secondes la copie locale est enregistrée**, ou `null` si ce téléphone n'a
      * jamais rien écrit. C'est l'âge que porte la phrase de la ligne d'état hors ligne : « Saved copy
      * · 9 h ago. » Voir [com.onyx.app.data.local.savedCopyAtMs] — la date vient du **fichier**, donc
@@ -392,6 +403,17 @@ internal fun ChatSidebar(
                     SidebarStatusLine(
                         ageSeconds = savedCopyAgeSeconds,
                         onRetry = onRetry,
+                    )
+                }
+                // **La mise à jour de l'app**, juste sous la tête : la même place que la ligne
+                // d'état hors ligne, et pour la même raison — c'est une information qui concerne
+                // l'app elle-même, pas la liste. Elle n'est dessinée que s'il y a vraiment une
+                // version plus récente à proposer.
+                if (updateOffer != null && onDownloadUpdate != null && onDismissUpdate != null) {
+                    SidebarUpdateCard(
+                        update = updateOffer,
+                        onDownload = onDownloadUpdate,
+                        onDismiss = onDismissUpdate,
                     )
                 }
                 SidebarSearch(

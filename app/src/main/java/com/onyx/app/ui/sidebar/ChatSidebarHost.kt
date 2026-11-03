@@ -19,6 +19,7 @@ import com.onyx.app.data.model.Conversation
 import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.data.local.savedCopyAtMs
 import com.onyx.app.data.net.ActivityKind
+import com.onyx.app.data.net.AppUpdate
 import com.onyx.app.data.net.ServerProject
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.bots.BotCardMenu
@@ -114,6 +115,16 @@ internal fun ChatSidebarHost(
     onDeleteConversations: (Set<String>) -> Unit,
     /** « Réessayer » : relit la liste des conversations et le roster (la carte de problème). */
     onRetry: () -> Unit,
+    /**
+     * **La mise à jour de l'app** : la version publiée, quand elle est plus récente que celle
+     * installée. Absente, la carte n'est pas dessinée — c'est le cas le plus fréquent (l'app est
+     * à jour), et une carte vide serait une place prise pour rien.
+     */
+    updateOffer: AppUpdate? = null,
+    /** « Download » : le gestionnaire de téléchargement prend le relais. */
+    onDownloadUpdate: (() -> Unit)? = null,
+    /** La croix : la proposition est écartée, et **mémorisée**. */
+    onDismissUpdate: (() -> Unit)? = null,
     onOpenBot: (BotProfile) -> Unit,
     onNewBot: () -> Unit,
     onOpenRoom: (GroupChat) -> Unit,
@@ -443,6 +454,9 @@ internal fun ChatSidebarHost(
         faceCodeOf = faceCodeOf,
         onRetry = onRetry,
         savedCopyAgeSeconds = savedCopyAgeSeconds,
+        updateOffer = updateOffer,
+        onDownloadUpdate = onDownloadUpdate,
+        onDismissUpdate = onDismissUpdate,
         destination = destination,
         destinationContent = destinationContent,
         modifier = modifier,
