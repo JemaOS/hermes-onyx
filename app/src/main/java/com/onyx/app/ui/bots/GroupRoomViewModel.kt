@@ -3,6 +3,7 @@ package com.onyx.app.ui.bots
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.onyx.app.data.local.RoomLeadStore
 import com.onyx.app.data.model.AttachedFileNote
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.model.serve.BotProfile
@@ -17,6 +18,8 @@ import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServerAttachment
 import com.onyx.app.data.net.ServerAttachments
 import com.onyx.app.data.net.humanFailure
+import com.onyx.app.data.room.RoomHandoffLine
+import com.onyx.app.data.room.roomAddressed
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.PendingAttachment
 import com.onyx.app.ui.conversations.GroupChat
@@ -25,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -55,6 +59,27 @@ class GroupRoomViewModel(
     private val faceStore = BotFaceStore(application)
 
     /**
+     * **Le meneur de cette salle, gardé sur ce téléphone** (`RoomLeadStore`) : un réglage local,
+     * comme l'onglet ouvert d'une conversation. Rien n'est envoyé au serveur.
+     */
+    private val leadStore = RoomLeadStore(application)
+
+    /**
+     * Le destinataire par défaut de la salle : le membre à qui elle écrit quand la personne ne
+     * nomme personne. `null` — « No lead » — et la salle se comporte exactement comme avant.
+     */
+    private val _lead = MutableStateFlow(leadStore.lead(initialRoom.id))
+    val lead: StateFlow<String?> = _lead.asStateFlow()
+
+    /**
+     * Jusqu'où le journal a été lu pour le meneur : un passage ne change le destinataire **qu'une
+     * fois**. Posé au dernier événement que la liste connaissait à l'ouverture (le journal d'hier
+     * ne défait donc pas le choix d'aujourd'hui) ; `null` quand la liste n'en savait rien — le
+     * premier journal lu sert alors de point de départ.
+     */
+    private var handoffThrough: Int? = initialRoom.latestSeq
+
+    /**
      * La table de visages **de l'écran** (`BotFaceResolver`), posée par la salle : elle réunit le
      * choix du téléphone et `ui_meta.onyx.face`. Sans elle, la scène vocale ne lisait que le choix
      * local — un membre dont le visage vient du serveur y apparaissait sans code, donc avec la
@@ -75,6 +100,14 @@ class GroupRoomViewModel(
         naming = { room -> room.naming(roster = null, mainName = mainName) },
     )
     val state = feed.state
+
+    init {
+        // **Un passage de main se lit dans le journal**, à chaque réponse lue : le premier journal
+        // venu est l'histoire de la salle (il ne défait pas le choix d'aujourd'hui), et les
+        // passages **suivants** changent le destinataire par défaut de la suite — une seule fois
+        // chacun.
+        viewModelScope.launch { state.collect { current -> applyHandoffs(current) } }
+    }
 
     // — Ce qu'une scène vocale lit dans cette salle (`GroupVoiceThread`) —
 
@@ -125,14 +158,25 @@ class GroupRoomViewModel(
      * Dit quelque chose dans la salle. Une salle ne prend que du texte : ce qui est joint part
      * d'abord sur le serveur (« Onyx attachments ») et le message les nomme, comme le fait
      * `GroupFeed.send` de la référence.
+     *
+     * **Le destinataire est un paramètre, pas un protocole.** La salle a un meneur ? Le message
+     * part **à lui par défaut** (`roomAddressed`) : c'est la même mention que la personne aurait
+     * tapée. La mention `@X` du composeur prime toujours, et sans meneur rien ne change.
+     * [to] nomme un destinataire pour cet envoi seulement ; absent, c'est le meneur de la salle.
      */
-    fun send(question: String, pendingAttachments: List<PendingAttachment> = emptyList()) {
+    fun send(
+        question: String,
+        pendingAttachments: List<PendingAttachment> = emptyList(),
+        to: String? = null,
+    ) {
         val clean = question.trim()
         if (clean.isEmpty() && pendingAttachments.isEmpty()) return
+        // Le destinataire est choisi **ici**, une fois : le meneur de la salle, ou celui qu'on nomme.
+        val recipient = to ?: _lead.value
         val id = feed.beginSend(clean, pendingAttachments.map { it.name })
         viewModelScope.launch {
             try {
-                var said = clean
+                var said = roomAddressed(clean, recipient, state.value.room.members)
                 if (pendingAttachments.isNotEmpty()) {
                     val outgoing = withContext(Dispatchers.IO) {
                         pendingAttachments.map { attachment -> readServerAttachment(attachment) }
@@ -157,6 +201,38 @@ class GroupRoomViewModel(
 
     fun stop() {
         viewModelScope.launch { feed.stop() }
+    }
+
+    /**
+     * **Choisit le meneur de la salle** — ou l'enlève (`null`, « No lead »). Le choix est gardé sur
+     * ce téléphone (`RoomLeadStore`) : il survit à la fermeture de l'app, et une salle sans meneur
+     * se comporte exactement comme avant.
+     */
+    fun setLead(profile: String?) {
+        val clean = profile?.takeIf { it.isNotBlank() }
+        _lead.value = clean
+        leadStore.set(state.value.room.id, clean)
+    }
+
+    /**
+     * Ce qu'un journal **vient de dire** du meneur : le dernier passage plus récent que
+     * [handoffThrough] l'emporte, une seule fois, et se garde pour la suite.
+     *
+     * Le premier journal venu ne compte pas : c'est l'histoire de la salle, et elle ne doit pas
+     * défaire le choix que la personne a fait aujourd'hui.
+     */
+    private fun applyHandoffs(current: GroupRoomFeedState) {
+        val through = handoffThrough
+        if (through == null) {
+            if (current.loaded) handoffThrough = current.handoffs.lastOrNull()?.seq ?: 0
+            return
+        }
+        val read = roomLeadRead(_lead.value, current.handoffs, through)
+        handoffThrough = read.through
+        if (read.lead != _lead.value) {
+            _lead.value = read.lead
+            leadStore.set(current.room.id, read.lead)
+        }
     }
 
     fun retry(task: String) {
@@ -236,6 +312,20 @@ class GroupRoomViewModel(
             ?: throw IOException("Couldn't read ${attachment.name}")
         return ServerAttachment(name = attachment.name, bytes = bytes, isImage = attachment.isImage)
     }
+}
+
+/**
+ * **Ce qu'un journal fait au meneur** : le dernier passage plus récent que [through] l'emporte, et
+ * [through] avance jusqu'à lui.
+ *
+ * C'est ce qui fait qu'un passage n'agit **qu'une fois** : relire le journal (chaque seconde, et à
+ * chaque reconnexion) ne change pas deux fois le destinataire, et ne réécrit pas le réglage.
+ */
+internal data class RoomLeadRead(val lead: String?, val through: Int)
+
+internal fun roomLeadRead(lead: String?, lines: List<RoomHandoffLine>, through: Int): RoomLeadRead {
+    val fresh = lines.lastOrNull { it.seq > through } ?: return RoomLeadRead(lead, through)
+    return RoomLeadRead(fresh.to, fresh.seq)
 }
 
 /** Les membres d'une salle, comme les bots que le composer connaît (poignée `@`, nom, visage). */
