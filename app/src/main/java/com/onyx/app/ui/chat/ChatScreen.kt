@@ -72,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.onyx.app.data.model.PrefillProgress
+import com.onyx.app.data.model.SubagentStatus
 import com.onyx.app.data.model.serve.BotMentions
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.components.FollowUpChips
@@ -1223,7 +1224,13 @@ fun ChatScreen(
                 onMenu = { showMoreMenu = true },
                 // La capsule des sous-agents n'apparaît que quand il y en a : elle dit combien
                 // travaillent, en direct, et ouvre l'écran des tâches.
-                subagentRuns = (subagentAgents ?: state.subagents).count { it.isLive },
+                // **Le nombre de tâches EN COURS**, jamais le cumul de la conversation.
+                //
+                // La capsule comptait tout ce que le fil avait vu (`it.isLive`, et « lancé sans
+                // suite » restait vivant pour toujours) : elle affichait 40 sur une conversation
+                // qui n'avait plus rien en route. Seul `RUNNING` travaille vraiment — une tâche
+                // close ne compte plus.
+                subagentRuns = (subagentAgents ?: state.subagents).count { it.status == SubagentStatus.RUNNING },
                 onOpenSubagents = if ((subagentAgents ?: state.subagents).isEmpty()) null else onOpenSubagents,
                 contextUsed = contextUsage?.contextUsed,
                 contextWindow = contextUsage?.contextMax ?: state.server.contextWindow.takeIf { it > 0 },
@@ -1245,7 +1252,7 @@ fun ChatScreen(
                 // tour n'est pas transporté par le gateway sur ce fil).
                 status = threadStatus(
                     working = state.isStreaming,
-                    subagents = (subagentAgents ?: state.subagents).count { it.isLive },
+                    subagents = (subagentAgents ?: state.subagents).count { it.status == SubagentStatus.RUNNING },
                     flow = flow,
                 ),
                 // LOT fil-vivant : l'état réel du tour et le signal de lecture. La pastille

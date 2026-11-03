@@ -37,6 +37,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clipToBounds
 import com.onyx.app.ui.design.GlassCircleButton
 import com.onyx.app.ui.design.IdentifierText
 import com.onyx.app.ui.design.GlassPill
@@ -392,7 +393,16 @@ fun OnyxTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier
-                    .widthIn(max = TopBarPrincipalMaxWidth)
+                    // **La largeur RÉELLE de la colonne, jamais 240 dp en dur.**
+                    //
+                    // Le défaut encadré par le propriétaire : avec la capsule des tâches à
+                    // droite, la place restante est plus étroite que [TopBarPrincipalMaxWidth] —
+                    // la rangée tenait donc à sa largeur théorique, débordait de la colonne, et
+                    // l'anneau de contexte (« 40 % ») se dessinait **sous la capsule**. Une rangée
+                    // qui reçoit la largeur vraie fait **rétrécir le modèle** (il a le `weight`),
+                    // et le `clip` ferme la porte si un libellé résiste quand même.
+                    .fillMaxWidth()
+                    .clipToBounds()
                     .then(if (onPickModel != null) Modifier.onyxClickable(onClick = onPickModel) else Modifier),
             ) {
                 // **Le profil réellement en force** : la clé de routage du tour (adresse
