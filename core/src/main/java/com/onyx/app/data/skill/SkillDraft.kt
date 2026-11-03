@@ -325,4 +325,5 @@ private val NamedKey.word: String
         NamedKey.BACK -> "Back"
         NamedKey.HOME -> "Home"
         NamedKey.ENTER -> "Enter"
+        NamedKey.ESCAPE -> "Escape"
     }

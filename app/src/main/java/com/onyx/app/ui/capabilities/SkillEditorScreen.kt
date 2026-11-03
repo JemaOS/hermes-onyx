@@ -44,11 +44,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
+ * Le contenu dont l'éditeur s'ouvre **pré-rempli** — le brouillon d'une démonstration
+ * (`skills.draft`) que l'utilisateur a relu et gardé. Un brouillon naît d'un `POST api/skills`
+ * comme n'importe quelle compétence : l'écran n'écrit jamais lui-même, il ne fait que poser le
+ * texte dans ses deux champs.
+ */
+data class SkillEditorSeed(val name: String, val content: String)
+
+/**
  * Créer ou modifier une compétence — **la fonction que la tuile « Compétences » portait seule**.
  *
  * Elle vit désormais dans la famille « Compétences » de « Capacités » : c'est le seul geste que
  * l'écran ne reprenait pas (le catalogue *installe* une compétence du hub, il ne l'écrit pas).
  * L'écran lui-même est inchangé — même formulaire, même route de contenu, même enregistrement.
+ *
+ * @param seed le brouillon d'une démonstration, quand « En faire un skill » a ouvert cet écran :
+ *   il remplit le nom et le contenu, et l'enregistrement reste `POST api/skills` (l'écran ne
+ *   change pas d'avis sur qui écrit une compétence).
  */
 @Composable
 fun SkillEditorScreen(
@@ -58,14 +70,17 @@ fun SkillEditorScreen(
     onSaved: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    seed: SkillEditorSeed? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val isNew = existing == null
 
-    var name by remember(existing) { mutableStateOf(existing.orEmpty()) }
+    // Un brouillon de démonstration arrive par [seed] : le nom proposé par le serveur et le
+    // Markdown converti. Sans brouillon, l'écran est celui d'aujourd'hui, à l'identique.
+    var name by remember(existing, seed) { mutableStateOf(existing ?: seed?.name.orEmpty()) }
     var category by remember { mutableStateOf("") }
-    var content by remember(existing) { mutableStateOf("") }
-    var loading by remember(existing) { mutableStateOf(!isNew) }
+    var content by remember(existing, seed) { mutableStateOf(seed?.content.orEmpty()) }
+    var loading by remember(existing) { mutableStateOf(existing != null) }
     var saving by remember { mutableStateOf(false) }
     var problem by remember { mutableStateOf<String?>(null) }
 

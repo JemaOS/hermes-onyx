@@ -193,6 +193,7 @@ import com.onyx.app.ui.chat.SelectableTextScreen
 import com.onyx.app.ui.tools.ToolsScreen
 import com.onyx.app.ui.capabilities.CapabilitiesScreen
 import com.onyx.app.ui.capabilities.SkillEditorScreen
+import com.onyx.app.ui.capabilities.SkillEditorSeed
 import com.onyx.app.ui.vault.VaultScreen
 import com.onyx.app.ui.insights.InsightsScreen
 import com.onyx.app.ui.ledger.AgentLedgerScreen
@@ -693,6 +694,9 @@ fun OnyxApp() {
         var patchText by remember { mutableStateOf<String?>(null) }
         var selectedText by remember { mutableStateOf<String?>(null) }
         var skillName by remember { mutableStateOf<String?>(null) }
+        // Le brouillon d'une démonstration, quand « En faire un skill » ouvre l'éditeur : le nom
+        // proposé et le Markdown converti. Nul, l'éditeur est celui d'aujourd'hui, à l'identique.
+        var skillSeed by remember { mutableStateOf<SkillEditorSeed?>(null) }
         var openingRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
         var subagentAgent by remember { mutableStateOf<com.onyx.app.data.model.SubagentActivity?>(null) }
         // Doublure de QA des sous-agents (`onyx.subagentDemo`) : le roster et le fil injectés,
@@ -2657,6 +2661,7 @@ fun OnyxApp() {
                     scope = scope,
                     onSaved = paneBack,
                     onBack = paneBack,
+                    seed = skillSeed,
                 )
 
                 Route.TOOLS.name -> ToolsScreen(server = state.server, scope = scope, onBack = paneBack)
@@ -2716,6 +2721,7 @@ fun OnyxApp() {
                     // sa page **dans le volet**, un niveau plus loin — le retour rend « Capacités ».
                     onEditSkill = { name ->
                         skillName = name
+                        skillSeed = null
                         panePush(Route.SKILL_EDITOR.name)
                     },
                     // La ligne « Secrets › » n'existe que si la sonde prouve la capacité ; la
@@ -4113,6 +4119,17 @@ fun OnyxApp() {
                 // Le menu du fil ouvre l'ordinateur : en deux panneaux, la page quittée est la
                 // **liste** (qui peint le même fil), donc on dépile avant de se rabattre sur le fil.
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
+                // « Montrer une fois » : la sonde dit si ce serveur sert le compagnon
+                // `onyx-record`, et l'éditeur de skill reçoit le brouillon relu.
+                server = state.server,
+                probe = remember(state.server.configSignature) {
+                    com.onyx.app.data.net.ServerProbe(state.server)
+                },
+                onDraftSkill = { name, content ->
+                    skillName = null
+                    skillSeed = SkillEditorSeed(name = name, content = content)
+                    navTo(Route.SKILL_EDITOR.name)
+                },
             )
 
             Route.LOCK -> LockSettingsScreen(onBack = { if (!navBack()) navTo(Route.SETTINGS.name) })
@@ -4414,6 +4431,9 @@ fun OnyxApp() {
                 scope = scope,
                 onSaved = { navTo(Route.CAPABILITIES.name) },
                 onBack = { if (!navBack()) navTo(Route.CAPABILITIES.name) },
+                // Un brouillon de démonstration arrive ici, relu sur l'écran Ordinateur : le nom
+                // et le Markdown sont déjà là, l'utilisateur n'a plus qu'à relire et enregistrer.
+                seed = skillSeed,
             )
 
             // « Capacités » : les compétences, les jeux d'outils et les serveurs MCP du profil,
@@ -4424,6 +4444,7 @@ fun OnyxApp() {
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
                 onEditSkill = { name ->
                     skillName = name
+                    skillSeed = null
                     navTo(Route.SKILL_EDITOR.name)
                 },
                 probe = remember(state.server.configSignature) {

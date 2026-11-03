@@ -431,6 +431,12 @@ class OnyxSocleVerrouTest {
             "Capture rapide" to listOf(
                 "app/src/main/java/com/onyx/app/ui/capture/QuickCaptureScreen.kt",
             ),
+            // **« Montrer une fois »** : la feuille d'enregistrement d'une démonstration et son
+            // bandeau de capture, ouverts depuis l'écran Ordinateur — mêmes corps, mêmes jetons,
+            // même plancher que les autres pages de la maison.
+            "Démonstration (Montrer une fois)" to listOf(
+                "app/src/main/java/com/onyx/app/ui/record/RecordScreen.kt",
+            ),
             "Cartes de réponse" to listOf(
                 "core/src/main/java/com/onyx/app/ui/cards/ReplyCardFormat.kt",
             ),
