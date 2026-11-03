@@ -573,6 +573,8 @@ class BotsViewModel(
                 order = state.order,
                 mainName = config.displayName,
                 pictures = _pictures.value,
+                // La table du roster : la tuile ne relit pas le magasin local pour dessiner.
+                faceResolver = BotFaceResolver.of(state.faces),
             )
         }
     }
@@ -655,8 +657,13 @@ class BotsViewModel(
         publishFaces()
     }
 
+    /**
+     * Le visage d'un bot, par **la résolution unique** : la table du roster (`state.faces`, sortie
+     * de [withSwiftFaces], choix local et `ui_meta.onyx.face` réunis). Un nom que la table ne
+     * porte pas laisse le nom décider, comme partout — il n'y a pas de second calcul ici.
+     */
     fun faceFor(bot: BotProfile): String? =
-        BotFaceResolver.of(_state.value.faces).codeOf(bot.name) ?: bot.faceCode
+        BotFaceResolver.of(_state.value.faces).codeOf(bot.name)
 
     /** Vrai seulement pour un choix enregistré, pas pour la créature calculée du roster. */
     fun hasPickedFace(bot: BotProfile): Boolean =

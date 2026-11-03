@@ -10,8 +10,10 @@ import android.graphics.drawable.Icon
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import com.onyx.app.MainActivity
+import com.onyx.app.data.local.BotPresenceIndex
 import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.di.AppContainer
+import com.onyx.app.ui.bots.BotFaceResolver
 import com.onyx.app.ui.settings.AppIconController
 import com.onyx.app.ui.theme.OnyxFonts
 import com.onyx.app.ui.theme.ResolvedTheme
@@ -59,6 +61,11 @@ object RosterShortcuts {
      *
      * La place laissée par les trois actions et par ce qui est épinglé est déduite de
      * [ShortcutManager.getMaxShortcutCountPerActivity] : rien n'est publié au-delà.
+     *
+     * [faceResolver] est **la résolution unique** du visage (`BotFaceResolver`, la table du
+     * roster) : la tuile ne relit jamais le magasin local pour dessiner. Un raccourci dont le profil
+     * porte déjà son code n'a même pas besoin d'elle ; le résolveur ne sert qu'au nom qu'il ne
+     * connaît pas, et un résolveur vide (`BotFaceResolver.none`) laisse alors le nom décider.
      */
     fun publish(
         context: Context,
@@ -66,7 +73,11 @@ object RosterShortcuts {
         order: List<String>,
         mainName: String,
         pictures: Map<String, ImageBitmap> = emptyMap(),
+        faceResolver: BotFaceResolver = BotFaceResolver.none,
     ) {
+        // Ce que le téléphone sait des bots, pour ce qui n'a pas d'écran (le widget) : publié ici
+        // parce que c'est ici que le roster arrive, à chaque lecture.
+        runCatching { BotPresenceIndex(context).publish(bots, mainName) }
         val manager = context.getSystemService(ShortcutManager::class.java) ?: return
         val stored = manager.maxShortcutCountPerActivity
         val taken = BotShortcutPlan.ACTION_IDS.size + runCatching { manager.pinnedShortcuts.size }.getOrDefault(0)
@@ -83,9 +94,10 @@ object RosterShortcuts {
         val infos = planned.mapIndexed { index, shortcut ->
             val picture = pictures[shortcut.bot] ?: pictures[shortcut.label]
             // La couleur vient du **visage résolu du roster** (`BotProfile.faceCode`, réparti par la
-            // section) : c'est celle que l'app montre partout. À défaut, celle gardée sur ce
-            // téléphone, puis celle du nom.
-            val faceCode = shortcut.faceCode ?: faceCode(context, shortcut.bot)
+            // section) : c'est celle que l'app montre partout. À défaut, celle que la **résolution
+            // unique** rend pour ce nom ([faceResolver]) — plus jamais une seconde lecture du
+            // magasin local, qui faisait de la tuile un chemin de visage à part.
+            val faceCode = shortcut.faceCode ?: faceResolver.codeOf(shortcut.bot)
             val bitmap: Bitmap = if (picture != null) {
                 BotTileArtwork.photoTile(
                     photo = picture.asAndroidBitmap(),
@@ -158,10 +170,6 @@ object RosterShortcuts {
     /** Les identifiants des raccourcis de bots publiés pour un roster (pour les essais). */
     fun ids(bots: List<BotProfile>, order: List<String>, mainName: String): List<String> =
         BotShortcutPlan.schedule(bots, order, mainName).map { it.id }
-
-    /** Le visage gardé sur ce téléphone pour un bot, quand le roster n'en a pas résolu. */
-    private fun faceCode(context: Context, bot: String): String? =
-        runCatching { AppContainer.botFaces.faceOf(bot) }.getOrNull()
 
     /** Le thème tel que l'app le rend, pour la couleur d'un visage « thème ». */
     private fun resolvedTheme(): ResolvedTheme {
