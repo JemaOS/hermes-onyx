@@ -453,6 +453,20 @@ class GroupRoomFeed(
     }
 
     /**
+     * **Enregistre un passage de main dans la salle** (`groups.handoff`) : le meneur qui part a
+     * nommé son successeur, la salle le note, et les autres appareils le voient.
+     *
+     * Rend `false` quand ce serveur ne connaît pas la route — la ligne de journal locale reste
+     * alors la seule trace, exactement comme avant.
+     */
+    suspend fun handOver(from: String, to: String): Boolean {
+        if (from == to) return false
+        val done = api.handoff(state.value.room.id, from, to)
+        if (done) look()
+        return done
+    }
+
+    /**
      * Dit le message dans la salle (`groups.send`) et relit le journal.
      *
      * **Un message ne se perd pas.** Un envoi qui échoue pour une raison passagère (réseau, 5xx,

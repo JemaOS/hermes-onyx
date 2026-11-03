@@ -160,6 +160,33 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
         }
     }
 
+    /**
+     * Enregistre un **passage de main** dans la salle (`groups.handoff`) : le meneur qui part a
+     * nommé son successeur, la salle le note, et les autres appareils le voient.
+     *
+     * Pas de `task_id` : le client ne connaît pas l'identifiant du tour en cours côté serveur, et
+     * arrêter un tour qu'on n'a pas nommé serait pire que le laisser finir. Pas de `summary` non
+     * plus — la phrase du meneur est déjà dans le journal.
+     */
+    override suspend fun handoff(room: String, from: String, to: String): Boolean {
+        return try {
+            rpc.call(
+                "groups.handoff",
+                buildJsonObject {
+                    put("room_id", room)
+                    put("from_member_id", from)
+                    put("to_member_id", to)
+                },
+                CALL_TIMEOUT,
+            )
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /** Le journal de la salle après `since`, page après page (`groups.log`). */
     override suspend fun log(room: String, since: Int): List<GroupEvent> {
         val events = mutableListOf<GroupEvent>()
@@ -369,6 +396,13 @@ interface GroupRoomApi {
      * téléphone, comme avant, et le dit.
      */
     suspend fun nameLead(room: String, memberId: String?): Boolean = false
+
+    /**
+     * Enregistre un **passage de main** dans la salle (`groups.handoff`) : le meneur qui part
+     * nomme son successeur, et la salle le note. Rend `false` quand ce serveur n'a pas la route —
+     * même règle que [nameLead] : ne jamais laisser croire à une écriture qui n'a pas eu lieu.
+     */
+    suspend fun handoff(room: String, from: String, to: String): Boolean = false
     suspend fun stop(room: String)
     suspend fun rename(room: String, name: String)
     suspend fun disband(room: String)

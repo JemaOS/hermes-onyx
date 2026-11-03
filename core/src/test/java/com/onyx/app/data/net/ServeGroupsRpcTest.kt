@@ -482,4 +482,32 @@ class ServeGroupsRpcTest {
 
         assertFalse(ServeGroupsRpc(rpc).nameLead("r1", "planner"))
     }
+
+    // — Le passage de main (`groups.handoff`) —
+
+    @Test
+    fun `un passage de main nomme la salle, celui qui part et celui qui prend`() = runBlocking {
+        var body = ""
+        val rpc = RpcChannel { method, params, _ ->
+            assertEquals("groups.handoff", method)
+            body = params.toString()
+            json("""{"room_id":"r1","seq":15,"from_member_id":"planner","to_member_id":"coder"}""")
+        }
+
+        assertTrue(ServeGroupsRpc(rpc).handoff("r1", "planner", "coder"))
+
+        assertTrue("la salle : $body", body.contains("\"room_id\":\"r1\""))
+        assertTrue("celui qui part : $body", body.contains("\"from_member_id\":\"planner\""))
+        assertTrue("celui qui prend : $body", body.contains("\"to_member_id\":\"coder\""))
+        // Le client ne connaît pas l'identifiant du tour côté serveur : il n'en invente pas, et
+        // n'arrête donc pas un tour qu'il n'a pas nommé.
+        assertFalse("aucun task_id inventé : $body", body.contains("task_id"))
+    }
+
+    @Test
+    fun `un serveur sans groups handoff garde la ligne de journal locale`() = runBlocking {
+        val rpc = RpcChannel { _, _, _ -> throw TransportError.Malformed("Method not found") }
+
+        assertFalse(ServeGroupsRpc(rpc).handoff("r1", "planner", "coder"))
+    }
 }
