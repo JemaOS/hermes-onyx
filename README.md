@@ -309,25 +309,21 @@ below before installing.
 
 | File | Runs on | What it is |
 |---|---|---|
-| `Hermes-Onyx-1.0.0+1049-telephone.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
-| `Hermes-Onyx-1.0.0+1049-auto.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
-| `Hermes-Onyx-1.0.0+1049-wear.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
+| `onyx-1.3.3-release.apk` | Phone, Android 8.0+ | The app: a sidebar, a chat and its five tabs, bots, rooms, voice, code, computer, servers, kanban, cron, files, terminal, widget. **The latest build.** |
+| `onyx-auto-1.3.3-release.apk` | Android Auto | The car: an "Ask" screen that streams the answer into a message card and reads it aloud. |
+| `onyx-wear-1.3.3-release.apk` | Wear OS 3+ (API 30) | The watch: a large microphone button, a live oscillogram, five states, and an "Ask Onyx" tile. |
 
-**The signing certificate changed with `1.0.0+980`.** `1.0.0+1049` is signed with that same
-**new key** (verified on the packages themselves: the `1.0.0+988` asset downloaded from this repo's
-previous release and the three `1.0.0+1049` packages all carry the same certificate,
-`CN=Hermes Onyx, O=JemaOS`, SHA-256 `bf436416…`), so **an update from `1.0.0+988` is a normal
-in-place update.** Coming from `1.0.0+972`,
+**The signing certificate has not changed since `1.0.0+980`:** the packages are signed with that
+same key, so an in-place update is a normal update. Coming from `1.0.0+972`,
 `1.0.0+547`, `1.0.0+546` or `1.0.0` — releases signed with the previous key — Android **refuses the
 in-place update**: **uninstall the old app, then install this one.** Nothing is lost from your server — scan your setup code again after the reinstall.
 
-The three names above are the exact asset names on the releases. `1.0.0+1049` carries a
-`SHA256SUMS-1049.txt` file with the SHA-256 of every package it ships. Check your download against
-it:
+Every release carries a `SHA256SUMS-<version>.txt` file with the SHA-256 of every package it
+ships. Check your download against it:
 
 ```bash
-curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS-1049.txt
-sha256sum -c SHA256SUMS-1049.txt
+curl -LO https://github.com/JemaOS/hermes-onyx/releases/latest/download/SHA256SUMS-1.3.3.txt
+sha256sum -c SHA256SUMS-1.3.3.txt
 ```
 
 1. Download the APK for your device, open it, allow the install (the build is signed).
