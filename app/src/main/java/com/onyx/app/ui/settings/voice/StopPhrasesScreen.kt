@@ -190,9 +190,16 @@ val BUILT_IN_HEARD: Set<String> = listOf(
     .filter { it.isNotEmpty() }
     .toSet()
 
-/** La liste montrée : les phrases **françaises d'abord**, parce que c'est ce que l'app écoute. */
-private const val BUILT_IN =
-    "« arrête », « arrête d'écouter », « c'est tout », « ça suffit », « au revoir », « bonne nuit », " +
-        "« termine la conversation », « laisse tomber », « annule », « merci », " +
-        "« stop », « stop listening », « that's all », « that's enough », « goodbye », « good night », " +
-        "« end conversation », « we're done », « never mind », « cancel », « thank you »"
+/**
+ * La liste montrée : les phrases **de la langue de l'app**.
+ *
+ * Les deux langues sont **entendues** dans les deux langues ([BUILT_IN_HEARD]) — seule celle
+ * qu'on montre change, comme l'aide mains-libres qui cite les mêmes phrases. Le dictionnaire
+ * fournit la version française ; l'app anglaise garde la sienne.
+ */
+private val BUILT_IN: String
+    get() = com.onyx.app.localization.OnyxLocalization[BUILT_IN_ENGLISH]
+
+private const val BUILT_IN_ENGLISH =
+    "“stop”, “stop listening”, “that's all”, “that's enough”, “goodbye”, “good night”, " +
+        "“end conversation”, “we're done”, “never mind”, “cancel”, “thank you”"

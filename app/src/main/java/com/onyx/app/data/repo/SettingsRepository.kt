@@ -98,9 +98,20 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     private val _autoVoiceLook = MutableStateFlow(AutoVoiceLook.BARS)
     val autoVoiceLook: StateFlow<AutoVoiceLook> = _autoVoiceLook.asStateFlow()
 
-    /** La langue du micro et de la lecture ; vide = celle du téléphone. */
+    /** La langue du micro et de la lecture ; vide = celle de l'interface. */
     private val _speechLocale = MutableStateFlow(DEFAULT_SPEECH_LOCALE)
     val speechLocale: StateFlow<String> = _speechLocale.asStateFlow()
+
+    /**
+     * La langue **réellement donnée au moteur** : le choix de la personne, sinon celle de
+     * l'interface.
+     *
+     * L'app était figée sur « fr-FR » : une app en anglais écoutait en français, et les phrases
+     * anglaises étaient mal transcrites — donc jamais reconnues. La langue du micro suit donc
+     * celle de l'interface, tant que la personne n'en a pas choisi une autre.
+     */
+    private val _speechLocaleResolved = MutableStateFlow(resolveSpeechLocale(DEFAULT_SPEECH_LOCALE))
+    val speechLocaleResolved: StateFlow<String> = _speechLocaleResolved.asStateFlow()
 
     /**
      * « Reconnaître hors ligne » (`Settings.offlineRecognition`) : **faux par défaut**.
@@ -386,7 +397,16 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         )
         _autoCardLook.value = AutoCardLook.fromId(preferences[Keys.AUTO_CARDS])
         _autoVoiceLook.value = AutoVoiceLook.fromId(preferences[Keys.AUTO_VOICE])
-        _speechLocale.value = preferences[Keys.SPEECH_LOCALE] ?: DEFAULT_SPEECH_LOCALE
+        // La langue du micro : **un choix explicite** d'abord, sinon celle de l'interface.
+        //
+        // L'héritage : avant, « fr-FR » était la valeur **par défaut** — et une entrée du sélecteur
+        // (« Français »). Un « fr-FR » de l'ancienne clé est donc ambigu : le traiter comme un
+        // choix figerait le micro en français sur une app anglaise ; le traiter comme « rien »
+        // supprimerait un choix réel de la personne. La clé **neuve** (`speech_locale_chosen`) lève
+        // l'ambiguïté : elle n'est écrite que par un choix, et c'est elle qui fait foi.
+        _speechLocale.value = preferences[Keys.SPEECH_LOCALE_CHOSEN]
+            ?: preferences[Keys.SPEECH_LOCALE]?.takeUnless { it == LEGACY_FIXED_SPEECH_LOCALE }
+            ?: DEFAULT_SPEECH_LOCALE
         _handsFreeByDefault.value = preferences[Keys.HANDS_FREE] ?: true
         // « Reconnaître hors ligne » : **faux par défaut** — le seul chemin vers le hors ligne.
         _offlineRecognition.value = preferences[Keys.OFFLINE_RECOGNITION] ?: false
@@ -403,6 +423,9 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         // réglages ramène aussi l'app à la langue d'Android.
         _language.value = OnyxLanguage.normalize(preferences[Keys.LANGUAGE])
         OnyxLanguage.apply(_language.value)
+        // La langue du micro se résout **après** celle de l'interface : quand rien n'est choisi,
+        // elle en suit la langue.
+        _speechLocaleResolved.value = resolveSpeechLocale(_speechLocale.value)
         // Le mode enregistré ; à défaut l'ancien booléen (vrai valait « partout »), à défaut le
         // défaut de la référence.
         _talkOver.value = preferences[Keys.TALK_OVER_MODE]?.let(TalkOver::fromId)
@@ -536,9 +559,22 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setSpeechLocale(tag: String) {
         val clean = tag.trim()
-        _speechLocale.value = clean.ifEmpty { DEFAULT_SPEECH_LOCALE }
-        store.edit { it[Keys.SPEECH_LOCALE] = _speechLocale.value }
+        _speechLocale.value = clean
+        _speechLocaleResolved.value = resolveSpeechLocale(clean)
+        // Le choix part dans la clé **neuve** : c'est elle, et elle seule, qui distingue un choix
+        // explicite d'une valeur héritée. L'ancienne clé reste telle quelle — l'écrire aussi
+        // rendrait le « fr-FR » choisi par la personne indistinguishable du « fr-FR » par défaut.
+        store.edit { it[Keys.SPEECH_LOCALE_CHOSEN] = clean }
     }
+
+    /**
+     * La langue donnée au moteur : le choix de la personne, sinon celle de l'interface.
+     *
+     * Une app en anglais écoute en anglais — sans quoi les phrases anglaises sont mal transcrites,
+     * donc jamais reconnues.
+     */
+    private fun resolveSpeechLocale(raw: String): String =
+        raw.trim().ifEmpty { defaultSpeechLocale() }
 
     suspend fun setHandsFreeByDefault(value: Boolean) {
         _handsFreeByDefault.value = value
@@ -634,6 +670,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val clean = OnyxLanguage.normalize(value)
         _language.value = clean
         OnyxLanguage.apply(clean)
+        // La langue du micro suit celle de l'interface — sauf si la personne en a choisi une.
+        _speechLocaleResolved.value = resolveSpeechLocale(_speechLocale.value)
         store.edit { it[Keys.LANGUAGE] = clean }
     }
 
@@ -848,6 +886,16 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val AUTO_CARDS = stringPreferencesKey("carPlayCards")
         val AUTO_VOICE = stringPreferencesKey("carPlayVoice")
         val SPEECH_LOCALE = stringPreferencesKey("speech_locale")
+        /**
+         * La clé **d'après** : celle qui porte un choix **explicite** de la personne.
+         *
+         * L'héritage est ambigu : avant, « fr-FR » était la valeur **par défaut** *et* une entrée
+         * du sélecteur (« Français »). Un « fr-FR » stocké pouvait donc être l'un ou l'autre, et
+         * l'écraser au hasard aurait supprimé un choix réel. Une clé neuve, écrite seulement quand
+         * la personne choisit, lève l'ambiguïté : le « fr-FR » de l'ancienne clé est une valeur
+         * héritée, le « fr-FR » de la neuve est un choix.
+         */
+        val SPEECH_LOCALE_CHOSEN = stringPreferencesKey("speech_locale_chosen")
         val HANDS_FREE = booleanPreferencesKey("hands_free_by_default")
         /**
          * « Reconnaître hors ligne ». Clé neuve, **fausse par défaut** : un appareil qui n'a jamais
@@ -977,8 +1025,22 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             "max" to "Max",
         )
 
-        /** La langue par défaut de la voix, celle que le brief demande. */
-        const val DEFAULT_SPEECH_LOCALE = "fr-FR"
+        /**
+         * La langue de reconnaissance quand la personne n'en a pas choisi : **celle de
+         * l'interface**. Vide veut dire « automatique » — l'app était figée sur « fr-FR », et une
+         * app en anglais écoutait en français.
+         */
+        const val DEFAULT_SPEECH_LOCALE = ""
+
+        /**
+         * La valeur **figée** d'avant : les installs d'avant stockaient « fr-FR » sans que ce
+         * soit un choix. Elle est ramenée à « automatique » au chargement (voir `load()`).
+         */
+        const val LEGACY_FIXED_SPEECH_LOCALE = "fr-FR"
+
+        /** La langue de reconnaissance par défaut : celle de l'interface. */
+        fun defaultSpeechLocale(): String =
+            if (com.onyx.app.localization.OnyxLocalization.isFrench()) "fr-FR" else "en-US"
 
         /** Les langues de réponse proposées ; la première entrée vide veut dire « automatique ». */
         val REPLY_LANGUAGES = listOf(
@@ -999,8 +1061,27 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
                 "unless they ask for another language."
         }
 
+        /**
+         * La langue de **lecture** d'une langue de réponse choisie : le code court (« fr », « en »)
+         * devient l'étiquette que le lecteur attend (« fr-FR », « en-US »).
+         *
+         * `null` pour « automatique » : la voix suit alors la langue du micro, donc celle de
+         * l'interface. C'est ce qui rend la lecture cohérente avec ce qui est dit.
+         */
+        fun replyLanguageTag(code: String): String? = when (code) {
+            "fr" -> "fr-FR"
+            "en" -> "en-US"
+            "de" -> "de-DE"
+            "es" -> "es-ES"
+            "it" -> "it-IT"
+            "pt" -> "pt-BR"
+            "nl" -> "nl-NL"
+            else -> null
+        }
+
         /** Les langues proposées, celles que les moteurs embarqués connaissent le mieux. */
         val SPEECH_LOCALES = listOf(
+            "" to "Automatic",
             "fr-FR" to "Français",
             "en-US" to "English (US)",
             "en-GB" to "English (UK)",

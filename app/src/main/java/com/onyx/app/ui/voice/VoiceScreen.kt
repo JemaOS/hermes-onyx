@@ -104,6 +104,7 @@ import com.onyx.app.ui.design.semanticsLabel
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ReferencePalette
 import com.onyx.app.ui.theme.ResolvedTheme
+import com.onyx.app.voice.HandsFreeStops
 import com.onyx.app.voice.TalkOver
 import com.onyx.app.voice.VoicePhase
 import java.util.Locale
@@ -122,11 +123,13 @@ data class VoiceAlertAction(val label: String, val onClick: () -> Unit)
 /**
  * Les phrases d'arrêt qui sont **toujours** entendues, quand la personne n'en a réglé aucune.
  *
- * **Françaises**, comme l'app : l'ancienne paire anglaise (« stop listening », « that's all »)
- * s'affichait telle quelle sous une phrase d'aide française — c'était le défaut rapporté. Ce sont
- * donc ces deux-là que l'aide cite, et elles sont dans [BUILT_IN_STOP_PHRASES].
+ * Elles suivent la **langue de l'app** : l'app française cite « arrête d'écouter » et « c'est
+ * tout », l'app anglaise cite “stop listening” et “that's all”. Les deux paires sont entendues
+ * dans les deux langues — seule celle qu'on affiche change. C'est [HandsFreeStops] qui les
+ * donne, pour que l'aide et le moteur ne puissent pas diverger.
  */
-private val DEFAULT_HANDS_FREE_STOPS = listOf("arrête d'écouter", "c'est tout")
+private val DEFAULT_HANDS_FREE_STOPS: List<String>
+    get() = HandsFreeStops.cited
 
 /** Le bouton rouge arrête toujours l'activité ; au repos, « End voice mode » ferme aussi la scène. */
 internal fun soloVoiceStop(phase: VoicePhase, allowEnd: Boolean = true, stop: () -> Unit, end: () -> Unit) {
@@ -506,16 +509,14 @@ fun VoiceScreen(
         if (handsFree) {
             // La phrase d'aide nomme **les phrases réellement écoutées** : celles que la personne a
             // réglées (Réglages → Voix → Stop phrases), sinon celles qui sont toujours entendues.
-            // Elle ne cite donc plus des mots anglais au-dessus de réglages français — et le gabarit
-            // est traduit, seule la liste des phrases reste verbatim.
-            val spokenStops = remember(stopPhrases) {
-                stopPhrases.map { it.trim() }.filter { it.isNotEmpty() }
-                    .ifEmpty { DEFAULT_HANDS_FREE_STOPS }
-            }
+            // Le gabarit est traduit, et la liste des phrases est citée **dans la langue de l'app**
+            // — les guillemets et le séparateur suivent la même langue.
+            val spokenStops = stopPhrases.map { it.trim() }.filter { it.isNotEmpty() }
+                .ifEmpty { DEFAULT_HANDS_FREE_STOPS }
             BasicText(
                 text = OnyxLocalization.format(
                     "Say %1\$s to end hands-free.",
-                    spokenStops.joinToString(OnyxLocalization[" or "]) { "« $it »" },
+                    HandsFreeStops.quoted(spokenStops),
                 ),
                 // Le gabarit est déjà traduit : le texte composé reste verbatim.
                 localize = false,
@@ -1121,10 +1122,12 @@ private fun VoiceSettingsPanel(
             .padding(horizontal = 16.dp)
             .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FormCorner)),
     ) {
-        // Langue d'écoute : vide ⇒ langue de l'appareil (adaptation Android du libellé de la référence).
+        // Langue d'écoute : vide ⇒ **la langue de l'interface** (le micro suit l'app). Le libellé
+        // disait « Device language » — c'était vrai tant que le micro suivait Android ; ça ne
+        // l'est plus, et un écran qui ment sur la langue du micro est le pire des mensonges.
         OnyxValueRow(
             label = "Listening language",
-            value = listeningLanguage.ifEmpty { "Device language" },
+            value = listeningLanguage.ifEmpty { "Automatic" },
             symbol = Symbols.Globe,
             onClick = { onPickListeningLanguage?.invoke() },
         )

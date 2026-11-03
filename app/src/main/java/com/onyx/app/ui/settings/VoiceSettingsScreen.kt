@@ -204,7 +204,8 @@ fun VoiceSettingsScreen(
             OnyxFormSection {
                 OnyxValueRow(
                     label = "Listening language",
-                    value = speechLocale,
+                    value = SettingsRepository.SPEECH_LOCALES.firstOrNull { it.first == speechLocale }?.second
+                        ?: "Automatic",
                     symbol = Symbols.MicOutline,
                     onClick = onOpenListeningLanguage,
                 )

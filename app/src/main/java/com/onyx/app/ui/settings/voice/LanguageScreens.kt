@@ -65,9 +65,11 @@ fun SpeechLanguageScreen(
             OnyxFormSection(
                 footer = "On-device transcription understands one language at a time; picking one downloads its speech model if it isn't on the phone yet.",
             ) {
+                // « Automatique » : le micro suit la **langue de l'interface**. C'est la ligne qui
+                // dit ce qui se passe vraiment — la ligne suivante énumère les choix.
                 LanguageRow(
-                    title = "The phone's language",
-                    detail = java.util.Locale.getDefault().toLanguageTag(),
+                    title = "Automatic",
+                    detail = SettingsRepository.defaultSpeechLocale(),
                     selected = current.isEmpty(),
                     localizeTitle = true,
                     onClick = { onPick("") },
@@ -76,6 +78,7 @@ fun SpeechLanguageScreen(
 
             OnyxFormSection(header = "Languages") {
                 SettingsRepository.SPEECH_LOCALES.forEachIndexed { index, (tag, name) ->
+                    if (tag.isEmpty()) return@forEachIndexed
                     if (index > 0) OnyxRowDivider()
                     LanguageRow(
                         title = name,

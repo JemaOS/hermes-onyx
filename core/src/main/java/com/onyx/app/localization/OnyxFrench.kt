@@ -468,10 +468,12 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     // Voix et réglages vocaux.
     "1 turn" to "1 tour",
     // La phrase d'aide **se compose** des phrases réellement écoutées (celles que la personne a
-    // réglées, sinon celles de base) : elle ne cite plus des mots anglais au-dessus de réglages
-    // français. Le gabarit est traduit, la liste des phrases reste telle quelle.
+    // réglées, sinon celles de base) : elle ne cite plus des mots d'une autre langue que celle de
+    // l'interface. Le gabarit est traduit, et la liste des phrases vient de la langue de l'app.
     "Say %1\$s to end hands-free." to "Dites %1\$s pour quitter le mode mains libres.",
     " or " to " ou ",
+    // La liste des phrases toujours entendues, dans la langue de l'app.
+    "“stop”, “stop listening”, “that's all”, “that's enough”, “goodbye”, “good night”, “end conversation”, “we're done”, “never mind”, “cancel”, “thank you”" to "« arrête », « arrête d'écouter », « c'est tout », « ça suffit », « au revoir », « bonne nuit », « termine la conversation », « laisse tomber », « annule », « merci »",
     "Switch to typing" to "Passer à la saisie",
     "Replay the last answer" to "Réécouter la dernière réponse",
     "End voice mode" to "Quitter le mode vocal",
@@ -484,7 +486,6 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "With headphones" to "Avec un casque",
     "Headphones and speaker" to "Casque et haut-parleur",
     "Listening language" to "Langue d’écoute",
-    "Device language" to "Langue de l’appareil",
     "Reply language" to "Langue des réponses",
     "Voice speed" to "Vitesse de la voix",
     "Start voice mode in hands-free" to "Démarrer le mode vocal en mains libres",
@@ -634,7 +635,6 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Preview" to "Aperçu",
     "Unchanged: add a word, then a bot, a prefix or a model." to "Inchangé : ajoutez un mot, puis un bot, un préfixe ou un modèle.",
     "On-device transcription understands one language at a time; picking one downloads its speech model if it isn't on the phone yet." to "La transcription sur l’appareil reconnaît une langue à la fois ; en choisir une télécharge son modèle vocal s’il n’est pas encore sur le téléphone.",
-    "The phone's language" to "La langue du téléphone",
     "Languages" to "Langues",
     "Search languages" to "Rechercher des langues",
     "Asks the agent to answer in this language, whatever language you write or speak in. On the Hermes Dashboard it's added to each message as a note, “(Reply in …)”, which other apps show; Onyx hides it. For voice mode, pick a matching Listening language too." to "Demande à l’agent de répondre dans cette langue, quelle que soit celle de vos messages ou de votre voix. Sur le Dashboard Hermes, une note « (Reply in …) » est ajoutée à chaque message pour les autres apps ; Onyx la masque. En mode vocal, choisissez aussi une langue d’écoute correspondante.",
