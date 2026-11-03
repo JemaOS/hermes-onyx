@@ -26,6 +26,7 @@ import com.onyx.app.shortcuts.BotShortcutPlan
 import com.onyx.app.shortcuts.BotShortcutRequest
 import com.onyx.app.shortcuts.RosterShortcuts
 import com.onyx.app.ui.OnyxApp
+import com.onyx.app.ui.bots.BotTemplateShareCodec
 import com.onyx.app.ui.design.LocalOnyxTextScale
 import com.onyx.app.ui.design.ProvideReduceMotion
 
@@ -130,14 +131,26 @@ class MainActivity : FragmentActivity() {
             Intent.ACTION_SEND -> {
                 // Un partage peut porter du texte, une image, un PDF, ou les deux : le texte va au
                 // composeur, le fichier s'y joint (il s'ouvre ensuite dans le lecteur de l'app).
-                ShareInbox.offer(intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty())
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+                // Un **lien de modèle de bot** partagé comme texte n'est pas un message : il ouvre
+                // l'aperçu du modèle, jamais le composeur.
+                if (isTemplateLink(text)) {
+                    ShareInbox.offerTemplate(text)
+                } else {
+                    ShareInbox.offer(text)
+                }
                 sharedStream(intent)?.let { uri ->
                     ShareInbox.offerFile(uri.toString(), intent.type, sharedName(intent, uri))
                 }
             }
-            // Un fichier ouvert depuis une autre app arrive directement dans le composer.
+            // Un fichier ouvert depuis une autre app arrive directement dans le composer ; un
+            // **lien de modèle** ouvert depuis un navigateur arrive dans l'aperçu du modèle.
             Intent.ACTION_VIEW -> intent.data?.let { uri ->
-                ShareInbox.offerFile(uri.toString(), intent.type, sharedName(intent, uri))
+                if (uri.scheme.equals("onyx", ignoreCase = true) && uri.host.equals("bot", ignoreCase = true)) {
+                    ShareInbox.offerTemplate(uri.toString())
+                } else {
+                    ShareInbox.offerFile(uri.toString(), intent.type, sharedName(intent, uri))
+                }
             }
             Intent.ACTION_PROCESS_TEXT ->
                 ShareInbox.offer(intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty())
@@ -170,6 +183,13 @@ class MainActivity : FragmentActivity() {
             }
             else -> Unit
         }
+    }
+
+    /** Un texte qui **est** un lien de modèle de bot, et rien d'autre autour. */
+    private fun isTemplateLink(text: String): Boolean {
+        val clean = text.trim()
+        if (clean.length > BotTemplateShareCodec.MAXIMUM_LENGTH) return false
+        return clean.startsWith(BotTemplateShareCodec.PREFIX, ignoreCase = true)
     }
 
     /** Le fichier d'un partage : `ClipData` d'abord, comme le veut Android 13 et au-delà. */

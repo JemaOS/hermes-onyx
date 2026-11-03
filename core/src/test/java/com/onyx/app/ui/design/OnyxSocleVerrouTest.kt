@@ -406,6 +406,9 @@ class OnyxSocleVerrouTest {
                 "app/src/main/java/com/onyx/app/ui/bots/APIBotEditorScreen.kt",
                 "app/src/main/java/com/onyx/app/ui/bots/BotEditorScreen.kt",
                 "app/src/main/java/com/onyx/app/ui/bots/BotFacePickerScreen.kt",
+                // La feuille du partage de modèle (« Partager comme modèle ») : le lien, son QR,
+                // et l'aperçu d'un lien reçu — la même route que les autres feuilles d'un bot.
+                "app/src/main/java/com/onyx/app/ui/bots/BotTemplateSheets.kt",
                 "app/src/main/java/com/onyx/app/ui/bots/BotVoicePickerScreen.kt",
                 "app/src/main/java/com/onyx/app/ui/bots/BotsArrange.kt",
                 "app/src/main/java/com/onyx/app/ui/bots/BotsScreen.kt",

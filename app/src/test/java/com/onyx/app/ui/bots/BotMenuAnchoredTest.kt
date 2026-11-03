@@ -198,6 +198,8 @@ class BotMenuAnchoredTest {
                 "Mute",
                 "Change Face…",
                 "Reorder Bots",
+                // « Partager comme modèle » : la dernière entrée, ajoutée par le lot du partage.
+                "Share as Template…",
             ),
             labels,
         )

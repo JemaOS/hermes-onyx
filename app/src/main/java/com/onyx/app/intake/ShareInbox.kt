@@ -66,10 +66,28 @@ object ShareInbox {
         _captureRequested.value = true
     }
 
+    private val _pendingTemplate = MutableStateFlow<String?>(null)
+    /**
+     * Un **lien de modèle de bot** reçu de l'extérieur (`onyx://bot?v=1&t=…`) : ouvert depuis un
+     * navigateur, une autre app, ou partagé comme texte.
+     *
+     * Il ne passe **pas** par le composeur : un lien de modèle n'est pas un message à envoyer, c'est
+     * un bot à regarder avant de l'ajouter. L'UI ouvre donc l'aperçu, une fois.
+     */
+    val pendingTemplate: StateFlow<String?> = _pendingTemplate.asStateFlow()
+
+    /** Un lien de modèle de bot, déposé pour l'aperçu. Un texte vide ne dit rien : il est ignoré. */
+    fun offerTemplate(link: String?) {
+        val clean = link?.trim().orEmpty()
+        if (clean.isEmpty()) return
+        _pendingTemplate.value = clean
+    }
+
     fun consume() {
         _pending.value = null
         _pendingFile.value = null
         _voiceRequested.value = false
         _captureRequested.value = false
+        _pendingTemplate.value = null
     }
 }

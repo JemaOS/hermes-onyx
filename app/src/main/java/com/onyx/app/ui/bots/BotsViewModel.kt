@@ -18,9 +18,11 @@ import com.onyx.app.data.net.ChatSessionActions
 import com.onyx.app.data.net.ServeActivityRpc
 import com.onyx.app.data.net.ServeBotsRpc
 import com.onyx.app.data.net.ServeClient
+import com.onyx.app.data.net.ServeFilesApi
 import com.onyx.app.data.net.ServeGroupsRpc
 import com.onyx.app.data.net.ServeProfilesApi
 import com.onyx.app.data.net.ServeRpc
+import com.onyx.app.data.net.ServeSkillsApi
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.visibleBotProfiles
@@ -938,6 +940,157 @@ class BotsViewModel(
             val said = error.said()
             _state.update { it.copy(problem = OnyxLocalization.format("Couldn't copy %1\$s. %2\$s", bot.label(config.displayName), said)) }
             said
+        }
+    }
+
+    // MARK: - Partager un modèle, et l'ajouter depuis un lien
+
+    /**
+     * Le lien de « Partager comme modèle » : ce que le serveur sait de ce bot, encodé par
+     * [BotTemplateShareCodec].
+     *
+     * Le prompt est son `SOUL.md` (`api/profiles/{nom}/soul`), les outils et les compétences sont
+     * ceux que le serveur déclare **allumés** pour ce profil — jamais une liste devinée. Une lecture
+     * qui échoue ne casse pas le partage : le lien part avec ce qu'on a, et [BotTemplateOffer]
+     * dit si le prompt y est.
+     *
+     * Les refus du codec (un prompt qui contient une adresse ou une clé) reviennent en
+     * [BotTemplateOfferOutcome.Refused] : la feuille du partage les dit, elle ne montre pas un lien
+     * vide.
+     */
+    internal suspend fun templateOffer(bot: BotProfile): BotTemplateOfferOutcome {
+        if (!config.hasServeCredentials) {
+            return BotTemplateOfferOutcome.Refused(OnyxLocalization["Needs the Hermes Dashboard"])
+        }
+        return try {
+            val soul: String?
+            val tools: List<String>
+            val skills: List<String>
+            val rpc = ServeRpc(config)
+            try {
+                soul = runCatching { ServeFilesApi(ServeClient(config)).soul(bot.name) }.getOrNull()
+                tools = runCatching { ServeBotsRpc(rpc).describeToolsets(bot.name).enabled.toList() }
+                    .getOrDefault(emptyList())
+            } finally {
+                rpc.close()
+            }
+            skills = runCatching {
+                ServeSkillsApi(ServeClient(config)).skills(bot.name)
+                    .filter { skill -> skill.enabled }
+                    .map { skill -> skill.name }
+            }.getOrDefault(emptyList())
+            val share = sharedTemplateOf(
+                bot = bot,
+                label = bot.label(config.displayName).ifBlank { bot.name },
+                soul = soul,
+                tools = tools,
+                skills = skills,
+            )
+            BotTemplateOfferOutcome.Ready(
+                BotTemplateOffer(link = share.link, withoutPrompt = share.spec.soul.isBlank()),
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            BotTemplateOfferOutcome.Refused(error.said())
+        }
+    }
+
+    /**
+     * Le retour d'un ajout partiel, posé sur la liste des bots : ce qui n'a pas été écrit se lit,
+     * plutôt que de disparaître avec la feuille.
+     */
+    internal fun reportPartialImport(outcome: BotTemplateImportOutcome.Added) {
+        if (outcome.notApplied.isEmpty()) return
+        _state.update {
+            it.copy(
+                problem = OnyxLocalization.format(
+                    "Added %1\$s, but not everything was written: %2\$s.",
+                    outcome.profile,
+                    outcome.notApplied.joinToString(", "),
+                ),
+            )
+        }
+    }
+
+    /**
+     * « Ajouter » d'un lien de modèle : le profil naît sur le serveur par **les routes de
+     * l'éditeur de bot** — `profiles.create` (`ServeBotsRpc.createBot`, le même `clone_from` que
+     * « New Bot »), puis ses jeux d'outils (`profiles.configure`), ses compétences
+     * (`api/skills/toggle`) et son modèle par défaut (`profiles.configure`).
+     *
+     * Ce qui n'a pas pu être écrit n'est **pas** tu : [BotTemplateImportOutcome.Added.notApplied]
+     * le nomme, et l'écran le montre. Un profil complet n'est donc pas promis à moitié : il est
+     * écrit, ou il est dit.
+     */
+    internal suspend fun importTemplate(share: BotTemplateShare): BotTemplateImportOutcome {
+        if (!config.hasServeCredentials) {
+            return BotTemplateImportOutcome.Refused(OnyxLocalization["Needs the Hermes Dashboard"])
+        }
+        val taken = (_state.value.bots + _state.value.hidden).map { it.name }.toSet()
+        val profile = templateHandle(share.spec.title, taken)
+        val faceCode = share.spec.face?.code()
+        val notApplied = mutableListOf<String>()
+        return try {
+            val rpc = ServeRpc(config)
+            try {
+                val bots = ServeBotsRpc(rpc)
+                bots.createBot(
+                    profile = profile,
+                    title = share.spec.title,
+                    about = share.spec.about,
+                    soul = share.spec.soul,
+                    faceCode = faceCode,
+                    // Comme « New Bot » : le profil naît copie de l'agent principal, sans hériter
+                    // de ses connexions.
+                    cloneFrom = sourceBots.firstOrNull { it.isDefault }?.name
+                        ?: config.hermesProfile.trim().takeIf { it.isNotEmpty() },
+                    hidden = false,
+                )
+                if (share.tools.isNotEmpty()) {
+                    try {
+                        bots.setToolsets(profile, share.tools)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        notApplied += OnyxLocalization["the tool sets"]
+                    }
+                }
+                if (!share.model.isNullOrBlank()) {
+                    try {
+                        bots.setModel(profile, share.model)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        notApplied += OnyxLocalization["the default model"]
+                    }
+                }
+            } finally {
+                rpc.close()
+            }
+            if (share.skills.isNotEmpty()) {
+                val skills = ServeSkillsApi(ServeClient(config))
+                var failed = false
+                for (name in share.skills) {
+                    try {
+                        skills.toggle(name, enabled = true, profile = profile)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        failed = true
+                    }
+                }
+                if (failed) notApplied += OnyxLocalization["the skills"]
+            }
+            // Le visage aussi est gardé ici : la carte le montre dès la première relecture, même
+            // si le serveur n'a pas gardé le `ui_meta`.
+            faces.setFace(profile, faceCode)
+            refresh()
+            BotTemplateImportOutcome.Added(profile, notApplied)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            BotTemplateImportOutcome.Refused(error.said())
         }
     }
 
