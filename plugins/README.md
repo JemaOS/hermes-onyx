@@ -10,10 +10,15 @@ installe Onyx puisse les poser à côté :
 
 ```
 plugins/
-└── onyx-vault/          # le coffre de secrets par profil
-    ├── dashboard/       # ← le dossier à copier dans ~/.hermes/plugins/
-    ├── tests/           # 35 tests unittest, exécutables sans Hermes pour la plupart
-    └── INSTALL.md       # deux étapes, aucune dépendance payante
+├── onyx-vault/          # le coffre de secrets par profil
+│   ├── dashboard/       # ← le dossier à copier dans ~/.hermes/plugins/
+│   ├── tests/           # 35 tests unittest, exécutables sans Hermes pour la plupart
+│   └── INSTALL.md       # deux étapes, aucune dépendance payante
+└── onyx-record/         # la démonstration→skill côté serveur (bail, journal borné, brouillon)
+    ├── dashboard/
+    ├── tests/           # 89 tests, dont le golden identique au convertisseur Kotlin
+    ├── ECARTS.md        # les 14 points où la spec était muette ou se contredisait
+    └── INSTALL.md
 ```
 
 ## Ce que ça change pour l'utilisateur
