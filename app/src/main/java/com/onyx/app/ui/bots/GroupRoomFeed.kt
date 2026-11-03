@@ -10,6 +10,8 @@ import com.onyx.app.data.net.GroupRoomApi
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.strOrNull
+import com.onyx.app.data.room.RoomHandoffLine
+import com.onyx.app.data.room.roomHandoffs
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.voice.VoiceDiagnostics
 import kotlinx.coroutines.CancellationException
@@ -94,8 +96,31 @@ data class GroupRoomFeedState(
      */
     val shownDrafts: List<GroupDraft> get() = drafts.filter { it.text.isNotEmpty() }
 
-    /** Les lignes du journal qui se dessinent : les messages, et les notes que vaut un tour. */
-    val rows: List<GroupEvent> get() = events.filter { it.isMessage || it.note(room) != null }
+    /**
+     * **Les passages de main du journal** — un par changement de destinataire, à la place de la
+     * réponse qui le porte (`roomHandoffs`). Lus du journal, ils ne sont jamais inventés : deux
+     * lectures du même journal rendent les mêmes lignes, et aucune ne peut donc s'afficher deux fois.
+     *
+     * Le dernier dit à qui la salle écrit par défaut pour la suite.
+     */
+    val handoffs: List<RoomHandoffLine> get() = roomHandoffs(events, room.members)
+
+    /**
+     * Les lignes du journal qui se dessinent : les messages, les notes que vaut un tour, et le
+     * passage de main **juste après** la réponse qui le porte — même liste, donc même ordre : une
+     * ligne de passage ne réordonne jamais les rangées existantes.
+     */
+    val rows: List<GroupEvent>
+        get() {
+            val kept = events.filter { it.isMessage || it.note(room) != null }
+            val handoffs = handoffs
+            if (handoffs.isEmpty()) return kept
+            val after = handoffs.associateBy { it.seq }
+            return kept.flatMap { event ->
+                val handoff = after[event.seq]
+                if (handoff == null) listOf(event) else listOf(event, handoff.asEvent())
+            }
+        }
 }
 
 /**

@@ -1,6 +1,10 @@
 package com.onyx.app.data.room
 
+import com.onyx.app.data.model.serve.GroupEvent
+import com.onyx.app.data.model.serve.GroupMember
 import java.util.Locale
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * **Le passage de main, version client** — celle qui marche sur un Hermes de base.
@@ -86,4 +90,114 @@ private fun sentenceAround(text: String, range: IntRange): String {
     val sentence = text.substring(start, end).trim().trim('.', '!', '?', ' ').replace(Regex("\\s+"), " ")
     if (sentence.isEmpty()) return text.substring(range.first, range.last + 1)
     return if (sentence.length <= SENTENCE_LIMIT) sentence else sentence.take(SENTENCE_LIMIT).trimEnd() + "…"
+}
+
+/** La première mention `@nom` de [text], hors code — celle que la personne a écrite. `null` sinon. */
+fun roomMentioned(text: String): String? {
+    val visible = INLINE_CODE.replace(FENCED_CODE.replace(text, " "), " ")
+    return MENTION.find(visible)?.groupValues?.get(1)
+}
+
+/**
+ * Le texte tel qu'il **part** dans une salle où [to] est le meneur.
+ *
+ * Le meneur n'est pas un chef : c'est un **destinataire par défaut**. Il n'y a donc rien de nouveau
+ * sur le fil — une salle s'adresse à quelqu'un en l'écrivant, et la mention est déjà la forme que la
+ * personne emploie. Deux règles, dans cet ordre :
+ *
+ * 1. une mention écrite par la personne (`@X`) **prime** : le texte est rendu tel quel ;
+ * 2. sans mention et avec un meneur, le texte est adressé à lui (`@sa-poignée ` devant), ce qui est
+ *    exactement ce que la personne aurait tapé pour l'adresser.
+ *
+ * Sans meneur — ou si [to] ne désigne aucun membre — le texte est rendu **inchangé** : c'est le
+ * comportement d'une salle qui n'a pas de meneur, et il ne bouge pas.
+ */
+fun roomAddressed(text: String, to: String?, members: List<GroupMember>): String {
+    val target = members.firstOrNull { it.profile == to } ?: return text
+    if (text.isBlank() || roomMentioned(text) != null) return text
+    val handle = target.handle.ifBlank { target.profile }
+    return "@" + handle + " " + text
+}
+
+/** La sorte d'événement qu'une ligne de passage de main porte dans le journal de la salle. */
+const val ROOM_HANDOFF_KIND = "room.handoff"
+
+/**
+ * **Un passage de main lu dans le journal** : une ligne, une seule, à la place de la réponse qui le
+ * porte.
+ *
+ * [seq] est celui de cette réponse — c'est sa **place** dans le journal, et sa **clé** : deux
+ * lectures du même journal rendent donc la même ligne, au même endroit, et elle ne peut pas entrer
+ * deux fois. La ligne ne réordonne rien : les rangées existantes gardent leur ordre, la ligne
+ * s'ajoute après la réponse qui la porte.
+ */
+data class RoomHandoffLine(
+    val seq: Int,
+    /** L'heure de la réponse qui porte le passage — la ligne se date comme elle. */
+    val atMillis: Long,
+    /** Le profil du membre qui passe la main. */
+    val from: String,
+    /** Le profil du membre qui la prend — écrit comme la room l'écrit. */
+    val to: String,
+    /** La phrase qui porte la mention (bornée par [roomHandoffProposal]). */
+    val sentence: String,
+) {
+    /**
+     * La ligne telle que le journal la dessine : la même liste (`GroupEvent`), le même ordre, la
+     * même clé — donc aucun second rendu possible.
+     */
+    fun asEvent(): GroupEvent = GroupEvent(
+        seq = seq,
+        kind = ROOM_HANDOFF_KIND,
+        actorKind = "member",
+        actorID = from,
+        payload = buildJsonObject {
+            put("from", from)
+            put("to", to)
+            put("sentence", sentence)
+        },
+        createdAtMillis = atMillis,
+    )
+}
+
+/**
+ * **Les passages de main d'un journal**, dans l'ordre où la salle les a dits.
+ *
+ * Le dernier passage est le destinataire par défaut de la suite ; c'est aussi ce que la ligne
+ * affiche. Deux règles :
+ *
+ * 1. seules les **réponses** comptent (`message.member`) : une note de tour, un message de la
+ *    personne, un renommage ne passent pas la main ;
+ * 2. un passage **vers celui qui a déjà la main** n'en est pas un nouveau — deux réponses
+ *    successives qui nomment le même `@membre` n'ajoutent qu'une ligne, parce que le destinataire
+ *    n'a pas changé.
+ *
+ * @param members les profils de la salle : leur écriture fait foi, par la même clé que le fil
+ *   (`id` de l'événement → `profile` du membre).
+ */
+fun roomHandoffs(events: List<GroupEvent>, members: List<GroupMember>): List<RoomHandoffLine> {
+    if (members.isEmpty()) return emptyList()
+    val profiles = members.map { it.profile }
+    val lines = mutableListOf<RoomHandoffLine>()
+    var recipient: String? = null
+    for (event in events) {
+        if (event.kind != "message.member") continue
+        // L'auteur par sa clé de membre (`id`), comme le fil ; une copie Desktop écrit le profil
+        // lui-même — on le lit donc aussi, plutôt que de perdre le passage.
+        val member = members.firstOrNull { it.id == event.actorID }
+            ?: members.firstOrNull { it.profile == event.actorID }
+            ?: continue
+        val proposal = roomHandoffProposal(event.text, from = member.profile, members = profiles) ?: continue
+        // Le destinataire n'a pas changé : ce n'est pas un nouveau passage.
+        if (proposal.to == recipient) continue
+        recipient = proposal.to
+        lines += RoomHandoffLine(
+            seq = event.seq,
+            atMillis = event.createdAtMillis,
+            from = member.profile,
+            to = proposal.to,
+            sentence = proposal.sentence,
+        )
+    }
+    return lines
 }
