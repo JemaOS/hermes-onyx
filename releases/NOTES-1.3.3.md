@@ -45,20 +45,38 @@ never covered that band. The bottom sheets now open their window over the whole 
 screen before and after: the bottom-left pixel went from the app's grey (`190,199,199`) to the
 sheet's white (`255,255,255`).
 
+## One version, one name
+
+A release used to carry an internal counter in every name it published: the tag
+`v1.3.1+1133`, the files `onyx-1133-release.apk`, the sums `SHA256SUMS-1133.txt`. The number
+said nothing to a reader — it was the machine's business, not theirs.
+
+The published names now carry the **version** and nothing else:
+
+- the tag is `v1.3.3`;
+- the packages are `onyx-1.3.3-release.apk`, `onyx-auto-1.3.3-release.apk` and
+  `onyx-wear-1.3.3-release.apk`;
+- the sums file is `SHA256SUMS-1.3.3.txt`.
+
+The app's update card reads both spellings — a release published the old way is still read exactly,
+and one published the new way is compared on its **readable** version, which is derived from the
+internal counter, so the two can never disagree.
+
 ---
 
 **Tests: 3816, 0 failures** (`:core` 1808, `:app` 2008; one skipped). New locks: the quoted
 phrases follow the interface language (`HandsFreeStopsTest`), the microphone locale follows the
-interface and an explicit choice survives a restart (`SpeechLocaleFollowsAppTest`), and every
-bottom sheet's window covers the system bars (`FenetreFeuilleTest`).
+interface and an explicit choice survives a restart (`SpeechLocaleFollowsAppTest`), every bottom
+sheet's window covers the system bars (`FenetreFeuilleTest`), and a release is read whether its
+tag and its packages carry the number or not (`AppUpdateTest`).
 
 **Verify a download:**
 
 ```bash
-curl -LO https://github.com/JemaOS/hermes-onyx/releases/download/v1.3.3%2B1135/SHA256SUMS-1135.txt
-sha256sum -c SHA256SUMS-1135.txt
+curl -LO https://github.com/JemaOS/hermes-onyx/releases/download/v1.3.3/SHA256SUMS-1.3.3.txt
+sha256sum -c SHA256SUMS-1.3.3.txt
 ```
 
 The three packages — phone (`com.onyx.app`), Android Auto (`com.onyx.app.auto`) and Wear OS
-(`com.onyx.app.wear`) — carry the same version (1.3.3) and are signed with the **same
-certificate**, so they install side by side.
+(`com.onyx.app.wear`) — carry the same version and are signed with the **same certificate**, so
+they install side by side.
