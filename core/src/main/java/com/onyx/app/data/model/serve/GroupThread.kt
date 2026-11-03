@@ -54,8 +54,16 @@ data class GroupEvent(
                 OnyxLocalization.format("%1\$s couldn't answer", who) +
                     (payload.strOrNull("error")?.let { ": $it" } ?: "")
             "turn.cancelled" ->
-                if (payload.strOrNull("reason") == "superseded_by_newer_user_event") null
-                else OnyxLocalization.format("%1\$s was stopped", who)
+                // `handed_over` : le tour s'arrête **parce qu'un autre le reprend**. La ligne de
+                // passage de main raconte déjà le geste ; écrire en plus « X was stopped » ferait
+                // lire un arrêt là où il y a une passation. Même raison que `superseded…`.
+                if (payload.strOrNull("reason") == "superseded_by_newer_user_event" ||
+                    payload.strOrNull("reason") == "handed_over"
+                ) {
+                    null
+                } else {
+                    OnyxLocalization.format("%1\$s was stopped", who)
+                }
             "turn.deferred" -> OnyxLocalization.format("%1\$s didn't finish", who)
             "room.activity" ->
                 if (payload.strOrNull("status") == "bounded") {
