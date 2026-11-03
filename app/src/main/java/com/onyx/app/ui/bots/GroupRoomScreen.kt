@@ -66,6 +66,8 @@ import com.onyx.app.data.model.serve.GroupEvent
 import com.onyx.app.data.model.serve.GroupMember
 import com.onyx.app.data.model.serve.GroupRoom
 import com.onyx.app.data.model.serve.GroupState
+import com.onyx.app.data.net.strOrNull
+import com.onyx.app.data.room.ROOM_HANDOFF_KIND
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.components.ApprovalCard
 import com.onyx.app.ui.chat.components.MarkdownText
@@ -186,6 +188,9 @@ fun GroupRoomScreen(
 ) {
     val theme = LocalOnyxTheme.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // **Le meneur de la salle** : un destinataire par défaut, gardé sur ce téléphone. Le menu le
+    // coche, et l'envoi le lit — sans meneur, la salle se comporte exactement comme avant.
+    val lead by viewModel.lead.collectAsStateWithLifecycle()
     val room = state.room
     val listState = rememberLazyListState()
     val composerFocusRequester = remember { FocusRequester() }
@@ -436,7 +441,7 @@ fun GroupRoomScreen(
                             if (rows.isEmpty() && state.sending.isEmpty()) {
                                 item(key = "opening") { RoomOpening(room = room, face = face, inline = true) }
                             }
-                            items(page.shown, key = { "seq-" + it.seq }) { event ->
+                            items(page.shown, key = { "seq-" + it.seq + "-" + it.kind }) { event ->
                                 RoomEventRow(
                                     event = event,
                                     room = room,
@@ -717,6 +722,41 @@ fun GroupRoomScreen(
                     showingMenu = false
                     findOpen = true
                 })
+                // **Le meneur de la salle** : un **destinataire par défaut**, jamais un chef — et
+                // un réglage local, sans route serveur. « No lead » l'enlève, et la salle se
+                // comporte alors exactement comme avant.
+                if (room.members.isNotEmpty()) {
+                    add(
+                        MenuItem(
+                            label = "Lead of this room",
+                            symbol = Symbols.HandRaised,
+                            submenu = buildList {
+                                add(
+                                    MenuItem(
+                                        label = "No lead",
+                                        checked = lead == null,
+                                    ) {
+                                        showingMenu = false
+                                        viewModel.setLead(null)
+                                    },
+                                )
+                                room.members.forEach { member ->
+                                    add(
+                                        MenuItem(
+                                            label = member.label,
+                                            localize = false,
+                                            checked = lead == member.profile,
+                                        ) {
+                                            showingMenu = false
+                                            viewModel.setLead(member.profile)
+                                        },
+                                    )
+                                }
+                            },
+                            onSelect = {},
+                        ),
+                    )
+                }
                 // Le modèle IA **de chaque bot**, depuis la salle : une salle n'avait aucun chemin
                 // vers le modèle d'un membre (seule la conversation d'un bot portait sa feuille).
                 // Le sous-menu nomme les membres — celui qu'on touche ouvre sa feuille de modèle.
@@ -1006,12 +1046,57 @@ private fun RoomEventRow(
             highlighted = highlighted,
         )
 
+        // **Le passage de main** : la ligne que la salle ajoute quand un membre nomme le suivant.
+        // Elle est dessinée **par la même liste** que les autres événements, à sa place — après la
+        // réponse qui la porte —, et elle ne réordonne rien.
+        event.kind == ROOM_HANDOFF_KIND -> RoomHandoffRow(
+            from = event.payload.strOrNull("from").orEmpty(),
+            to = event.payload.strOrNull("to").orEmpty(),
+            sentence = event.payload.strOrNull("sentence").orEmpty(),
+            room = room,
+        )
+
         else -> event.note(room)?.let { note ->
             SelectableText(
                 text = note,
                 localize = false,
                 style = theme.footnote.copy(color = theme.secondaryText, textAlign = TextAlign.Center),
                 modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/**
+ * **Le passage de main, dans le journal.** Une ligne, pas une carte : qui prend la suite, et la
+ * phrase qui l'a dit.
+ *
+ * Le meneur n'est pas un chef — la ligne ne dit ni ordre ni permission, seulement qui reçoit la
+ * suite. Les noms sont ceux de la salle (`label`), les mêmes que la réponse au-dessus : la ligne ne
+ * renomme personne. Un membre que la salle ne connaît plus garde son profil, tel quel.
+ */
+@Composable
+private fun RoomHandoffRow(from: String, to: String, sentence: String, room: GroupRoom) {
+    val theme = LocalOnyxTheme.current
+    val giver = room.members.firstOrNull { it.profile == from }?.label ?: from
+    val taker = room.members.firstOrNull { it.profile == to }?.label ?: to
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            OnyxIcon(symbol = Symbols.ArrowTurnDownRight, tint = theme.secondaryText, size = 13.dp)
+            BasicText(
+                text = OnyxLocalization.format("%1\$s hands the room to %2\$s", giver, taker),
+                localize = false,
+                style = theme.footnote.copy(color = theme.secondaryText, fontWeight = FontWeight.SemiBold),
+            )
+        }
+        if (sentence.isNotEmpty()) {
+            BasicText(
+                text = sentence,
+                localize = false,
+                style = theme.caption.copy(color = theme.tertiaryText),
             )
         }
     }
