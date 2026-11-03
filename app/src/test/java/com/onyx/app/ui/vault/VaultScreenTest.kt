@@ -72,19 +72,27 @@ class VaultScreenTest {
     // MARK: - 2. La ligne d'un secret
 
     @Test
-    fun `la ligne nomme l empreinte l usage et la date lisible`() {
+    fun `la ligne nomme l empreinte la date lisible et l usage`() {
         val line = vaultSecretDetail(secret(), Locale.FRANCE)
 
         assertTrue("l'empreinte est nommée : $line", line.contains("Empreinte a1b2"))
         assertTrue("l'usage est nommé : $line", line.contains("Utilisé par recherche, resume"))
         assertTrue("la date est lisible : $line", line.contains("nov. 2026"))
         assertFalse("la date ISO brute ne fuit pas : $line", line.contains("2026-11-03T"))
+        // **La date passe devant l'usage** : la rangée n'a que deux lignes et la pastille
+        // « Révoquer » mange la moitié de la largeur. En dernier, la date était coupée
+        // (« 3 nov.... ») — c'est elle qu'on doit voir, pas l'usage.
+        assertTrue(
+            "la date précède l'usage : $line",
+            line.indexOf("nov. 2026") < line.indexOf("Utilisé par"),
+        )
     }
 
     @Test
-    fun `un secret sans usage le dit au lieu de laisser un trou`() {
+    fun `un secret sans usage n ecrit pas une phrase pour ne rien dire`() {
+        // « utilisé par aucune tâche » occupait 26 caractères et poussait la date hors de l'écran.
         assertEquals(
-            "Empreinte **** · Utilisé par aucune tâche · 3 nov. 2026",
+            "Empreinte **** · 3 nov. 2026",
             vaultSecretDetail(secret(fingerprint = "****", usedBy = emptyList()), Locale.FRANCE),
         )
     }
