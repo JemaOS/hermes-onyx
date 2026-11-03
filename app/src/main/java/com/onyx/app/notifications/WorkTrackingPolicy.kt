@@ -41,6 +41,27 @@ object WorkTrackingPolicy {
     }
 
     /**
+     * Le tour qui doit **tenir le processus vivant**.
+     *
+     * Indépendant de la politique de notification : une politique dit *ce qu'on montre*, pas
+     * *si le travail survit*. Un tour qui tourne et une app en arrière-plan, ça doit tenir — sinon
+     * Android endort le processus, le canal meurt, et le tour est perdu au moment précis où la
+     * personne l'attendait.
+     *
+     * Le choix « jamais » est respecté : c'est une demande explicite de ne rien montrer, et un
+     * service de premier plan se voit forcément dans la barre d'état.
+     */
+    fun holding(
+        sessions: Collection<TurnSession>,
+        tracking: WorkTracking,
+        appInForeground: Boolean,
+    ): TurnSession? {
+        if (tracking == WorkTracking.NEVER) return null
+        if (appInForeground) return null
+        return sessions.filter { !it.isFinished }.maxByOrNull { it.startedAt }
+    }
+
+    /**
      * Le tour que la barre d'état suit pendant son travail : le plus récent en cours.
      *
      * `null` quand le choix ne demande pas de suivi en direct (« à la fin seulement »), quand

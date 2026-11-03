@@ -8,6 +8,7 @@ import com.onyx.app.notifications.WorkTracking
 import com.onyx.app.ui.chat.TurnSession
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -127,13 +128,18 @@ class TurnNoticePlannerTest {
     }
 
     @Test
-    fun `a la fin seulement n'installe rien dans la barre d'etat pendant le tour`() {
+    fun `a la fin seulement tient le processus sans montrer la progression`() {
         val running = session().also { it.apply(TurnEvent.ToolStarted(name = "terminal", preview = null)) }
         val notices = planner(tracking = WorkTracking.ON_FINISH)
             .plan(mapOf("fil" to running), appInForeground = false, visibleConversationId = null)
 
-        assertTrue(notices.filterIsInstance<TurnNotice.Keep>().isEmpty())
-        assertTrue(notices.contains(TurnNotice.Idle))
+        // Le processus doit tenir : sans service de premier plan, Android endort l'app, le canal
+        // meurt, et le tour est perdu au moment précis où la personne l'attendait.
+        val keep = notices.filterIsInstance<TurnNotice.Keep>().single()
+        // Mais rien de bavard : pas de progression, pas de bandeau qui compte — un mot, et la
+        // notification de fin qui Ramène la réponse.
+        assertNull("le maintien se passe de progression", keep.percent)
+        assertFalse(notices.contains(TurnNotice.Idle))
     }
 
     @Test
