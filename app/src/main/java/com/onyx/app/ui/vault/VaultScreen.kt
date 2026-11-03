@@ -77,11 +77,16 @@ internal fun vaultView(secrets: List<VaultSecret>?, problem: String?): VaultView
 }
 
 /**
- * La ligne secondaire d'un secret : **empreinte**, « utilisé par », puis la date lisible.
+ * La ligne secondaire d'un secret : **empreinte**, **date lisible**, puis « utilisé par ».
  *
- * Rien ici ne vient de la valeur : l'empreinte est celle que le serveur publie (les quatre derniers
- * caractères), l'usage est une liste de noms de tâches, et la date est mise en forme par
- * [vaultDateLabel]. Une donnée absente ne s'écrit pas — on ne remplit pas la ligne avec un tiret.
+ * L'ordre n'est pas décoratif : la rangée n'a que deux lignes de sous-titre et la pastille
+ * « Révoquer » mange la moitié de la largeur. Avec la date en dernier, elle était coupée
+ * (« 3 nov.... ») — la seule information qui dit *quand* on a écrit le secret disparaissait la
+ * première. Empreinte et date passent donc devant, et l'usage ferme la ligne : c'est lui qu'on
+ * peut perdre à l'affichage, pas la date.
+ *
+ * L'usage vide ne s'écrit plus : « utilisé par aucune tâche » occupait 26 caractères pour ne rien
+ * dire, et poussait la date hors de l'écran. Une donnée absente ne s'écrit pas.
  */
 internal fun vaultSecretDetail(
     secret: VaultSecret,
@@ -91,12 +96,10 @@ internal fun vaultSecretDetail(
     if (secret.fingerprint.isNotBlank()) {
         parts += OnyxLocalization.format("Fingerprint %1\$s", secret.fingerprint, locale = locale)
     }
-    parts += if (secret.usedBy.isEmpty()) {
-        OnyxLocalization["Not used by any task"]
-    } else {
-        OnyxLocalization.format("Used by %1\$s", secret.usedBy.joinToString(", "), locale = locale)
-    }
     vaultDateLabel(secret.updatedAt, locale)?.let { parts += it }
+    if (secret.usedBy.isNotEmpty()) {
+        parts += OnyxLocalization.format("Used by %1\$s", secret.usedBy.joinToString(", "), locale = locale)
+    }
     return parts.joinToString(" · ")
 }
 
