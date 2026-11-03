@@ -39,6 +39,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Rect
@@ -93,6 +94,7 @@ import com.onyx.app.ui.chat.components.OnyxTopBar
 import com.onyx.app.ui.chat.components.threadStatus
 import com.onyx.app.ui.chat.components.threadHeaderSpeaker
 import com.onyx.app.ui.chat.components.chatHeaderTitle
+import com.onyx.app.ui.chat.components.SlashMenu
 import com.onyx.app.ui.chat.components.StartCard
 import com.onyx.app.ui.chat.components.StartScreen
 import com.onyx.app.ui.chat.components.ChatActionSheet
@@ -155,6 +157,12 @@ fun ChatScreen(
     state: ChatUiState,
     startCards: List<StartCard>,
     onInputChange: (String) -> Unit,
+    /**
+     * Une ligne du menu « / » a été touchée : le texte entre dans le brouillon **et le menu se
+     * referme** ([ChatViewModel.pickSlash]). Par défaut, le même appel qu'une frappe — un écran
+     * qui n'a pas de menu ne change donc rien.
+     */
+    onPickSlash: (String) -> Unit = onInputChange,
     onSend: () -> Unit,
     /** Une note de pilotage écrite pendant une réponse : elle rejoint le tour en cours. */
     onSteer: (String) -> Unit = { _ -> },
@@ -756,6 +764,21 @@ fun ChatScreen(
     // sont mesurés**, et la pastille ne se pose toujours sur rien.
     val floatLane = PlaqueGeometry.FloatLane
 
+    /**
+     * L'espace dont le menu « / » dispose : **tout l'écran moins les deux vitres**.
+     *
+     * Le menu se pose juste au-dessus de la plaque (voir plus bas) ; sa hauteur au plus vaut donc
+     * la bande qui reste entre la barre du haut et le compositeur. Elle est **mesurée** — jamais
+     * une valeur en dur — pour qu'une police à 1,3×, un clavier ouvert ou un écran court fassent
+     * **défiler** la liste au lieu de la faire passer sous la plaque, ce qui était le défaut
+     * « ça passe derrière ».
+     */
+    val slashMenuMaxHeight = (
+        LocalConfiguration.current.screenHeightDp.dp - glassTopInset - glassBottomInset -
+            OnyxSpace.BlockGap - OnyxSpace.BlockGap
+        ).coerceAtLeast(OnyxSpace.Base)
+
+
     // L'état Haze posé à la racine : c'est lui que la barre du haut, le compositeur et la barre
     // d'onglets échantillonnent. `null` hors de l'arbre qui l'a posé (aperçus, tests) — les vitres
     // retombent alors sur leur voile, jamais sur un trou.
@@ -1059,46 +1082,26 @@ fun ChatScreen(
                     }
                 }
             }
+            // **Le menu « / » se pose AU-DESSUS de la plaque, jamais derrière elle.**
+            //
+            // Défaut relevé sur l'appareil : la liste était le dernier enfant du pane du fil,
+            // donc collée au bas de l'écran — la plaque du compositeur la recouvrait, et ses
+            // dernières lignes n'étaient ni lisibles ni cliquables (« ça passe derrière »).
+            // Elle remonte maintenant d'exactement la réserve du fil : le menu commence là où la
+            // plaque finit, et ne recouvre donc jamais le champ.
             if (state.slashItems.isNotEmpty()) {
-                // La liste des commandes se pose **au-dessus** de la vitre du compositeur : sous
-                // elle, ses lignes seraient floutées et, surtout, plus cliquables.
-                Spacer(Modifier.height(glassBottomInset + floatLane))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                        .background(theme.surfaceColor, RoundedCornerShape(OnyxSpace.FormCorner))
-                        .padding(vertical = 4.dp),
-                ) {
-                    state.slashItems.forEach { item ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onyxClickable { onInputChange(item.text) }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            OnyxIcon(Symbols.Terminal, tint = theme.secondaryText, size = 14.dp)
-                            BasicText(
-                                text = item.display,
-                                localize = false,
-                                style = theme.body.copy(color = theme.textColor),
-                                maxLines = 1,
-                            )
-                            if (item.detail.isNotEmpty()) {
-                                BasicText(
-                                    text = item.detail,
-                                    localize = false,
-                                    style = theme.caption.copy(color = theme.secondaryText),
-                                    maxLines = 2,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                }
-                }
+                SlashMenu(
+                    items = state.slashItems,
+                    onPick = onPickSlash,
+                    maxHeight = slashMenuMaxHeight,
+                    modifier = Modifier.padding(
+                        start = OnyxSpace.ScreenMargin,
+                        end = OnyxSpace.ScreenMargin,
+                        top = OnyxSpace.Half,
+                        bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap,
+                    ),
+                )
+            }
             }
 
             }

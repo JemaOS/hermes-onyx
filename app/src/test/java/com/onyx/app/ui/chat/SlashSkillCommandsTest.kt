@@ -105,4 +105,60 @@ class SlashSkillCommandsTest {
         assertEquals(listOf("/verte"), commands.drop(6).map { it.name })
         assertEquals(SlashAction.OPEN_MODEL_PICKER, SlashCommands.action("/model", commands))
     }
+
+    // ————————————————————————————————————————————————————————————————————————————————
+    // Le MENU, et pas seulement la liste : le défaut relevé sur l'appareil était que les
+    // compétences existaient sans jamais s'afficher.
+    // ————————————————————————————————————————————————————————————————————————————————
+
+    /** Un `complete.slash` qui remplit les huit lignes du menu. */
+    private fun menuServeur(n: Int = SLASH_MENU_LINES): List<SlashItem> =
+        (1..n).map { index -> SlashItem(text = "/cmd$index", display = "/cmd$index", detail = "") }
+
+    @Test
+    fun `les competences entrent dans le menu meme quand le serveur le remplit`() {
+        // Le défaut : les commandes de l'app étaient ajoutées *après* celles du serveur, puis
+        // coupées par `take(8)`. Avec huit lignes serveur, une compétence n'avait aucune place —
+        // elle existait dans la liste fournie, et restait invisible dans le menu.
+        val commands = SlashCommands.commands(listOf(skill("youtube-content", "Résume une vidéo")))
+        val menu = withLocalCommands(menuServeur(), "/", commands)
+
+        assertEquals(SLASH_MENU_LINES, menu.size)
+        // Les six commandes de l'app d'abord, la compétence ensuite, le serveur en dernier.
+        assertEquals(
+            listOf("/model", "/new", "/find", "/settings", "/voice", "/help", "/youtube-content"),
+            menu.take(7).map { it.text },
+        )
+        assertEquals("/cmd1", menu.last().text)
+    }
+
+    @Test
+    fun `un prefixe precis laisse la place au serveur`() {
+        // « /res » ne répond plus à aucune commande de l'app (ni aux six fixes, ni aux
+        // compétences) : le menu doit être exactement celui du serveur.
+        val serveur = listOf(SlashItem(text = "/resolve", display = "/resolve", detail = ""))
+        val menu = withLocalCommands(serveur, "/res", SlashCommands.commands())
+
+        assertEquals(listOf("/resolve"), menu.map { it.text })
+    }
+
+    @Test
+    fun `une commande que le serveur propose deja n est pas doublee`() {
+        val serveur = listOf(SlashItem(text = "/model", display = "/model", detail = ""))
+        val menu = withLocalCommands(serveur, "/", SlashCommands.commands())
+
+        assertEquals(1, menu.count { it.text == "/model" })
+    }
+
+    @Test
+    fun `le menu ne depasse jamais sa taille et garde les competences en tete`() {
+        // Un profil bavard : dix compétences, huit lignes serveur. Le menu reste à huit, et les
+        // compétences — ce que le menu existe pour rendre atteignable — passent devant.
+        val skills = (1..10).map { skill("skill-$it") }
+        val commands = SlashCommands.commands(skills)
+        val menu = withLocalCommands(menuServeur(), "/", commands)
+
+        assertEquals(SLASH_MENU_LINES, menu.size)
+        assertTrue(menu.drop(6).all { it.text.startsWith("/skill-") })
+    }
 }

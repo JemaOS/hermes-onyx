@@ -1926,6 +1926,9 @@ fun OnyxApp() {
                 // « Shown in the header and the message box » : le nom des Réglages → Apparence.
                 assistantName = displayName.trim(),
                 onInputChange = chatViewModel::onInputChange,
+                // Une ligne du menu « / » choisie : le texte entre dans le champ et le menu se
+                // referme, au lieu de rester ouvert sur la commande qu'on vient de prendre.
+                onPickSlash = chatViewModel::pickSlash,
                 onSend = chatViewModel::send,
                 onSteer = chatViewModel::steer,
                 onConsumeSlash = chatViewModel::consumeSlash,

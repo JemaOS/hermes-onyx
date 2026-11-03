@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.localization.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -195,6 +196,13 @@ fun GroupComposer(
     onTalk: (() -> Unit)? = null,
     /** L'erreur du fil (`feed.problem`), montrée quand le compositeur n'a pas la sienne. */
     serverError: String? = null,
+    /**
+     * **Le meneur de la salle, tel qu'on l'écrit** (son nom de salle, sinon sa poignée) : la ligne
+     * du dessus le rappelle tant qu'il est choisi, parce qu'un destinataire par défaut invisible ne
+     * se distingue pas d'une salle sans meneur. `null` — aucune ligne, et le compositeur est
+     * exactement celui d'avant.
+     */
+    leadLabel: String? = null,
     /** La langue de la dictée du champ, distincte de la scène mains-libres. */
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
     /** Donné par l'écran qui doit rendre le focus au champ (`Switch to typing`). */
@@ -346,6 +354,23 @@ fun GroupComposer(
                     focusRequester?.requestFocus()
                 },
                 modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+            )
+        }
+
+        // **Le meneur, rappelé au-dessus du champ.** Sans cette ligne, un réglage local
+        // (un destinataire par défaut) ne se voit nulle part : la salle écrirait à quelqu'un sans
+        // que la personne l'ait sous les yeux. Rien quand il n'y a pas de meneur.
+        leadLabel?.takeIf { it.isNotBlank() }?.let { label ->
+            val theme = LocalOnyxTheme.current
+            BasicText(
+                text = OnyxLocalization.format("Lead: %1\$s", label),
+                localize = false,
+                style = theme.caption.copy(color = theme.secondaryText, fontWeight = FontWeight.Medium),
+                // Un libellé se replie, il ne se coupe pas : « Lead: … » à une ligne redevenait
+                // « Lead: pla… » à police 1,3× (politique des troncatures, `OnyxTextPolicy`).
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 2.dp),
             )
         }
 

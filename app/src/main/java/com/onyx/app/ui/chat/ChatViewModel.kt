@@ -426,6 +426,21 @@ class ChatViewModel(
         drafts.put(conversationId, value)
     }
 
+    /**
+     * Une ligne du menu « / » a été **touchée** : son texte entre dans le brouillon, et le menu se
+     * referme.
+     *
+     * Sans cette fermeture, `onInputChange` relançait `updateSlashMenu` sur le texte choisi : le
+     * menu se redessinait avec cette seule ligne, au-dessus du champ qu'on venait d'utiliser — et
+     * une compétence, qu'il faut pouvoir compléter d'une instruction puis envoyer, restait sous un
+     * panneau. C'était le second versant du défaut « les compétences sont inutilisables ».
+     */
+    fun pickSlash(text: String) {
+        slashJob?.cancel()
+        _state.update { it.copy(input = text, slashItems = emptyList()) }
+        drafts.put(conversationId, text)
+    }
+
     /** Joint des fichiers choisis : images ou textes, selon leur type. */
     fun addAttachments(uris: List<Uri>) {
         if (uris.isEmpty()) return
