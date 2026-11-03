@@ -193,7 +193,10 @@ fun HouseSheet(
     val theme = LocalOnyxTheme.current
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        // **La fenêtre couvre tout l'écran, barre système comprise** — même correction que
+        // [AttachmentSheet] : sans cela, la fenêtre s'arrêtait au-dessus de la barre de
+        // navigation et le fond de l'app transparaissait dans ce bandeau, non assombri.
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         DialogWindowBlur(FrostSurface.SHEET)
         Box(

@@ -210,7 +210,18 @@ fun AttachmentSheet(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        // **La fenêtre couvre tout l'écran, barre système comprise.**
+        //
+        // Le défaut mesuré sur la capture du propriétaire : la fenêtre de la boîte de dialogue
+        // s'arrêtait **au-dessus** de la barre de navigation, et le fond de l'app — le bouton
+        // d'envoi et la pastille du micro, coupés en deux — transparaissait dans ce bandeau,
+        // **non assombri** (le voile ne le couvrait pas). Un rectangle rouge encadrait ce vide.
+        //
+        // `decorFitsSystemWindows = false` étale la fenêtre sur toute la surface : le voile
+        // assombrit jusqu'au bas, et le panneau de la feuille — qui descend jusqu'au bord — ne
+        // laisse plus rien passer. C'est la même correction que les feuilles plus récentes
+        // (`ChatActionSheet`, `ConversationActionSheet`, `ModelSheet`), qui l'ont déjà.
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         // Le flou vient de la fenêtre du système (ce qui passe derrière), le voile prend le relais
         // quand il n'est pas disponible : même recette que la feuille d'actions.
