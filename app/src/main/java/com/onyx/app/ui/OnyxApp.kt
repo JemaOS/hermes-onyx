@@ -3917,6 +3917,11 @@ fun OnyxApp() {
                 server = state.server,
                 onSave = { settingsViewModel.saveConnection(it) },
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
+                // La sonde est refaite quand la signature de la config change : c'est une autre
+                // machine (ou d'autres identifiants) en face, donc d'autres capacités.
+                probe = remember(state.server.configSignature) {
+                    com.onyx.app.data.net.ServerProbe(state.server)
+                },
             )
 
             // « Hidden Bots » : `HiddenBotsView`, ouvert par la tuile « Hidden » de la grille.
