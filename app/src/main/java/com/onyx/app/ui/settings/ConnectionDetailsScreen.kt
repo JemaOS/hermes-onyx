@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,6 +20,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.onyx.app.data.model.CustomHeader
 import com.onyx.app.data.model.ServerConfig
+import com.onyx.app.data.net.ServerCapability
+import com.onyx.app.data.net.ServerProbe
+import com.onyx.app.data.net.Support
 import com.onyx.app.ui.design.OnyxFieldRow
 import com.onyx.app.ui.design.OnyxFormSection
 import com.onyx.app.ui.design.OnyxIcon
@@ -47,6 +51,13 @@ fun ConnectionDetailsScreen(
     server: ServerConfig,
     onSave: (ServerConfig) -> Unit,
     onBack: () -> Unit,
+    /**
+     * La sonde de capacités — ce que **ce** serveur sait faire.
+     *
+     * `null` : la section n'est pas dessinée du tout (aperçu, test, écran sans réseau). C'est le
+     * motif d'entrée conditionnelle de la maison : une entrée absente plutôt qu'un tap mort.
+     */
+    probe: ServerProbe? = null,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
@@ -55,10 +66,21 @@ fun ConnectionDetailsScreen(
     var headerName by remember { mutableStateOf("") }
     var headerValue by remember { mutableStateOf("") }
     var headerProblem by remember { mutableStateOf<String?>(null) }
+    // `null` = on n'a pas encore la réponse : la section dit « checking… », elle ne bloque rien.
+    var capabilities by remember(server.id) { mutableStateOf<Map<ServerCapability, Support>?>(null) }
 
     fun edit(transform: (ServerConfig) -> ServerConfig) {
         draft = transform(draft)
         onSave(draft)
+    }
+
+    // Une sonde ne bloque **jamais** l'ouverture d'un écran : elle part sur la portée de
+    // composition, et la section affiche « Checking… » jusque-là. Changer d'adresse, de compte ou
+    // de serveur relance la sonde, parce que ce n'est plus la même machine en face.
+    LaunchedEffect(probe, draft.serveBaseUrl, draft.serveUsername, draft.servePassword) {
+        val sonde = probe ?: return@LaunchedEffect
+        capabilities = null
+        capabilities = sonde.snapshot()
     }
 
     Column(
@@ -148,6 +170,33 @@ fun ConnectionDetailsScreen(
                         text = if (draft.hasServeCredentials) "configured" else "not connected",
                         style = theme.body.copy(color = theme.secondaryText),
                     )
+                }
+            }
+
+            // Les capacités du serveur : ce qu'il sait faire, dit avant qu'un écran ne l'exige.
+            // La section n'existe pas quand aucune sonde n'est fournie — un aperçu n'en dessine
+            // pas les lignes, et un serveur d'une autre version n'ouvre pas un écran vide.
+            if (probe != null) {
+                OnyxFormSection(
+                    header = "Server capabilities",
+                    footer = "What this server can do. A capability it does not have is not " +
+                        "drawn anywhere in the app, rather than shown empty.",
+                ) {
+                    val known = capabilities
+                    ServerCapability.entries.forEachIndexed { index, capability ->
+                        if (index > 0) OnyxRowDivider()
+                        OnyxRow {
+                            BasicText(
+                                text = capabilityLabel(capability),
+                                style = theme.body.copy(color = theme.primaryText),
+                                modifier = Modifier.weight(1f),
+                            )
+                            BasicText(
+                                text = supportLabel(known?.get(capability)),
+                                style = theme.callout.copy(color = theme.secondaryText),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -253,4 +302,29 @@ fun ConnectionDetailsScreen(
             }
         }
     }
+}
+
+/**
+ * Le mot d'une capacité dans la liste : le **rôle** qu'elle joue pour la personne, jamais le nom
+ * de la route qui la sert. Une ligne « api/vault » ne dirait rien ; « Secrets vault » si.
+ */
+fun capabilityLabel(capability: ServerCapability): String = when (capability) {
+    ServerCapability.VAULT -> "Secrets vault"
+    ServerCapability.RECORD -> "Teach a task"
+    ServerCapability.HANDOFF -> "Room handoff"
+}
+
+/**
+ * Ce que la ligne dit d'une capacité.
+ *
+ * `null` : la sonde n'a pas encore répondu — on l'écrit, on ne laisse pas la ligne muette.
+ * [Support.UNKNOWN] n'est **pas** un oui : une décision le traite comme un non
+ * (`Support.isUsable`), mais l'écran, lui, dit la vérité — « not confirmed » plutôt que de
+ * promettre une fonction que le serveur n'a pas prouvée.
+ */
+fun supportLabel(support: Support?): String = when (support) {
+    null -> "Checking…"
+    Support.YES -> "Available"
+    Support.NO -> "Not on this server"
+    Support.UNKNOWN -> "Not confirmed"
 }
