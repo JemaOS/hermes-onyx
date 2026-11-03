@@ -721,7 +721,8 @@ fun ChatScreen(
             SlashAction.FIND -> onFindRequested()
             SlashAction.SETTINGS -> onOpenSettings()
             SlashAction.VOICE -> onOpenVoice()
-            SlashAction.HELP, SlashAction.GATEWAY -> Unit
+            // Une compétence s'invoque par l'envoi lui-même : rien à faire à l'écran.
+            SlashAction.INVOKE_SKILL, SlashAction.HELP, SlashAction.GATEWAY -> Unit
         }
         onConsumeSlash()
     }

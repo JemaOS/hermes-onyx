@@ -36,3 +36,29 @@ internal fun withModelCommand(items: List<SlashItem>, draft: String): List<Slash
         ),
     ) + items
 }
+
+/**
+ * Ajoute au menu les commandes que l'app connaît — les six fixes et les **compétences du profil** —
+ * quand le gateway ne les propose pas déjà.
+ *
+ * Le menu d'une connexion Dashboard vient de `complete.slash`, qui liste normalement les
+ * compétences installées. Mais un serveur qui ne les sert pas dans cette réponse, ou une réponse
+ * arrivée trop tard, laisserait le menu sans elles : la **même liste fournie** que l'exécution
+ * ([SlashCommands.commands]) les rend visibles, sans doublon et sans copie codée.
+ */
+internal fun withLocalCommands(
+    items: List<SlashItem>,
+    draft: String,
+    commands: List<SlashCommand>,
+): List<SlashItem> {
+    val typed = draft.trim().lowercase().substringBefore(' ')
+    if (!typed.startsWith("/")) return items
+    val present = items.map { it.text.lowercase() }.toSet()
+    val extra = commands
+        .filter { it.name.startsWith(typed) && it.name.lowercase() !in present }
+        .map { command ->
+            SlashItem(text = command.name, display = command.display, detail = command.shownDetail)
+        }
+    // Le menu garde sa taille : la référence en montre huit.
+    return (items + extra).take(8)
+}
