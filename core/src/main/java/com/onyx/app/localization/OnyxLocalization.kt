@@ -218,7 +218,7 @@ object OnyxLocalization {
     // Les traductions spécifiques à Onyx priment sur les termes partagés, puis les ajouts locaux
     // peuvent adapter une formulation sans modifier le catalogue réutilisé. Les cartes de réponse
     // et les phrases de l'écran de verrouillage passent en dernier.
-    private val french = onyxSharedFrench + criticalFrench + onyxAdditionalFrench + onyxSettingsFrench + onyxCommonFrench + onyxRemainingFrench + onyxSetupTerminalFrench + onyxCardsFrench + onyxLockFrench + onyxToolsFrench + onyxToolsPageFrench + onyxLanguageFrench + onyxCodeFrench + onyxTabsFrench + onyxMenuSheetFrench + onyxCapabilitiesFrench + onyxInsightsFrench + onyxOrganisationFrench + onyxLedgerFrench + onyxSidebarTilesFrench + onyxSlashFrench + onyxBotsFrench + onyxProbeFrench
+    private val french = onyxSharedFrench + criticalFrench + onyxAdditionalFrench + onyxSettingsFrench + onyxCommonFrench + onyxRemainingFrench + onyxSetupTerminalFrench + onyxCardsFrench + onyxLockFrench + onyxToolsFrench + onyxToolsPageFrench + onyxLanguageFrench + onyxCodeFrench + onyxTabsFrench + onyxMenuSheetFrench + onyxCapabilitiesFrench + onyxInsightsFrench + onyxOrganisationFrench + onyxLedgerFrench + onyxSidebarTilesFrench + onyxSlashFrench + onyxBotsFrench + onyxProbeFrench + onyxVaultFrench
 
     // **Les motifs de `onyxMissingFrenchPatterns` passent EN DERNIER** : ce sont les formes les
     // plus larges (« Delete … ? »), et le dictionnaire — qui a ses propres motifs, plus précis —

@@ -189,6 +189,7 @@ import com.onyx.app.ui.chat.SelectableTextScreen
 import com.onyx.app.ui.tools.ToolsScreen
 import com.onyx.app.ui.capabilities.CapabilitiesScreen
 import com.onyx.app.ui.capabilities.SkillEditorScreen
+import com.onyx.app.ui.vault.VaultScreen
 import com.onyx.app.ui.insights.InsightsScreen
 import com.onyx.app.ui.ledger.AgentLedgerScreen
 import com.onyx.app.ui.servers.ProfilePickerScreen
@@ -249,6 +250,10 @@ private enum class Route {
     // « Aperçus » (coût, sessions, jetons, cache, jetons par jour, modèles). Ce sont les deux
     // destinations des tuiles « Capacités » et « Aperçus » du volet.
     CAPABILITIES, INSIGHTS,
+    // **« Le Coffre »** — les secrets d'un profil : les lister, en écrire un, en révoquer un. La
+    // route n'est ouverte que par la ligne « Secrets › » de « Capacités », elle-même dessinée
+    // seulement quand la sonde a prouvé que le serveur sert le greffon `onyx-vault`.
+    VAULT,
     // **« Archives »** — la destination de la tuile *Archived* de la référence, celle qui
     // manquait : les conversations rangées de cet appareil (leur état existait déjà). Le volet la
     // porte comme ses autres tuiles (voir `SidebarDestinations.referenceTiles`).
@@ -2631,6 +2636,21 @@ fun OnyxApp() {
                         skillName = name
                         panePush(Route.SKILL_EDITOR.name)
                     },
+                    // La ligne « Secrets › » n'existe que si la sonde prouve la capacité ; la
+                    // sonde est refaite quand la signature de la connexion change (autre machine,
+                    // autres identifiants, autres capacités).
+                    probe = remember(state.server.configSignature) {
+                        com.onyx.app.data.net.ServerProbe(state.server)
+                    },
+                    onOpenVault = { panePush(Route.VAULT.name) },
+                )
+
+                // **« Le Coffre »** — le même écran que la route pleine page, empilé dans le volet
+                // par la ligne « Secrets › » de « Capacités ». Le retour dépile le volet et rend
+                // donc « Capacités », la page quittée.
+                Route.VAULT.name -> VaultScreen(
+                    server = state.server,
+                    onBack = paneBack,
                 )
 
                 // **« Configuration »** — la tuile *Config* de la référence. Chez elle, la roue de
@@ -4320,6 +4340,19 @@ fun OnyxApp() {
                     skillName = name
                     navTo(Route.SKILL_EDITOR.name)
                 },
+                probe = remember(state.server.configSignature) {
+                    com.onyx.app.data.net.ServerProbe(state.server)
+                },
+                onOpenVault = { navTo(Route.VAULT.name) },
+            )
+
+            // **« Le Coffre »** — les secrets du profil, et **jamais** une valeur à l'écran. Il ne
+            // s'ouvre que par la ligne « Secrets › » de « Capacités », qui n'existe que si la sonde
+            // a prouvé la capacité : cette branche garde la route vivante et son retour rend la
+            // page quittée.
+            Route.VAULT -> VaultScreen(
+                server = state.server,
+                onBack = { if (!navBack()) navTo(Route.CAPABILITIES.name) },
             )
 
             // « Archives » en pleine page : la **même** liste que celle que le volet porte. Elle ne
