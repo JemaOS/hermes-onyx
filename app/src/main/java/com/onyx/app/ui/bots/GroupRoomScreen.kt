@@ -748,7 +748,7 @@ fun GroupRoomScreen(
                                             checked = lead == member.profile,
                                         ) {
                                             showingMenu = false
-                                            viewModel.setLead(member.profile)
+                                            viewModel.setLead(member.profile, member.id)
                                         },
                                     )
                                 }
