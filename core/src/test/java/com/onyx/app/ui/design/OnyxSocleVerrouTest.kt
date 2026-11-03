@@ -611,6 +611,9 @@ class OnyxSocleVerrouTest {
                 "app/src/main/java/com/onyx/app/ui/sidebar/ChatSidebarBots.kt",
                 "app/src/main/java/com/onyx/app/ui/sidebar/ChatSidebarHost.kt",
                 "app/src/main/java/com/onyx/app/ui/sidebar/SidebarScaffold.kt",
+                // La carte de mise à jour : elle est dans le volet, donc elle est auditée comme
+                // lui (corps, contrastes, échelles) — pas laissée hors du regard.
+                "app/src/main/java/com/onyx/app/ui/sidebar/SidebarUpdateCard.kt",
                 "app/src/main/java/com/onyx/app/ui/sidebar/TileLabelFit.kt",
             ),
             "Widget d'écran d'accueil" to listOf(

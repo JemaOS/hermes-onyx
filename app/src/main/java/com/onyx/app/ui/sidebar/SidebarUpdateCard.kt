@@ -29,6 +29,7 @@ import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.flatWellColor
 import com.onyx.app.ui.design.onyxTappable
 import com.onyx.app.ui.design.sidebarPaneColor
+import com.onyx.app.ui.design.tapLabel
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
@@ -89,6 +90,9 @@ internal fun SidebarUpdateCard(
                     size = 14.dp,
                     modifier = Modifier
                         .onyxTappable(onClick = onDismiss)
+                        // **Le nom de la zone** : une croix sans nom n'est annoncée par rien,
+                        // et une zone cliquable muette est une zone qu'on ne peut pas atteindre.
+                        .tapLabel(OnyxLocalization["Dismiss"])
                         .padding(OnyxSpace.Hair),
                 )
             }
@@ -101,6 +105,9 @@ internal fun SidebarUpdateCard(
                     .clip(RoundedCornerShape(50))
                     .background(OnyxContrast.filled(theme.accent))
                     .onyxTappable(onClick = onDownload)
+                    // **Le nom de la zone** : le bouton porte son nom, et l'icône qu'il contient
+                    // reste **décorative** (elle ne le répète pas).
+                    .tapLabel(OnyxLocalization["Download"])
                     .padding(horizontal = OnyxSpace.Base, vertical = OnyxSpace.Half),
                 contentAlignment = Alignment.Center,
             ) {

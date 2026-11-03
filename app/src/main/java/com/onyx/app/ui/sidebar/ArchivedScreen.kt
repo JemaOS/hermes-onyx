@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -70,7 +71,15 @@ fun ArchivedScreen(
     val archived = remember(conversations) { archivedConversations(conversations) }
     val now = remember(conversations) { System.currentTimeMillis() / 1000.0 }
 
-    Column(modifier = modifier.fillMaxSize().onyxPage(theme)) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .onyxPage(theme)
+            // La marge de navigation est **portée par l'écran** : le volet ne la pose plus
+            // quand une destination est ouverte, pour que le fond de la page passe sous la
+            // barre de navigation au lieu de celui du volet.
+            .navigationBarsPadding(),
+    ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             // Le titre est le mot de la maison pour l'ensemble des conversations rangées.
             OnyxPageHeader(title = "Archives", onBack = onBack)
