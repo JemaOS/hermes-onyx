@@ -61,7 +61,7 @@ sealed interface TracedAction {
 enum class ScrollDirection { UP, DOWN, LEFT, RIGHT }
 
 /** Les touches système qu'un journal peut contenir. */
-enum class NamedKey { BACK, HOME, ENTER }
+enum class NamedKey { BACK, HOME, ENTER, ESCAPE }
 
 /**
  * La démonstration entière : ses actions, la fenêtre où elles ont eu lieu, et le nom qu'on lui donne.
