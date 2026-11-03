@@ -141,6 +141,7 @@ import com.onyx.app.ui.sidebar.SidebarTile
 import com.onyx.app.ui.sidebar.SidebarToggleControl
 import com.onyx.app.ui.sidebar.sidebarModeFor
 import com.onyx.app.data.model.serve.BotMentions
+import com.onyx.app.data.repo.SettingsRepository
 import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.ui.kanban.KanbanScreen
 import com.onyx.app.ui.kanban.KanbanViewModel
@@ -992,7 +993,8 @@ fun OnyxApp() {
         }
 
         // La langue du micro et le mode mains-libres viennent des Réglages.
-        val speechLocale by settingsRepo.speechLocale.collectAsStateWithLifecycle()
+        // La langue **donnée au moteur** : le choix de la personne, sinon celle de l'interface.
+        val speechLocale by settingsRepo.speechLocaleResolved.collectAsStateWithLifecycle()
         val handsFreeByDefault by settingsRepo.handsFreeByDefault.collectAsStateWithLifecycle()
         // « Reconnaître hors ligne » : faux par défaut, et le **seul** chemin vers le hors ligne.
         val offlineRecognition by settingsRepo.offlineRecognition.collectAsStateWithLifecycle()
@@ -1056,6 +1058,10 @@ fun OnyxApp() {
 
         // La vitesse de lecture et l'interruption suivent les Réglages, sans recréer la session.
         val stopPhrases by settingsRepo.stopPhrases.collectAsStateWithLifecycle()
+        // La langue de **réponse** choisie : elle pilote la voix qui lit, pas seulement la
+        // consigne envoyée au modèle. Sans ce lien, « Répondre en Français » sur une app anglaise
+        // se lisait avec une voix anglaise — la réponse et sa lecture ne se parlaient plus.
+        val replyLanguage by settingsRepo.replyLanguage.collectAsStateWithLifecycle()
         // La voix de chaque bot (`Settings.botVoices`) : c'est elle qui fait que deux bots de la
         // même salle ne lisent pas de la même voix.
         val botVoicesHere by settingsRepo.botVoices.collectAsStateWithLifecycle()
@@ -1066,6 +1072,7 @@ fun OnyxApp() {
             talkOver,
             earpieceAtEar,
             stopPhrases,
+            replyLanguage,
             replyVoice,
             kokoroUrl,
             kokoroToken,
@@ -1096,6 +1103,10 @@ fun OnyxApp() {
             // en ligne d'elle-même si le moteur n'a pas la langue.
             voice.offlineRecognition = offlineRecognition
             voice.stopPhrases = stopPhrases
+            // La voix qui lit parle la **langue de réponse** choisie. « Automatique » laisse la
+            // langue du micro — donc celle de l'interface — décider : ce qui est dit et ce qui
+            // est lu se parlent alors la même langue.
+            voice.replyLanguageTag = SettingsRepository.replyLanguageTag(replyLanguage) ?: speechLocale
             // **La reprise de l'écoute est ce que « mains libres » veut dire.** Elle n'était armée
             // que pour la maquette de QA : dans une vraie conversation, chaque réponse rendait la
             // main (« PRÊT »), et il fallait **toucher la bulle à chaque phrase**. L'écoute reprend

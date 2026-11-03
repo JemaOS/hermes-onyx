@@ -103,21 +103,19 @@ class VoiceHonestyParityTest {
     // MARK: - La phrase d'aide
 
     @Test
-    fun `la phrase d aide nomme les phrases vraiment ecoutees, en francais`() {
-        // Plus de phrase figée citant des mots anglais.
+    fun `la phrase d aide nomme les phrases de la langue de l app`() {
+        // Plus de phrase figée citant des mots d'une autre langue que celle de l'interface.
         assertFalse(
-            "l'ancienne phrase d'aide anglaise a disparu",
+            "l'ancienne phrase d'aide figée a disparu",
             screen.contains("Say “stop listening” or “that's all” to end hands-free."),
         )
         // La phrase se compose du gabarit traduit et des phrases réelles.
         assertTrue(screen.contains("\"Say %1"))
         assertTrue(screen.contains("to end hands-free."))
-        assertTrue(screen.contains("spokenStops.joinToString(OnyxLocalization[\" or \"])"))
-        // Les phrases par défaut sont **françaises** : c'était le défaut rapporté — une phrase
-        // d'aide française citant des mots anglais (« stop listening », « that's all »).
-        assertTrue(
-            screen.contains("private val DEFAULT_HANDS_FREE_STOPS = listOf(\"arrête d'écouter\", \"c'est tout\")"),
-        )
+        // Les phrases citées et leur mise en forme (guillemets, séparateur) viennent d'une source
+        // **unique** : celle qui suit la langue de l'app. L'écran ne peut plus figer une paire.
+        assertTrue(screen.contains("HandsFreeStops.quoted(spokenStops)"))
+        assertTrue(screen.contains("get() = HandsFreeStops.cited"))
         assertTrue(screen.contains("stopPhrases: List<String> = emptyList(),"))
         // Et l'écran vocal reçoit les phrases réglées par la personne.
         assertTrue(app.contains("stopPhrases = stopPhrases,"))

@@ -335,7 +335,8 @@ fun SettingsScreen(
             OnyxFormSection(header = "Voice") {
                 OnyxValueRow(
                     label = "Voice",
-                    value = speechLocale,
+                    value = SettingsRepository.SPEECH_LOCALES.firstOrNull { it.first == speechLocale }?.second
+                        ?: "Automatic",
                     symbol = Symbols.Waveform,
                     onClick = onOpenVoice,
                 )
