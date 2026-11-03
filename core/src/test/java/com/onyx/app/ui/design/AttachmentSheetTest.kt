@@ -31,7 +31,16 @@ class AttachmentSheetTest {
         assertTrue("la poignée se dessine", sheet.contains("private fun SheetHandle()"))
         // La feuille est une boîte de dialogue plein écran (pas de carte au milieu) : la marge du
         // bord, et le panneau sous le doigt.
-        assertTrue(sheet.contains("DialogProperties(usePlatformDefaultWidth = false)"))
+        //
+        // **La fenêtre couvre la barre système.** Sans `decorFitsSystemWindows = false`, la fenêtre
+        // de la boîte de dialogue s'arrêtait au-dessus de la barre de navigation : le fond de
+        // l'app — le bouton d'envoi, la pastille du micro — transparaissait dans ce bandeau,
+        // **non assombri**, coupé en deux. Le voile ne le couvrait pas, la fenêtre s'arrêtait
+        // avant. La feuille doit donc occuper toute la surface.
+        assertTrue(
+            "la fenêtre couvre la barre système",
+            sheet.contains("DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)"),
+        )
         assertFalse("plus de carte flottante du système", sheet.contains("ModalBottomSheet"))
         assertFalse("aucun habillage Material", sheet.contains("MaterialTheme"))
     }

@@ -340,6 +340,52 @@ class FeuilleVerrouTest {
     }
 }
 
+/**
+ * **La fenêtre d'une feuille doit couvrir la barre système.**
+ *
+ * Le défaut mesuré sur la capture du propriétaire : la fenêtre de la boîte de dialogue s'arrêtait
+ * **au-dessus** de la barre de navigation. Le fond de l'app — le bouton d'envoi, la pastille du
+ * micro, coupés en deux — transparaissait dans ce bandeau, **non assombri** : le voile de la
+ * feuille s'arrêtait avant lui. Un rectangle rouge encadrait ce vide.
+ *
+ * `decorFitsSystemWindows = false` étale la fenêtre sur toute la surface : le voile assombrit
+ * jusqu'au bas et le panneau de la feuille ne laisse plus rien passer.
+ *
+ * Le verrou porte sur **toutes** les feuilles qui peignent un panneau : une feuille qui s'ouvre
+ * dans une fenêtre courte trahit le même défaut partout.
+ */
+class FenetreFeuilleTest {
+
+    private fun read(path: String): String {
+        var dir: File? = File("").absoluteFile
+        while (dir != null && !File(dir, "settings.gradle.kts").isFile) dir = dir.parentFile
+        val root = requireNotNull(dir) { "racine du dépôt introuvable depuis ${File("").absolutePath}" }
+        val file = listOf(File(root, path), File(path)).firstOrNull { it.isFile }
+            ?: error("fichier introuvable : $path")
+        return file.readText()
+    }
+
+    @Test
+    fun `la fenetre de chaque feuille couvre la barre systeme`() {
+        // Seules les feuilles **de la maison** sont concernées : celles qui peignent un panneau
+        // ancré en bas et un voile plein écran. Les autres (`OnyxAlert`, `OnyxConfirm`) sont des
+        // cartes centrées : leur fenêtre courte ne laisse rien voir du fond.
+        val feuilles = listOf(
+            "core/src/main/java/com/onyx/app/ui/design/AttachmentSheet.kt",
+            "core/src/main/java/com/onyx/app/ui/design/HouseSheet.kt",
+        )
+        feuilles.forEach { path ->
+            val source = read(path)
+            assertTrue(
+                "$path : la fenêtre doit couvrir la barre système",
+                source.contains(
+                    "DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)",
+                ),
+            )
+        }
+    }
+}
+
 /** Les fichiers que ce verrou couvre — les feuilles et les menus de l'app, nommés une fois. */
 object FeuilleAudit {
 
