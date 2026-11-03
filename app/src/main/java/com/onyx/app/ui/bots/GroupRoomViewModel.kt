@@ -51,8 +51,19 @@ class GroupRoomViewModel(
     private val rpc = ServeGroupsRpc(ServeRpc(config))
     private val attachments = ServerAttachments(ServeFilesApi(ServeClient(config)))
 
-    /** Les visages des membres, tels que le fil et la scène vocale les dessinent. */
-    private val faceStore = BotFaceStore(application)
+    /**
+     * Le choix gardé sur ce téléphone, **derrière la résolution unique**.
+     *
+     * La salle ne relit plus le magasin pour dessiner : elle lit ce que [BotFaceResolver] rend.
+     * Quand l'écran n'a pas encore posé sa table, le repli reste le choix local — mais il est
+     * servi par le crochet `local` du résolveur, la même fonction que partout ailleurs, au lieu
+     * d'un second chemin de résolution qui pouvait donner un autre visage.
+     */
+    private val faceStore: BotFaceResolver =
+        BotFaceResolver.of(emptyMap(), BotFaceStore(application)::faceOf)
+
+    /** Le nom que la salle donne au visage d'un profil : ce que la résolution unique rend. */
+    private fun BotFaceResolver.faceOf(profile: String): String? = codeOf(profile)
 
     /**
      * La table de visages **de l'écran** (`BotFaceResolver`), posée par la salle : elle réunit le

@@ -209,6 +209,7 @@ object AppContainer {
         conversations.eraseAll()
         drafts.clearAll()
         botFaces.clearAll()
+        com.onyx.app.data.local.BotPresenceIndex(applicationContext).clear()
         groupRooms.clearAll()
         com.onyx.app.data.link.LinkPreviews.shared.clear()
         // Les réglages d'abord : ils partagent le même fichier de préférences, et les vider
