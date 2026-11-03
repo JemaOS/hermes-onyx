@@ -124,7 +124,8 @@ fun FilesScreen(
         }
 
         // Ce qu'un appui sur une rangée fait : entrer dans un dossier, ouvrir un texte, ou
-        // télécharger un binaire (qui n'a pas d'éditeur).
+        // **récupérer** un binaire (qui n'a pas d'éditeur). Le binaire est écrit au fil de l'eau
+        // sur le disque : sa taille ne dépend plus de la mémoire du téléphone.
         val openEntry: (FileEntry) -> Unit = { entry ->
             if (entry.isDirectory) {
                 viewModel.open(entry)
@@ -132,8 +133,9 @@ fun FilesScreen(
                 onOpenFile(entry)
             } else {
                 scope.launch {
-                    val bytes = viewModel.bytes(entry)
-                    if (bytes != null) downloadToStore(context, entry, bytes)
+                    val folder = java.io.File(context.filesDir, "downloads").apply { mkdirs() }
+                    val file = java.io.File(folder, entry.name.replace('/', '_'))
+                    if (viewModel.download(entry, file)) openDownloaded(context, entry.name, file)
                 }
             }
         }
@@ -363,23 +365,20 @@ private fun readAndUpload(context: android.content.Context, uri: Uri, viewModel:
 }
 
 /**
- * Écrit un fichier venu du serveur dans le **stockage privé durable**, puis le confie au système.
+ * Confie au système un fichier **déjà écrit** dans le stockage privé durable.
  *
- * C'était `cacheDir` : le lecteur s'ouvrait, puis le système purgeait le cache et le fichier
- * n'était plus là — la seconde porte du même défaut. Un fichier qu'on a récupéré une fois se
- * garde, exactement comme une pièce jointe de l'appareil.
+ * Ce qui a changé : le type MIME. Il était écrit `application/octet-stream` pour tout, donc Android
+ * ne proposait jamais d'installer un APK — le seul geste qu'on demande à un fichier récupéré depuis
+ * son propre serveur. `downloadMimeFor` rend le vrai type, et l'inconnu reste `octet-stream`.
  */
-private fun downloadToStore(context: android.content.Context, entry: FileEntry, bytes: ByteArray) {
+private fun openDownloaded(context: android.content.Context, name: String, file: java.io.File) {
     runCatching {
-        val folder = java.io.File(context.filesDir, "downloads").apply { mkdirs() }
-        val file = java.io.File(folder, entry.name.replace('/', '_'))
-        file.writeBytes(bytes)
         val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/octet-stream")
+            setDataAndType(uri, com.onyx.app.data.model.downloadMimeFor(name))
             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(android.content.Intent.createChooser(intent, entry.name))
+        context.startActivity(android.content.Intent.createChooser(intent, name))
     }
 }
 
