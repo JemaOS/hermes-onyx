@@ -156,6 +156,9 @@ fun subagentCardState(status: SubagentStatus): ContextCardState = when (status) 
     SubagentStatus.RUNNING, SubagentStatus.DISPATCHED -> ContextCardState.RUNNING
     SubagentStatus.COMPLETED -> ContextCardState.DONE
     SubagentStatus.FAILED -> ContextCardState.FAILED
+    // Morte sans issue connue : la carte ne fait plus tourner de pastille, et n'affirme pas non plus
+    // un succès. `FAILED` est le seul état « arrêté » que la carte sait dessiner sans mentir.
+    SubagentStatus.UNKNOWN -> ContextCardState.FAILED
 }
 
 /**

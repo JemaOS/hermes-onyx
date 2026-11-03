@@ -618,5 +618,7 @@ private fun subagentDotColor(status: SubagentStatus): Color {
         SubagentStatus.FAILED -> theme.error
         SubagentStatus.RUNNING -> theme.accent
         SubagentStatus.DISPATCHED -> theme.secondaryText
+        // Plus rien ne tourne : le point ne pulse pas. Ni vert ni rouge — on ne sait pas.
+        SubagentStatus.UNKNOWN -> theme.secondaryText
     }
 }
