@@ -1,4 +1,4 @@
-# Architecture — les cinq fonctions reprises de Grok Bot
+# Architecture — les cinq fonctions du chantier TOP5
 
 Ce document décrit **comment** les cinq fonctions retenues (voir `TOP5.md` de conversation) entrent
 dans Onyx **sans toucher** à ce qui existe déjà. Il ne contient aucune décision de goût : chaque
