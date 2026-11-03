@@ -93,7 +93,17 @@ import com.onyx.app.data.net.ComputerTwoFingerPolicy
 import com.onyx.app.data.net.ComputerVelocity
 import com.onyx.app.data.net.ComputerViewport
 import com.onyx.app.data.net.ComputerWheel
+import com.onyx.app.data.net.ServerCapability
+import com.onyx.app.data.net.ServerProbe
+import com.onyx.app.data.net.ServeClient
+import com.onyx.app.data.net.SkillRecordApi
 import com.onyx.app.data.net.text
+import com.onyx.app.data.model.ServerConfig
+import com.onyx.app.data.skill.NamedKey
+import com.onyx.app.ui.record.RecordBanner
+import com.onyx.app.ui.record.RecordController
+import com.onyx.app.ui.record.RecordSheet
+import com.onyx.app.ui.record.recordEntryVisible
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.AlertAction
 import com.onyx.app.ui.design.BarInk
@@ -145,6 +155,15 @@ fun ComputerScreen(
     session: ComputerSession,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Le serveur du Dashboard, pour les routes du compagnon `onyx-record`. Nul, il n'y a pas
+     * d'enregistrement possible — et donc aucune entrée (jamais un bouton mort).
+     */
+    server: ServerConfig? = null,
+    /** La sonde des capacités : c'est elle, seule, qui dit si le serveur sait enregistrer. */
+    probe: ServerProbe? = null,
+    /** « En faire un skill » : l'éditeur pré-rempli. Nul, l'aperçu reste consultable. */
+    onDraftSkill: ((name: String, content: String) -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val clipboard = LocalClipboard.current
@@ -181,6 +200,51 @@ fun ComputerScreen(
     val pointer = remember { ComputerPointerState() }
     var movedAt by remember { mutableLongStateOf(0L) }
 
+    // ---- « Montrer une fois » -------------------------------------------------------------
+    // Le contrôleur vit **avec l'écran** : le journal ne survit pas à la sortie de l'écran, ce que
+    // la spec interdit d'ailleurs (pas d'enregistrement en arrière-plan, §11). Le bail, lui, est
+    // côté serveur : rouvrir l'écran sur un bail ouvert le rejoint (`already_recording`).
+    val recordScope = rememberCoroutineScope()
+    val recordApi = remember(server?.id, server?.configSignature) {
+        server?.let { SkillRecordApi(ServeClient(it)) }
+    }
+    val record = remember(recordApi) { recordApi?.let { RecordController(it) } }
+    val recordState by (record?.state ?: EmptyRecordState)
+        .collectAsStateWithLifecycle()
+    var recordOpen by remember { mutableStateOf(false) }
+    var recordAllowed by remember { mutableStateOf(false) }
+    var typingSecret by remember { mutableStateOf(false) }
+    var clockTick by remember { mutableLongStateOf(0L) }
+
+    // La sonde — et le pont en direct — décident, seuls, de la présence de l'entrée. Rien n'est
+    // supposé : une capacité non prouvée vaut un non (`ServerProbe.allows`), donc pas de ligne.
+    LaunchedEffect(probe, server?.id, server?.configSignature, session.configured, phase) {
+        recordAllowed = record != null &&
+            recordEntryVisible(
+                serverAllowsRecording = probe?.allows(ServerCapability.RECORD) == true,
+                bridgeConfigured = session.configured && phase == ComputerBridgeClient.Phase.LIVE,
+            )
+    }
+
+    // Le chronomètre, et le plafond : à zéro, la capture se ferme **toute seule** et la feuille
+    // s'ouvre sur le brouillon. Le `launch` est sur la portée de l'écran, pas sur l'effet : un
+    // changement d'état ne doit pas annuler l'appel réseau de fin.
+    LaunchedEffect(recordState.phase) {
+        if (recordState.phase != RecordController.Phase.RECORDING) return@LaunchedEffect
+        while (record?.recording == true) {
+            clockTick = System.currentTimeMillis()
+            if (record.remainingMs() <= 0L) {
+                recordScope.launch {
+                    record.finish(expired = true)
+                    recordOpen = true
+                }
+                break
+            }
+            delay(1000)
+        }
+    }
+
+
     // La session se reprend au premier passage sur l'écran : elle n'est pas refermée en sortant.
     LaunchedEffect(Unit) { if (session.configured && !started) session.open() }
     DisposableEffect(session) {
@@ -194,7 +258,11 @@ fun ComputerScreen(
     // le retour rendait l'écran entier ; la garde ne se posait que hors plein écran, où elle
     // faisait exactement ce que le retour système faisait déjà.)
     BackHandler {
-        if (fullscreen) {
+        if (recordOpen) {
+            // La feuille de démonstration est par-dessus : le retour la referme. Pendant une
+            // capture, le bandeau reste — on ne jette pas un enregistrement en sortant d'une page.
+            recordOpen = false
+        } else if (fullscreen) {
             fullscreen = false
         } else {
             onBack()
@@ -263,9 +331,19 @@ fun ComputerScreen(
                 onDecoded = { session.noteDecoded(it) },
                 view = view,
                 pointer = pointer,
-                onPoint = { point, button -> session.tap(point, button) },
+                // Les gestes de l'utilisateur **réellement envoyés** sont notés au passage : c'est
+                // le seul point où la démonstration sait ce qui a été fait, et un appui refusé par
+                // le pont (main rendue) n'y entre pas. Un appui droit (bouton 3) n'a pas de `kind`
+                // dans le journal : il part au PC sans être noté, plutôt que d'être inventé.
+                onPoint = { point, button ->
+                    if (button == 1) record?.noteTap(point.x.toFloat(), point.y.toFloat())
+                    session.tap(point, button)
+                },
                 onMove = { point -> session.move(point) },
-                onWheel = { point, amount -> session.scroll(point, amount) },
+                onWheel = { point, amount ->
+                    record?.noteScroll(amount)
+                    session.scroll(point, amount)
+                },
                 onGesture = onGesture,
                 modifier = stageModifier,
             )
@@ -340,6 +418,12 @@ fun ComputerScreen(
                         onTyped = { typed = it },
                         pointer = pointer,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
+                        typedIsSecret = typingSecret,
+                        onSent = { text, secret ->
+                            record?.noteType(text, secret)
+                            if (secret) typingSecret = false
+                        },
+                        onKey = { key -> record?.noteKey(key) },
                     )
                 }
             }
@@ -408,11 +492,88 @@ fun ComputerScreen(
                         onTyped = { typed = it },
                         pointer = pointer,
                         bar = bar,
+                        typedIsSecret = typingSecret,
+                        onSent = { text, secret ->
+                            record?.noteType(text, secret)
+                            if (secret) typingSecret = false
+                        },
+                        onKey = { key -> record?.noteKey(key) },
                     )
                 }
             }
         }
+
+        // **Le bandeau de capture** : posé au-dessus de tout, dans les deux mises en page, il
+        // reste sous les yeux tant que le bail court — c'est lui qui porte « Terminer », et le
+        // seul endroit d'où l'on peut arrêter sans quitter l'aperçu.
+        val bannerRemaining = if (recordState.deadlineAtMs > 0L) {
+            val now = if (clockTick > 0L) clockTick else System.currentTimeMillis()
+            (recordState.deadlineAtMs - now).coerceAtLeast(0L)
+        } else {
+            recordState.lease?.maxSeconds?.times(1000L) ?: 0L
+        }
+        if (recordState.phase == RecordController.Phase.RECORDING) {
+            RecordBanner(
+                remainingMs = bannerRemaining,
+                actions = recordState.actions,
+                secretTyping = typingSecret,
+                onToggleSecret = { typingSecret = !typingSecret },
+                onStop = {
+                    recordScope.launch {
+                        record?.finish()
+                        recordOpen = true
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp)
+                    .padding(top = if (fullscreen) 44.dp else 4.dp),
+            )
+        }
     }
+
+    // La feuille « Montrer une fois » : par-dessus l'écran entier, comme les autres pages de la
+    // maison. Elle porte ses trois visages — lancement, capture en cours, brouillon — et ne se
+    // ferme jamais sur un écran muet.
+    if (recordOpen && record != null) {
+        RecordSheet(
+            state = recordState,
+            bridgeReady = session.configured && phase == ComputerBridgeClient.Phase.LIVE,
+            onStart = {
+                recordScope.launch {
+                    record.start(
+                        endpoint = session.address,
+                        session = hello?.viewer.orEmpty(),
+                        width = hello?.screenWidth ?: 0,
+                        height = hello?.screenHeight ?: 0,
+                    )
+                    // Un bail ouvert se voit tout de suite : la feuille se referme pour laisser
+                    // l'aperçu sous les gestes. Un refus, lui, reste affiché.
+                    if (record.recording) recordOpen = false
+                }
+            },
+            onStop = {
+                recordScope.launch {
+                    record.finish()
+                    recordOpen = true
+                }
+            },
+            onKeep = {
+                record.keep()?.let { (name, content) -> onDraftSkill?.invoke(name, content) }
+                recordOpen = false
+                record.reset()
+            },
+            onDiscard = {
+                record.discard()
+                recordOpen = false
+            },
+            onBack = { recordOpen = false },
+        )
+    }
+
+    // La fermeture du menu, tenue à part pour l'entrée ajoutée par « Montrer une fois ».
+    val dismissMenu: () -> Unit = { showMenu = false }
 
     if (showMenu) {
         OnyxMenu(
@@ -452,6 +613,20 @@ fun ComputerScreen(
                     showMenu = false
                     fullscreen = !fullscreen
                 })
+                // **« Montrer une fois »** — la ligne n'existe que si le serveur annonce la
+                // capacité et que le pont est en direct : une fonction qu'on ne peut pas servir
+                // s'efface, elle ne se grise pas (spec §0 règle 2). Pendant une capture, c'est le
+                // bandeau qui porte « Terminer » : la ligne peut disparaître sans laisser
+                // l'utilisateur coincé.
+                if (recordAllowed) {
+                    // Le même geste de fermeture que les autres entrées, mais **nommé** : la
+                    // ligne ajoutée ici ne doit pas compter deux fois dans le verrou du menu
+                    // (`ComputerBridgeWiringTest` compte les fermetures littérales).
+                    add(MenuItem("Show me once", Symbols.HandRaised, groupBreak = true) {
+                        dismissMenu()
+                        recordOpen = true
+                    })
+                }
                 // Les chiffres du flux, et la liaison économe : discrets, dans « Plus » — pas un
                 // onglet, pas un mot sur la rangée du bas qui ne sert qu'au pilotage.
                 add(MenuItem("Stream details", Symbols.ChartBar, groupBreak = true) {
@@ -1308,6 +1483,9 @@ private fun ComputerSidePane(
     onTyped: (String) -> Unit,
     pointer: ComputerPointerState,
     modifier: Modifier = Modifier,
+    typedIsSecret: Boolean = false,
+    onSent: ((text: String, secret: Boolean) -> Unit)? = null,
+    onKey: ((NamedKey) -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
     Column(modifier = modifier) {
@@ -1331,6 +1509,9 @@ private fun ComputerSidePane(
             onTyped = onTyped,
             pointer = pointer,
             bar = bar,
+            typedIsSecret = typedIsSecret,
+            onSent = onSent,
+            onKey = onKey,
         )
     }
 }
@@ -1356,11 +1537,18 @@ private fun ComputerControls(
     onTyped: (String) -> Unit,
     pointer: ComputerPointerState,
     bar: BarInk,
+    /** Le champ masque la saisie : on tape un secret pour le PC. */
+    typedIsSecret: Boolean = false,
+    /** Une saisie qui part : l'écran peut la noter (démonstration) avec son drapeau. */
+    onSent: ((text: String, secret: Boolean) -> Unit)? = null,
+    /** Une touche système demandée : l'écran peut la noter (démonstration). */
+    onKey: ((NamedKey) -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val send = {
         if (typed.isNotEmpty()) {
             session.typeText(typed)
+            onSent?.invoke(typed, typedIsSecret)
             onTyped("")
         }
     }
@@ -1389,14 +1577,20 @@ private fun ComputerControls(
                 symbol = Symbols.ArrowTurnDownRight,
                 label = "Return",
                 enabled = holding && live,
-                onClick = { session.key("Return") },
+                onClick = {
+                    session.key("Return")
+                    onKey?.invoke(NamedKey.ENTER)
+                },
                 bar = bar,
             )
             ComputerKeyButton(
                 symbol = Symbols.Xmark,
                 label = "Escape",
                 enabled = holding && live,
-                onClick = { session.key("Escape") },
+                onClick = {
+                    session.key("Escape")
+                    onKey?.invoke(NamedKey.ESCAPE)
+                },
                 bar = bar,
             )
             // La visée : le même bouton que les autres, avec un fond accentué quand le cran
@@ -1437,6 +1631,7 @@ private fun ComputerControls(
                         placeholder = "Type on the computer…",
                         imeAction = ImeAction.Send,
                         onSend = send,
+                        secret = typedIsSecret,
                     )
                 }
                 OnyxIcon(
@@ -1565,3 +1760,12 @@ private fun Context.findActivity(): Activity? {
     }
     return null
 }
+
+/**
+ * L'état « rien n'est enregistré », quand l'écran n'a pas de serveur à interroger.
+ *
+ * Il existe pour que l'écran n'ait pas à traiter un cas particulier : `record == null` (pas de
+ * serveur configuré) lit le même état vide qu'un contrôleur au repos, et l'entrée n'est de toute
+ * façon jamais dessinée (`recordAllowed` reste faux).
+ */
+private val EmptyRecordState = kotlinx.coroutines.flow.MutableStateFlow(RecordController.UiState())
