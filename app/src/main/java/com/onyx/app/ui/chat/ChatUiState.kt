@@ -155,7 +155,10 @@ data class ChatUiState(
                     acceptingSteer = row.acceptingSteer && server.acceptingSteer,
                 )
             }
-            return merged + subagentRoster.filter { it.id !in known }
+            // Le roster du serveur peut lui aussi répéter une ligne : la liste est **bornée une
+            // fois**, à la sortie, pour que `subagent_id` reste unique quoi qu'il arrive — c'est
+            // l'invariant dont dépend la clé de la `LazyColumn`.
+            return (merged + subagentRoster.filter { it.id !in known }).distinctBy { it.id }
         }
 
     /**

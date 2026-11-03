@@ -164,4 +164,64 @@ class SubagentListTest {
         val state = ChatUiState(server = ServerConfig(id = "s", name = "x"))
         assertTrue(state.subagents.isEmpty())
     }
+
+    /**
+     * **Le doublon qui faisait tomber l'écran des tâches.**
+     *
+     * La liste est une `LazyColumn` à clé `subagent_id` : deux lignes du même identifiant jettent
+     * `Key … was already used` à l'ouverture — c'est le crash relevé sur « le point vert avec 40 ».
+     * Le même enfant peut revenir dans deux réponses (une tâche reprise, un fil rejoué) : la liste
+     * doit alors n'en garder qu'**une**, la plus fraîche.
+     */
+    @Test
+    fun `un meme sous-agent vu deux fois ne fait qu une ligne, la plus fraiche`() {
+        val stale = agent("sa-1", SubagentStatus.RUNNING, startedAt = 1_000, toolCount = 1)
+        val fresh = agent("sa-1", SubagentStatus.COMPLETED, startedAt = 2_000, toolCount = 9)
+        val other = agent("sa-2", SubagentStatus.RUNNING, startedAt = 3_000)
+
+        val state = ChatUiState(
+            server = ServerConfig(id = "s", name = "x"),
+            messages = listOf(
+                ChatMessage(id = "m1", role = Role.ASSISTANT, createdAt = 0, subagents = listOf(stale)),
+                ChatMessage(id = "m2", role = Role.ASSISTANT, createdAt = 1, subagents = listOf(fresh, other)),
+            ),
+            // Le roster répète lui aussi la même ligne : la sortie reste unique.
+            subagentRoster = listOf(fresh, fresh),
+        )
+
+        val rows = state.subagents
+        assertEquals("un identifiant, une ligne", rows.map { it.id }.distinct().size, rows.size)
+        assertEquals(listOf("sa-1", "sa-2"), rows.map { it.id })
+        // La version retenue est la dernière connue, pas la première vue.
+        assertEquals(SubagentStatus.COMPLETED, rows[0].status)
+        assertEquals(9, rows[0].toolCount)
+    }
+
+    /**
+     * **Le compte de la capsule est celui du travail EN COURS.**
+     *
+     * Il valait `it.isLive`, qui compte aussi les tâches « lancées à l'aveugle » — jamais closes par
+     * un transport muet, elles restaient vivantes pour toujours : la capsule affichait 40 sur une
+     * conversation qui n'avait plus rien en route. Seul `RUNNING` travaille vraiment.
+     */
+    @Test
+    fun `seules les taches en cours sont comptees`() {
+        val state = ChatUiState(
+            server = ServerConfig(id = "s", name = "x"),
+            messages = listOf(
+                ChatMessage(
+                    id = "m1", role = Role.ASSISTANT, createdAt = 0,
+                    subagents = listOf(
+                        agent("a", SubagentStatus.RUNNING),
+                        agent("b", SubagentStatus.DISPATCHED),
+                        agent("c", SubagentStatus.COMPLETED),
+                        agent("d", SubagentStatus.FAILED),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(1, state.subagents.count { it.status == SubagentStatus.RUNNING })
+        assertEquals("quatre lignes restent visibles dans la liste", 4, state.subagents.size)
+    }
 }
