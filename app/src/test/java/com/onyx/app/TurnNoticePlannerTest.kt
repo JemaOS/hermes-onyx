@@ -106,12 +106,17 @@ class TurnNoticePlannerTest {
     }
 
     @Test
-    fun `l'app ouverte sur la conversation ne notifie rien`() {
+    fun `l app ouverte sur la conversation garde quand meme le service qui tient le travail`() {
         val running = session()
         val notices = planner(tracking = WorkTracking.EVERY_STEP)
             .plan(mapOf("fil" to running), appInForeground = true, visibleConversationId = "fil")
 
-        assertTrue(notices.filterIsInstance<TurnNotice.Keep>().isEmpty())
+        // Le service est **tied au tour**, pas à l'arrière-plan : depuis l'API 31, Android refuse
+        // de lancer un service de premier plan depuis l'arrière-plan, et la fenêtre de grâce après
+        // le bouton accueil est trop courte pour un battement d'une seconde. Il doit donc partir
+        // quand le tour commence — app visible — et c'est sa notification qui tient le processus.
+        val keep = notices.filterIsInstance<TurnNotice.Keep>().single()
+        assertEquals("fil", keep.conversationId)
     }
 
     @Test

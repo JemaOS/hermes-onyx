@@ -1140,6 +1140,27 @@ fun OnyxApp() {
             }
         }
 
+        // La permission des notifications. Le réglage « M'alerter en arrière-plan » est **allumé
+        // par défaut**, mais Android ne laisse rien publier sans elle : sans la permission, le
+        // service de premier plan ne peut pas tenir le processus, et le travail d'un bot meurt
+        // quand Onyx s'endort. On la demande donc au premier lancement — le seul moment où elle
+        // se demande sans geste de l'utilisateur.
+        val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
+                com.onyx.app.voice.VoiceDiagnostics.note("notifications: permission refusee (POST_NOTIFICATIONS)")
+            }
+        }
+
+        // On la demande au premier lancement. Android n'affiche plus le dialogue après un refus :
+        // l'appel est donc sans conséquence si la personne a dit non, et elle peut revenir par
+        // Réglages → Notifications.
+        LaunchedEffect(Unit) {
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
+            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            if (!granted) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
         fun openVoice() {
             voiceProblem = null
             navTo(Route.VOICE.name)
