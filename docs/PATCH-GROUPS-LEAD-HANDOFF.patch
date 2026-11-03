@@ -1,0 +1,1055 @@
+diff --git a/apps/shared/src/gateway-contract.generated.ts b/apps/shared/src/gateway-contract.generated.ts
+index 3e678be..7b8b60b 100644
+--- a/apps/shared/src/gateway-contract.generated.ts
++++ b/apps/shared/src/gateway-contract.generated.ts
+@@ -1527,6 +1527,7 @@ export interface Room {
+   idempotent?: boolean
+   disbanded_at?: number | null
+   latest_seq?: number | null
++  lead_member_id?: string | null
+   adopted?: boolean | null
+   claim_event?: RoomEvent | null
+   authority_claim?: RoomEvent | null
+@@ -1662,6 +1663,40 @@ export interface GroupsStopParams {
+ export interface GroupsStopResult {
+   cancelled: number
+ }
++/** ``member_id`` is required *present*: ``null`` clears the lead, absent is ``bad_request``. The wire model cannot say that, so the handler reads the raw params (see ``methods_groups``). */
++export interface GroupsLeadParams {
++  profile?: string | null
++  room_id: string
++  member_id?: string | null
++}
++export interface GroupsLeadResult {
++  room_id: string
++  lead?: RoomLead | null
++  previous_member_id?: string | null
++  seq: number
++}
++/** The lead after the call; ``label`` is the roster's own name for the member (spec 2). */
++export interface RoomLead {
++  member_id: string
++  profile?: string | null
++  label?: string | null
++}
++export interface GroupsHandoffParams {
++  profile?: string | null
++  room_id: string
++  from_member_id: string
++  to_member_id: string
++  task_id?: string | null
++  summary?: string | null
++}
++/** ``cancelled_task_id`` is the ``task_id`` the caller passed, or ``null`` (spec 3). */
++export interface GroupsHandoffResult {
++  room_id: string
++  seq: number
++  from_member_id: string
++  to_member_id: string
++  cancelled_task_id?: string | null
++}
+ export interface GroupsApproveParams {
+   profile?: string | null
+   room_id: string
+@@ -6113,6 +6148,10 @@ export interface RpcMethods {
+   'groups.demote': { params: GroupsDemoteParams; result: GroupsDemoteResult }
+   /** Permanently tombstone a hosted room id after stopping its work and revoking peer routes. */
+   'groups.disband': { params: GroupsDisbandParams; result: GroupsDisbandResult }
++  /** Move the room's lead, and optionally the running turn, to another member. */
++  'groups.handoff': { params: GroupsHandoffParams; result: GroupsHandoffResult }
++  /** Name or clear one hosted room's lead; appends exactly one room.lead_changed event. */
++  'groups.lead': { params: GroupsLeadParams; result: GroupsLeadResult }
+   /** List rooms hosted by this gateway, most recently changed first. */
+   'groups.list': { params: GroupsListParams; result: GroupsListResult }
+   /** A monotonic room-log delta after since_seq, bounded by count and page bytes. */
+@@ -6563,6 +6602,8 @@ export const RPC_METHODS = [
+   'groups.create',
+   'groups.demote',
+   'groups.disband',
++  'groups.handoff',
++  'groups.lead',
+   'groups.list',
+   'groups.log',
+   'groups.peer.invite',
+diff --git a/apps/shared/src/gateway-contract.openrpc.json b/apps/shared/src/gateway-contract.openrpc.json
+index d5fd22f..1695385 100644
+--- a/apps/shared/src/gateway-contract.openrpc.json
++++ b/apps/shared/src/gateway-contract.openrpc.json
+@@ -1212,6 +1212,42 @@
+         }
+       }
+     },
++    {
++      "name": "groups.handoff",
++      "summary": "Move the room's lead, and optionally the running turn, to another member.",
++      "params": [
++        {
++          "name": "params",
++          "schema": {
++            "$ref": "#/components/schemas/GroupsHandoffParams"
++          }
++        }
++      ],
++      "result": {
++        "name": "result",
++        "schema": {
++          "$ref": "#/components/schemas/GroupsHandoffResult"
++        }
++      }
++    },
++    {
++      "name": "groups.lead",
++      "summary": "Name or clear one hosted room's lead; appends exactly one room.lead_changed event.",
++      "params": [
++        {
++          "name": "params",
++          "schema": {
++            "$ref": "#/components/schemas/GroupsLeadParams"
++          }
++        }
++      ],
++      "result": {
++        "name": "result",
++        "schema": {
++          "$ref": "#/components/schemas/GroupsLeadResult"
++        }
++      }
++    },
+     {
+       "name": "groups.list",
+       "summary": "List rooms hosted by this gateway, most recently changed first.",
+@@ -19505,6 +19541,189 @@
+         "title": "GroupsDiscardResult",
+         "type": "object"
+       },
++      "GroupsHandoffParams": {
++        "additionalProperties": false,
++        "properties": {
++          "profile": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Profile"
++          },
++          "room_id": {
++            "title": "Room Id",
++            "type": "string"
++          },
++          "from_member_id": {
++            "title": "From Member Id",
++            "type": "string"
++          },
++          "to_member_id": {
++            "title": "To Member Id",
++            "type": "string"
++          },
++          "task_id": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Task Id"
++          },
++          "summary": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Summary"
++          }
++        },
++        "required": [
++          "room_id",
++          "from_member_id",
++          "to_member_id"
++        ],
++        "title": "GroupsHandoffParams",
++        "type": "object"
++      },
++      "GroupsHandoffResult": {
++        "additionalProperties": false,
++        "description": "``cancelled_task_id`` is the ``task_id`` the caller passed, or ``null`` (spec 3).",
++        "properties": {
++          "room_id": {
++            "title": "Room Id",
++            "type": "string"
++          },
++          "seq": {
++            "title": "Seq",
++            "type": "integer"
++          },
++          "from_member_id": {
++            "title": "From Member Id",
++            "type": "string"
++          },
++          "to_member_id": {
++            "title": "To Member Id",
++            "type": "string"
++          },
++          "cancelled_task_id": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Cancelled Task Id"
++          }
++        },
++        "required": [
++          "room_id",
++          "seq",
++          "from_member_id",
++          "to_member_id"
++        ],
++        "title": "GroupsHandoffResult",
++        "type": "object"
++      },
++      "GroupsLeadParams": {
++        "additionalProperties": false,
++        "description": "``member_id`` is required *present*: ``null`` clears the lead, absent is ``bad_request``.\nThe wire model cannot say that, so the handler reads the raw params (see ``methods_groups``).",
++        "properties": {
++          "profile": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Profile"
++          },
++          "room_id": {
++            "title": "Room Id",
++            "type": "string"
++          },
++          "member_id": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Member Id"
++          }
++        },
++        "required": [
++          "room_id"
++        ],
++        "title": "GroupsLeadParams",
++        "type": "object"
++      },
++      "GroupsLeadResult": {
++        "additionalProperties": false,
++        "properties": {
++          "room_id": {
++            "title": "Room Id",
++            "type": "string"
++          },
++          "lead": {
++            "anyOf": [
++              {
++                "$ref": "#/components/schemas/RoomLead"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null
++          },
++          "previous_member_id": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Previous Member Id"
++          },
++          "seq": {
++            "title": "Seq",
++            "type": "integer"
++          }
++        },
++        "required": [
++          "room_id",
++          "seq"
++        ],
++        "title": "GroupsLeadResult",
++        "type": "object"
++      },
+       "GroupsListParams": {
+         "additionalProperties": false,
+         "properties": {
+@@ -33573,6 +33792,18 @@
+             "default": null,
+             "title": "Latest Seq"
+           },
++          "lead_member_id": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Lead Member Id"
++          },
+           "adopted": {
+             "anyOf": [
+               {
+@@ -33962,6 +34193,45 @@
+         "title": "RoomExecutionPolicy",
+         "type": "object"
+       },
++      "RoomLead": {
++        "additionalProperties": false,
++        "description": "The lead after the call; ``label`` is the roster's own name for the member (spec 2).",
++        "properties": {
++          "member_id": {
++            "title": "Member Id",
++            "type": "string"
++          },
++          "profile": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Profile"
++          },
++          "label": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "default": null,
++            "title": "Label"
++          }
++        },
++        "required": [
++          "member_id"
++        ],
++        "title": "RoomLead",
++        "type": "object"
++      },
+       "RoomLinkCatalog": {
+         "additionalProperties": false,
+         "description": "``gateway/hosted_room_peer.py::GatewayRoomCatalog.as_mapping``.",
+diff --git a/gateway/hosted_room_discussion.py b/gateway/hosted_room_discussion.py
+index 3821374..671e1f4 100644
+--- a/gateway/hosted_room_discussion.py
++++ b/gateway/hosted_room_discussion.py
+@@ -104,6 +104,9 @@ class DiscussionRoom:
+     members: tuple[DiscussionMember, ...]
+     gateway_id: str
+     authority_epoch: int
++    #: The room's lead (``hosted_rooms._lead_from_conn``), when the row carries one. Only the
++    #: default-recipient order uses it; a lead never gates a turn (D2).
++    lead_member_id: str | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -309,7 +312,11 @@ def validate_room(value: Any, *, local_profiles: Iterable[str]) -> DiscussionRoo
+     gateway_id = _identifier(value.get("authority_gateway_id"), label="authority_gateway_id")
+     authority_epoch = _positive_int(value.get("authority_epoch"), label="authority_epoch")
+     members = validate_roster(value.get("members"), local_profiles=local_profiles)
+-    return DiscussionRoom(room_id, name, members, gateway_id, authority_epoch)
++    # A lead the roster no longer lists is dropped here rather than raising: a stale pointer
++    # must never take a whole room's replay down with it (spec 7.3).
++    lead = value.get("lead_member_id")
++    lead_member_id = lead if isinstance(lead, str) and any(m.member_id == lead for m in members) else None
++    return DiscussionRoom(room_id, name, members, gateway_id, authority_epoch, lead_member_id)
+ 
+ 
+ def is_pass_text(value: Any) -> bool:
+@@ -318,8 +325,22 @@ def is_pass_text(value: Any) -> bool:
+     return not text or re.fullmatch(r"\(?\s*pass\s*\)?\.?", text, re.IGNORECASE) is not None
+ 
+ 
++def _lead_first(
++    members: Sequence[DiscussionMember], lead_member_id: str | None
++) -> tuple[DiscussionMember, ...]:
++    """The room's default recipients: the lead first, everyone else in frozen roster order.
++
++    A stable sort, so the only thing the lead changes is who is asked first — ``@nom`` still
++    addresses a member directly, and no member is ever filtered out (D2, spec 5.1).
++    """
++    if not lead_member_id:
++        return tuple(members)
++    return tuple(sorted(members, key=lambda member: member.member_id != lead_member_id))
++
++
+ def resolve_mentions(
+-    texts: Iterable[str], members: Sequence[DiscussionMember], *, default_all: bool = True
++    texts: Iterable[str], members: Sequence[DiscussionMember], *, default_all: bool = True,
++    lead_member_id: str | None = None,
+ ) -> tuple[DiscussionMember, ...]:
+     """Resolve member handles deterministically against the frozen roster."""
+     by_handle = {member.handle.casefold(): member for member in members}
+@@ -333,7 +354,7 @@ def resolve_mentions(
+             elif handle in by_handle:
+                 mentioned.add(handle)
+     if everyone or (default_all and not mentioned):
+-        return tuple(members)
++        return _lead_first(members, lead_member_id)
+     return tuple(member for member in members if member.handle.casefold() in mentioned)
+ 
+ 
+@@ -447,8 +468,70 @@ def _validate_gateway_event(kind: str, payload: Payload, actor: Payload, room: D
+     return payload
+ 
+ 
++_HANDOFF_PAYLOAD_FIELDS = frozenset({"from_member_id", "to_member_id"})
++_LEAD_CHANGED_PAYLOAD_FIELDS = frozenset({"lead_member_id", "previous_member_id", "reason"})
++
++
++def _validate_handoff_event(kind: str, payload: Payload, actor: Payload, room: DiscussionRoom) -> Payload:
++    """``bot.handoff``: the exact shape of spec 4.1, and no ``member_id`` key (trap 1).
++
++    ``_exact_fields`` is what refuses the trap: ``member_id`` is neither required nor optional here,
++    so a log that carries one is rejected instead of silently stealing the line's author. The
++    writer (``hosted_rooms.handoff``) never emits it; this is the reader's half of the same rule.
++    """
++    _exact_fields(payload, label="bot.handoff payload", required=_HANDOFF_PAYLOAD_FIELDS,
++                  optional={"task_id", "summary"})
++    sender = _member_by_id(room, payload.get("from_member_id"))
++    recipient = _member_by_id(room, payload.get("to_member_id"))
++    if sender.member_id == recipient.member_id:
++        raise DiscussionValidationError("bot.handoff members must differ")
++    if actor.get("kind") != "member" or actor.get("id") != sender.member_id:
++        raise DiscussionValidationError("bot.handoff actor must be the member handing over")
++    task_id = payload.get("task_id")
++    if task_id is not None and not isinstance(task_id, str):
++        raise DiscussionValidationError("bot.handoff task_id must be a string or null")
++    summary = payload.get("summary")
++    if summary is not None:
++        if not isinstance(summary, str):
++            raise DiscussionValidationError("bot.handoff summary must be a string or null")
++        if len(summary) > hosted_rooms.MAX_HANDOFF_SUMMARY_CHARS:
++            raise DiscussionValidationError("bot.handoff summary is too long")
++        if any(ord(char) < 32 or ord(char) == 127 for char in summary):
++            raise DiscussionValidationError("bot.handoff summary contains a control character")
++    return payload
++
++
++def _validate_lead_changed_event(kind: str, payload: Payload, actor: Payload, room: DiscussionRoom) -> Payload:
++    """``room.lead_changed``: the exact shape of spec 4.2, and no ``member_id`` key (D4)."""
++    _exact_fields(payload, label="room.lead_changed payload", required=_LEAD_CHANGED_PAYLOAD_FIELDS)
++    reason = payload.get("reason")
++    if reason not in hosted_rooms.LEAD_CHANGE_REASONS:
++        raise DiscussionValidationError("invalid room.lead_changed reason")
++    expected_kind = "system" if reason == "member_left" else "user"
++    if actor.get("kind") != expected_kind:
++        raise DiscussionValidationError(
++            f"room.lead_changed with reason '{reason}' requires a {expected_kind} actor")
++    lead = payload.get("lead_member_id")
++    if reason == "member_left":
++        # The member is gone: resolving it against the roster is exactly what cannot work here.
++        if lead is not None:
++            raise DiscussionValidationError("a member_left lead change clears the lead")
++        return payload
++    if reason == "named" and lead is None:
++        raise DiscussionValidationError("a named lead change requires lead_member_id")
++    if reason == "cleared" and lead is not None:
++        raise DiscussionValidationError("a cleared lead change carries a null lead_member_id")
++    if lead is not None:
++        _member_by_id(room, lead)
++    previous = payload.get("previous_member_id")
++    if previous is not None:
++        _member_by_id(room, previous)
++    return payload
++
++
+ _EVENT_VALIDATORS = {
+     "message.user": _validate_user_event, "message.member": _validate_member_message,
++    "bot.handoff": _validate_handoff_event, "room.lead_changed": _validate_lead_changed_event,
+     **dict.fromkeys(_TERMINAL_EVENT_KINDS, _validate_terminal_event),
+     **dict.fromkeys(_GATEWAY_EVENT_FIELDS, _validate_gateway_event)}
+ 
+@@ -717,8 +800,9 @@ def plan_next_task(
+         # watermark remains intact, so a peer cited later still receives the
+         # complete bounded transcript delta without consuming turns meanwhile.
+         responders = (
+-            resolve_mentions((str(discussion.payload["text"]),), room.members) if round_index == 0
+-            else _unaddressed_member_mentions(discussion_messages, room))
++            resolve_mentions(
++                (str(discussion.payload["text"]),), room.members, lead_member_id=room.lead_member_id)
++            if round_index == 0 else _unaddressed_member_mentions(discussion_messages, room))
+         for member_index, member in enumerate(_rotate(responders, round_index)):
+             watermark = watermarks.get((thread_id, member.member_id), 0)
+             delta, attachments = _bounded_task_delta(thread_messages, watermark=watermark, member=member)
+diff --git a/gateway/hosted_rooms.py b/gateway/hosted_rooms.py
+index 34f3abe..7c2ab2f 100644
+--- a/gateway/hosted_rooms.py
++++ b/gateway/hosted_rooms.py
+@@ -27,6 +27,9 @@ MAX_ROOM_NAME_CHARS = 200
+ MAX_EVENT_KIND_CHARS = 64
+ MAX_ACTOR_ID_CHARS = 128
+ MAX_ACTOR_LABEL_CHARS = 200
++MAX_HANDOFF_SUMMARY_CHARS = 280
++#: Closed set of ``room.lead_changed.reason`` values (spec §4.2).
++LEAD_CHANGE_REASONS = frozenset({"named", "cleared", "member_left"})
+ MAX_MEMBERS = 128
+ MAX_MEMBERS_JSON_BYTES = 128 * 1024
+ MAX_EVENT_JSON_BYTES = 256 * 1024
+@@ -48,12 +51,13 @@ _JOURNAL_MODE_LOCK_RETRIES = 8
+ _EVENT_KIND_RE = re.compile(r"^[a-z][a-z0-9_.-]*$")
+ _CONTROL_EVENT_KINDS = frozenset({"authority.claimed", "authority.lost", "room.disbanded", "room.stop_requested"})
+ _EVENT_KINDS_BY_ACTOR = {
+-    "user": frozenset({"message.user"}), "member": frozenset({"message.member"}),
+-    "gateway": frozenset({
++    "user": frozenset({"message.user", "room.lead_changed"}),
++    "member": frozenset({"message.member", "bot.handoff"}), "gateway": frozenset({
+         "member.unavailable", "room.activity", "room.stop_requested", "turn.deferred", "turn.reassigned",
+         "turn.cancelled", "turn.failed", "turn.settled", "turn.started"}),
+     "system": frozenset({
+-        "authority.claimed", "authority.lost", "room.created", "room.disbanded", "room.members_changed", "room.renamed"
++        "authority.claimed", "authority.lost", "room.created", "room.disbanded", "room.members_changed", "room.renamed",
++        "room.lead_changed"
+     })}
+ _OPTIONAL_ACTOR_FIELDS = (
+     ("display_name", MAX_ACTOR_LABEL_CHARS), ("profile", MAX_ACTOR_ID_CHARS), ("connection_id", MAX_ACTOR_ID_CHARS))
+@@ -155,6 +159,11 @@ _REMOTE_RUN_SCHEMA_COLUMNS = _REQUIRED_COLUMNS[4][1]
+ # --- SQL fragments (statement text must stay byte-stable after whitespace normalisation) ---
+ _EVENT_COLUMNS = ("room_id, seq, event_id, kind, actor_json, authority_epoch, payload_json, created_at")
+ _SELECT_EVENT = f"SELECT {_EVENT_COLUMNS} FROM hosted_room_events WHERE room_id=? AND event_id=?"
++#: The lead is read from the log, not from a room column: the last event that names one wins.
++#: ``bot.handoff`` moves it to the recipient — D3 forbids a second event for one gesture.
++_SELECT_LEAD = (
++    "SELECT kind, payload_json FROM hosted_room_events WHERE room_id=?"
++    " AND kind IN ('room.lead_changed', 'bot.handoff') ORDER BY seq DESC LIMIT 1")
+ _INSERT_EVENT = (f"INSERT INTO hosted_room_events ({_EVENT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+ _ROOM_COLUMNS = (
+     "room_id, name, members_json, authority_gateway_id, authority_epoch, next_seq, revision,"
+@@ -206,6 +215,15 @@ class AuthorityConflictError(HostedRoomError):
+ class AuthoritySupersededError(AuthorityConflictError):
+     """Raised when a successful authority claim was later superseded."""
+ 
++class RoomLeadError(HostedRoomError):
++    """A lead/handoff request the room refuses; ``reason`` is the stable client token (spec 2, 3).
++    Clients branch on ``data.reason`` — the numeric code belongs to the RPC envelope."""
++    reason = "conflict"
++
++    def __init__(self, message: str, *, reason: str = "conflict"):
++        super().__init__(message)
++        self.reason = reason
++
+ 
+ # --- validation ---------------------------------------------------------------
+ _canonical_json = partial(canonical_json, error=HostedRoomError, ensure_ascii=False)
+@@ -386,6 +404,7 @@ def _initialize_schema(conn: sqlite3.Connection) -> None:
+     conn.execute(_RETIRE_FROM_ROOMS.format(where="disbanded_at IS NOT NULL"))
+     _migrate_remote_run_schema(conn)
+     conn.execute("CREATE INDEX IF NOT EXISTS idx_hosted_room_events_cursor ON hosted_room_events(room_id, seq)")
++    conn.execute("CREATE INDEX IF NOT EXISTS idx_hosted_room_events_lead ON hosted_room_events(room_id, kind, seq)")
+     if not _schema_is_current(conn):
+         raise HostedRoomError("hosted room schema migration did not complete")
+ 
+@@ -953,6 +972,167 @@ def rename_room(db_path: DbPath, *, room_id: Any, event_id: Any, name: Any, now:
+         return {**_room_from_row(updated), "event": _event_from_row(_load_event(conn, room_id, event_id))}
+ 
+ 
++# --- lead and handoff ----------------------------------------------------------
++def _lead_from_conn(conn: sqlite3.Connection, room_id: str) -> str | None:
++    """The lead as the log states it, or ``None`` when the room never named one."""
++    row = conn.execute(_SELECT_LEAD, (room_id,)).fetchone()
++    if row is None:
++        return None
++    field = "to_member_id" if row["kind"] == "bot.handoff" else "lead_member_id"
++    value = json.loads(row["payload_json"]).get(field)
++    return value if isinstance(value, str) and value else None
++
++
++def _room_member(room: sqlite3.Row, member_id: str) -> dict[str, Any]:
++    """One roster row of this room, or ``member_not_in_room``."""
++    for member in json.loads(room["members_json"]):
++        if isinstance(member, dict) and str(member.get("member_id") or "") == member_id:
++            return member
++    raise RoomLeadError(f"'{member_id}' is not a member of this room", reason="member_not_in_room")
++
++
++def _lead_member(room: sqlite3.Row, member_id: str | None) -> dict[str, Any] | None:
++    """The ``lead`` object of a ``groups.lead`` answer: the roster's own label (spec 2)."""
++    if member_id is None:
++        return None
++    member = _room_member(room, member_id)
++    label = str(member.get("display_name") or member.get("handle") or member_id)
++    return {"member_id": member_id, "profile": str(member.get("profile") or ""), "label": label}
++
++
++def lead_member_id(db_path: DbPath, *, room_id: Any) -> str | None:
++    """Read one room's current lead from its log (``None`` when it has none)."""
++    room_id = _room_id(room_id)
++    with closing(_read_connection(db_path)) as conn:
++        return _lead_from_conn(conn, room_id)
++
++
++def set_lead(
++    db_path: DbPath, *, room_id: Any, event_id: Any, member_id: Any, authority_gateway_id: Any,
++    authority_epoch: Any, reason: Any = "named", now: float | None = None,
++) -> dict[str, Any]:
++    """Name or clear one room's lead with exactly one ``room.lead_changed`` event, nothing else.
++
++    ``member_id=None`` clears the lead. Clearing a room that has none, or naming the member that
++    already leads, is ``already_lead`` and writes nothing (spec 2, 7.2). ``reason`` is ``named``,
++    ``cleared`` or ``member_left``; the last one is written by the server itself (``system`` actor).
++    """
++    room_id = _room_id(room_id)
++    event_id = _event_id(event_id)
++    if reason not in LEAD_CHANGE_REASONS:
++        raise RoomLeadError("invalid lead change reason", reason="bad_request")
++    if member_id is not None:
++        member_id = _actor_id(member_id, "member_id")
++    elif reason == "named":
++        reason = "cleared"
++    authority_gateway_id = _actor_id(authority_gateway_id, "authority_gateway_id")
++    authority_epoch = _require_positive_int(authority_epoch, "authority_epoch")
++    now = _now(now)
++    actor = {"kind": "system" if reason == "member_left" else "user", "id": "room-control"}
++    _, actor_json = _validate_actor(actor, kind="room.lead_changed")
++    with _transaction(db_path, immediate=True) as conn:
++        room = conn.execute(_SELECT_ROOM_WITH_BYTES, (room_id,)).fetchone()
++        if room is None or room["disbanded_at"] is not None:
++            raise RoomLeadError("hosted room not found", reason="room_not_found")
++        previous_member_id = _lead_from_conn(conn, room_id)
++        payload_json = _payload_json({
++            "lead_member_id": member_id, "previous_member_id": previous_member_id, "reason": reason})
++        existing = _load_event(conn, room_id, event_id)
++        if existing is not None:
++            if _event_content(existing) != ("room.lead_changed", actor_json, authority_epoch, payload_json):
++                raise EventConflictError("event_id already exists with different content")
++            return {
++                "room_id": room_id, "lead": _lead_member(room, member_id),
++                "previous_member_id": previous_member_id, "seq": int(existing["seq"]),
++                "reason": reason, "event_id": event_id, "idempotent": True}
++        if member_id is None:
++            if previous_member_id is None:
++                raise RoomLeadError("this room has no lead to clear", reason="already_lead")
++        else:
++            _room_member(room, member_id)
++            if previous_member_id == member_id:
++                raise RoomLeadError(f"'{member_id}' already leads this room", reason="already_lead")
++        seq = int(room["next_seq"])
++        event_bytes = _prepare_event(conn, room, event_id, "room.lead_changed", actor_json, payload_json)
++        _fenced_update(conn, """UPDATE hosted_rooms
++                SET next_seq=next_seq+1, event_bytes=event_bytes+?, revision=revision+1, updated_at=?
++                WHERE room_id=? AND next_seq=?""", (event_bytes, now, room_id, seq),
++            RuntimeError("hosted room sequence advance lost its write fence"))
++        conn.execute(_INSERT_EVENT, (
++            room_id, seq, event_id, "room.lead_changed", actor_json, authority_epoch, payload_json, now))
++        room = conn.execute(_SELECT_ROOM_WITH_BYTES, (room_id,)).fetchone()
++        return {
++            "room_id": room_id, "lead": _lead_member(room, member_id),
++            "previous_member_id": previous_member_id, "seq": seq, "reason": reason,
++            "event_id": event_id, "idempotent": False}
++
++
++def _handoff_summary(value: Any) -> str | None:
++    """``summary``: at most 280 characters, no control character; an empty string means absent."""
++    if value is None:
++        return None
++    if not isinstance(value, str):
++        raise RoomLeadError("summary must be a string", reason="bad_request")
++    summary = value.strip()
++    if not summary:
++        return None
++    if len(summary) > MAX_HANDOFF_SUMMARY_CHARS:
++        raise RoomLeadError(
++            f"summary is longer than {MAX_HANDOFF_SUMMARY_CHARS} characters", reason="summary_too_long")
++    if any(ord(char) < 32 or ord(char) == 127 for char in summary):
++        raise RoomLeadError("summary contains a control character", reason="bad_request")
++    return summary
++
++
++def handoff(
++    db_path: DbPath, *, room_id: Any, event_id: Any, from_member_id: Any, to_member_id: Any,
++    authority_gateway_id: Any, authority_epoch: Any, task_id: Any = None, summary: Any = None,
++    now: float | None = None,
++) -> dict[str, Any]:
++    """Append one ``bot.handoff`` and move the room's lead to ``to_member_id`` (spec 3, 4.1).
++
++    The payload carries no ``member_id`` key on purpose: ``GroupEvent.from`` reads
++    ``payload.member_id`` before the actor, and such a key would steal the line's author (D4).
++    """
++    room_id = _room_id(room_id)
++    event_id = _event_id(event_id)
++    sender = _actor_id(from_member_id, "from_member_id")
++    recipient = _actor_id(to_member_id, "to_member_id")
++    if sender == recipient:
++        raise RoomLeadError("from_member_id and to_member_id are the same member", reason="same_member")
++    task_id = None if task_id in (None, "") else _event_id(task_id)
++    summary = _handoff_summary(summary)
++    authority_gateway_id = _actor_id(authority_gateway_id, "authority_gateway_id")
++    authority_epoch = _require_positive_int(authority_epoch, "authority_epoch")
++    now = _now(now)
++    with _transaction(db_path, immediate=True) as conn:
++        room = conn.execute(_SELECT_ROOM_WITH_BYTES, (room_id,)).fetchone()
++        if room is None or room["disbanded_at"] is not None:
++            raise RoomLeadError("hosted room not found", reason="room_not_found")
++        sender_member = _room_member(room, sender)
++        _room_member(room, recipient)
++        payload_json = _payload_json({
++            "from_member_id": sender, "to_member_id": recipient, "task_id": task_id, "summary": summary})
++        actor = {"kind": "member", "id": sender, "profile": str(sender_member.get("profile") or "")}
++        actor, actor_json = _validate_actor(actor, kind="bot.handoff")
++        existing = _load_event(conn, room_id, event_id)
++        if existing is not None:
++            if _event_content(existing) != ("bot.handoff", actor_json, authority_epoch, payload_json):
++                raise EventConflictError("event_id already exists with different content")
++            return {**_event_from_row(existing, idempotent=True), "actor": actor}
++        seq = int(room["next_seq"])
++        event_bytes = _prepare_event(conn, room, event_id, "bot.handoff", actor_json, payload_json)
++        _fenced_update(conn, """UPDATE hosted_rooms
++                SET next_seq=next_seq+1, event_bytes=event_bytes+?, revision=revision+1, updated_at=?
++                WHERE room_id=? AND next_seq=?""", (event_bytes, now, room_id, seq),
++            RuntimeError("hosted room sequence advance lost its write fence"))
++        conn.execute(_INSERT_EVENT, (
++            room_id, seq, event_id, "bot.handoff", actor_json, authority_epoch, payload_json, now))
++        row = conn.execute(
++            f"SELECT {_EVENT_COLUMNS} FROM hosted_room_events WHERE room_id=? AND seq=?", (room_id, seq)).fetchone()
++    return {**_event_from_row(row), "actor": actor}
++
++
+ def append_event(
+     db_path: DbPath, *, room_id: Any, event_id: Any, kind: Any, actor: Any, payload: Any,
+     authority_gateway_id: Any = None, authority_epoch: Any = None, now: float | None = None,
+@@ -1046,7 +1226,10 @@ def room_state(db_path: DbPath, *, room_id: Any, include_disbanded: bool = False
+             f"""SELECT {_EVENT_COLUMNS} FROM hosted_room_events WHERE room_id=?
+                 AND kind='authority.claimed' AND authority_epoch=? ORDER BY seq DESC LIMIT 1""",
+             (room_id, int(row["authority_epoch"]))).fetchone()
+-    return {**_room_from_row(row), **({"authority_claim": _event_from_row(claim_row)} if claim_row is not None else {})}
++        lead_member_id = _lead_from_conn(conn, room_id)
++    return {
++        **_room_from_row(row), "lead_member_id": lead_member_id,
++        **({"authority_claim": _event_from_row(claim_row)} if claim_row is not None else {})}
+ 
+ 
+ def request_room_stop(
+diff --git a/tui_gateway/contracts/groups_bot_relay.py b/tui_gateway/contracts/groups_bot_relay.py
+index be9aa07..f28a3e2 100644
+--- a/tui_gateway/contracts/groups_bot_relay.py
++++ b/tui_gateway/contracts/groups_bot_relay.py
+@@ -62,6 +62,8 @@ class Room(Result):
+     idempotent: bool = False
+     disbanded_at: float | None = None
+     latest_seq: int | None = None
++    #: ``hosted_rooms._lead_from_conn`` — ``state`` only; the other branches leave it out.
++    lead_member_id: str | None = None
+     adopted: bool | None = None
+     claim_event: RoomEvent | None = None
+     authority_claim: RoomEvent | None = None
+@@ -316,6 +318,53 @@ method("groups.stop", params=GroupsStopParams, result=GroupsStopResult,
+        doc="Durably cancel queued or running work for one hosted room.")
+ 
+ 
++class GroupsLeadParams(RoomParams):
++    """``member_id`` is required *present*: ``null`` clears the lead, absent is ``bad_request``.
++    The wire model cannot say that, so the handler reads the raw params (see ``methods_groups``)."""
++
++    member_id: str | None = None
++
++
++class RoomLead(Result):
++    """The lead after the call; ``label`` is the roster's own name for the member (spec 2)."""
++
++    member_id: str
++    profile: str | None = None
++    label: str | None = None
++
++
++class GroupsLeadResult(Result):
++    room_id: str
++    lead: RoomLead | None = None
++    previous_member_id: str | None = None
++    seq: int
++
++
++method("groups.lead", params=GroupsLeadParams, result=GroupsLeadResult,
++       doc="Name or clear one hosted room's lead; appends exactly one room.lead_changed event.")
++
++
++class GroupsHandoffParams(RoomParams):
++    from_member_id: str
++    to_member_id: str
++    task_id: str | None = None
++    summary: str | None = None
++
++
++class GroupsHandoffResult(Result):
++    """``cancelled_task_id`` is the ``task_id`` the caller passed, or ``null`` (spec 3)."""
++
++    room_id: str
++    seq: int
++    from_member_id: str
++    to_member_id: str
++    cancelled_task_id: str | None = None
++
++
++method("groups.handoff", params=GroupsHandoffParams, result=GroupsHandoffResult,
++       doc="Move the room's lead, and optionally the running turn, to another member.")
++
++
+ class GroupsApproveParams(RoomParams):
+     member_id: str
+     task_id: str
+diff --git a/tui_gateway/hosted_room_service.py b/tui_gateway/hosted_room_service.py
+index e8ae53d..1d164c4 100644
+--- a/tui_gateway/hosted_room_service.py
++++ b/tui_gateway/hosted_room_service.py
+@@ -35,6 +35,23 @@ _TERMINAL_STATUSES = ("deferred", "settled", "failed", "cancelled")
+ _LIVE_STATUSES = ("queued", "running", "stopping")
+ _STOPPABLE_STATUSES = ("queued", "running", "indeterminate", "deferred", "stopping")
+ _RETRYABLE_STATUSES = ("indeterminate", "deferred")
++#: ``cancel_id`` namespace of a handoff-driven stop. The driver row records the cause only there;
++#: ``_publication_result`` turns it into the ``handed_over`` reason of spec 3.
++_HANDOFF_CANCEL_PREFIX = "handoff:"
++
++
++def _publication_result(task: Mapping[str, Any], status: str) -> Any:
++    """The ``result`` a terminal publication reads its reason from.
++
++    A cancelled task has no result mapping: the driver stores the cause as the ``cancel_id`` it was
++    called with. A handoff stop therefore publishes ``turn.cancelled`` with ``reason:
++    "handed_over"``, the exact token the client's note must render as nothing (spec 4.3, trap 2).
++    """
++    result = task.get("result")
++    if status == "cancelled" and result is None and str(
++            task.get("cancel_id") or "").startswith(_HANDOFF_CANCEL_PREFIX):
++        return {"reason": "handed_over"}
++    return result
+ 
+ 
+ def _hosted_room_turn_timeout_seconds() -> float:
+@@ -398,7 +415,7 @@ class HostedRoomService:
+                 task_events = [event for event in task_events if event["kind"] != "message.user"
+                                or int(event["seq"]) <= int(task["payload"]["source_event_seq"])]
+             publication = discussion.plan_publication(
+-                room, task_events, plan, status=status, result=task.get("result"),
++                room, task_events, plan, status=status, result=_publication_result(task, status),
+                 execution_generation=execution_generation if status == "deferred" else None,
+                 local_profiles=local_profiles)
+             for event in publication.events:
+@@ -423,9 +440,30 @@ class HostedRoomService:
+                 "discussion_event_id": decision.discussion_event_id},
+             authority_gateway_id=gateway_id, authority_epoch=epoch)
+ 
++    def _retire_lead_outside_roster(self, room: Mapping[str, Any]) -> dict[str, Any]:
++        """Clear a lead the roster no longer lists, in one ``system`` event (spec 6, row 4).
++
++        Runs on every prepare pass, but writes at most once: after the event the derived lead is
++        ``None``, so the next pass has nothing to clear. A failed write (another pass won, or the
++        room was disbanded under us) is never retried here — the room stays readable either way.
++        """
++        lead = room.get("lead_member_id")
++        members = room.get("members") or []
++        if not lead or any(str(member.get("member_id") or "") == lead for member in members):
++            return dict(room)
++        gateway_id, epoch = _authority(room)
++        try:
++            hosted_rooms.set_lead(
++                self.db_path, room_id=str(room["room_id"]), member_id=None,
++                event_id=f"lead-member-left:{lead}:{int(room.get('latest_seq') or 0)}",
++                reason="member_left", authority_gateway_id=gateway_id, authority_epoch=epoch)
++        except hosted_rooms.HostedRoomError:
++            return dict(room)
++        return self._room(str(room["room_id"]))
++
+     def prepare_room(self, binding: HostedRoomBinding) -> None:
+         with self._policy_lock:
+-            room = self._room(binding.room_id)
++            room = self._retire_lead_outside_roster(self._room(binding.room_id))
+             snapshot = self._policy_snapshot(room)  # sync() side effect feeds the publish below
+             try:
+                 changed = self._publish_terminal_tasks(room)
+@@ -524,6 +562,84 @@ class HostedRoomService:
+         self.runtime.wakeup()
+         return len(tasks)
+ 
++    def _room_is_stopping(self, room_id: str) -> bool:
++        """Whether a bot of this room still acknowledges a stop (spec 2, 3: ``room_stopping``)."""
++        return any(task.get("status") == "stopping"
++                   for task in self._list_tasks(room_id, _STOPPABLE_STATUSES))
++
++    def set_lead(self, *, room_id: str, member_id: str | None) -> dict[str, Any]:
++        """Name (``member_id``) or clear (``None``) one room's lead: one event, no other write."""
++        room = self._room(room_id)
++        if room.get("disbanded_at") is not None:
++            raise hosted_rooms.RoomLeadError("hosted room not found", reason="room_not_found")
++        members = room.get("members") or []
++        if member_id is not None:
++            member = next(
++                (candidate for candidate in members if str(candidate.get("member_id") or "") == member_id), None)
++            if member is None:
++                raise hosted_rooms.RoomLeadError(
++                    f"'{member_id}' is not a member of this room", reason="member_not_in_room")
++            profile, target = str(member.get("profile") or ""), member.get("target") or {}
++            if profile and target.get("kind") != "peer" and profile not in self.local_profiles():
++                raise hosted_rooms.RoomLeadError(
++                    f"profile '{profile}' is not served here", reason="profile_not_found")
++        if self._room_is_stopping(room_id):
++            raise hosted_rooms.RoomLeadError("room work is still stopping; retry", reason="room_stopping")
++        gateway_id, epoch = self._owned_authority(room_id)
++        return hosted_rooms.set_lead(
++            self.db_path, room_id=room_id, member_id=member_id,
++            event_id=f"lead:{member_id or 'none'}:{int(room.get('latest_seq') or 0)}",
++            authority_gateway_id=gateway_id, authority_epoch=epoch)
++
++    def _live_task_of(self, room_id: str, member_id: str, task_id: str) -> Mapping[str, Any]:
++        """The live task ``task_id`` of ``member_id``, or ``task_not_yours`` (spec 3)."""
++        for task in self._list_tasks(room_id, _STOPPABLE_STATUSES):
++            payload = task.get("payload") or {}
++            if (str(task["identity"].task_id) == task_id
++                    and str(payload.get("target_member_id") or "") == member_id):
++                return task
++        raise hosted_rooms.RoomLeadError(
++            f"'{task_id}' is not a running task of '{member_id}'", reason="task_not_yours")
++
++    def handoff(
++        self, *, room_id: str, from_member_id: str, to_member_id: str, task_id: str | None = None,
++        summary: str | None = None,
++    ) -> dict[str, Any]:
++        """Stop the departing turn when ``task_id`` names it, then record one ``bot.handoff``.
++
++        The cancel is issued first so a running turn cannot overwrite the journal behind the hand:
++        its ``turn.cancelled`` is published by the terminal pipeline (``_publication_result`` stamps
++        ``reason: "handed_over"``), which is asynchronous, so it lands *after* the handoff event.
++        The spec asks for the opposite order; both read the same because ``handed_over`` renders no
++        line at all (spec 4.3, trap 2). See the handoff document, deviation D-1.
++        """
++        room = self._room(room_id)
++        if room.get("disbanded_at") is not None:
++            raise hosted_rooms.RoomLeadError("hosted room not found", reason="room_not_found")
++        member_ids = {str(member.get("member_id") or "") for member in room.get("members") or []}
++        for member_id in (from_member_id, to_member_id):
++            if member_id not in member_ids:
++                raise hosted_rooms.RoomLeadError(
++                    f"'{member_id}' is not a member of this room", reason="member_not_in_room")
++        if self._room_is_stopping(room_id):
++            raise hosted_rooms.RoomLeadError("room work is still stopping; retry", reason="room_stopping")
++        cancelled_task_id = None
++        if task_id:
++            task = self._live_task_of(room_id, from_member_id, task_id)
++            self.runtime.cancel(task["identity"], cancel_id=f"{_HANDOFF_CANCEL_PREFIX}{task_id}")
++            cancelled_task_id = task_id
++        gateway_id, epoch = self._owned_authority(room_id)
++        event = hosted_rooms.handoff(
++            self.db_path, room_id=room_id, from_member_id=from_member_id, to_member_id=to_member_id,
++            task_id=task_id, summary=summary, authority_gateway_id=gateway_id, authority_epoch=epoch,
++            event_id=(f"handoff:{from_member_id}:{cancelled_task_id or '-'}:"
++                      f"{int(room.get('latest_seq') or 0)}"))
++        self.runtime.wakeup()
++        return {
++            "room_id": str(room["room_id"]), "seq": int(event["seq"]),
++            "from_member_id": from_member_id, "to_member_id": to_member_id,
++            "cancelled_task_id": cancelled_task_id}
++
+     def retry_room_task(self, room_id: str, *, task_id: str) -> dict[str, Any]:
+         """Retry one uncertain or deferred task only after explicit user action."""
+         candidates = self._list_tasks(room_id, _RETRYABLE_STATUSES)
+diff --git a/tui_gateway/methods_groups.py b/tui_gateway/methods_groups.py
+index 5778910..ddbeb11 100644
+--- a/tui_gateway/methods_groups.py
++++ b/tui_gateway/methods_groups.py
+@@ -19,6 +19,7 @@ _METHODS = (
+     "groups.capabilities", "groups.list", "groups.create", "groups.state", "groups.send",
+     "groups.rename", "groups.log", "groups.disband", "groups.replicate", "groups.replica_state",
+     "groups.promote", "groups.demote", "groups.stop", "groups.retry", "groups.approve",
++    "groups.lead", "groups.handoff",
+     "groups.peer.invite", "groups.peer.revoke", "groups.peer.register")
+ LONG_HANDLERS = frozenset(_METHODS)
+ 
+@@ -434,6 +435,56 @@ def _(rid, params: dict, service) -> dict:
+     return _ok(rid, {"cancelled": count})
+ 
+ 
++@_room_method(
++    "groups.lead", code=5124, room_code=4124, service_code=4123,
++    service_message=_WORKER_UNAVAILABLE)
++def _(rid, params: dict, service) -> dict:
++    """Name or clear one room's lead; appends exactly one ``room.lead_changed``.
++
++    ``member_id`` must be PRESENT: ``null`` clears, absent is ``bad_request``, so no client can
++    clear a lead by omission (spec 2). Every refusal is a ``RoomLeadError`` reason, no event."""
++    from gateway.hosted_rooms import RoomLeadError
++    room_id = str(params.get("room_id") or "").strip()
++    if not room_id:
++        raise RoomLeadError("room_id is required", reason="bad_request")
++    if "member_id" not in params:
++        raise RoomLeadError("member_id is required (null clears the lead)", reason="bad_request")
++    member_id = params.get("member_id")
++    if member_id is not None:
++        if not isinstance(member_id, str) or not member_id.strip():
++            raise RoomLeadError("member_id must be a member id or null", reason="bad_request")
++        member_id = member_id.strip()
++    return _ok(rid, service.set_lead(room_id=room_id, member_id=member_id))
++
++
++@_room_method(
++    "groups.handoff", code=5125, room_code=4125, service_code=4123,
++    service_message=_WORKER_UNAVAILABLE)
++def _(rid, params: dict, service) -> dict:
++    """Stop the departing turn (when ``task_id`` is given) and record one ``bot.handoff``.
++
++    The event carries no ``member_id`` key: ``GroupEvent.from`` reads ``payload.member_id`` before
++    the actor, and one would steal the line's author (D4, spec 4.1 trap 1)."""
++    from gateway.hosted_rooms import RoomLeadError
++    room_id = str(params.get("room_id") or "").strip()
++    from_member_id = str(params.get("from_member_id") or "").strip()
++    to_member_id = str(params.get("to_member_id") or "").strip()
++    if not room_id or not from_member_id or not to_member_id:
++        raise RoomLeadError(
++            "room_id, from_member_id and to_member_id are required", reason="bad_request")
++    task_id = params.get("task_id")
++    if task_id is not None:
++        if not isinstance(task_id, str) or not task_id.strip():
++            raise RoomLeadError("task_id must be a non-empty string or null", reason="bad_request")
++        task_id = task_id.strip()
++    summary = params.get("summary")
++    if summary is not None and not isinstance(summary, str):
++        raise RoomLeadError("summary must be a string or null", reason="bad_request")
++    return _ok(rid, service.handoff(
++        room_id=room_id, from_member_id=from_member_id, to_member_id=to_member_id,
++        task_id=task_id, summary=summary))
++
++
+ @_room_method("groups.approve", code=5119, service_code=4115)
+ def _(rid, params: dict, service) -> dict:
+     """Resolve one exact approval requested by a local or peer room member."""
