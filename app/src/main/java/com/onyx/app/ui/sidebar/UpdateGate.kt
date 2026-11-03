@@ -30,6 +30,8 @@ class UpdateGate(
     private val checker: UpdateChecker = UpdateChecker(),
     /** La version **installée** : c'est elle que l'Android compare pour accepter l'installation. */
     private val installedCode: Int = BuildConfig.VERSION_CODE,
+    /** La version **lisible** installée (`1.3.3`) : c'est elle qu'on compare quand la release ne porte pas son numéro. */
+    private val installedName: String = BuildConfig.VERSION_NAME,
 ) {
     private val appContext = context.applicationContext
     private val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -54,22 +56,23 @@ class UpdateGate(
         val latest = checker.latest() ?: return
         _offer.value = when {
             // La version publiée n'est pas plus récente : rien à proposer.
-            !isUpdateAvailable(installedCode, latest.versionCode) -> null
+            !isUpdateAvailable(installedCode, installedName, latest) -> null
             // Cette version a déjà été écartée : on ne la repropose pas.
-            dismissedCode() == latest.versionCode -> null
+            dismissedName() == latest.versionName -> null
             else -> latest
         }
     }
 
-    /** **Écarte** la proposition, pour de bon : le numéro est mémorisé. */
+    /** **Écarte** la proposition, pour de bon : la version est mémorisée. */
     fun dismiss() {
         val current = _offer.value ?: return
-        prefs.edit().putInt(KEY_DISMISSED, current.versionCode).apply()
+        prefs.edit().putString(KEY_DISMISSED, current.versionName).apply()
         _offer.value = null
     }
 
-    /** Le numéro de la version écartée, s'il y en a une. */
-    private fun dismissedCode(): Int? = prefs.getInt(KEY_DISMISSED, 0).takeIf { it > 0 }
+    /** La version de la proposition écartée, s'il y en a une. */
+    private fun dismissedName(): String? =
+        prefs.getString(KEY_DISMISSED, null)?.takeIf { it.isNotBlank() }
 
     /**
      * **Télécharge** l'APK proposé.
@@ -86,7 +89,8 @@ class UpdateGate(
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalPublicDir(
                 Environment.DIRECTORY_DOWNLOADS,
-                "onyx-${update.versionCode}-release.apk",
+                // Le nom **publié** du paquet : sans numéro, comme sur la page de la release.
+                "onyx-${update.versionName}-release.apk",
             )
         runCatching {
             appContext.getSystemService(DownloadManager::class.java).enqueue(request)
