@@ -15,7 +15,7 @@ val onyxProbeFrench: Map<String, String> = mapOf(
         "Ce que ce serveur sait faire. Une capacité qu'il n'a pas n'est dessinée nulle part dans " +
         "l'application, plutôt que montrée vide.",
     "Secrets vault" to "Coffre de secrets",
-    "Teach a task" to "Montrer une tâche",
+    "Teach a task" to "Enseigner une tâche",
     "Room handoff" to "Passage de main",
     "Checking…" to "Vérification…",
     "Available" to "Disponible",

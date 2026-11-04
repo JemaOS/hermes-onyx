@@ -42,7 +42,7 @@ class AttachmentSheetWiringTest {
         assertTrue("le sélecteur de fichiers", screen.contains("filePicker.launch(arrayOf(\"*/*\"))"))
         assertTrue("le collage", screen.contains("AttachmentAction(\"Paste\", Lucide.Clipboard)"))
         assertTrue("les images du presse-papiers", screen.contains("onAddAttachments(clipboardImages(context))"))
-        // **« Enseigner une compétence »**, comme « Teach a task » de la référence : la dernière
+        // **« Enseigner une tâche »**, comme « Teach a task » de la référence : la dernière
         // ligne de la feuille. Elle est **facultative** (serveur sans identifiants Dashboard) et
         // mène à l'ordinateur connecté, où la démonstration se capture.
         assertTrue(

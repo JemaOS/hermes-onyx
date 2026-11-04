@@ -261,7 +261,7 @@ fun ChatScreen(
      */
     subagentAgents: List<com.onyx.app.data.model.SubagentActivity>? = null,
     /**
-     * **« Enseigner une compétence »** — la ligne de la feuille du « + », comme « Teach a task » de
+     * **« Enseigner une tâche »** — la ligne de la feuille du « + », comme « Teach a task » de
      * la référence.
      *
      * Elle ne fait pas la démonstration ici : la capture a besoin de l'**ordinateur connecté** (les
@@ -1790,7 +1790,7 @@ fun ChatScreen(
             AttachmentSheet(
                 title = "Add to message",
                 subtitle = AttachmentLimits.subtitle(),
-                // `listOfNotNull` : la ligne « Enseigner une compétence » est **facultative**
+                // `listOfNotNull` : la ligne « Enseigner une tâche » est **facultative**
                 // (serveur sans identifiants Dashboard), et une liste typée ne peut pas porter un
                 // élément nul.
                 actions = listOfNotNull(
@@ -1812,7 +1812,7 @@ fun ChatScreen(
                         showAddMenu = false
                         onAddAttachments(clipboardImages(context))
                     },
-                    // **« Enseigner une compétence »**, comme « Teach a task » de la référence : la
+                    // **« Enseigner une tâche »**, comme « Teach a task » de la référence : la
                     // dernière ligne de la feuille. Elle ferme la feuille et ouvre l'ordinateur
                     // connecté, où la démonstration s'enregistre — le geste vit là-bas (les clics,
                     // l'écran, le bail du serveur), la ligne n'est que le chemin.
