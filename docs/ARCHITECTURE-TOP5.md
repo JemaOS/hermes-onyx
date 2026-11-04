@@ -340,3 +340,29 @@ commande de skill (`SkillSlashRefused`, `tui_gateway/slash_worker.py:89-112`). L
 `command.dispatch` (`tui_gateway/contracts/tools_commands.py:298`), qui rend un `message` à soumettre
 comme tour. Onyx empruntait déjà cette voie pour les commandes utilisateur (`ChatViewModel.kt:1154`,
 `:1195-1204`) : le lot 1 la réutilise, il n'invente aucune route.
+
+### 8.6 L'amont a livré le meneur autrement (vérifié sur `origin/main`, `9302ba9e`)
+
+Le lot 5 avait été spécifié contre `5b147ab0`. Entre-temps, `main` a reçu **son** meneur, et pas
+sous la forme décrite ici :
+
+- `groups.context` porte `routing: "everyone" | "lead"` et `lead_member_id`
+  (`tui_gateway/methods_groups.py:531`, `gateway/hosted_room_context.py:set_room_context`) ;
+- en mode `lead`, un message qui ne nomme personne part **au meneur, qui distribue** la tâche
+  (`gateway/hosted_room_lead.py`, événement `room.assignment`) — ce n'est pas « on interroge le
+  meneur en premier », c'est un tour de routage ;
+- `groups.state` rend `context` (`purpose`, `notes`, `routing`, `lead_member_id`), et
+  `set_room_context` **exige** `purpose` et `notes` : une écriture qui ne parle que du meneur doit
+  les relire d'abord, sinon elle efface le but du salon et ses notes.
+
+Conséquence pour le client : **trois âges de serveur**, essayés du plus récent au plus ancien —
+`groups.context` (routage), puis `groups.lead` (la route de ce lot, posée en local), puis le
+réglage sur le téléphone. `ServeGroupsRpc.leadRouting` fait le premier, `nameLead` le second, et
+`RoomLeadStore` reste le repli dans les deux cas.
+
+La PR ouverte en amont a été fermée : elle dupliquait `groups.context` avec un design plus pauvre,
+et six fichiers sur sept étaient déjà en conflit. Rouvrable, mais sans intérêt tant que le routage
+par le meneur existe.
+
+Reste non fait côté client : **relire** `context.lead_member_id` à l'ouverture d'une salle, pour que
+le menu affiche le meneur choisi depuis un autre appareil. L'écriture, elle, est en place.

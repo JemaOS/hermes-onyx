@@ -510,4 +510,62 @@ class ServeGroupsRpcTest {
 
         assertFalse(ServeGroupsRpc(rpc).handoff("r1", "planner", "coder"))
     }
+
+    // — Le routage de salon (`groups.context`, routing: lead) —
+
+    @Test
+    fun `nommer le meneur par le routage garde le but et les notes du salon`() = runBlocking {
+        val calls = mutableListOf<Pair<String, String>>()
+        val rpc = RpcChannel { method, params, _ ->
+            calls += method to params.toString()
+            when (method) {
+                "groups.state" -> json(
+                    """{"room_id":"r1","context":{"purpose":"Chantier Rivoli","notes":"n1","routing":"everyone","lead_member_id":""}}""",
+                )
+                else -> json("""{"context":{"purpose":"Chantier Rivoli","notes":"n1","routing":"lead","lead_member_id":"coder"}}""")
+            }
+        }
+
+        assertTrue(ServeGroupsRpc(rpc).leadRouting("r1", "coder"))
+
+        assertEquals(listOf("groups.state", "groups.context"), calls.map { it.first })
+        val body = calls[1].second
+        assertTrue("le but n'est pas effacé : $body", body.contains("\"purpose\":\"Chantier Rivoli\""))
+        assertTrue("les notes ne sont pas effacées : $body", body.contains("\"notes\":\"n1\""))
+        assertTrue("le routage passe au meneur : $body", body.contains("\"routing\":\"lead\""))
+        assertTrue("le meneur est nommé : $body", body.contains("\"lead_member_id\":\"coder\""))
+        assertTrue("un identifiant d'événement : $body", body.contains("\"event_id\":\"onyx-lead:"))
+    }
+
+    @Test
+    fun `retirer le meneur repasse le salon en tout le monde`() = runBlocking {
+        var body = ""
+        val rpc = RpcChannel { method, params, _ ->
+            if (method == "groups.state") {
+                json("""{"context":{"purpose":"","notes":"","routing":"lead","lead_member_id":"coder"}}""")
+            } else {
+                body = params.toString()
+                json("""{"context":{"routing":"everyone"}}""")
+            }
+        }
+
+        assertTrue(ServeGroupsRpc(rpc).leadRouting("r1", null))
+
+        assertTrue("routage remis à everyone : $body", body.contains("\"routing\":\"everyone\""))
+        assertTrue("plus aucun meneur : $body", body.contains("\"lead_member_id\":\"\""))
+    }
+
+    @Test
+    fun `un serveur sans routage de salon n ecrit rien`() = runBlocking {
+        // État d'un Hermes d'avant `groups.context` : pas de champ `context`. On ne devine pas des
+        // valeurs pour `purpose` et `notes` — on n'écrit rien du tout.
+        var wrote = false
+        val rpc = RpcChannel { method, _, _ ->
+            if (method == "groups.context") wrote = true
+            json("""{"room_id":"r1","seq":3}""")
+        }
+
+        assertFalse(ServeGroupsRpc(rpc).leadRouting("r1", "coder"))
+        assertFalse("aucune écriture de contexte", wrote)
+    }
 }

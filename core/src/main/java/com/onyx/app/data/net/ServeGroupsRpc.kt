@@ -187,6 +187,51 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
         }
     }
 
+    /**
+     * **Le meneur tel qu'un serveur à jour le comprend** : un mode de routage du salon
+     * (`groups.context`, `routing: "lead"` + `lead_member_id`), celui que l'amont a livré après le
+     * lot 5. En mode `lead`, un message qui ne nomme personne part au meneur, qui distribue la tâche.
+     *
+     * `purpose` et `notes` sont **relus puis réécrits tels quels** : le serveur exige les quatre
+     * champs, et une écriture qui ne parle que du meneur ne doit pas effacer le but du salon ni ses
+     * notes partagées.
+     *
+     * Rend `false` sur un serveur qui n'a pas `groups.context` — l'appelant essaie alors
+     * `groups.lead`, puis garde le réglage sur le téléphone.
+     */
+    override suspend fun leadRouting(room: String, memberId: String?): Boolean {
+        val state = try {
+            rpc.call("groups.state", buildJsonObject { put("room_id", room) }, CALL_TIMEOUT)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return false
+        }
+        // Sans `context` dans l'état, ce serveur ne connaît pas le routage : ne rien écrire.
+        val context = state.asObject()?.obj("context") ?: return false
+        val lead = memberId?.takeIf { it.isNotBlank() }
+        return try {
+            rpc.call(
+                "groups.context",
+                buildJsonObject {
+                    put("room_id", room)
+                    // Un identifiant par écriture : rejoué, le serveur rend le même événement.
+                    put("event_id", "onyx-lead:${java.util.UUID.randomUUID()}")
+                    put("purpose", context.strOrNull("purpose").orEmpty())
+                    put("notes", context.strOrNull("notes").orEmpty())
+                    put("routing", if (lead == null) "everyone" else "lead")
+                    put("lead_member_id", lead.orEmpty())
+                },
+                CALL_TIMEOUT,
+            )
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /** Le journal de la salle après `since`, page après page (`groups.log`). */
     override suspend fun log(room: String, since: Int): List<GroupEvent> {
         val events = mutableListOf<GroupEvent>()
@@ -403,6 +448,15 @@ interface GroupRoomApi {
      * même règle que [nameLead] : ne jamais laisser croire à une écriture qui n'a pas eu lieu.
      */
     suspend fun handoff(room: String, from: String, to: String): Boolean = false
+
+    /**
+     * Nomme le meneur par le **routage de salon** (`groups.context`, `routing: "lead"`), la forme
+     * qu'un serveur à jour comprend ; `memberId = null` repasse le salon en `everyone`.
+     *
+     * Rend `false` quand ce serveur ne connaît pas `groups.context` — l'appelant essaie alors
+     * [nameLead] (la route dédiée du lot 5), puis garde le choix sur le téléphone.
+     */
+    suspend fun leadRouting(room: String, memberId: String?): Boolean = false
     suspend fun stop(room: String)
     suspend fun rename(room: String, name: String)
     suspend fun disband(room: String)

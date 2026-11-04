@@ -447,7 +447,12 @@ class GroupRoomFeed(
      * relire.
      */
     suspend fun nameLead(memberId: String?): Boolean {
-        val named = api.nameLead(state.value.room.id, memberId)
+        // Trois âges de serveur, dans l'ordre du plus récent au plus ancien :
+        //   1. `groups.context` + `routing: "lead"` — la forme de l'amont (le meneur distribue) ;
+        //   2. `groups.lead` — la route du lot 5 (le meneur répond en premier) ;
+        //   3. aucune des deux — le réglage reste sur ce téléphone.
+        val named = api.leadRouting(state.value.room.id, memberId) ||
+            api.nameLead(state.value.room.id, memberId)
         if (named) look()
         return named
     }
