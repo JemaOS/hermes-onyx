@@ -303,6 +303,20 @@ Provenance and the list of the files actually present: [`docs/captures/INDEX.md`
 
 ## Install
 
+### Connecting your phone, the first time
+
+One command on the machine that runs Hermes, and your phone is set up — chat, voices, skills, tools
+and the Computer screen together:
+
+```bash
+tools/onyx-setup.sh      # prints the onyx://connect link and its QR code
+```
+
+Full walkthrough, what each service is for, and what to check when a screen is empty:
+**[docs/FIRST-RUN.md](docs/FIRST-RUN.md)**.
+
+### The APKs
+
 The signed APKs are on the [latest release](https://github.com/JemaOS/hermes-onyx/releases/latest)
 page. One code base — **the signing certificate has not changed since `1.0.0+980`**: read the note
 below before installing.
