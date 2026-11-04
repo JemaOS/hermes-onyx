@@ -578,7 +578,9 @@ fun ChatScreen(
     }
     // Une question part d'où qu'elle soit écrite : elle ramène en bas (`jumpToEnd` de la référence).
     var seenUserTurns by remember { mutableStateOf(0) }
-    val userTurns = remember(state.messages) {
+    // La clé est le **nombre** de messages : pendant qu'une réponse s'écrit, la liste change à chaque
+    // jeton mais sa taille ne bouge pas — compter les tours à ce rythme ne servait à rien.
+    val userTurns = remember(state.messages.size) {
         state.messages.count { it.role == com.onyx.app.data.model.Role.USER }
     }
     LaunchedEffect(userTurns) {
@@ -695,8 +697,18 @@ fun ChatScreen(
     // L'onglet actif prend la couleur du bot de la conversation.
     val tabAccent = if (threadBotUnknown) theme.accent
         else threadBot?.let { botFaceColour(it.name, it.faceCode, theme) } ?: theme.accent
-    val feedCards = remember(state.messages, threadSpeaker.label) { ChatFeed.cards(state.messages, threadSpeaker.label) }
-    val exchangedFiles = remember(state.messages) { ChatFiles.conversationFiles(state.messages) }
+    // **Rien ne se recalcule à chaque jeton.** Une réponse en cours change à chaque token ; les
+    // cartes du Flux et la liste des fichiers ne lisent que des messages **finis**, donc les
+    // recalculer sur toute la conversation à ce rythme ne dessinait rien de neuf et coûtait du
+    // temps à chaque image. La clé est la même tant que le dernier message fini ne change pas.
+    val settledCount = if (state.isStreaming) (state.messages.size - 1).coerceAtLeast(0) else state.messages.size
+    val settledLast = state.messages.getOrNull(settledCount - 1)?.id
+    val feedCards = remember(settledCount, settledLast, threadSpeaker.label) {
+        ChatFeed.cards(state.messages.take(settledCount), threadSpeaker.label)
+    }
+    val exchangedFiles = remember(settledCount, settledLast) {
+        ChatFiles.conversationFiles(state.messages.take(settledCount))
+    }
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
     // Ce qui a été vu du flux : la pastille de non-lu ne compte que le neuf.
     var seenCards by remember(panelKey) { mutableStateOf(panels.seenCards(panelKey)) }
@@ -1037,7 +1049,9 @@ fun ChatScreen(
                                 else -> com.onyx.app.ui.common.ArrivalKind.NONE
                             }
                         }
-                        val dayLabel = dayLabelFor(state.messages, index)
+                        val dayLabel = remember(message.id, state.messages.getOrNull(index - 1)?.createdAt) {
+                            dayLabelFor(message.createdAt, state.messages.getOrNull(index - 1)?.createdAt)
+                        }
                         if (dayLabel != null) {
                             DaySeparator(label = dayLabel)
                         }
@@ -2043,16 +2057,16 @@ private fun EarlierRow(count: Int, onClick: () -> Unit) {
 }
 
 /** Le libellé du jour au premier message d'une journée, ou `null`. */
-private fun dayLabelFor(messages: List<com.onyx.app.data.model.ChatMessage>, index: Int): String? {
-    val current = java.util.Calendar.getInstance().apply { timeInMillis = messages[index].createdAt }
+private fun dayLabelFor(createdAt: Long, previousCreatedAt: Long?): String? {
+    val current = java.util.Calendar.getInstance().apply { timeInMillis = createdAt }
     val today = java.util.Calendar.getInstance()
 
     fun sameDay(a: java.util.Calendar, b: java.util.Calendar): Boolean =
         a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) &&
             a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR)
 
-    if (index > 0) {
-        val previous = java.util.Calendar.getInstance().apply { timeInMillis = messages[index - 1].createdAt }
+    if (previousCreatedAt != null) {
+        val previous = java.util.Calendar.getInstance().apply { timeInMillis = previousCreatedAt }
         if (sameDay(previous, current)) return null
     } else if (sameDay(today, current)) {
         return null
@@ -2062,10 +2076,22 @@ private fun dayLabelFor(messages: List<com.onyx.app.data.model.ChatMessage>, ind
     return when {
         sameDay(today, current) -> "Today"
         sameDay(yesterday, current) -> "Yesterday"
-        else -> java.text.SimpleDateFormat("EEEE, d MMMM", OnyxLanguage.preferred)
-            .format(java.util.Date(messages[index].createdAt))
+        else -> dayFormat().format(java.util.Date(createdAt))
     }
 }
+
+/**
+ * Le formateur de jour, **gardé une fois**.
+ *
+ * `SimpleDateFormat` est cher à construire (chargement de locale, de calendrier, de symboles) et
+ * n'est pas réutilisable en concurrence — mais la composition est mono-thread, et le recréer à
+ * chaque rangée visible, à chaque recomposition, était un coût pur dans le défilement d'une grosse
+ * conversation.
+ */
+private val dayFormatter: ThreadLocal<java.text.SimpleDateFormat> =
+    ThreadLocal.withInitial { java.text.SimpleDateFormat("EEEE, d MMMM", OnyxLanguage.preferred) }
+
+private fun dayFormat(): java.text.SimpleDateFormat = dayFormatter.get()!!
 
 /** Ce que le fil accepte en dépôt : les images, comme le composeur. */
 @Composable
