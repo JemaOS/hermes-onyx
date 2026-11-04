@@ -112,6 +112,33 @@ same file everywhere. Two honest limits:
   from a clean machine; the launchd and `schtasks` paths follow the same contract and will tell you
   what failed rather than fail silently, but treat them as unproven until someone runs them.
 
+## Proving the whole chain, like a new user
+
+Installers rot silently. The way to know yours still works is to wipe everything it created and run
+it again — which is what `tools/onyx-reset.py` is for:
+
+```bash
+python3 tools/onyx-reset.py            # asks before doing anything
+python3 tools/onyx-setup.py            # the whole install, from nothing
+```
+
+`onyx-reset.py` removes the services (systemd units and their `*.service.d` overrides, launchd
+agents, scheduled tasks), `~/.onyx-one` (key, secrets, dashboard credentials), the Computer bridge
+(code, venv, token, logs), and the link and its QR. **It never touches Hermes** — its config,
+sessions and database stay as they are.
+
+A reset + install on a clean machine should print no `!` line at all. What it produced on the
+reference machine, from nothing:
+
+- 10 of 10 routes answering `200` through the public tunnel (`/v1/models`, `/api/sessions`,
+  `/api/tools/toolsets`, `/api/cron/jobs`, `/api/skills`, `/api/profiles`, `/api/system/stats`,
+  `/api/mcp/servers`, `/api/analytics/usage`, `/api/onyx/endpoints`)
+- a real completion answered through the tunnel
+- the WebSocket upgrading: `101 Switching Protocols`
+- `/v1/models` without the key: `401`
+- the Computer bridge: `/health` `200`
+- running it a second time: same key, **same tunnel, same link**, zero warnings
+
 ## If something is wrong
 
 ```bash
