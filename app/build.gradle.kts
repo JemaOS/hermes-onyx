@@ -30,7 +30,7 @@ val voiceToken: String = runCatching {
     File(
         providers.gradleProperty("onyx.voiceTokenFile")
             .getOrElse("/home/john/kokoro-tts/auth-proxy/token"),
-    ).readText().trim()
+    ).readLines().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 }.getOrDefault("")
 
 /** Résout `storeFile` relativement au fichier de propriétés, où qu'il soit. */
