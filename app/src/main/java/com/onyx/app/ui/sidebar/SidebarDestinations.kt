@@ -108,6 +108,17 @@ object SidebarDestinations {
         SidebarTile("MODELS", "Models", com.onyx.app.ui.design.Symbols.Brain, group = SidebarTileGroup.ONYX),
         SidebarTile("KANBAN", "Kanban", com.onyx.app.ui.design.Symbols.RectangleSplit, group = SidebarTileGroup.ONYX),
         SidebarTile("CODE", "Code", com.onyx.app.ui.design.Symbols.Terminal, group = SidebarTileGroup.ONYX),
+        // **Le Coffre de secrets** : sa tuile, à côté de sa ligne des Réglages (section « Secrets »)
+        // et de son raccourci d'icône. Elle arrive dans la **bibliothèque** (« BIBLIOTHÈQUE »), pas
+        // dans la grille d'origine : une neuvième tuile imposée à tout le monde n'est pas un défaut,
+        // et la bibliothèque existe pour ça — un geste, et elle rejoint la grille (relevé par le
+        // propriétaire : « le coffre n'apparaît pas dans les raccourcis »).
+        SidebarTile(
+            "VAULT",
+            "Secrets vault",
+            com.onyx.app.ui.design.Symbols.LockOutline,
+            group = SidebarTileGroup.ONYX,
+        ),
     )
 
     /**

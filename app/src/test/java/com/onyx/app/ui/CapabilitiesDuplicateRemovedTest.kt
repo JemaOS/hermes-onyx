@@ -20,7 +20,8 @@ import org.junit.Test
  * retrait. Ce fichier tient les quatre bouts :
  *
  * - la tuile et la ligne des Réglages ont quitté l'interface, et la route avec elles ;
- * - le groupe « Onyx » est passé à **quatre** tuiles, en **deux rangées pleines** (grille 2 × 2) ;
+ * - le groupe « Onyx » est passé à quatre tuiles (grille 2 × 2), puis à **cinq** avec la tuile du
+ *   **Coffre de secrets** — deux rangées pleines et une tuile seule, alignée à gauche ;
  * - tout ce que la famille des compétences faisait est **dans** « Capacités » (liste groupée par
  *   famille, compte, recherche, interrupteur, lecture, catalogue du hub avec installer / retirer) ;
  * - l'**éditeur** reste atteignable : « Capacités » l'ouvre, et le retour rend « Capacités ».
@@ -38,8 +39,8 @@ class CapabilitiesDuplicateRemovedTest {
     fun `la tuile Competences a quitte le volet, le groupe Onyx passe a quatre`() {
         assertFalse("plus aucune tuile « Compétences »", SidebarDestinations.tiles.any { it.id == "SKILLS" })
         assertEquals(
-            "le groupe « Onyx », dans son ordre, à quatre tuiles",
-            listOf("FILES", "MODELS", "KANBAN", "CODE"),
+            "le groupe « Onyx », dans son ordre, à cinq tuiles",
+            listOf("FILES", "MODELS", "KANBAN", "CODE", "VAULT"),
             SidebarDestinations.onyxOrder,
         )
         assertEquals(
@@ -68,7 +69,7 @@ class CapabilitiesDuplicateRemovedTest {
             chatSidebar.contains("repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }"),
         )
         assertTrue(
-            "les quatre destinations du groupe sont dans la bibliothèque par défaut",
+            "les cinq destinations du groupe sont dans la bibliothèque par défaut",
             SidebarTileLayout.library(SidebarTileLayout.defaultIds).map { it.id } == onyx.map { it.id },
         )
     }

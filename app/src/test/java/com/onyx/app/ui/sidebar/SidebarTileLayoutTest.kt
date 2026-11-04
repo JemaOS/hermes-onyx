@@ -123,7 +123,7 @@ class SidebarTileLayoutTest {
 
     @Test
     fun `l ajout est refuse au plafond et la liste ne bouge pas`() {
-        // Le catalogue porte **dix** destinations aujourd'hui : le plafond se mesure donc sur une
+        // Le catalogue porte **onze** destinations aujourd'hui : le plafond se mesure donc sur une
         // grille de douze, telle que la règle la voit — c'est la borne qui refuse, avant tout autre
         // motif, et c'est **le même refus** que l'écran affichera.
         val douze = List(SidebarTileLayout.MAX_TILES) { "TUILE-$it" }
@@ -162,7 +162,7 @@ class SidebarTileLayoutTest {
         var ids = SidebarTileLayout.defaultIds
         repeat(8) { ids = SidebarTileLayout.remove(ids, ids.first()) }
         assertEquals("on ne descend pas sous quatre", 4, ids.size)
-        repeat(12) { tile -> ids = SidebarTileLayout.add(ids, SidebarTileLayout.catalog[tile % 10].id) }
+        repeat(12) { tile -> ids = SidebarTileLayout.add(ids, SidebarTileLayout.catalog[tile % 11].id) }
         assertTrue("on ne monte pas au-dessus de douze", ids.size <= SidebarTileLayout.MAX_TILES)
         assertTrue(SidebarTileLayout.inBounds(ids))
     }
@@ -200,8 +200,8 @@ class SidebarTileLayoutTest {
     fun `la bibliotheque porte les destinations qui ne sont pas sur la grille`() {
         val library = SidebarTileLayout.library(SidebarTileLayout.defaultIds)
         assertEquals(
-            "les quatre destinations propres à Onyx sont dans la bibliothèque",
-            listOf("FILES", "MODELS", "KANBAN", "CODE"),
+            "les cinq destinations propres à Onyx sont dans la bibliothèque",
+            listOf("FILES", "MODELS", "KANBAN", "CODE", "VAULT"),
             library.map { it.id },
         )
         assertEquals(
@@ -257,7 +257,7 @@ class SidebarTileLayoutTest {
             )
             assertNotNull(SidebarTileLayout.tile(tile.id))
         }
-        assertEquals(10, SidebarTileLayout.catalog.size)
+        assertEquals(11, SidebarTileLayout.catalog.size)
         assertFalse(
             "les Réglages ne sont pas une tuile (la roue dentée de la tête les porte)",
             SidebarTileLayout.catalog.any { it.id == SidebarDestinations.HEAD_SETTINGS_TILE },
@@ -319,9 +319,10 @@ class SidebarTileLayoutTest {
 
     @Test
     fun `le catalogue tient dans le plafond mais le depasse si on le lui demande`() {
-        // Le catalogue porte dix destinations : le plafond de douze a de la marge — et la règle
-        // **refuse** quand même au-delà, ce que la contre-épreuve ci-dessous mesure.
-        assertEquals(10, SidebarTileLayout.catalog.size)
+        // Le catalogue porte onze destinations (« Secrets vault » comprise) : le plafond de douze a
+        // encore de la marge — et la règle **refuse** quand même au-delà, ce que la contre-épreuve
+        // ci-dessous mesure.
+        assertEquals(11, SidebarTileLayout.catalog.size)
         assertTrue(SidebarTileLayout.catalog.size < SidebarTileLayout.MAX_TILES)
     }
 }

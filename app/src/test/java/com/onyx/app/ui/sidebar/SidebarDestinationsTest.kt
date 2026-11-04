@@ -25,8 +25,12 @@ class SidebarDestinationsTest {
     /** Le groupe de la référence, tel qu'il doit rester : l'ordre de la référence, Inbox excepté. */
     private val ordreReference = listOf("CRON", "INSIGHTS", "CAPABILITIES", "TOOLS", "GATEWAY", "ARCHIVED")
 
-    /** Le groupe d'Onyx, tel qu'il doit rester — quatre tuiles, deux rangées pleines. */
-    private val ordreOnyx = listOf("FILES", "MODELS", "KANBAN", "CODE")
+    /**
+     * Le groupe d'Onyx, tel qu'il doit rester — cinq tuiles depuis que le **Coffre de secrets** y
+     * entre (il vit dans la bibliothèque, pas dans la grille d'origine : une neuvième tuile imposée
+     * à tout le monde n'est pas un défaut).
+     */
+    private val ordreOnyx = listOf("FILES", "MODELS", "KANBAN", "CODE", "VAULT")
 
     @Test
     fun `aucune tuile du volet ne recouvre un onglet de la barre du bas`() {

@@ -60,7 +60,7 @@ class ReferenceNavigationAlignmentTest {
     private val ordreDeLaReference = listOf("CRON", "INSIGHTS", "CAPABILITIES", "TOOLS", "GATEWAY", "ARCHIVED")
 
     /** Les tuiles qu'Onyx a **en plus** — la référence ne les porte pas. */
-    private val sectionsPropresaOnyx = listOf("FILES", "MODELS", "KANBAN", "CODE")
+    private val sectionsPropresaOnyx = listOf("FILES", "MODELS", "KANBAN", "CODE", "VAULT")
 
     @Test
     fun `les sections partagees sont portees par la grille du volet, avec leur mot`() {
@@ -192,7 +192,7 @@ class ReferenceNavigationAlignmentTest {
         // Rien n'est supprimé du code : les quatre tuiles de l'app restent **déclarées**, même si la
         // grille ne les dessine plus — la bibliothèque les rend, et la liste est remise au
         // propriétaire.
-        assertEquals("les quatre tuiles de l'app restent déclarées", 4, SidebarDestinations.onyxTiles.size)
+        assertEquals("les cinq tuiles de l'app restent déclarées", 5, SidebarDestinations.onyxTiles.size)
         assertEquals("Onyx", SidebarDestinations.ONYX_GROUP_LABEL)
     }
 
