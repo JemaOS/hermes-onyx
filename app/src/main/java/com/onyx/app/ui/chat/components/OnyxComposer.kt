@@ -708,6 +708,15 @@ fun OnyxComposer(
                             onFocusedChange?.invoke(it.isFocused)
                         }
                         .fillMaxWidth()
+                        // **Le champ occupe la hauteur qu'il réserve, pas une ligne.**
+                        //
+                        // Le bloc réserve trois lignes au repos (`ComposerGrowth.RestLines`, pour
+                        // que le clavier ne bouge plus quand on dépasse 19 caractères), mais le
+                        // champ de texte, lui, ne mesurait qu'une ligne : les deux lignes du bas
+                        // étaient du vide **sans cible tactile**, et un tap dedans ne faisait rien
+                        // — « quand je clique ça marche pas de partout pour écrire ». Il prend
+                        // maintenant la hauteur réservée : n'importe quel point de la zone écrit.
+                        .defaultMinSize(minHeight = maxOf(40.dp, restFieldHeight))
                         .padding(vertical = 10.dp)
                         // Ctrl+V / Cmd+V sur une image : le champ de texte ne prend que du
                         // texte, on intercepte donc avant lui.

@@ -99,4 +99,23 @@ class ComposerLayoutTest {
             screen.contains("snapshotFlow { listState.isScrollInProgress to withinAnchor }"),
         )
     }
+
+    @Test
+    fun `le champ de saisie prend le tap sur toute la hauteur reservee`() {
+        // Le défaut du propriétaire : « quand je clique ça marche pas de partout pour écrire ».
+        // Le bloc réserve trois lignes au repos (pour que le clavier ne bouge plus), mais le champ
+        // de texte n'en mesurait qu'une : les lignes du bas étaient du vide **sans cible tactile**.
+        // Le champ doit donc porter la même hauteur minimale que la zone qu'il réserve.
+        val composer = File("src/main/java/com/onyx/app/ui/chat/components/OnyxComposer.kt").readText()
+
+        assertTrue(
+            "le champ reprend la hauteur réservée",
+            composer.contains(".defaultMinSize(minHeight = maxOf(40.dp, restFieldHeight))"),
+        )
+        // Et il la reprend **dans le champ de texte**, pas seulement sur le conteneur : c'est le
+        // conteneur qui a la hauteur, mais c'est le champ qui reçoit le tap.
+        val fieldBlock = composer.substringAfter("BasicTextField(")
+        val head = fieldBlock.substringBefore(".onPreviewKeyEvent")
+        assertTrue("le champ de texte porte la hauteur", head.contains("defaultMinSize(minHeight = maxOf(40.dp, restFieldHeight))"))
+    }
 }
