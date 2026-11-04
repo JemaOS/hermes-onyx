@@ -116,10 +116,74 @@ fun MarkdownText(
                 )
                 MarkdownRenderer.QUOTE -> MarkdownQuote(markdown = block.quote.orEmpty())
                 MarkdownRenderer.TABLE -> block.table?.let { MarkdownTableBlock(table = it) }
-                MarkdownRenderer.PROSE -> MarkdownProse(markdown = block.prose.orEmpty(), tint = tint, streaming = trailing)
+                MarkdownRenderer.PROSE -> {
+                    val prose = block.prose.orEmpty()
+                    // **Le texte sans balisage n'a pas besoin d'une vue Android.**
+                    //
+                    // Chaque prose était rendue par Markwon, dans un `TextView` posé par
+                    // `AndroidView` : une vue du système par message, mesurée et dessinée en
+                    // travers de Compose à chaque image de défilement. Sur un fil chargé, c'est le
+                    // poste de dessin le plus lourd — et la plupart des réponses ne portent aucun
+                    // balisage du tout. Celles-là passent par le texte de Compose, qui se compose
+                    // avec le reste de la rangée ; Markwon garde les autres, où il a du travail.
+                    if (hasMarkup(prose)) {
+                        MarkdownProse(markdown = prose, tint = tint, streaming = trailing)
+                    } else {
+                        MarkdownPlain(prose = prose, tint = tint)
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * **Ce texte porte-t-il du balisage ?** La question décide du chemin de rendu : sans balisage, une
+ * vue Android n'apporte rien qu'un texte Compose ne donne pas.
+ *
+ * Pure, et volontairement grossière : elle ne cherche pas à *comprendre* le Markdown, seulement à
+ * ne jamais laisser passer un texte qui en contient. Un faux positif (une phrase avec un astérisque
+ * au milieu) coûte une vue Android ; un faux négatif afficherait des astérisques à l'écran.
+ */
+internal fun hasMarkup(text: String): Boolean {
+    if (text.isBlank()) return false
+    for (line in text.lineSequence()) {
+        val t = line.trimStart()
+        if (t.startsWith("#") || t.startsWith(">") || t.startsWith("- ") || t.startsWith("* ") ||
+            t.startsWith("+ ") || t.startsWith("|") || t.startsWith("```") || t.startsWith("~~~")
+        ) {
+            return true
+        }
+        // Une liste numérotée : « 1. », « 12) ».
+        val dot = t.indexOf('.')
+        val paren = t.indexOf(')')
+        val marker = when {
+            dot in 1..3 -> dot
+            paren in 1..3 -> paren
+            else -> -1
+        }
+        if (marker > 0 && t.take(marker).all { it.isDigit() }) return true
+    }
+    // Le balisage en ligne : gras, italique, code, lien, image, case à cocher, tableau.
+    return text.contains("**") || text.contains("__") || text.contains('`') || text.contains("](") ||
+        text.contains("![" ) || text.contains("[ ]") || text.contains("[x]") || text.contains("~~") ||
+        MARKDOWN_EMPHASIS.containsMatchIn(text)
+}
+
+/** L'italique d'un seul caractère : `*mot*` ou `_mot_` — sans confondre avec une multiplication. */
+private val MARKDOWN_EMPHASIS = Regex("(^|[\\s(])([*_])([^\\s*_][^*_]*)\\2([\\s).,;:!?]|$)")
+
+/**
+ * **La prose sans balisage, en texte de Compose.** Même style, même encre, même sélection — sans la
+ * vue Android : c'est ce qui allège le défilement d'un fil chargé.
+ */
+@Composable
+private fun MarkdownPlain(prose: String, tint: Color?) {
+    val theme = LocalOnyxTheme.current
+    SelectableText(
+        text = prose,
+        style = theme.messageFont.copy(color = tint ?: theme.textColor),
+    )
 }
 
 /** Un morceau de prose, rendu par Markwon avec les couleurs et les polices du thème. */

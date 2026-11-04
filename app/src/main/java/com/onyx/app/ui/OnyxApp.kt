@@ -347,6 +347,13 @@ private const val EXTRA_SUBAGENT_DEMO = "onyx.subagentDemo"
 private const val EXTRA_SLASH_DEMO = "onyx.slashDemo"
 
 /**
+ * La doublure de QA du **défilement** (`am start --ez onyx.threadDemo true`) : un fil long et
+ * reproductible (prose en Markdown, listes, code, six étapes d'outils par réponse) pour lire des
+ * temps d'image au lieu d'une impression — `dumpsys gfxinfo`. Debug seulement.
+ */
+private const val EXTRA_THREAD_DEMO = "onyx.threadDemo"
+
+/**
  * La doublure de QA du **relevé d'agent** (`am start -e onyx.ledgerDemo chargee`) : un fil, un
  * registre de sessions et une table de prix **posés**, faute de Dashboard et d'agent sur un
  * émulateur. Quatre cas nommés — `fraiche` (conversation neuve), `chargee` (conversation chargée),
@@ -731,6 +738,23 @@ fun OnyxApp() {
                 demoSubagents = com.onyx.app.ui.chat.SubagentStandIn.agents(at)
                 chatViewModel.seedSubagentDemo(com.onyx.app.ui.chat.SubagentStandIn.conversation(at))
             }
+        }
+        // La doublure de **défilement** : un fil long posé une fois, pour mesurer les images.
+        val threadDemo = remember {
+            val intent = context.findActivity()?.intent
+            if (intent?.getBooleanExtra(EXTRA_THREAD_DEMO, false) == true) {
+                // Le compte et la présence des étapes d'outils sont **réglables** : c'est ce qui
+                // permet de comparer deux fils au même appareil (`--ei onyx.threadDemoCount 40`,
+                // `--ez onyx.threadDemoPlain true`).
+                intent.getIntExtra("onyx.threadDemoCount", com.onyx.app.ui.chat.ThreadStandIn.DefaultCount) to
+                    !intent.getBooleanExtra("onyx.threadDemoPlain", false)
+            } else {
+                null
+            }
+        }
+        LaunchedEffect(threadDemo) {
+            val (count, withTools) = threadDemo ?: return@LaunchedEffect
+            chatViewModel.seedSubagentDemo(com.onyx.app.ui.chat.ThreadStandIn.messages(count, withTools))
         }
         val shownSubagents = if (subagentDemoRun && demoSubagents.isNotEmpty()) demoSubagents else state.subagents
         // La doublure du **menu « / »** (`onyx.slashDemo`) : la liste que la passerelle rendrait,
