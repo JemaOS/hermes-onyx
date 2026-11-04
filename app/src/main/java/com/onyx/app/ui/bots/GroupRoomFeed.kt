@@ -278,7 +278,12 @@ class GroupRoomFeed(
                 _state.update { current ->
                     val renamed = fresh.lastOrNull { it.kind == "room.renamed" }?.payload?.strOrNull("name")
                     current.copy(
-                        events = current.events + fresh,
+                        // **Le journal affiché est borné.** La salle relit son journal deux fois
+                        // par seconde quand elle travaille, et `events + fresh` recopiait tout :
+                        // une longue session de bots faisait O(n) allocations par tick, donc O(n²)
+                        // sur la durée. Cinq cents lignes couvrent largement ce que l'écran
+                        // dessine (les passages de main et le meneur ne lisent que les dernières).
+                        events = (current.events + fresh).takeLast(MAX_EVENTS),
                         cursor = fresh.last().seq,
                         // Un message de la personne maintenant dans le journal n'attend plus (Hermes
                         // rogne ce qu'on lui donne : c'est le texte dit qui les font se rejoindre).
@@ -645,6 +650,9 @@ class GroupRoomFeed(
         const val BUSY_TICK = 500L
         const val IDLE_TICK = 5_000L
         const val KEEP_FINISHED = 20_000L
+
+        /** Le nombre de lignes de journal gardées en mémoire pour l'affichage. */
+        const val MAX_EVENTS = 500
         const val MEMBER_LOOK = 5_000L
 
         /** Une session qui écrit, ou qui vient de commencer. */

@@ -190,6 +190,21 @@ class OnyxSocleVerrouTest {
         )
     }
 
+    /**
+     * Le filtre des fichiers d'interface ne doit pas prendre un **identifiant** pour un appel de
+     * texte : `flushText(`, `setContentText(`, `sendText(` ne dessinent rien. Sans cette borne,
+     * `TurnSession.kt` (qui appelle `flushText`) devenait un « écran hors route » et faisait échouer
+     * le verrou pour une raison qui n'était pas la sienne.
+     */
+    @Test
+    fun `un identifiant qui finit par Text n'est pas un appel de texte`() {
+        assertTrue(carriesText("""@Composable fun A() { Text("x") }"""))
+        assertTrue(carriesText("""BasicText(text = "x")"""))
+        assertTrue(carriesText("""SelectableText("x")"""))
+        assertFalse(carriesText("fun flushText(now: Long) { }"))
+        assertFalse(carriesText("""bucket.setContentText("x"); session.sendText("y"); reader.readText()"""))
+    }
+
     @Test
     fun `aucune route ne porte un corps hors echelle`() {
         val found = mutableListOf<String>()
@@ -724,12 +739,24 @@ private fun interfaceFiles(): List<String> {
             .filter { it.isFile && it.name.endsWith(".kt") }
             .forEach {
                 val src = it.readText()
-                val carriesText = src.contains("Text(") || src.contains("fontSize") || src.contains("fontFamily")
-                if (carriesText) out += prefix + it.relativeTo(dir).path.replace(File.separatorChar, '/')
+                if (carriesText(src)) out += prefix + it.relativeTo(dir).path.replace(File.separatorChar, '/')
             }
     }
     return out
 }
+
+/**
+ * **Un appel qui dessine du texte**, et non un identifiant qui se termine par « Text( ».
+ *
+ * `src.contains("Text(")` comptait `flushText(`, `setContentText(`, `sendText(`, `readText(`… :
+ * un modèle de vue qui met son tampon à jour (`flushText`) devenait un « écran d'interface hors
+ * route » et faisait échouer le verrou — un faux positif qui pousse à élargir la liste d'exceptions
+ * au lieu de corriger le filtre. Ici, seuls les composables de texte de Compose comptent.
+ */
+private val TEXT_CALL = Regex("""(?<![A-Za-z0-9_])(Text|BasicText|SelectableText)\(""")
+
+private fun carriesText(src: String): Boolean =
+    TEXT_CALL.containsMatchIn(src) || src.contains("fontSize") || src.contains("fontFamily")
 
 /** La clé d'un chemin déclaré : ce qui suit `com/onyx/app/`. */
 private fun key(path: String): String = path.substringAfter("com/onyx/app/", path)

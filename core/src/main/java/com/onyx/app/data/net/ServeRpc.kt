@@ -134,12 +134,20 @@ class ServeRpc(
     @Volatile
     private var reconnecting = false
 
+    /** Posé par [close] : une fermeture volontaire, qui ne doit jamais déclencher de reprise. */
+    @Volatile
+    private var closed = false
+
     /** Ouvre le canal si besoin. */
     suspend fun connect() = withContext(Dispatchers.IO) {
         if (isReady) return@withContext
         connectMutex.withLock {
             // Le premier appelant a pu ouvrir le canal pendant qu'on attendait le verrou.
             if (isReady) return@withLock
+            // Un `connect()` explicite est une intention d'usage : la fermeture volontaire qui
+            // précédait ne doit pas empêcher le canal de revenir (un canal rouvert reste utilisable,
+            // et seule la reprise automatique d'un canal fermé est indésirable).
+            closed = false
             openChannel()
         }
     }
@@ -265,7 +273,7 @@ class ServeRpc(
      * sans fin.
      */
     private suspend fun reconnect() {
-        if (reconnecting) return
+        if (closed || reconnecting) return
         reconnecting = true
         try {
             var attempt = 0
@@ -326,6 +334,14 @@ class ServeRpc(
     }
 
     fun close() {
+        // **Une fermeture voulue n'est pas une coupure.**
+        //
+        // Sans ce drapeau, `onClosed` relançait `reconnect()` : chaque `ServeRpc` jetable (une
+        // instance par action : répondre à un secret, approuver, renommer…) rouvrait un WebSocket
+        // sans propriétaire et repayait jusqu'à trois handshakes — login, ticket, upgrade — après
+        // avoir rendu la main. La reprise après coupure réseau, elle, garde son chemin : `closed`
+        // n'est posé que par une fermeture volontaire.
+        closed = true
         runCatching { socket?.close(1000, "closing") }
         socket = null
         ready = false

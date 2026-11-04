@@ -102,7 +102,15 @@ class TurnStoreTest {
         assertTrue(session.message.reasoning.isNotEmpty())
         assertFalse(session.message.isStreaming)
         assertTrue("la fin du tour est écrite", journal.ended.isNotEmpty())
-        assertEquals("54 routes, toutes cohérentes.", journal.written.last().text)
+        // **La révision complète est celle de la fin du tour.** Pendant le flux, la réponse n'est
+        // écrite que par paliers — le fichier entier n'est plus réécrit à chaque jeton — et la
+        // dernière écriture complète vient de `turnEnded`. La propriété qui compte (rien de la
+        // réponse n'est perdu sur disque) se lit donc sur cette écriture-là.
+        assertEquals("54 routes, toutes cohérentes.", journal.ended.last().message.text)
+        assertTrue(
+            "le flux n'écrit pas une fois par jeton (vu ${journal.written.size} écritures)",
+            journal.written.size <= 6,
+        )
         assertTrue("rien de la réponse n'est peint comme le message de l'utilisateur",
             session.message.role == com.onyx.app.data.model.Role.ASSISTANT &&
                 session.message.text != session.userText)

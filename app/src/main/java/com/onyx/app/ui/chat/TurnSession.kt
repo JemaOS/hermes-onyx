@@ -153,6 +153,16 @@ class TurnSession(
     val phase: TurnPhase get() = _live.value.phase
     val message: ChatMessage get() = _live.value.message
 
+    /**
+     * Le texte de la réponse, accumulé fragment par fragment.
+     *
+     * Il n'est **matérialisé en `String` qu'à la cadence de l'écran** (une fois par [TEXT_PUBLISH_MS]),
+     * et publié une dernière fois sur les événements structurels via [flushText]. Voir `text()`.
+     */
+    private val body = StringBuilder()
+    private var lastTextPublishAt: Long = 0L
+    private var pendingText: Boolean = false
+
     /** La raison de l'échec, quand le tour a échoué. */
     var failure: TransportError? = null
         private set
@@ -177,17 +187,33 @@ class TurnSession(
      * Une révision à écrire sur disque : la forme du message a changé (premier mot, une étape de
      * plus, la fin). Chaque fragment n'est pas écrit — le disque n'a pas besoin de ça — mais ce
      * qui compte survit à l'écran.
+     *
+     * Le **texte est compté par paliers**, jamais caractère par caractère. `text.length` nu rendait
+     * cette fonction vraie à **chaque jeton** : le journal appelait alors `upsertMessage`, qui
+     * réécrivait tout `conversations.json` — toutes les conversations, tous les messages — pour une
+     * syllabe de plus (et la file de coroutines continuait de se vider après la fin du tour). Par
+     * paliers, une réponse de 2 000 jetons coûte huit écritures au lieu de deux mille ; la fin du
+     * tour écrit de toute façon le texte complet ([TurnStore.turnEnded]).
      */
     private var persistedShape: String = ""
     fun shouldPersist(): Boolean {
         val message = _live.value.message
-        val shape = "${message.text.length}:${message.reasoning.length}:${message.tools.size}:" +
-            "${message.tools.count { it.isRunning }}:${message.cards?.size ?: -1}:${message.isStreaming}:" +
-            "${message.error.orEmpty().length}:${message.subagents.size}:${message.subagents.count { it.isLive }}"
+        val shape = "${textBucket(message.text.length)}:${textBucket(message.reasoning.length)}:" +
+            "${message.tools.size}:${message.tools.count { it.isRunning }}:${message.cards?.size ?: -1}:" +
+            "${message.isStreaming}:${message.error.orEmpty().length}:${message.subagents.size}:" +
+            "${message.subagents.count { it.isLive }}"
         if (shape == persistedShape) return false
         persistedShape = shape
         return true
     }
+
+    /**
+     * Le palier d'un texte : 0 tant qu'il est vide, puis 1 pour le **premier** fragment (le début
+     * d'une réponse ne doit pas attendre 256 caractères pour exister sur disque), puis un palier
+     * par [PERSIST_STEP] caractères.
+     */
+    private fun textBucket(length: Int): Int =
+        if (length <= 0) 0 else 1 + length / PERSIST_STEP
 
     /** Un événement du flux, écrit dans la réponse de ce tour. */
     fun apply(event: TurnEvent, now: Long = System.currentTimeMillis()) {
@@ -216,6 +242,9 @@ class TurnSession(
             }
 
             is TurnEvent.ToolStarted -> {
+                // Le texte en attente part avant la carte : l'écran ne doit pas peindre l'outil
+                // au-dessus d'un paragraphe amputé de ses derniers caractères.
+                flushText(now)
                 val message = _live.value.message
                 // Un même outil peut être relancé : on n'ouvre une carte que si elle diffère.
                 val alreadyRunning = message.tools.any { it.name == event.name && it.isRunning }
@@ -245,6 +274,7 @@ class TurnSession(
             }
 
             is TurnEvent.ToolFinished -> {
+                flushText(now)
                 val message = _live.value.message
                 val index = message.tools.indexOfLast {
                     it.isRunning && (event.name.isEmpty() || it.name == event.name)
@@ -327,7 +357,10 @@ class TurnSession(
             // Le run ouvert chez l'hôte : gardé sur le tour, pour que « Arrêter » sache quoi arrêter.
             is TurnEvent.RunId -> _live.update { it.copy(runId = event.id) }
 
-            TurnEvent.Done -> touch(now)
+            TurnEvent.Done -> {
+                flushText(now)
+                touch(now)
+            }
         }
     }
 
@@ -349,16 +382,53 @@ class TurnSession(
             return
         }
         val message = _live.value.message
-        val body = if (replaces) incoming else message.text + incoming
+        // **Le texte s'accumule dans un tampon, et ne se matérialise qu'à la cadence de l'écran.**
+        //
+        // `message.text + incoming` recopiait la réponse entière à chaque fragment : sur 3 000
+        // fragments, ~45 millions de caractères copiés puis jetés, et deux réveils du collecteur par
+        // fragment (donc deux recompositions, deux parses Markdown). Une réponse de 20 000
+        // caractères coûtait des dizaines de Mo d'allocations — la pression GC qui se voit en
+        // saccades pendant un long stream.
+        //
+        // Ici : ajout dans le tampon (O(1) amorti), puis publication au plus une fois par trame
+        // (~30 ms). L'écran ne peut pas peindre plus vite ; le texte final reste identique, publié
+        // par `succeed`/`fail`/`TextFinal`.
+        if (body.isEmpty() && message.text.isNotEmpty()) body.append(message.text)
+        if (replaces) {
+            body.setLength(0)
+            body.append(incoming)
+        } else {
+            body.append(incoming)
+        }
+        if (!replaces && now - lastTextPublishAt < TEXT_PUBLISH_MS) {
+            // Pas encore l'heure de peindre : on garde le texte pour la prochaine publication.
+            pendingText = true
+            step(TurnStep.WRITING, now)
+            return
+        }
+        lastTextPublishAt = now
+        pendingText = false
+        val text = body.toString()
         update(
             message.copy(
-                text = body,
+                text = text,
                 reasoningEndedAt = message.reasoningEndedAt
                     ?: if (message.reasoning.isNotEmpty()) now else null,
                 metrics = message.metrics?.withFirstToken(now),
             ),
         )
         step(TurnStep.WRITING, now)
+    }
+
+    /**
+     * Publie le texte accumulé, s'il en reste. Appelée sur les événements structurels (fin
+     * d'outil, fin de tour) : l'écran ne doit jamais finir sur un tampon non peint.
+     */
+    fun flushText(now: Long = System.currentTimeMillis()) {
+        if (!pendingText) return
+        pendingText = false
+        lastTextPublishAt = now
+        update(_live.value.message.copy(text = body.toString()))
     }
 
     /**
@@ -377,6 +447,8 @@ class TurnSession(
 
     /** La réponse est écrite et le flux s'est arrêté normalement. */
     fun succeed(now: Long = System.currentTimeMillis()) {
+        // La réponse est complète : le tampon part avant qu'on la juge (texte vide, statut seul).
+        flushText(now)
         val message = _live.value.message
         // Le flux s'est terminé sans le moindre texte : si le gateway n'a remonté qu'un statut
         // (« provider indisponible, réessai »), on le dit comme un échec au lieu d'une bulle vide.
@@ -418,6 +490,8 @@ class TurnSession(
      */
     fun fail(error: TransportError, now: Long = System.currentTimeMillis(), translated: Boolean = false) {
         failure = error
+        // Ce qui est arrivé avant l'échec reste à l'écran, et donc sur disque.
+        flushText(now)
         val message = _live.value.message
         // **Aucun fragment brut dans la ligne d'erreur** : elle est redactée — jamais le JSON du
         // fil, jamais un chemin interne, jamais une commande.
@@ -440,6 +514,7 @@ class TurnSession(
     /** L'utilisateur a arrêté le tour : l'hôte est interrompu. */
     fun stop(now: Long = System.currentTimeMillis()) {
         if (isFinished) return
+        flushText(now)
         val message = _live.value.message
         update(message.copy(isStreaming = false))
         _live.update {
@@ -470,6 +545,22 @@ class TurnSession(
     private companion object {
         /** En dessous, un texte identique peut être une vraie réponse (« oui », « OK »). */
         const val ECHO_MIN_CHARS = 24
+
+        /**
+         * L'épaisseur d'un palier d'écriture : le texte en cours n'est réécrit sur disque que tous
+         * ces caractères. 256 tient une phrase courte, et garde la réécriture complète du fichier
+         * loin du rythme des jetons.
+         */
+        const val PERSIST_STEP = 256
+
+        /**
+         * L'intervalle minimal entre deux publications du texte à l'écran (millisecondes).
+         *
+         * ~30 ms : une trame à 33 Hz. Le serveur peut envoyer 100 fragments par seconde ; l'écran
+         * ne peut pas en peindre plus de 60, et chaque publication coûte une recomposition et un
+         * parse Markdown complet. Publier plus vite ne se voit pas et se paie.
+         */
+        const val TEXT_PUBLISH_MS = 30L
 
         fun normalize(text: String): String = text.trim().replace(Regex("\\s+"), " ").lowercase()
     }
