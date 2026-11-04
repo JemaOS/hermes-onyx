@@ -481,42 +481,155 @@ def lien(serveur: str, cle: str, voix: str, pont: str, pont_jeton: str) -> str:
     return "onyx://connect?" + urlencode(champs)
 
 
-def rendre_qr(texte: str) -> bool:
-    """Le QR, si un encodeur est disponible : terminal d'abord, PNG ensuite."""
+def _largeur_terminal() -> int:
+    return shutil.get_terminal_size((80, 24)).columns
+
+
+def _python_avec_segno() -> str | None:
+    """L'interpréteur qui sait faire des QR — le courant, ou celui du venv d'Onyx.
+
+    Le script peut tourner sous n'importe quel Python (celui de Hermes, celui du système) ; on ne
+    suppose donc pas que `segno` soit importable ici. S'il ne l'est pas, on lui prépare son propre
+    environnement et on lui parle par sous-processus : cela marche quel que soit l'interpréteur
+    appelant, au lieu d'insérer un chemin `site-packages` qui dépend de la version.
+    """
     try:
-        import segno
+        import segno  # noqa: F401
+        return sys.executable
     except ImportError:
-        venv = RACINE / "venv"
-        python = venv / ("Scripts/python.exe" if SYSTEME == "Windows" else "bin/python")
-        if not python.exists():
-            subprocess.run([python_systeme(), "-m", "venv", str(venv)], capture_output=True)
+        pass
+
+    venv = RACINE / "venv"
+    python = venv / ("Scripts/python.exe" if SYSTEME == "Windows" else "bin/python")
+    if not python.exists():
+        subprocess.run([python_systeme(), "-m", "venv", str(venv)], capture_output=True)
+
+    if subprocess.run([str(python), "-c", "import segno"], capture_output=True).returncode != 0:
         subprocess.run([str(python), "-m", "pip", "install", "--quiet",
                         "--disable-pip-version-check", "segno"], capture_output=True)
-        try:
-            import importlib
-            importlib.invalidate_caches()
-            sys.path.insert(0, str(venv / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"))
-            import segno  # noqa: F811
-        except ImportError:
-            return False
+    if subprocess.run([str(python), "-c", "import segno"], capture_output=True).returncode != 0:
+        return None
+    return str(python)
 
-    code = segno.make(texte, error="m")
+
+_SCRIPT_QR = (
+    "import sys, segno\n"
+    "if sys.argv[1] == 'png':\n"
+    "    segno.make(sys.argv[2], error='m').save(sys.argv[3], scale=8, border=2)\n"
+    "else:\n"
+    "    q = segno.make(sys.argv[2], error='l')\n"
+    "    for row in q.matrix:\n"
+    "        print(''.join('1' if c else '0' for c in row))\n"
+)
+
+
+def rendre_qr(texte: str) -> str:
+    """Le QR dans le terminal, **compact** et seulement s'il rentre.
+
+    Un lien `onyx://connect` fait plus de trois cents caractères, donc le code est large. Rendu
+    naïvement — deux caractères pleins par module — il occupait une centaine de colonnes et une
+    soixantaine de lignes : il débordait de l'écran et ne se scannait plus.
+
+    Trois choix le rendent lisible :
+      * **une colonne par module** au lieu de deux ;
+      * des **demi-blocs** (▀) : chaque ligne de texte porte deux lignes du code, la hauteur est
+        divisée par deux ;
+      * la correction d'erreur la plus faible pour l'écran (un lien de 300 caractères passe de la
+        version 15 à la version 12, soit 69 colonnes au lieu de 81), et la moyenne pour le fichier
+        PNG, qui peut être photographié.
+
+    Rend `"ok"`, `"trop-large"` ou `"pas-encodeur"` — trois issues distinctes, parce qu'elles
+    n'appellent pas le même conseil.
+    """
+    python = _python_avec_segno()
+    if python is None:
+        return "pas-encodeur"
+
+    subprocess.run([python, "-c", _SCRIPT_QR, "png", texte, str(QR)], capture_output=True)
+    sortie = subprocess.run([python, "-c", _SCRIPT_QR, "matrice", texte],
+                            capture_output=True, text=True)
+    if sortie.returncode != 0 or not sortie.stdout.strip():
+        return "pas-encodeur"
+
+    matrice = [[c == "1" for c in ligne] for ligne in sortie.stdout.splitlines() if ligne]
+    marge = 2
+    largeur_modules = len(matrice[0]) + 2 * marge
+    taille = shutil.get_terminal_size((80, 24))
+
+    # **Un code trop dense n'est pas rendu dans le terminal.** Un lien `onyx://connect` fait
+    # 65 modules : en demi-blocs cela tient en colonnes, mais dépend de l'interligne exact, de la
+    # police et du nombre de couleurs du terminal — trois choses qui varient d'une machine à
+    # l'autre, et un QR à moitié cassé est pire qu'aucun QR. Au-delà de 45 modules, l'image
+    # prend le relais : elle est fidèle au bit près, elle s'ouvre, et elle se scanne.
+    if largeur_modules > 45:
+        return "image"
+    if largeur_modules > taille.columns - 4:
+        return "trop-large"
+
+    vide = [False] * largeur_modules
+    grille = [vide[:] for _ in range(marge)]
+    for ligne in matrice:
+        grille.append([False] * marge + ligne + [False] * marge)
+    grille.extend(vide[:] for _ in range(marge))
+    if len(grille) % 2:
+        grille.append(vide[:])
+
+    # La hauteur compte autant que la largeur : un code qui tient en colonnes mais pousse les
+    # instructions hors de l'écran oblige à faire défiler pour lire ce qu'il faut faire ensuite.
+    if len(grille) // 2 + 3 > taille.lines:
+        return "trop-haut"
+
+    print()
+    print("  \033[2mscanne ce code avec le téléphone\033[0m")
+    for index in range(0, len(grille), 2):
+        haut, bas = grille[index], grille[index + 1]
+        morceaux = []
+        for x in range(largeur_modules):
+            avant = "\033[38;5;255m" if haut[x] else "\033[38;5;232m"
+            arriere = "\033[48;5;232m" if bas[x] else "\033[48;5;255m"
+            morceaux.append(avant + arriere + "▀")
+        print("  " + "".join(morceaux) + "\033[0m")
+    print()
+    return "ok"
+
+
+def ouvrir_image(chemin: Path) -> bool:
+    """Ouvre une image dans la visionneuse du système. Silencieux si ça échoue."""
+    commandes = {
+        "Linux": ["xdg-open", str(chemin)],
+        "Darwin": ["open", str(chemin)],
+        "Windows": ["cmd", "/c", "start", "", str(chemin)],
+    }
+    commande = commandes.get(SYSTEME)
+    if not commande or not commande[0]:
+        return False
     try:
-        code.save(str(QR), scale=8, border=2)
+        subprocess.Popen(commande, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
     except Exception:  # noqa: BLE001
-        pass
-    largeur = len(code.matrix[0]) + 4
-    blanc, noir = "  ", "\033[40m  \033[0m"
-    print("   " + " " * (largeur * 2))
-    for ligne in code.matrix:
-        print("   " + "  " + "".join(noir if cellule else blanc for cellule in ligne) + "  ")
-    print("   " + " " * (largeur * 2))
-    return True
+        return False
+
+
+def _encadre(texte: str, titre: str) -> None:
+    """Le lien dans un cadre, coupé proprement : lisible même sur un terminal étroit."""
+    colonnes = max(40, min(_largeur_terminal() - 4, 100))
+    interieur = colonnes - 4
+    lignes: list[str] = []
+    reste = texte
+    while reste:
+        lignes.append(reste[:interieur])
+        reste = reste[interieur:]
+    print("  ┌─ " + titre + " " + "─" * max(0, colonnes - 5 - len(titre)) + "┐")
+    for ligne in lignes:
+        print("  │ " + ligne.ljust(interieur) + " │")
+    # Largeur du bas = celle du contenu ("  │ " + interieur + " │" = interieur + 6), moins le
+    # coin lui-même et l'indentation de deux espaces.
+    print("  └" + "─" * (interieur + 2) + "┘")
 
 
 # --------------------------------------------------------------------------- principal
 
-def donner_lien(services: Services) -> None:
+def donner_lien(services: Services, ouvrir: bool = True) -> None:
     cle = lire_secret(CLE)
     if not cle:
         mourir("Aucune clé : lance le script sans --link pour installer d'abord.")
@@ -537,12 +650,23 @@ def donner_lien(services: Services) -> None:
         pass
 
     etape("Le lien")
-    print(f"\n{texte}\n")
-    print(f"  écrit dans {LIEN}")
-    if rendre_qr(texte):
+    print()
+    _encadre(texte, "à coller dans l'app")
+    print(f"\n  aussi dans {LIEN}")
+    issue = rendre_qr(texte)
+    if issue == "ok":
         print(f"  QR enregistré : {QR}")
+    elif issue in ("image", "trop-large", "trop-haut"):
+        # L'image est fidèle au bit près : on l'ouvre, plutôt que de dessiner un code que le
+        # terminal peut déformer. **Jamais depuis le chien de garde** : une fenêtre qui s'ouvre
+        # toute seule sur le bureau deux fois par heure serait une nuisance, pas un service.
+        ouvert = ouvrir_image(QR) if ouvrir else False
+        print(f"  QR : {QR}")
+        if not ouvert and ouvrir:
+            attention("ouvre cette image pour scanner :")
+            attention(f"    {QR}")
     else:
-        attention("Pas d'encodeur QR : scanne depuis le texte ci-dessus (copie-colle).")
+        attention("Pas d'encodeur QR disponible : le lien se colle à la main.")
 
 
 def rafraichir(services: Services) -> int:
@@ -569,7 +693,7 @@ def rafraichir(services: Services) -> int:
     if ancien == actuel:
         return 0
 
-    donner_lien(services)
+    donner_lien(services, ouvrir=False)
     destinataire = lire_secret(DESTINATAIRE)
     if destinataire:
         hermes = commande("hermes")

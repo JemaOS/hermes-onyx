@@ -46,7 +46,17 @@ It does five things, and says which one it is doing:
 4. installs and starts the services without `sudo` — the headless dashboard, the one-key gateway,
    its tunnel, the link watchdog, and the **Computer** bridge on Linux;
 5. waits until the public tunnel actually answers — a published name is not a working tunnel — then
-   writes the `onyx://connect` link, prints it, and renders a **QR code**.
+   writes the `onyx://connect` link, prints it framed and wrapped to the terminal width, and
+   produces a **QR code**.
+
+### About the QR
+
+A connect link is over 300 characters, so its QR is dense (77 modules). Drawing it in the terminal
+would depend on the line spacing, the font and the number of colours your terminal supports — three
+things that differ per machine, and a half-broken QR is worse than none. So the script writes a
+**PNG** (`~/onyx-connect-qr.png`, 648×648, error correction M, verified bit-for-bit against the
+encoded matrix) and opens it with your image viewer. Short links still render inline in the
+terminal. The link itself is always printed, framed, so it can be copied by hand if you prefer.
 
 Scan the QR at the phone's first screen, or paste the link. That is the whole setup: chat,
 conversation history, voices, skills, toolsets and (on Linux) the Computer screen all arrive with
