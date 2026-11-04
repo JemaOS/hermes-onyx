@@ -49,6 +49,19 @@ data class Conversation(
      * l'écran juste jusqu'à ce qu'il arrive.
      */
     val botProfile: String? = null,
+    /**
+     * **Le visage de ce fil, quand on le change depuis la conversation.**
+     *
+     * Un bot peut avoir plusieurs conversations dans la liste, toutes titrées de son nom : changer
+     * « le visage de celui que j'avais en conversation » ne doit toucher que **cette** ligne.
+     * Relevé par le propriétaire — les trois rangées changeaient ensemble, parce que le visage
+     * n'existait qu'au niveau du profil.
+     *
+     * `null` = ce fil suit le visage de son bot ; une valeur = son propre visage, choisi depuis la
+     * conversation. Le visage du bot reste celui que règle l'onglet **Bots** : il s'applique à tous
+     * ses fils qui n'ont pas le leur.
+     */
+    val faceCode: String? = null,
 ) {
     /** Le nombre de tours, c'est-à-dire de messages de l'utilisateur. */
     val turnCount: Int get() = messages.count { it.role == Role.USER }

@@ -185,9 +185,15 @@ class IdentityMarkLockTest {
                 (where(model, "identityOf(conversation.serverId)")?.let { ":$it" } ?: ""),
             model.contains("identityOf(conversation.serverId)"),
         )
+        // Le visage vient de l'**identité** — `faceCodeOf` — et, quand le fil a le sien, de lui
+        // d'abord ([Conversation.faceCode], `ThreadFaceTest`). Jamais de l'état de la carte.
         assertTrue(
-            "le visage de l'identité n'est plus relu au même endroit que la marque",
-            model.contains("identityFace = faceCodeOf(identity),"),
+            "le visage de la ligne est résolu par l'identité, avec le visage du fil en premier",
+            model.contains("identityFace = conversation.faceCode ?: faceCodeOf(identity),"),
+        )
+        assertTrue(
+            "et il ne se relit pas au même endroit que la marque",
+            model.contains("faceCodeOf(identity)"),
         )
         assertTrue(
             "le volet ne passe plus l'identité de chaque conversation",

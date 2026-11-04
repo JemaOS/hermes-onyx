@@ -249,7 +249,10 @@ internal fun sidebarRows(
             agentName = agentName,
             projectLabel = projectLabel,
             identity = identity,
-            identityFace = faceCodeOf(identity),
+            // **Le visage du fil passe avant celui du bot.** Changer le visage depuis une
+            // conversation ne touche que cette ligne ([Conversation.faceCode]) ; les autres fils du
+            // même bot — et la tuile du bot dans l'onglet « Bots » — gardent le leur.
+            identityFace = conversation.faceCode ?: faceCodeOf(identity),
         )
     }
     .filter { sidebarFilterKeeps(filter, it.tone) }

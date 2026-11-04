@@ -697,6 +697,11 @@ fun OnyxApp() {
         // La page d'où l'on vient, pour que « retour » ramène au bon endroit.
         var contextReturn by rememberSaveable { mutableStateOf(Route.CONTEXT.name) }
         var selectedBot by remember { mutableStateOf<BotProfile?>(null) }
+        // **Le fil dont on change le visage.** Ouvre-t-on l'identité du bot **depuis une
+        // conversation** : le visage choisi est celui de ce fil (`Conversation.faceCode`), et lui
+        // seul change. Depuis l'onglet « Bots », c'est le visage du bot — celui que suivent ses
+        // fils qui n'ont pas le leur. `null` = on est venu de la liste des bots.
+        var faceConversation by remember { mutableStateOf<Conversation?>(null) }
         // Le bot **en cours de création** : son nom et son visage. « Change Face » de l'écran
         // « New Bot » n'avait nulle part où poser son choix — l'écran de visage s'ouvre sur un bot
         // du serveur, et un bot qui n'existe pas encore n'en est pas un. Le geste ne faisait donc
@@ -1990,12 +1995,15 @@ fun OnyxApp() {
                 (openedConversationBot ?: bots.firstOrNull { it.isDefault })?.let { profile ->
                     {
                         selectedBot = profile
+                        // L'identité s'ouvre **depuis ce fil** : le visage choisi sera le sien.
+                        faceConversation = openedConversation
                         navTo(Route.BOT_EDITOR.name)
                     }
                 }
             val botChatColors = if (botColors) {
                 openedConversationBot?.let { bot ->
-                    (com.onyx.app.ui.design.BotFace.parse(bot.faceCode)
+                    val faceCode = openedConversation?.faceCode ?: bot.faceCode
+                    (com.onyx.app.ui.design.BotFace.parse(faceCode)
                         ?: com.onyx.app.ui.design.BotFace.forName(if (bot.isDefault) "default" else bot.name))
                         .chatColors()
                 }
@@ -2260,7 +2268,11 @@ fun OnyxApp() {
                 linkPreviews = linkPreviews,
                 // L'en-tête du fil : le visage et le nom du bot dont c'est la conversation, sinon
                 // ceux de Onyx (ajout volontaire côté Android).
-                threadBot = openedConversationBot,
+                // Le visage du **fil** (s'il en a un) passe avant celui du bot : l'en-tête, les
+                // bulles et le repère du bas montrent ce que la ligne de la liste montre.
+                threadBot = openedConversationBot?.let { profile ->
+                    openedConversation?.faceCode?.let { code -> profile.copy(faceCode = code) } ?: profile
+                },
                 // **Rien de faux à l'écran pendant la synchronisation.** Si la conversation est
                 // ouverte, que le roster n'a pas encore répondu et que rien (ni le roster, ni la
                 // mémoire de la conversation) ne dit de quel bot il s'agit, l'en-tête reste **nu** :
@@ -2400,6 +2412,8 @@ fun OnyxApp() {
             },
             onEdit = { bot ->
                 selectedBot = bot
+                // Venu de la liste des bots : le visage réglé ici est celui du **bot**.
+                faceConversation = null
                 navTo(Route.BOT_EDITOR.name)
             },
             onDuplicate = { bot -> scope.launch { botsViewModel.duplicate(bot) } },
@@ -2419,6 +2433,7 @@ fun OnyxApp() {
             },
             onChangeFace = { bot ->
                 selectedBot = bot
+                faceConversation = null
                 navTo(Route.BOT_FACE.name)
             },
             onRemoveFromOnyx = { bot -> botsViewModel.removeAPIBot(bot) },
@@ -3609,7 +3624,9 @@ fun OnyxApp() {
                 var deleteProblem by remember(bot?.name) { mutableStateOf<String?>(null) }
                 BotEditorScreen(
                     bot = bot,
-                    faceCode = bot?.let { botsViewModel.faceFor(it) },
+                    // L'aperçu montre le visage qui s'appliquera : celui du **fil** quand on est
+                    // venu de la conversation, celui du bot sinon.
+                    faceCode = bot?.let { faceConversation?.faceCode ?: botsViewModel.faceFor(it) },
                     // Le visage choisi dans l'écran dédié, pour un bot en création : il revient ici
                     // par le même état, et l'aperçu le montre.
                     chosenFaceCode = if (bot == null) newBotFaceCode else null,
@@ -3794,15 +3811,26 @@ fun OnyxApp() {
                         onCancel = { if (!navBack()) navTo(Route.BOT_EDITOR.name) },
                     )
                 } else {
+                    // **Le visage d'un fil ou celui d'un bot ?** Venu de la conversation, le choix
+                    // n'écrit que sur **ce fil** (`Conversation.faceCode`) : les autres conversations
+                    // du même bot gardent le leur — c'était tout le défaut relevé (« ça a changé
+                    // tous les coder »). Venu de l'onglet « Bots », il écrit sur le bot, comme avant.
+                    val thread = faceConversation
                     BotFacePickerScreen(
                         botName = bot.name,
                         displayName = bot.label(state.server.displayName),
-                        current = botsViewModel.faceFor(bot),
+                        current = thread?.faceCode ?: botsViewModel.faceFor(bot),
                         isDefault = bot.isDefault || bot.name == "default",
-                        hasPickedFace = botsViewModel.hasPickedFace(bot),
+                        hasPickedFace = thread != null || botsViewModel.hasPickedFace(bot),
                         serverBacked = state.server.hasServeCredentials,
                         onSave = { code ->
-                            botsViewModel.setFace(bot, code)
+                            if (thread != null) {
+                                // Le fil, et lui seul : la conversation est enregistrée avec son
+                                // visage, et la liste relit ce fichier (une seule source).
+                                scope.launch { conversationRepo.save(thread.copy(faceCode = code)) }
+                            } else {
+                                botsViewModel.setFace(bot, code)
+                            }
                             if (!navBack()) navTo(Route.BOT_EDITOR.name)
                         },
                         onCancel = { if (!navBack()) navTo(Route.BOT_EDITOR.name) },
