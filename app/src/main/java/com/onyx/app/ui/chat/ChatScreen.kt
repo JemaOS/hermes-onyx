@@ -73,7 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.onyx.app.data.model.PrefillProgress
 import com.onyx.app.data.model.SubagentStatus
-import com.onyx.app.ui.design.LocalGlassScrollFreeze
+import com.onyx.app.ui.design.GlassScrollFreeze
 import com.onyx.app.data.model.serve.BotMentions
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.components.FollowUpChips
@@ -378,14 +378,20 @@ fun ChatScreen(
     // Les bots offerts pendant qu'un mot `@` s'écrit (`BotMentions.menu`) : au plus six, ceux que
     // ce qui suit le « @ » commence. Le bot dont c'est la conversation ne se propose pas lui-même,
     // et la liste ne s'ouvre pas dans un brouillon de plusieurs lignes.
+    //
+    // **Mémorisé par ses seules entrées.** L'écran se recompose à chaque jeton pendant qu'une
+    // réponse s'écrit ; sans clé, le menu était redécoupé à ce rythme alors que ni le brouillon ni
+    // le roster n'avaient bougé. Les clés sont exactement les arguments de `menu`.
     val mentionToken = BotMentions.typing(state.input)
-    val mentionSuggestions = BotMentions.menu(
-        draft = state.input,
-        roster = mentionBots,
-        speaking = threadBot?.name,
-        mainName = agentName,
-        dismissed = mentionDismissed,
-    )
+    val mentionSuggestions = remember(state.input, mentionBots, threadBot?.name, agentName, mentionDismissed) {
+        BotMentions.menu(
+            draft = state.input,
+            roster = mentionBots,
+            speaking = threadBot?.name,
+            mainName = agentName,
+            dismissed = mentionDismissed,
+        )
+    }
     // Plus aucun mot en cours : ce qu'Échap avait fait taire est oublié, et la liste pourra rouvrir.
     LaunchedEffect(mentionToken) { if (mentionToken == null) mentionDismissed = null }
 
@@ -1028,8 +1034,12 @@ fun ChatScreen(
                 // lumière respirer : sous le doigt, on passe en mode performance.
                 CompositionLocalProvider(
                     LocalOnyxTheme provides theme,
-                    LocalGlassScrollFreeze provides listState.isScrollInProgress,
                 ) {
+                // **Le gel du verre est posé par une fonction à lui.** Lu ici, dans la portée de
+                // l'écran, `listState.isScrollInProgress` invalidait toute la conversation — deux
+                // fois par relance de geste, et deux fois par `scrollToItem`, c'est-à-dire deux
+                // fois par jeton pendant qu'une réponse s'écrit. Voir [GlassScrollFreeze].
+                GlassScrollFreeze(listState) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -1067,6 +1077,18 @@ fun ChatScreen(
                     items(
                         count = (state.messages.size - pageStart).coerceAtLeast(0),
                         key = { offset -> state.messages.getOrNull(pageStart + offset)?.id ?: "gone-$offset" },
+                        // **Un type de contenu par forme de rangée.** Sans lui, une ligne de
+                        // question sortie de la page peut être « réutilisée » pour une réponse :
+                        // la liste remesure et recompose alors une rangée d'une autre forme au lieu
+                        // de reprendre la bonne.
+                        contentType = { offset ->
+                            val message = state.messages.getOrNull(pageStart + offset)
+                            when {
+                                message == null -> "gone"
+                                message.isUser -> "user"
+                                else -> "reply"
+                            }
+                        },
                     ) { offset ->
                         val index = pageStart + offset
                         val message = state.messages.getOrNull(index) ?: return@items
@@ -1087,12 +1109,33 @@ fun ChatScreen(
                         if (dayLabel != null) {
                             DaySeparator(label = dayLabel)
                         }
+                        // **La seule ligne qui lit l'état du tour est la ligne vivante.**
+                        //
+                        // `state.live` change à **chaque jeton** (il porte `lastEventAt`). Passé à
+                        // toutes les rangées, il rendait leurs paramètres différents à chaque
+                        // publication : aucune ne pouvait être sautée, et une réponse qui s'écrit
+                        // recomposait donc **toutes** les lignes visibles — leurs replis, leurs
+                        // cartes, leur prose — trente fois par seconde. Une rangée finie ne lit pas
+                        // cet état (`WaitingPulse` n'existe que tant que le texte est vide, et
+                        // seulement pour la ligne vivante) : elle reçoit `null`, l'égalité tient, et
+                        // Compose la saute.
+                        val isLive = state.isStreaming && index == state.messages.lastIndex
+                        // **La pose d'arrivée ne s'applique qu'à une rangée qui arrive.**
+                        // `messageArrival` est un `Modifier.composed` : monté sur chaque rangée, il
+                        // ouvrait une sous-composition et trois animations pour une animation qui
+                        // ne concerne, en pratique, que le message qu'on vient d'envoyer. Les
+                        // rangées d'archive reçoivent `Modifier` nu.
+                        val rowModifier = if (arrival == com.onyx.app.ui.common.ArrivalKind.NONE) {
+                            Modifier
+                        } else {
+                            Modifier.messageArrival(arrival, leading = theme.promptPrefix != null)
+                        }
                         MessageRow(
-                            modifier = Modifier.messageArrival(arrival, leading = theme.promptPrefix != null),
+                            modifier = rowModifier,
                             message = message,
                             replyName = threadSpeaker.label,
-                            isLive = state.isStreaming && index == state.messages.lastIndex,
-                            live = state.live,
+                            isLive = isLive,
+                            live = if (isLive) state.live else null,
                             linkPreviews = linkPreviews,
                             onRegenerate = if (!message.isUser && !state.isStreaming) {
                                 { onRetry() }
@@ -1129,12 +1172,19 @@ fun ChatScreen(
                             onSecret = { value -> onSecret(message.id, value) },
                             // LOT fil-vivant : on remonte lire le fil → les puces d'état des cartes
                             // **ralentissent** au lieu de battre à pleine cadence sous les yeux.
-                            readingUp = readingUp,
+                            //
+                            // **Seules les cartes de la ligne vivante lisent ce signal.** Les cartes
+                            // d'une réponse finie sont à l'arrêt : rien à ralentir chez elles. Passé
+                            // à toutes, il changeait au **premier doigt posé** (`following` tombe à
+                            // `false` dès `DragInteraction.Start`) et recomposait donc tout le fil au
+                            // début de chaque geste — un à-coup au moment précis où le doigt part.
+                            readingUp = isLive && readingUp,
                         )
                     }
                     items(
                         count = state.queued.size,
                         key = { index -> state.queued.getOrNull(index)?.rowID ?: "queued-$index" },
+                        contentType = { "queued" },
                     ) { index ->
                         // Même règle que le fil : l'outbox peut se vider pendant la composition.
                         val item = state.queued.getOrNull(index) ?: return@items
@@ -1150,9 +1200,10 @@ fun ChatScreen(
                             ),
                         )
                     }
-                }
-            }
-            }
+                    } // ferme le contenu de la LazyColumn
+                } // ferme GlassScrollFreeze (le gel du verre)
+                } // ferme la CompositionLocalProvider du thème
+            } // ferme la branche « fil » de `when (page)`
             // **Le menu « / » se pose AU-DESSUS de la plaque, jamais derrière elle.**
             //
             // Défaut relevé sur l'appareil : la liste était le dernier enfant du pane du fil,

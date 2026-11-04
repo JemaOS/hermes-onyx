@@ -71,4 +71,43 @@ class MessageDerivedTest {
             derived.delivered.any { it.name.endsWith(".pdf") || it.path.endsWith(".pdf") },
         )
     }
+
+    /**
+     * **Une réponse qui s'écrit n'est pas analysée.**
+     *
+     * `includeText = false` est ce que la rangée passe tant que le tour est vivant : sans lui, le
+     * texte — qui change à chaque jeton — était relu pour y chercher un diff, et les clés du
+     * `remember` changeaient à chaque publication. La carte du diff doit donc arriver **à la fin**,
+     * et pas une seule fois pendant l'écriture ; les sorties d'outils, elles, restent lues.
+     */
+    @Test
+    fun `une reponse en cours n est pas analysee pour un diff`() {
+        val diff = """
+            --- a/app/A.kt
+            +++ b/app/A.kt
+            @@ -1,2 +1,2 @@
+            -val a = 1
+            +val a = 2
+        """.trimIndent()
+        val reply = message(text = diff)
+
+        assertNull("rien tant que la réponse s'écrit", MessageDerived.of(reply, includeText = false).patch)
+        assertEquals("la carte arrive à la fin", diff, MessageDerived.of(reply, includeText = true).patch)
+    }
+
+    /** Et les cartes des **outils** restent calculées pendant que la réponse s'écrit. */
+    @Test
+    fun `les sorties d outils restent analysees pendant l ecriture`() {
+        val diff = """
+            --- a/app/A.kt
+            +++ b/app/A.kt
+            @@ -1,2 +1,2 @@
+            -val a = 1
+            +val a = 2
+        """.trimIndent()
+        val derived = MessageDerived.of(message(text = "en cours…", tools = listOf(tool(diff))), includeText = false)
+
+        assertEquals(diff, derived.patch)
+        assertEquals(1, derived.patchFileCount)
+    }
 }

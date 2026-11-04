@@ -615,12 +615,25 @@ class SidebarConversationGesturesTest {
 
     @Test
     fun `la liste fige la lumiere tant qu'elle defile`() {
+        // **La forme a changé, l'invariant non.** Le local n'est plus posé dans la portée de la
+        // liste : lu là, `state.isScrollInProgress` invalidait toute la liste à chaque début et fin
+        // de geste — et deux fois par `scrollToItem`, donc à la cadence du flux pendant qu'une
+        // réponse s'écrit. Il est posé par `GlassScrollFreeze(state)`, qui le lit dans **sa** portée
+        // et n'invalide qu'elle (voir `GlassTouch.kt`). Ce que ce verrou tient reste le même : la
+        // liste est gelée par **son** état de défilement, jamais par un autre.
         assertTrue(
             "l'état de défilement de la liste est posé en local de composition",
-            sidebar.contains("CompositionLocalProvider(LocalGlassScrollFreeze provides state.isScrollInProgress)"),
+            sidebar.contains("GlassScrollFreeze(state)"),
         )
         // Le local est lu **du même état** que celui qui porte la position de défilement : la lumière
         // ne peut pas se croire au repos pendant que la liste bouge.
         assertTrue("c'est bien l'état passé à la liste", sidebar.contains("state = state,"))
+        // Et le helper ne peut pas geler autre chose que l'état qu'on lui donne.
+        val touch = File("../core/src/main/java/com/onyx/app/ui/design/GlassTouch.kt")
+        assertTrue("le helper du gel existe", touch.exists())
+        assertTrue(
+            "le gel lit l'état de défilement de la liste qu'il reçoit",
+            touch.readText().contains("LocalGlassScrollFreeze provides listState.isScrollInProgress"),
+        )
     }
 }

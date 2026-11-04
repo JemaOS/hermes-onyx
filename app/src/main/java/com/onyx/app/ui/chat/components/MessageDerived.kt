@@ -36,11 +36,21 @@ internal data class MessageDerived(
 ) {
     companion object {
 
-        /** Calcule une fois ce que la rangée déduit de [message]. */
-        fun of(message: ChatMessage): MessageDerived {
+        /**
+         * Calcule une fois ce que la rangée déduit de [message].
+         *
+         * [includeText] à `false` écarte la **réponse** de la recherche de diff. Une réponse qui
+         * s'écrit change de texte à chaque jeton ; la relire pour y chercher un diff à chaque
+         * publication, c'est un balayage du texte entier répété sur une chaîne qui grandit —
+         * quadratique sur la durée du tour, pour une carte qui ne peut de toute façon apparaître
+         * qu'une fois la réponse finie. Les **sorties d'outils**, elles, restent lues : elles ne
+         * changent qu'à la fin d'un outil, et c'est d'elles que viennent le diff, les tâches et les
+         * fichiers livrés pendant le travail.
+         */
+        fun of(message: ChatMessage, includeText: Boolean = true): MessageDerived {
             // Un diff dans la réponse ou dans une sortie d'outil se lit à part : on garde le
             // **dernier**, celui qui décrit l'état final.
-            val patch = (message.tools.mapNotNull { it.output } + message.text)
+            val patch = (message.tools.mapNotNull { it.output } + if (includeText) message.text else "")
                 .lastOrNull { com.onyx.app.ui.rich.looksLikePatch(it) }
             // `patchFiles` une seule fois : il découpe tout le diff, et la carte en lit deux
             // choses (le compte et le résumé).
@@ -53,7 +63,9 @@ internal data class MessageDerived(
                     runCatching { com.onyx.app.ui.rich.patchSummary(files) }.getOrNull()
                 },
                 todos = todosFrom(message.tools),
-                delivered = DeliveredFiles.of(message.scannedText()),
+                delivered = DeliveredFiles.of(
+                    if (includeText) message.scannedText() else message.tools.mapNotNull { it.output },
+                ),
             )
         }
     }

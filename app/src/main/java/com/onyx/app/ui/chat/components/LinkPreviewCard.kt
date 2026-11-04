@@ -100,7 +100,18 @@ fun LinkPreviewSlot(
     linkPreviews: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val url = linkPreviewUrl(message, isLive, linkPreviews) ?: return
+    // `linkPreviewUrl` passe une expression régulière sur tout le texte de la réponse ; il était
+    // appelé à chaque composition de la rangée, donc à chaque jeton pendant qu'une réponse s'écrit
+    // et à chaque reprise de page en défilant. Ses seules entrées sont le texte, l'état du tour et
+    // l'interrupteur : ce sont les clés. Pour un texte **fini**, le résultat est gardé hors de la
+    // composition (`RowCaches.link`) — la liste jette ses rangées, pas la réponse.
+    val url = if (isLive) {
+        linkPreviewUrl(message, isLive, linkPreviews)
+    } else {
+        RowCaches.link((if (linkPreviews) "1" else "0") + message.text) {
+            linkPreviewUrl(message, isLive, linkPreviews)
+        }
+    } ?: return
     LinkPreviewCard(url = url, modifier = modifier)
 }
 

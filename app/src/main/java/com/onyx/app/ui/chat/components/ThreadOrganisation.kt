@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -308,16 +309,24 @@ fun ToolKindBadge(symbol: Int, modifier: Modifier = Modifier) {
 @Composable
 fun RanToolsChipLabel(tools: List<com.onyx.app.data.model.ToolActivity>, working: Boolean, modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
+    // **Mémorisé par la liste d'outils.** Les genres d'outil et la durée se calculent sur toute la
+    // liste (deux `mapNotNull`, deux parcours pour les horodatages) ; la puce appartient à la ligne
+    // vivante, recomposée à chaque jeton, et au repli d'une réponse qu'on remonte lire. La liste ne
+    // change qu'à la fin d'un outil : c'est la clé.
+    val badges = remember(tools) { toolKindSymbols(tools.map { it.name }) }
+    val summary = remember(tools, working) {
+        if (working) {
+            OnyxLocalization.format("%1\$s · %2\$s", OnyxLocalization["Working"], toolsCountLabel(tools.size))
+        } else {
+            ranToolsChip(tools.size, toolsElapsedSeconds(tools))
+        }
+    }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy((-4).dp)) {
-            toolKindSymbols(tools.map { it.name }).forEach { symbol -> ToolKindBadge(symbol) }
+            badges.forEach { symbol -> ToolKindBadge(symbol) }
         }
         BasicText(
-            text = if (working) {
-                OnyxLocalization.format("%1\$s · %2\$s", OnyxLocalization["Working"], toolsCountLabel(tools.size))
-            } else {
-                ranToolsChip(tools.size, toolsElapsedSeconds(tools))
-            },
+            text = summary,
             style = theme.subheadline.copy(color = theme.secondaryText),
         )
     }

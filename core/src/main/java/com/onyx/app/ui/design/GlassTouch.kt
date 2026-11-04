@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -139,6 +140,33 @@ val LocalGlassHalo = compositionLocalOf { true }
  * pose (aperçus, tests), la vitre répond au doigt comme dans l'app.
  */
 val LocalGlassScrollFreeze = compositionLocalOf { false }
+
+/**
+ * **Pose [LocalGlassScrollFreeze] sans faire recomposer la liste qui le lit.**
+ *
+ * Le signal s'écrit `listState.isScrollInProgress`, et il bascule **deux fois par geste** — et,
+ * surtout, **deux fois par `scrollToItem`** : le fil se recolle au bas à chaque jeton publié
+ * pendant qu'une réponse s'écrit (`ChatScreen`), donc ce drapeau battait à la cadence du flux.
+ *
+ * Lu dans la portée de l'écran (`CompositionLocalProvider(… provides listState.isScrollInProgress)
+ * { LazyColumn(…) }`), il invalidait **tout l'écran** : la liste, ses rangées, leurs lambdas — deux
+ * recompositions complètes du fil par jeton, pour un booléen qui ne sert qu'à éteindre l'appui des
+ * vitres. Ici la lecture appartient à **cette** fonction : elle seule se recompose, et le contenu
+ * (`content`), inchangé, est sauté.
+ *
+ * Effet mesurable sur un appareil : le battement du drapeau ne doit plus apparaître dans un
+ * enregistrement de recomposition (`--trace`, ou `Layout Inspector` > recomposition counts).
+ */
+@Composable
+fun GlassScrollFreeze(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(
+        LocalGlassScrollFreeze provides listState.isScrollInProgress,
+        content = content,
+    )
+}
 
 /**
  * La force de l'appui d'une vitre, pour une trame : un seul chiffre, de 0 (au repos) à 1 (plein

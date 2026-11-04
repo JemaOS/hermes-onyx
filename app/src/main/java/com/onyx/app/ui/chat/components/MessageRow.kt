@@ -220,12 +220,19 @@ fun MessageRow(
         // expression régulière sur ~12 000 caractères par outil). Sur une réponse de quarante
         // outils, c'est un demi-mégaoctet relu à chaque image pendant qu'on fait défiler.
         //
-        // Les clés sont **le contenu**, pas `message` : une réponse qui coule change de texte à
-        // chaque trame, et une carte d'outil qui se termine change de sorties — les deux doivent
-        // recalculer. Une recomposition qui ne touche à rien, elle, ne recalcule plus rien.
-        val derived = remember(message.id, message.text, message.tools) {
-            MessageDerived.of(message)
-        }
+        // **Et à chaque JETON sur la ligne vivante.** Les clés étaient `(id, text, tools)` : le
+        // texte changeant à chaque publication, tout le contenu — dont les sorties d'outils, qui
+        // n'avaient pas bougé — était relu trente fois par seconde pendant qu'une réponse s'écrit,
+        // c'est-à-dire exactement quand le fil est le plus sollicité. La réponse **en cours** n'est
+        // donc plus analysée du tout ([includeText] = faux) : ses cartes sont celles de ses outils,
+        // et la carte de diff d'une réponse n'apparaît qu'une fois la réponse finie. Les clés
+        // redeviennent ainsi `(id, tools)` — stables tant qu'un outil ne change pas.
+        //
+        // **Et le calcul survit à la sortie de la rangée.** La liste jette ses rangées hors écran :
+        // `remember` repartait donc à vide à chaque retour, et une remontée de fil refaisait ces
+        // quatre passes sur **chaque** réponse. `RowCaches` garde le résultat par contenu
+        // (identifiant + empreinte), dans une LRU bornée : une rangée qui revient le retrouve.
+        val derived = RowCaches.derived(message, includeText = !isLive)
         val patch = derived.patch
         if (patch != null && onOpenPatch != null) {
             com.onyx.app.ui.chat.components.ContextCard(
@@ -1009,7 +1016,7 @@ private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boo
                         detail = tool.preview?.takeIf { it.isNotBlank() },
                         trailing = toolElapsedSeconds(tool)?.let { ranToolsDuration(it) },
                         minHeight = ToolCallRowMinTouch,
-                        leading = { StepMark(status = tool.status) },
+                        leading = { StepMark(status = tool.status, animate = isLive) },
                         readingUp = readingUp,
                         onClick = { detailOf = tool.id },
                         foldBody = if (canOpen) {
@@ -1080,7 +1087,7 @@ private fun DetailBlock(label: String, text: String, lines: Int) {
 
 /** L'état d'un outil : un anneau qui tourne, une coche, ou une croix. */
 @Composable
-private fun StepMark(status: ToolStatus) {
+private fun StepMark(status: ToolStatus, animate: Boolean = false) {
     val theme = LocalOnyxTheme.current
 
     Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
@@ -1132,7 +1139,7 @@ private fun StepMark(status: ToolStatus) {
                     .background(theme.success.copy(alpha = 0.16f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                DrawnCheckmark(color = theme.success)
+                DrawnCheckmark(color = theme.success, animate = animate)
             }
 
             ToolStatus.FAILED -> Box(
@@ -1150,19 +1157,30 @@ private fun StepMark(status: ToolStatus) {
 /**
  * La coche d'un outil fini, qui se trace (`StepMark`, `CheckShape` + `.trim(from:to:)`,
  * `.easeOut(duration: 0.4).delay(0.05)`). Le chemin est celui de la référence, dessiné au trait.
+ *
+ * **[animate] est faux pour une coche d'archive.** Le tracé était monté pour **toutes** les étapes
+ * finies, à leur première composition : revenir sur un fil d'outils faisait donc rejouer quarante
+ * tracés à la fois, chacun construisant son `Path` à chaque image — c'est-à-dire au moment précis
+ * où la liste est en train de composer les rangées qu'on fait défiler. Une coche qui vient d'être
+ * obtenue sous les yeux se trace ; une coche qu'on remonte lire est déjà tracée, pleine, sans boucle
+ * ni allocation.
  */
 @Composable
-private fun DrawnCheckmark(color: androidx.compose.ui.graphics.Color) {
-    var drawn by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { drawn = true }
-    // `StepMark` : `if animated, !reduceMotion { withAnimation(…0,4 + 0,05) } else { drawn = 1 }`
-    // (`MessageRow:620-624`) — la coche est posée d'un coup, sans tracé.
-    val progress = ambientLoop(1f) {
-        androidx.compose.animation.core.animateFloatAsState(
-            targetValue = if (drawn) 1f else 0f,
-            animationSpec = OnyxMotion.Sites.StepCheck,
-            label = "stepCheckDraw",
-        ).value
+private fun DrawnCheckmark(color: androidx.compose.ui.graphics.Color, animate: Boolean = false) {
+    val progress = if (!animate) {
+        1f
+    } else {
+        var drawn by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { drawn = true }
+        // `StepMark` : `if animated, !reduceMotion { withAnimation(…0,4 + 0,05) } else { drawn = 1 }`
+        // (`MessageRow:620-624`) — la coche est posée d'un coup, sans tracé.
+        ambientLoop(1f) {
+            androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (drawn) 1f else 0f,
+                animationSpec = OnyxMotion.Sites.StepCheck,
+                label = "stepCheckDraw",
+            ).value
+        }
     }
 
     androidx.compose.foundation.Canvas(modifier = Modifier.size(20.dp)) {

@@ -124,6 +124,7 @@ import com.onyx.app.ui.design.GalerieSectionLabel
 import com.onyx.app.ui.design.socleDisplayStyle
 import com.onyx.app.ui.design.socleTitleInk
 import com.onyx.app.ui.design.liquidGlass
+import com.onyx.app.ui.design.GlassScrollFreeze
 import com.onyx.app.ui.design.LocalGlassScrollFreeze
 import com.onyx.app.ui.design.GlassCircleButton
 import com.onyx.app.ui.design.SectionAction
@@ -2197,7 +2198,10 @@ private fun ConversationList(
     // s'éclaire : le doigt qui fait défiler n'est pas un appui, et une lumière qui suivrait le
     // contenu se lirait comme un halo sale (voir [LocalGlassScrollFreeze]). Au repos, la lumière
     // revient toute seule — c'est le même état que celui qui porte la position de défilement.
-    CompositionLocalProvider(LocalGlassScrollFreeze provides state.isScrollInProgress) {
+    // **Le gel est posé par [GlassScrollFreeze] et non ici.** Lu dans cette portée, le drapeau
+    // invalidait toute la liste à chaque début et fin de geste ; là, seule cette fonction se
+    // recompose et la liste, inchangée, est sautée.
+    GlassScrollFreeze(state) {
         LazyColumn(
             modifier = modifier.fillMaxWidth(),
             // **n° 7 — la position de défilement vient du volet** (`state`) : passer en recherche puis

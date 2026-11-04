@@ -49,9 +49,22 @@ fun turnFlowState(live: TurnPhase?, pendingApprovals: Int): FlowState = when {
  *
  * Le compte ne regarde que les questions **ouvertes** (`decision == null`) : une approbation déjà
  * répondue est une carte d'archive, pas un tour arrêté. C'est ce compte que [turnFlowState] reçoit.
+ *
+ * **Sans allocation, et sans quitter la liste à la première ligne.** `sumOf { … approvals.count { … } }`
+ * ouvre deux itérateurs et une lambda par message ; celui-ci est appelé à chaque recomposition de
+ * l'écran — donc à chaque jeton pendant qu'une réponse s'écrit — sur **tout** le fil, pas seulement
+ * sur la page rendue. La boucle rend le même compte (mêmes messages, mêmes approbations) en ne
+ * parcourant que les listes non vides.
  */
-fun pendingApprovalCount(messages: List<ChatMessage>): Int =
-    messages.sumOf { message -> message.approvals.count { it.isPending } }
+fun pendingApprovalCount(messages: List<ChatMessage>): Int {
+    var pending = 0
+    for (index in messages.indices) {
+        val approvals = messages[index].approvals
+        if (approvals.isEmpty()) continue
+        for (approval in approvals) if (approval.isPending) pending++
+    }
+    return pending
+}
 
 /** Le même compte, pour un fil déjà réduit à ses approbations. */
 fun pendingApprovalCountOf(vararg approvals: com.onyx.app.data.model.ApprovalRequest): Int =
