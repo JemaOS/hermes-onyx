@@ -341,6 +341,13 @@ object OnyxLocalization {
             "Ils commencent et finissent à ${match.groupValues[1]} : rien n’est silencieux, " +
                 "choisissez une autre heure."
         },
+        // **Les horaires d'un bot** (Réglages → un bot → Horaires). « WHAT CODER DOES » restait en
+        // anglais au-dessus de libellés français (capture du propriétaire) : la phrase porte le nom
+        // du bot, donc il lui faut un motif, pas une clé. Le titre de la liste a la même forme.
+        // Les deux **explications** de cet écran avaient déjà leurs motifs (plus bas, avec le nom
+        // réinjecté) : on n'en ajoute pas un second, qui prendrait la parole sur le premier.
+        Regex("^(.+)'s Schedules$") to { match -> "Horaires de ${match.groupValues[1]}" },
+        Regex("^What (.+) does$") to { match -> "Ce que fait ${match.groupValues[1]}" },
         Regex("^(.+) · task (\\d+) of (\\d+)$") to { match ->
             "${translate(match.groupValues[1], Locale.FRANCE)} · tâche ${match.groupValues[2]} sur ${match.groupValues[3]}"
         },
