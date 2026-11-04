@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.onyx.app.ui.localization.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -104,11 +105,27 @@ fun CronScreen(
      * panneaux ; repliée, c'est le détail qui le porte.
      */
     sidebarControl: (@Composable () -> Unit)? = null,
+    /**
+     * **Une routine proposée par une compétence** (« En faire une routine ») : le brouillon s'ouvre
+     * avec ce titre et cette invite. L'horaire et la destination restent vides — c'est à la personne
+     * de les choisir, une routine qui partirait toute seule sur un horaire inventé serait une
+     * surprise.
+     */
+    seed: com.onyx.app.data.skill.SkillRoutine.Seed? = null,
+    /** Appelé une fois la graine posée : l'appelant l'oublie, sinon rouvrir les routines la rejouerait. */
+    onSeedUsed: () -> Unit = {},
 ) {
     val theme = LocalOnyxTheme.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     var menuFor by remember { mutableStateOf<CronJob?>(null) }
     var pendingDelete by remember { mutableStateOf<CronJob?>(null) }
+
+    LaunchedEffect(seed) {
+        val opening = seed ?: return@LaunchedEffect
+        viewModel.startNew()
+        viewModel.updateDraft { draft -> draft.copy(title = opening.title, prompt = opening.prompt) }
+        onSeedUsed()
+    }
 
     val detail = state.detail
     val draft = state.draft

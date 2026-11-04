@@ -1,7 +1,10 @@
 package com.onyx.app.ui.capabilities
 
 import com.onyx.app.data.net.humanFailure
+import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxSpace
+import com.onyx.app.ui.design.Symbols
+import com.onyx.app.ui.design.onyxTappable
 
 import com.onyx.app.ui.design.onyxPage
 
@@ -71,6 +74,15 @@ fun SkillEditorScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     seed: SkillEditorSeed? = null,
+    /**
+     * **« En faire une routine »** — la troisième surface du lot « Teach a task ».
+     *
+     * Posé, l'écran propose de transformer la compétence en routine : il l'**enregistre d'abord**
+     * (une routine doit nommer un skill qui existe vraiment), puis rend son nom à l'appelant, qui
+     * ouvre l'écran des horaires avec le brouillon déjà rempli. `null` — le cas de tous les autres
+     * appelants — l'écran reste exactement celui d'avant.
+     */
+    onMakeRoutine: ((String) -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val isNew = existing == null
@@ -85,6 +97,27 @@ fun SkillEditorScreen(
     var problem by remember { mutableStateOf<String?>(null) }
 
     val canSave = !saving && name.isNotBlank() && content.isNotBlank()
+
+    /**
+     * Enregistre la compétence, puis rend la main à [afterwards].
+     *
+     * Deux sorties, un seul enregistrement : le bouton d'en-tête part vers [onSaved], la ligne
+     * « En faire une routine » part vers l'écran des horaires — et les deux doivent avoir écrit le
+     * skill avant, sinon la routine nommerait une compétence qui n'existe pas encore.
+     */
+    fun saveThen(afterwards: () -> Unit) {
+        if (!canSave) return
+        saving = true
+        scope.launch {
+            runCatching {
+                val api = ServeSkillsApi(ServeClient(server))
+                if (isNew) api.create(name.trim(), content, category.takeIf { it.isNotBlank() })
+                else api.saveContent(name.trim(), content)
+            }.onSuccess { afterwards() }
+                .onFailure { problem = humanFailure(it) }
+            saving = false
+        }
+    }
 
     LaunchedEffect(existing) {
         if (existing == null) return@LaunchedEffect
@@ -112,16 +145,7 @@ fun SkillEditorScreen(
                 localizeTitle = isNew,
                 onAction = {
                     if (!canSave) return@OnyxPageHeader
-                    saving = true
-                    scope.launch {
-                        runCatching {
-                            val api = ServeSkillsApi(ServeClient(server))
-                            if (isNew) api.create(name.trim(), content, category.takeIf { it.isNotBlank() })
-                            else api.saveContent(name.trim(), content)
-                        }.onSuccess { onSaved() }
-                            .onFailure { problem = humanFailure(it) }
-                        saving = false
-                    }
+                    saveThen(onSaved)
                 },
             )
         }
@@ -185,6 +209,43 @@ fun SkillEditorScreen(
             problem?.let {
                 OnyxFormSection {
                     OnyxRow { BasicText(it, localize = false, style = theme.footnote.copy(color = theme.error)) }
+                }
+            }
+
+            // **La troisième surface du lot : la démonstration devient une routine.**
+            //
+            // La compétence est d'abord enregistrée — une routine qui nomme un skill inexistant ne
+            // ferait rien et ne le dirait pas —, puis l'écran des horaires s'ouvre avec le
+            // brouillon rempli. L'horaire et la destination restent vides : c'est à la personne de
+            // les choisir (voir `SkillRoutine`).
+            if (onMakeRoutine != null) {
+                OnyxFormSection(
+                    header = "Routine",
+                    footer = "Runs this skill on a schedule you choose. The skill stays on the server: " +
+                        "fixing it later fixes every routine that uses it.",
+                ) {
+                    OnyxRow(
+                        modifier = Modifier.onyxTappable(
+                            onClick = {
+                                if (!canSave) return@onyxTappable
+                                saveThen { onMakeRoutine(name.trim()) }
+                            },
+                        ),
+                    ) {
+                        OnyxIcon(symbol = Symbols.ArrowClockwise, tint = theme.accent, size = 18.dp)
+                        Column(modifier = Modifier.weight(1f)) {
+                            BasicText(
+                                text = "Make it a routine",
+                                localize = false,
+                                style = theme.body.copy(color = if (canSave) theme.textColor else theme.secondaryText),
+                            )
+                            BasicText(
+                                text = if (canSave) "Saves the skill, then opens Routines." else "Name and content are needed first.",
+                                localize = false,
+                                style = theme.footnote.copy(color = theme.secondaryText),
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -894,4 +894,11 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Install it over this one; your sign-in and settings stay." to
         "Installez-la par-dessus celle-ci : votre session et vos réglages restent.",
     "Download" to "Télécharger",
+    // ---- D'un skill à une routine (« En faire une routine ») ----
+    "Routine" to "Routine",
+    "Make it a routine" to "En faire une routine",
+    "Saves the skill, then opens Routines." to "Enregistre la compétence, puis ouvre les routines.",
+    "Name and content are needed first." to "Le nom et le contenu sont nécessaires d’abord.",
+    "Runs this skill on a schedule you choose. The skill stays on the server: fixing it later fixes every routine that uses it." to
+        "Fait tourner cette compétence selon l’horaire que vous choisissez. La compétence reste sur le serveur : la corriger plus tard corrige toutes les routines qui l’utilisent.",
 )

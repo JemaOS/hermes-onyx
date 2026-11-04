@@ -700,6 +700,10 @@ fun OnyxApp() {
         // Le brouillon d'une démonstration, quand « En faire un skill » ouvre l'éditeur : le nom
         // proposé et le Markdown converti. Nul, l'éditeur est celui d'aujourd'hui, à l'identique.
         var skillSeed by remember { mutableStateOf<SkillEditorSeed?>(null) }
+        // **La routine proposée par une compétence** (« En faire une routine ») : posée ici, elle
+        // est consommée par l'écran des horaires, qui ouvre son brouillon déjà rempli. Nulle, rien
+        // ne change pour les autres chemins.
+        var routineSeed by remember { mutableStateOf<com.onyx.app.data.skill.SkillRoutine.Seed?>(null) }
         var openingRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
         var subagentAgent by remember { mutableStateOf<com.onyx.app.data.model.SubagentActivity?>(null) }
         // Doublure de QA des sous-agents (`onyx.subagentDemo`) : le roster et le fil injectés,
@@ -2473,6 +2477,11 @@ fun OnyxApp() {
             )
             CronScreen(
                 viewModel = cronViewModel,
+                // **Le brouillon venu d'une compétence.** L'éditeur de skill a enregistré la
+                // compétence puis posé cette graine : l'écran s'ouvre sur une routine neuve dont le
+                // titre et l'invite sont déjà là — l'horaire et la destination restent à choisir.
+                seed = routineSeed,
+                onSeedUsed = { routineSeed = null },
                 // Une pile vide (l'onglet ouvert depuis la liste, ou depuis les Réglages) retombe
                 // sur la **liste des conversations** — jamais sur les Réglages, d'où l'on vient
                 // pourtant d'entrer (`onOpenCron` des Réglages). Porté par le volet, ce même
@@ -2677,6 +2686,11 @@ fun OnyxApp() {
                     onSaved = paneBack,
                     onBack = paneBack,
                     seed = skillSeed,
+                    onMakeRoutine = { name ->
+                        routineSeed = com.onyx.app.data.skill.SkillRoutine.from(name)
+                        skillSeed = null
+                        panePush(Route.CRON.name)
+                    },
                 )
 
                 Route.TOOLS.name -> ToolsScreen(server = state.server, scope = scope, onBack = paneBack)
@@ -4449,6 +4463,13 @@ fun OnyxApp() {
                 // Un brouillon de démonstration arrive ici, relu sur l'écran Ordinateur : le nom
                 // et le Markdown sont déjà là, l'utilisateur n'a plus qu'à relire et enregistrer.
                 seed = skillSeed,
+                // **« En faire une routine »** : l'éditeur enregistre la compétence puis rend son
+                // nom ; l'écran des horaires s'ouvre avec le brouillon déjà rempli (`SkillRoutine`).
+                onMakeRoutine = { name ->
+                    routineSeed = com.onyx.app.data.skill.SkillRoutine.from(name)
+                    skillSeed = null
+                    navTo(Route.CRON.name)
+                },
             )
 
             // « Capacités » : les compétences, les jeux d'outils et les serveurs MCP du profil,
