@@ -2,8 +2,8 @@ One surface, not two.
 
 ## The framed menu
 
-The project menu was framed, and the words were exact: *"ça fait pas propre,
-ça devrait tout uni"*.
+The project menu was framed with a red box, and the complaint was that it did
+not look clean — that it should read as one uniform surface.
 
 The panel was carrying the **plate finish** — the head light (26% white along
 its top edge) and the foot shade (16% black along its bottom edge) that make a
@@ -21,10 +21,11 @@ its tint, its blur, and its drop shadow. It reads as one tone from the top edge
 to the bottom — the same rule the bottom plate and the header already follow,
 where a surface separates from the page by luminance alone.
 
-`MatiereAplatVerrouTest` gains `le menu ancre est une seule surface`: flat
-finish, sheen and shade at zero, shadow kept. `MENU` also left the list of
-surfaces that are *required* to keep a finish — that list said the opposite, and
-a lock that encodes a decision you just reversed is a lock that lies.
+The material lock test suite gains a case asserting the anchored menu is a
+single surface: flat finish, sheen and shade at zero, shadow kept. `MENU` also
+left the list of surfaces that are *required* to keep a finish — that list said
+the opposite, and a lock that encodes a decision you just reversed is a lock
+that lies.
 
 ## The build
 
@@ -40,8 +41,8 @@ multi-line token file means.
 
 ## Verified
 
-- `:core:testDebugUnitTest` green, including the new case (6/6 in
-  `MatiereAplatVerrouTest`).
+- `:core:testDebugUnitTest` green, including the new case — 6/6 in the material
+  lock suite.
 - Three APKs built, signed with the same certificate as your installation, so
   they install over it without uninstalling.
 - `versionCode 1163`, `versionName 1.3.31`.
