@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 class OnyxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // **Avant tout le reste** : un plantage pendant l'installation des singletons doit laisser
+        // une trace, sinon il ne reste qu'un « l'app s'est arrêtée » sans explication.
+        runCatching { CrashLog.install(this) }
         AppContainer.install(this)
         // La boîte des notes de « capture rapide » : une note est écrite sur le disque au moment
         // où elle est prise, et remise dès que le serveur répond — même si l'écran est fermé.

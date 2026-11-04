@@ -132,6 +132,12 @@ class ConversationRepository(
      */
     suspend fun save(conversation: Conversation) {
         if (conversation.id in deleted.marked()) return
+        // **Rien n'a changé : rien à réécrire.** Un tour réémet souvent la même forme (une carte
+        // répondue, un secret donné) et chaque écriture réécrit *toutes* les conversations du
+        // fichier : avec beaucoup de conversations, c'est la liste entière qui repart sur le disque
+        // pour un champ identique.
+        val previous = _conversations.value.firstOrNull { it.id == conversation.id }
+        if (previous == conversation) return
         _conversations.value = (_conversations.value.filterNot { it.id == conversation.id } + conversation)
             .sortedByDescending { it.updatedAt }
         persist()
@@ -211,7 +217,6 @@ class ConversationRepository(
         withContext(Dispatchers.IO) { store.updateData { snapshot } }
     }
 }
-
 /** Le titre d'une branche : celui de son originale plus « (fork) », comme la référence. */
 internal fun forkTitle(title: String): String = "$title${Conversation.ForkSuffix}"
 

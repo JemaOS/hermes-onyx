@@ -1032,12 +1032,19 @@ fun ChatScreen(
                         }
                     }
 
+                    // **Une liste qui change pendant que la liste la dessine.**
+                    //
+                    // `count` et la clé étaient calculés sur `state.messages` **deux fois** : si le
+                    // fil change entre les deux (on ouvre une autre conversation, un tour remplace
+                    // sa réponse, un « Annuler » retire un message), `pageStart + offset` sort de
+                    // la liste et la `LazyColumn` jette `IndexOutOfBoundsException` — un plantage
+                    // qui n'arrive qu'avec beaucoup de conversations, donc jamais en test.
                     items(
-                        count = state.messages.size - pageStart,
-                        key = { offset -> state.messages[pageStart + offset].id },
+                        count = (state.messages.size - pageStart).coerceAtLeast(0),
+                        key = { offset -> state.messages.getOrNull(pageStart + offset)?.id ?: "gone-$offset" },
                     ) { offset ->
                         val index = pageStart + offset
-                        val message = state.messages[index]
+                        val message = state.messages.getOrNull(index) ?: return@items
                         val arrival = remember(message.id) {
                             val justSent = System.currentTimeMillis() - message.createdAt < 1_500
                             when {
@@ -1102,9 +1109,10 @@ fun ChatScreen(
                     }
                     items(
                         count = state.queued.size,
-                        key = { index -> state.queued[index].rowID },
+                        key = { index -> state.queued.getOrNull(index)?.rowID ?: "queued-$index" },
                     ) { index ->
-                        val item = state.queued[index]
+                        // Même règle que le fil : l'outbox peut se vider pendant la composition.
+                        val item = state.queued.getOrNull(index) ?: return@items
                         QueuedMessageRow(
                             item = item,
                             isFirst = index == 0,
