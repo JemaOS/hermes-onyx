@@ -84,6 +84,25 @@ fun botOfConversation(
     ?.let { name -> bots.filter { it.label(mainName) == name }.singleOrNull() }
 
 /**
+ * **Le bot d'une conversation, même quand le roster n'est pas encore arrivé.**
+ *
+ * Le roster est la vérité, mais il vient du réseau : au redémarrage, l'écran se dessine avant lui,
+ * et la conversation s'affichait alors en Onyx — visage bleu, « @default » — le temps de deux
+ * frames, avant de sauter sur son vrai bot. Ce que la conversation a retenu
+ * ([Conversation.botProfile]) comble exactement ce trou : `""` pour le profil principal, sinon le
+ * nom du profil. Il ne remplace jamais un bot du roster, il le **précède**.
+ */
+fun botOfConversationOrRemembered(
+    conversation: Conversation,
+    bots: List<BotProfile>,
+    mainName: String = "Onyx",
+): BotProfile? = botOfConversation(conversation, bots, mainName)
+    ?: conversation.botProfile?.let { profile ->
+        if (profile.isEmpty()) BotProfile(name = "default", isDefault = true)
+        else BotProfile(name = profile)
+    }
+
+/**
  * **La dernière session d'un bot** — « Ouvrir la dernière session » du menu.
  *
  * La plus récente de ses conversations **autre que son chat** : une routine qu'il a exécutée, un

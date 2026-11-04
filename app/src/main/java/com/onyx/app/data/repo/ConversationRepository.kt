@@ -143,6 +143,20 @@ class ConversationRepository(
         save(conversation)
     }
 
+    /**
+     * **Retient le bot d'une conversation** (`Conversation.botProfile`) pour que l'écran le
+     * connaisse dès le redémarrage, sans attendre le roster.
+     *
+     * Même valeur que celle que l'envoi porte au tour : `""` pour le profil principal, sinon le nom
+     * du profil. Ne touche ni la date ni le titre : la liste ne bouge pas parce qu'un bot a été
+     * reconnu.
+     */
+    suspend fun bindBot(conversationId: String, profile: String?) {
+        val existing = find(conversationId) ?: return
+        if (existing.botProfile == profile || existing.remote) return
+        save(existing.copy(botProfile = profile))
+    }
+
     /** Ajoute un message au fil enregistré, en créant la conversation au besoin. */
     suspend fun append(conversationId: String, serverId: String, message: ChatMessage, now: Long = System.currentTimeMillis()) {
         val existing = find(conversationId)

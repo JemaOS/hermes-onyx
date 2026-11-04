@@ -5,6 +5,7 @@ import com.onyx.app.data.model.Conversation
 import com.onyx.app.data.model.Role
 import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.ui.bots.botOfConversation
+import com.onyx.app.ui.bots.botOfConversationOrRemembered
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -233,5 +234,40 @@ class ThreadSpeakerTest {
         assertTrue(interrupt.contains("speaker: String = \"Onyx\""))
         assertTrue(interrupt.contains("\$speaker has a question"))
         assertTrue(interrupt.contains("\$speaker needs a secret"))
+    }
+
+    /**
+     * **Le bot retenu par la conversation tient l'écran avant le roster.**
+     *
+     * C'est le défaut du redémarrage : le roster arrive après la première frame, et la conversation
+     * s'affichait en Onyx — visage bleu, « @default » — avant de sauter sur « coder ». Ce que la
+     * conversation a retenu comble exactement ce trou, et le roster garde la priorité dès qu'il est
+     * là.
+     */
+    @Test
+    fun `le bot retenu par la conversation precede le roster`() {
+        val remembered = conversation("c1", "coder").copy(botProfile = "coder")
+
+        // Roster pas encore arrivé : la mémoire parle, et donne le bon visage et le bon profil.
+        val early = botOfConversationOrRemembered(remembered, bots = emptyList())
+        assertEquals("coder", early?.name)
+        val speaker = threadHeaderSpeaker(early, assistantName = "Onyx")
+        assertEquals("coder", speaker.faceName)
+        assertEquals("coder", speaker.botHandle)
+
+        // Le roster arrive : c'est lui qui décide, avec son visage enregistré.
+        val live = BotProfile(name = "coder", title = "Coder", chatId = "c1", faceCode = "2:round:round:smile:none:0:0:0")
+        assertEquals(live, botOfConversationOrRemembered(remembered, listOf(live)))
+    }
+
+    @Test
+    fun `sans bot retenu ni roster, la conversation reste celle d Onyx`() {
+        // Une conversation simple n'invente pas de bot : pas de visage bleu « par accident », mais
+        // pas de bot non plus. C'est le seul cas où Onyx est la bonne réponse.
+        assertNull(botOfConversationOrRemembered(conversation("c1", "Notes"), emptyList()))
+
+        // Le profil principal retenu (`""`) redonne le bot qui porte la bulle de Onyx.
+        val main = conversation("c2", "Onyx").copy(botProfile = "")
+        assertTrue(botOfConversationOrRemembered(main, emptyList())?.isDefault == true)
     }
 }
