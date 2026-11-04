@@ -306,20 +306,29 @@ Provenance and the list of the files actually present: [`docs/captures/INDEX.md`
 ### Connecting your phone, the first time
 
 One command on the machine that runs Hermes, and your phone is set up — chat, voices, skills, tools
-and the Computer screen together:
+and (on Linux) the Computer screen together:
 
 ```bash
-tools/onyx-setup.sh                          # prints the onyx://connect link and its QR code
-tools/onyx-setup.sh --voices https://tts.example.com   # …with your Kokoro server for the voice
-tools/onyx-setup.sh --link                   # print the current link again, any time
+python3 tools/onyx-setup.py                            # installs, prints the link and its QR code
+python3 tools/onyx-setup.py --voices https://tts.example.com   # …with your Kokoro server
+python3 tools/onyx-setup.py --link                     # print the current link again, any time
 ```
 
-It is safe to run twice: the key is drawn once and kept, and a tunnel that already works is never
-restarted (restarting one changes its public name and would invalidate the link on your phone).
+It runs on **Linux, macOS and Windows**. It installs each piece as a service of the system —
+systemd, launchd, or a task at sign-in — so everything comes back after a reboot without a terminal
+open.
 
-Full walkthrough — what each of the five services is for, the service table, what happens after a
-reboot, and the three symptoms worth recognising:
-**[docs/FIRST-RUN.md](docs/FIRST-RUN.md)**.
+It is safe to run twice: the key is drawn once and kept, and a **service that already works is
+never restarted** — restarting the tunnel changes its public name and would invalidate the link on
+your phone.
+
+| Piece | Linux | macOS | Windows |
+|---|---|---|---|
+| One-key gateway, dashboard, tunnel, link watchdog | ✅ | ✅ | ✅ |
+| Computer screen bridge | ✅ (X11) | — | — |
+
+Full walkthrough — what each service is for, the service table, what happens after a reboot, and
+the symptoms worth recognising: **[docs/FIRST-RUN.md](docs/FIRST-RUN.md)**.
 
 ### The APKs
 

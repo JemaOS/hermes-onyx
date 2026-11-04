@@ -8,12 +8,18 @@ It is one command, and it is safe to run twice.
 ## What you need
 
 - **Hermes**, installed and running on the machine that will answer the phone.
-- **`cloudflared`** on the same machine — the free binary from Cloudflare, no account needed:
+- **Python 3.9+** on that machine — the installer is a Python script so that one file covers
+  Linux, macOS and Windows.
+- **`cloudflared`** — the free binary from Cloudflare, **no account needed**. The installer
+  downloads it for your platform if it is missing; to do it yourself:
+
   ```bash
+  # Linux
   curl -L -o ~/.local/bin/cloudflared \
     https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
   chmod +x ~/.local/bin/cloudflared
   ```
+
 - **Onyx** on the phone: the latest APK from
   [releases/latest](https://github.com/JemaOS/hermes-onyx/releases/latest).
 - **Optional — voices:** a Kokoro-compatible TTS server ([Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)
@@ -25,22 +31,26 @@ It is one command, and it is safe to run twice.
 From a clone of this repository:
 
 ```bash
-tools/onyx-setup.sh                                    # install, then print the link and its QR
-tools/onyx-setup.sh --voices https://tts.example.com   # …and point the voice at your server
-tools/onyx-setup.sh --link                             # print the current link again
+python3 tools/onyx-setup.py                            # install, then print the link and its QR
+python3 tools/onyx-setup.py --voices https://tts.example.com   # …and point the voice at your server
+python3 tools/onyx-setup.py --link                     # print the current link again
 ```
 
 It does five things, and says which one it is doing:
 
-1. checks that Hermes answers on `127.0.0.1:8642` and that `cloudflared` exists;
-2. draws one key for the phone and two local secrets — file mode `0600`, never printed;
-3. installs and starts five user services (no `sudo`): the headless dashboard, the one-key
-   gateway, its tunnel, the **Computer** bridge and the link watchdog;
-4. waits until the public tunnel actually answers — a published name is not a working tunnel;
-5. writes the `onyx://connect` link, prints it, and renders a **QR code**.
+1. checks that Hermes answers on `127.0.0.1:8642` and that `cloudflared` exists — and **downloads
+   `cloudflared`** for the current platform if it is missing;
+2. **enables Hermes' API server** if a fresh Hermes has none (adding only what is missing, keeping
+   an existing key, backing up `config.yaml` first) and restarts the gateway so it is read;
+3. draws one key for the phone and two local secrets — file mode `0600`, never printed;
+4. installs and starts the services without `sudo` — the headless dashboard, the one-key gateway,
+   its tunnel, the link watchdog, and the **Computer** bridge on Linux;
+5. waits until the public tunnel actually answers — a published name is not a working tunnel — then
+   writes the `onyx://connect` link, prints it, and renders a **QR code**.
 
 Scan the QR at the phone's first screen, or paste the link. That is the whole setup: chat,
-conversation history, voices, skills, toolsets and the Computer screen all arrive with it.
+conversation history, voices, skills, toolsets and (on Linux) the Computer screen all arrive with
+it.
 
 ## What the pieces are
 
@@ -92,9 +102,15 @@ echo "telegram:<your-chat-id>" > ~/.onyx-one/telegram-destinataire
 | You want the new link pushed to you automatically | `echo "telegram:<chat-id>" > ~/.onyx-one/telegram-destinataire` |
 | A named tunnel instead of a random one | needs a Cloudflare account and a domain — the script uses a *quick* tunnel, which needs neither |
 
-**Platforms:** Linux with systemd user services. macOS and Windows have no `systemctl --user`, so
-the service installation part does not apply there — the bridge, the gateway and the tunnel can be
-started by hand, but this script will not do it for you.
+**Platforms:** Linux (systemd), macOS (launchd), Windows (a task at sign-in). The installer is the
+same file everywhere. Two honest limits:
+
+- **The Computer screen bridge is Linux-only.** It captures an X11 display and injects input;
+  there is no equivalent in this bridge on macOS or Windows, so that one screen stays empty there
+  while everything else works.
+- **macOS and Windows are implemented but not yet exercised end-to-end.** The Linux path is tested
+  from a clean machine; the launchd and `schtasks` paths follow the same contract and will tell you
+  what failed rather than fail silently, but treat them as unproven until someone runs them.
 
 ## If something is wrong
 
