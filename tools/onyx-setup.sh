@@ -59,7 +59,12 @@ donner_lien() {
   log="$(systemctl --user show onyx-one-tunnel.service -p ExecStart 2>/dev/null | grep -oE -- '--logfile [^ ;"]+' | awk '{print $2}' | head -1)"
   serveur="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "${log:-${RACINE}/tunnel.log}" 2>/dev/null | tail -1 || true)"
   [ -n "$serveur" ] || die "Aucun tunnel de passerelle n'est publié. Relance : $0"
-  voix="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "${HOME}/kokoro-tts/tunnel.log" 2>/dev/null | tail -1 || true)"
+  # Les voix : l'adresse qu'on a enregistrée (`--voices`), sinon le tunnel d'un Kokoro local,
+  # sinon rien — un lien sans voix reste parfaitement utilisable.
+  voix="$(cat "${RACINE}/voix" 2>/dev/null || true)"
+  if [ -z "$voix" ]; then
+    voix="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "${HOME}/kokoro-tts/tunnel.log" 2>/dev/null | tail -1 || true)"
+  fi
   pont="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "${HOME}/.onyx-computer-bridge/tunnel.log" 2>/dev/null | tail -1 || true)"
   pont_jeton="$(cat "${HOME}/.onyx-computer-bridge/token" 2>/dev/null || true)"
 
@@ -123,7 +128,22 @@ PY
   fi
 }
 
-if [ "${1:-}" = "--link" ]; then
+# Options : --link (redonner le lien), --voices <url> (un serveur TTS Kokoro-compatible).
+MODE="install"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --link) MODE="link"; shift ;;
+    --voices)
+      [ -n "${2:-}" ] || die "--voices attend une adresse (https://…)"
+      printf '%s\n' "$2" > "${RACINE}/voix"
+      chmod 600 "${RACINE}/voix"
+      echo "  adresse des voix enregistrée : $2"
+      shift 2 ;;
+    *) die "option inconnue : $1 (attendu : --link, --voices <url>)"; ;;
+  esac
+done
+
+if [ "$MODE" = "link" ]; then
   donner_lien
   exit 0
 fi

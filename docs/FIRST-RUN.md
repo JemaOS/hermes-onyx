@@ -16,13 +16,18 @@ It is one command, and it is safe to run twice.
   ```
 - **Onyx** on the phone: the latest APK from
   [releases/latest](https://github.com/JemaOS/hermes-onyx/releases/latest).
+- **Optional — voices:** a Kokoro-compatible TTS server ([Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)
+  or anything that answers `/v1/audio/speech`). Local, on your network, or behind its own tunnel.
+  Without it the app reads replies with the phone's own voice.
 
 ## One command
 
 From a clone of this repository:
 
 ```bash
-tools/onyx-setup.sh
+tools/onyx-setup.sh                                    # install, then print the link and its QR
+tools/onyx-setup.sh --voices https://tts.example.com   # …and point the voice at your server
+tools/onyx-setup.sh --link                             # print the current link again
 ```
 
 It does five things, and says which one it is doing:

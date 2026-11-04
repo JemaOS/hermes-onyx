@@ -309,10 +309,16 @@ One command on the machine that runs Hermes, and your phone is set up — chat, 
 and the Computer screen together:
 
 ```bash
-tools/onyx-setup.sh      # prints the onyx://connect link and its QR code
+tools/onyx-setup.sh                          # prints the onyx://connect link and its QR code
+tools/onyx-setup.sh --voices https://tts.example.com   # …with your Kokoro server for the voice
+tools/onyx-setup.sh --link                   # print the current link again, any time
 ```
 
-Full walkthrough, what each service is for, and what to check when a screen is empty:
+It is safe to run twice: the key is drawn once and kept, and a tunnel that already works is never
+restarted (restarting one changes its public name and would invalidate the link on your phone).
+
+Full walkthrough — what each of the five services is for, the service table, what happens after a
+reboot, and the three symptoms worth recognising:
 **[docs/FIRST-RUN.md](docs/FIRST-RUN.md)**.
 
 ### The APKs
@@ -363,11 +369,45 @@ Every screen below is captured from the release build, in the light and the dark
 
 Full index: [`docs/captures/INDEX.md`](docs/captures/INDEX.md).
 
-## Requirements
+## Prerequisites
+
+Two things, one on each side. Nothing else is required — there is no account, no cloud service, no
+paid tier anywhere in this path.
+
+**On the machine that answers the phone**
+
+| Needed | Why | How to check |
+|---|---|---|
+| **Hermes**, installed and running | it is the agent; the app is a client for it | `hermes --version` |
+| Hermes' API server, enabled | chat and the conversation registry | `platforms.api_server.enabled: true` in `~/.hermes/config.yaml`, then `curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer <key>' http://127.0.0.1:8642/v1/models` → `200` |
+| **`cloudflared`** | the free tunnel that gives your phone a public address, with no account and no open port | `cloudflared --version` |
+| **systemd user services** | everything comes back on its own after a reboot | `systemctl --user status` |
+| A **graphical session** — only for the Computer screen | the bridge captures the machine's screen and injects input | `echo $DISPLAY` |
+
+Install `cloudflared` in one line:
+
+```bash
+curl -L -o ~/.local/bin/cloudflared \
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+chmod +x ~/.local/bin/cloudflared
+```
+
+**On the phone**
 
 - **Android 8.0 (API 26)** or newer — **Wear OS 3 (API 30)** for the watch.
-- **A Hermes server you can reach**: a Dashboard (sessions, cron, kanban, files, gateway) and a
-  conversation endpoint. The app asks for both; a single address can serve both if you proxy them together.
+- The latest signed APK, from [releases/latest](https://github.com/JemaOS/hermes-onyx/releases/latest).
+
+**Voices are optional.** Onyx speaks with your own **Kokoro-compatible TTS server**
+([Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) and anything that answers the same
+OpenAI-compatible `/v1/audio/speech`) — local, on your network, or behind the same kind of tunnel.
+Give its address once and every reply can be read aloud:
+
+```bash
+tools/onyx-setup.sh --voices https://tts.example.com
+```
+
+Without it the link simply carries no `voices` field, and the app falls back to the phone's own
+voice. No feature is broken by leaving it out.
 
 ## Architecture
 
