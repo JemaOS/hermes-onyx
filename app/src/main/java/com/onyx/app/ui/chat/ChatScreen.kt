@@ -298,6 +298,15 @@ fun ChatScreen(
      */
     threadBot: com.onyx.app.data.model.serve.BotProfile? = null,
     /**
+     * **Le bot de cette conversation n'est pas encore connu.**
+     *
+     * Vrai seulement entre la première frame et la réponse du roster, quand ni le roster ni la
+     * mémoire de la conversation ne disent de qui il s'agit. L'en-tête n'affiche alors **ni visage
+     * ni « @profil »** : mieux vaut un en-tête nu un instant qu'un en-tête faux — c'est ce qui
+     * montrait le bleu d'Onyx puis sautait sur le vrai bot.
+     */
+    threadBotUnknown: Boolean = false,
+    /**
      * Les bots qu'un mot `@` du brouillon peut nommer (`BotMentions.rosterForMentions`) : la liste
      * au-dessus du champ, comme `ComposerView.mentionMenu` — le fil d'un bot comme celui de
      * l'agent principal, et jamais une salle de groupe, qui a la sienne (`GroupComposer`). Vide,
@@ -684,7 +693,8 @@ fun ChatScreen(
         0f
     }
     // L'onglet actif prend la couleur du bot de la conversation.
-    val tabAccent = threadBot?.let { botFaceColour(it.name, it.faceCode, theme) } ?: theme.accent
+    val tabAccent = if (threadBotUnknown) theme.accent
+        else threadBot?.let { botFaceColour(it.name, it.faceCode, theme) } ?: theme.accent
     val feedCards = remember(state.messages, threadSpeaker.label) { ChatFeed.cards(state.messages, threadSpeaker.label) }
     val exchangedFiles = remember(state.messages) { ChatFiles.conversationFiles(state.messages) }
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
@@ -1224,7 +1234,7 @@ fun ChatScreen(
                 // reste, et c'est là qu'elle renseigne. Le routage, lui, ne dépend pas de ce
                 // libellé : il porte `botProfile` (`ProfileInForce.appliedTo`), et l'identité du
                 // bot — ouverte par le visage, `BotEditorScreen` — écrit toujours son `@handle`.
-                profileLabel = state.profileInForce,
+                profileLabel = if (threadBotUnknown) null else state.profileInForce,
                 // Le repli **déclaré**, quand la passerelle a basculé : le modèle en vigueur
                 // (le repli) est nommé par la pilule ci-dessus, et cette ligne dit **qui** il
                 // remplace et **d'où** il vient — le mensonge « configuré annoncé » est fermé.
@@ -1251,8 +1261,8 @@ fun ChatScreen(
                 // les deux cas). Il l'était déjà dans la référence ; la condition
                 // « seulement si `botProfile != null` » le retirait de **toute** nouvelle
                 // conversation, c'est-à-dire de l'écran que la personne voit en premier.
-                avatarName = threadSpeaker.faceName,
-                avatarFaceCode = threadSpeaker.faceCode,
+                avatarName = if (threadBotUnknown) null else threadSpeaker.faceName,
+                avatarFaceCode = if (threadBotUnknown) null else threadSpeaker.faceCode,
                 // **Le visage de l'en-tête ouvre l'identité du bot**, comme le repère-visage de
                 // la barre du bas : le même geste, au même endroit du dessin, donne le même
                 // résultat. Le branchement vient du parent (`onOpenBotIdentity`) ; sans lui, le

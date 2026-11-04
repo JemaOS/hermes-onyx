@@ -52,8 +52,8 @@ class ChatIconParityTest {
         // d'Onyx existe pour les deux cas (`threadHeaderSpeaker` le donne) : la barre le montre
         // toujours, et le profil du bot ne sert plus qu'à choisir **quel** visage.
         val chat = File("src/main/java/com/onyx/app/ui/chat/ChatScreen.kt").readText()
-        assertTrue(chat.contains("avatarName = threadSpeaker.faceName,"))
-        assertTrue(chat.contains("avatarFaceCode = threadSpeaker.faceCode,"))
+        assertTrue(chat.contains("avatarName = if (threadBotUnknown) null else threadSpeaker.faceName,"))
+        assertTrue(chat.contains("avatarFaceCode = if (threadBotUnknown) null else threadSpeaker.faceCode,"))
         assertFalse(
             "le visage ne doit plus être conditionné au fil d'un bot",
             chat.contains("avatarName = threadSpeaker.faceName.takeIf"),

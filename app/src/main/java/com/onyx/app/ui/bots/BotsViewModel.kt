@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.onyx.app.data.local.BotRosterCache
 import com.onyx.app.data.local.FaceKeys
 import com.onyx.app.data.local.GroupRoomStore
 import com.onyx.app.data.model.ServerConfig
@@ -208,6 +209,12 @@ class BotsViewModel(
     private val activity: BotActivityStore,
     /** Les salles gardées sur ce téléphone : un « New Group Chat » fait sans Dashboard. */
     private val groupRooms: GroupRoomStore,
+    /**
+     * Le dernier roster réussi, gardé sur ce téléphone. Il **précède** le réseau d'une frame : sans
+     * lui, au redémarrage, la liste est vide quand l'écran se dessine, et la conversation ouverte
+     * s'affichait en Onyx (visage bleu, « @default ») avant de sauter sur son vrai bot.
+     */
+    private val roster: BotRosterCache,
 ) : ViewModel() {
 
     private var config: ServerConfig = config
@@ -260,6 +267,14 @@ class BotsViewModel(
     private var sourceRooms: List<GroupRoom> = emptyList()
 
     init {
+        // **Le dernier roster connu tient la première frame.** Sans lui, `bots` est vide quand
+        // l'écran se dessine (le réseau n'a pas répondu), la conversation ouverte ne trouve pas son
+        // bot et l'en-tête montre Onyx — visage bleu, « @default » — avant de sauter. La lecture est
+        // locale et synchrone : elle est là avant toute composition.
+        val remembered = roster.load()
+        if (remembered.isNotEmpty()) {
+            _state.update { it.copy(bots = remembered, loading = false) }
+        }
         refresh()
     }
 
@@ -297,6 +312,9 @@ class BotsViewModel(
                 .filterNot { it in known }
                 .map { BotProfile(name = it, title = faces.titleOf(it), isDefault = false, viaAPI = true) }
             sourceBots = fromServer + extra
+            // **Le roster réussi se garde** : c'est lui qui répondra à la première frame du
+            // prochain démarrage, avant que le réseau n'ait rien dit.
+            roster.save(sourceBots)
             // Les salles et l'activité sont un supplément : si le Dashboard ne répond pas, le
             // roster déjà lu doit rester affiché. Sans cette garde, un échec ici effaçait la
             // liste des bots — l'app paraissait vide alors que le serveur répondait.

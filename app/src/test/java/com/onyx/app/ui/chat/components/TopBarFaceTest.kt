@@ -45,7 +45,7 @@ class TopBarFaceTest {
 
     @Test
     fun `la barre recoit le visage sans condition`() {
-        val pass = Regex("""avatarName\s*=\s*threadSpeaker\.faceName\s*,""")
+        val pass = Regex("""avatarName\s*=\s*(if \(threadBotUnknown\) null else )?threadSpeaker\.faceName\s*,""")
         assertTrue(
             "ChatScreen doit passer `avatarName = threadSpeaker.faceName`",
             pass.containsMatchIn(chatScreen),
@@ -57,7 +57,7 @@ class TopBarFaceTest {
         )
         assertTrue(
             "le code du visage doit être passé lui aussi",
-            Regex("""avatarFaceCode\s*=\s*threadSpeaker\.faceCode\s*,""").containsMatchIn(chatScreen),
+            Regex("""avatarFaceCode\s*=\s*(if \(threadBotUnknown\) null else )?threadSpeaker\.faceCode\s*,""").containsMatchIn(chatScreen),
         )
     }
 

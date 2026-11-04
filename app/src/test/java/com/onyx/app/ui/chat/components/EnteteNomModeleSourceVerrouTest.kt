@@ -82,7 +82,7 @@ class EnteteNomModeleSourceVerrouTest {
         val chat = source("app/src/main/java/com/onyx/app/ui/chat/ChatScreen.kt")
         assertTrue(
             "l'écran passe toujours le profil en force (`profileInForce`) à l'en-tête",
-            chat.contains("profileLabel = state.profileInForce"),
+            chat.contains("profileLabel = if (threadBotUnknown) null else state.profileInForce"),
         )
         val editor = source("app/src/main/java/com/onyx/app/ui/bots/BotEditorScreen.kt")
         assertTrue(
