@@ -119,6 +119,7 @@ import com.onyx.app.ui.bots.BotTemplateOfferOutcome
 import com.onyx.app.ui.bots.BotTemplateShareSheet
 import com.onyx.app.ui.bots.botRecentConversation
 import com.onyx.app.ui.bots.botOfConversation
+import com.onyx.app.ui.bots.botOfConversationOrRemembered
 import com.onyx.app.ui.bots.conversationProfile
 import com.onyx.app.ui.bots.freshConversationForPencil
 import com.onyx.app.ui.bots.BotEditorViewModel
@@ -1872,7 +1873,10 @@ fun OnyxApp() {
             // (`BotFace.chatColors`) ; les groupes gardent celle du thème.
             val openedConversation = history.firstOrNull { it.id == state.conversationId }
             val openedConversationBot = openedConversation?.let { conversation ->
-                botOfConversation(conversation, bots, state.server.displayName)
+                // **Le roster d'abord, la mémoire ensuite** (`botOfConversationOrRemembered`) :
+                // le roster arrive par le réseau, après l'écran — ce que la conversation a retenu
+                // de son bot tient la barre du haut entre-temps, au lieu du visage bleu d'Onyx.
+                botOfConversationOrRemembered(conversation, bots, state.server.displayName)
             }
             // **Le modèle du bot de la conversation** alimente la source unique du modèle en vigueur
             // (`ChatUiState.modelInForce`) : c'est ce qui fait que la pilule du haut nomme le modèle du

@@ -32,8 +32,23 @@ data class Conversation(
     /** Rangée dans les archives. */
     val archived: Boolean = false,
     val messages: List<ChatMessage> = emptyList(),
-    /** Les messages non envoyés survivent à la fermeture et à la réouverture de la conversation. */
+    /**
+     * Les messages non envoyés survivent à la fermeture et à la réouverture de la conversation.
+     */
     val outbox: List<OutboxItem> = emptyList(),
+    /**
+     * **Le bot de cette conversation, gardé avec elle.**
+     *
+     * Le bot se déduit du roster (`botOfConversation`) — mais le roster vient du réseau, et au
+     * redémarrage il arrive après l'écran : la conversation s'affichait alors en Onyx (visage bleu,
+     * « @default ») le temps d'une ou deux frames, puis sautait sur le vrai bot.
+     *
+     * Ce champ est ce que l'app a **déjà su** : le profil du bot la dernière fois qu'elle l'a
+     * résolu. `null` = conversation simple (pas de bot) ; `""` = le profil principal (celui qui
+     * porte la bulle de Onyx) ; sinon le nom du profil. Il ne remplace jamais le roster : il tient
+     * l'écran juste jusqu'à ce qu'il arrive.
+     */
+    val botProfile: String? = null,
 ) {
     /** Le nombre de tours, c'est-à-dire de messages de l'utilisateur. */
     val turnCount: Int get() = messages.count { it.role == Role.USER }

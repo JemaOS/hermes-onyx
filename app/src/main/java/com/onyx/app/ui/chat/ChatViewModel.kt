@@ -999,6 +999,12 @@ class ChatViewModel(
         // Les compétences sont celles **du profil** : changer de bot change la liste des
         // commandes « / » (celles d'un profil ne sont pas celles d'un autre).
         if (changed) refreshSlashCommands()
+        // **Le bot se retient avec la conversation.** Sans cette ligne, l'app ne sait plus, au
+        // redémarrage, que cette conversation est celle de « coder » : le roster arrive après
+        // l'écran, et l'en-tête montrait Onyx — visage bleu, « @default » — le temps de deux
+        // frames avant de sauter sur le vrai bot.
+        val id = _state.value.conversationId?.takeIf { it.isNotBlank() }
+        if (id != null) viewModelScope.launch { conversations.bindBot(id, clean) }
     }
 
     /**
