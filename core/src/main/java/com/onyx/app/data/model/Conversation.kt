@@ -66,6 +66,29 @@ data class Conversation(
         return title.takeIf { it != DefaultTitle && it != derived }
     }
 
+    /**
+     * Le nom **posé** qui rattache la conversation à un bot : le titre, moins le suffixe de
+     * branche.
+     *
+     * Une branche (« X (fork) ») est la **copie** d'une conversation : elle porte le nom de son
+     * originale (« coder »), et c'est ce nom qui la rattache encore à son bot. C'est le lien
+     * durable — celui qui tient quand le roster ne nomme aucun `canonical_session` pour ce bot.
+     * Le suffixe ne change que l'affichage ; l'identité, elle, reste celle de l'originale.
+     *
+     * `null` quand le titre n'est que la première question (comme [customName]) : un titre
+     * automatique ne lie à personne.
+     */
+    fun botName(): String? {
+        var base = title
+        while (base.length > ForkSuffix.length && base.endsWith(ForkSuffix)) {
+            base = base.dropLast(ForkSuffix.length)
+        }
+        if (base.isBlank()) return null
+        val first = messages.firstOrNull { it.role == Role.USER }?.text
+        val derived = first?.let { titleFrom(it) }
+        return base.takeIf { it != DefaultTitle && it != derived }
+    }
+
     fun withMessage(message: ChatMessage, now: Long): Conversation = copy(
         messages = messages + message,
         updatedAt = now,
@@ -74,6 +97,14 @@ data class Conversation(
 
     companion object {
         const val DefaultTitle = "New Conversation"
+
+        /**
+         * Le suffixe du titre d'une **branche** — « (fork) », comme la référence.
+         *
+         * Il ne dit que l'affichage : la branche est la copie d'une conversation, et elle garde
+         * l'identité de son originale (son bot, donc son visage et son profil).
+         */
+        const val ForkSuffix = " (fork)"
 
         /** Le titre d'une conversation : la première ligne du premier message, coupée court. */
         fun titleFrom(text: String): String {
