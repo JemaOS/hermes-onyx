@@ -101,4 +101,69 @@ class ServerSessionsTest {
 
         assertFalse(local.remote)
     }
+
+    /**
+     * **Le défaut « j'ai 3 bots ».**
+     *
+     * Le chat d'un bot (son `canonical_session`) n'est pas une conversation de la liste : il
+     * s'ouvre par la tuile du bot. L'importer comme les autres faisait apparaître tout seul une
+     * ligne vide par bot — titrée de son nom, sans aperçu — juste après qu'on eut créé une
+     * conversation avec l'un d'eux.
+     */
+    @Test
+    fun `le chat d un bot n est pas importe comme conversation`() {
+        val imported = ServerSessions.conversations(
+            server = server(),
+            summaries = listOf(
+                summary("sess-coder", title = "coder"),
+                summary("sess-kilo", title = "kilo"),
+                summary("sess-vraie", title = "Une vraie conversation"),
+            ),
+            known = emptyList(),
+            botChats = setOf("sess-coder", "sess-kilo"),
+        )
+
+        assertEquals(listOf("Une vraie conversation"), imported.map { it.title })
+    }
+
+    @Test
+    fun `sans roster connu, rien n est ecarte`() {
+        // Au tout premier lancement le roster n'est pas encore gardé : on n'écarte rien plutôt
+        // que d'écarter au hasard.
+        val imported = ServerSessions.conversations(
+            server = server(),
+            summaries = listOf(summary("sess-a", title = "a"), summary("sess-b", title = "b")),
+            known = emptyList(),
+        )
+
+        assertEquals(2, imported.size)
+    }
+
+    /**
+     * Les lignes que l'ancien import a déjà écrites doivent **partir**, sinon le correctif ne
+     * corrigerait que l'avenir et les lignes vides resteraient dans la liste du propriétaire.
+     *
+     * On n'y touche que si elles sont **distantes** : une conversation écrite ici peut être le fil
+     * ouvert avec le bot, et c'est celle-là qu'il faut garder.
+     */
+    @Test
+    fun `les lignes deja ecrites d un chat de bot sont listees pour effacement`() {
+        val importedBotChat = Conversation(
+            id = "srv-srv-1-sess-coder",
+            title = "coder",
+            createdAt = 0L,
+            updatedAt = 0L,
+            serverId = "srv-1",
+            serverSessionId = "sess-coder",
+            remote = true,
+        )
+        val writtenHere = importedBotChat.copy(id = "conv-vraie", remote = false)
+
+        val stale = ServerSessions.staleBotChats(
+            known = listOf(importedBotChat, writtenHere),
+            botChats = setOf("sess-coder"),
+        )
+
+        assertEquals(listOf("srv-srv-1-sess-coder"), stale)
+    }
 }

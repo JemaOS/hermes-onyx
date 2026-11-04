@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.onyx.app.data.local.BotRosterCache
 import com.onyx.app.data.model.ChatMessage
 import com.onyx.app.data.model.Attachment
 import com.onyx.app.data.model.ChatRequest
@@ -85,6 +86,12 @@ class ChatViewModel(
 ) : AndroidViewModel(application) {
 
     private var conversationId: String = UUID.randomUUID().toString()
+
+    /**
+     * Le roster gardé sur ce téléphone, lu par l'import des sessions du serveur pour savoir
+     * quelles sessions sont le **chat d'un bot** — et non des conversations à importer.
+     */
+    private val roster = BotRosterCache(getApplication<Application>())
 
     private val _state = MutableStateFlow(
         ChatUiState(server = servers.activeServer.value, conversationId = conversationId),
@@ -265,7 +272,29 @@ class ChatViewModel(
         }.getOrElse { return }
         if (summaries.isEmpty()) return
         val known = conversations.conversations.value
-        val imported = ServerSessions.conversations(server, summaries, known)
+        // **Les chats des bots du roster ne sont pas des conversations.**
+        //
+        // Le roster gardé sur ce téléphone (`BotRosterCache`) nomme le `canonical_session` de chaque
+        // bot. Sans cette liste, l'import les prenait pour des conversations ordinaires : une ligne
+        // **vide** par bot, titrée de son nom et sans aperçu, apparaissait tout seule dans la liste
+        // dès qu'on créait une conversation avec l'un d'eux (« j'ai 3 bots, je devrais avoir que le
+        // bot que j'ai choisi »). Un chat de bot s'ouvre par sa tuile — il n'a rien à faire ici.
+        val botChats = runCatching {
+            roster.load(server.rosterScope)?.bots.orEmpty().mapNotNull { it.chatId }
+        }.getOrNull().orEmpty().toSet()
+
+        // **Et les lignes déjà écrites par l'ancien import s'effacent.** Jusqu'ici le chat de
+        // chaque bot était importé comme une conversation : les lignes vides sont dans le registre
+        // du téléphone, et un correctif qui ne ferait que bloquer les suivantes les laisserait
+        // là pour toujours. On ne touche qu'aux conversations **distantes** (`remote`) dont la
+        // session est un chat de bot — jamais à une conversation écrite ici, qui peut légitimement
+        // être le chat d'un bot.
+        if (botChats.isNotEmpty()) {
+            val stale = ServerSessions.staleBotChats(known, botChats)
+            if (stale.isNotEmpty()) conversations.deleteAll(stale.toSet())
+        }
+
+        val imported = ServerSessions.conversations(server, summaries, known, botChats)
         if (imported.isEmpty()) return
         imported.forEach { conversation -> conversations.save(conversation) }
     }
