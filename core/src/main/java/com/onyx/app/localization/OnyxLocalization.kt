@@ -146,6 +146,8 @@ object OnyxLocalization {
         "Cancel" to "Annuler",
         "Delete" to "Supprimer",
         "Save" to "Enregistrer",
+        // Le retour bref de l'éditeur : « Enregistrer » enregistre et **reste** sur la page.
+        "Saved" to "Enregistré",
         "Done" to "Terminé",
         // L'appel entrant (Réglages → Phone → Calls).
         "Calls" to "Appels",

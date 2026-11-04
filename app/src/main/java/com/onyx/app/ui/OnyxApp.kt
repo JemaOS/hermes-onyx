@@ -3674,7 +3674,11 @@ fun OnyxApp() {
                                 )
                             }
                         }
-                        navTo(Route.BOTS.name)
+                        // **On reste sur la page.** C'est `navTo(Route.BOTS.name)` qui était ici :
+                        // « Enregistrer » renvoyait sur la liste des bots — que le propriétaire lit
+                        // comme « la page de création de bot » — alors qu'il demandait seulement à
+                        // garder ses réglages. `saveEdit` écrit le profil (serveur + copie locale)
+                        // et relit le roster ; l'écran n'a plus aucune raison de partir.
                     },
                     onCreate = { title, about, soul, shown, faceCode ->
                         // Le profil naît sur le serveur avec le visage de son modèle : l'écran ne

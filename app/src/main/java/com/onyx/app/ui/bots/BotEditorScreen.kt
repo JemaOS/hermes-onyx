@@ -364,6 +364,16 @@ fun BotEditorScreen(
     }
     var shown by remember(bot?.name) { mutableStateOf(bot?.isHidden != true) }
     var confirmingDelete by remember { mutableStateOf(false) }
+    // **Le retour bref de « Enregistrer ».** L'action enregistre et **reste** sur la page ; un mot
+    // s'affiche à côté d'elle, puis s'efface. Sans lui, un enregistrement silencieux se lit comme un
+    // bouton mort — et c'est ce qui avait fait croire que l'action « changeait de page ».
+    var savedFlash by remember(bot?.name) { mutableStateOf(false) }
+    LaunchedEffect(savedFlash) {
+        if (savedFlash) {
+            kotlinx.coroutines.delay(1_600)
+            savedFlash = false
+        }
+    }
     var showModels by remember { mutableStateOf(false) }
     // Les listes « Tools » et « Skills » dépliées sous leur rangée, quand le parent n'a pas fourni
     // d'écran dédié.
@@ -417,6 +427,16 @@ fun BotEditorScreen(
                 onBack = onCancel,
                 localizeTitle = isNew,
                 actions = {
+                    // Le mot de retour, avant l'action : il ne déplace pas le bouton (il occupe sa
+                    // place un instant et s'efface).
+                    if (savedFlash) {
+                        BasicText(
+                            text = "Saved",
+                            style = socleBodyStyle(theme).copy(color = theme.secondaryText),
+                            maxLines = 1,
+                            modifier = Modifier.padding(end = OnyxBase.Tight),
+                        )
+                    }
                     BasicText(
                         text = if (isNew) "Create" else "Save",
                         style = socleBodyStyle(theme).copy(color = theme.accent),
@@ -428,7 +448,13 @@ fun BotEditorScreen(
                                     val spec = BotTemplateSpec.all.firstOrNull { it.id == template }
                                     onCreate(title, about, spec?.soul.orEmpty(), shown, pickedFace?.code())
                                 } else {
+                                    // **Enregistrer enregistre, et ne quitte pas la page.** C'est le
+                                    // parent qui écrivait `navTo(Route.BOTS.name)` : l'action
+                                    // renvoyait sur la liste des bots — lue comme « la page de
+                                    // création » — alors qu'on venait de demander à garder ses
+                                    // réglages, pas à sortir.
                                     onSave(title, about, bot?.model, shown)
+                                    savedFlash = true
                                 }
                             }
                             .padding(horizontal = OnyxBase.Tight, vertical = OnyxBase.Tight),
