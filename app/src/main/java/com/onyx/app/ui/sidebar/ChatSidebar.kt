@@ -499,16 +499,42 @@ internal fun ChatSidebar(
                             // **L'intitulé de section de la planche** : des petites capitales, un
                             // compteur en monospace. C'est le bloc `.secrow`/`.sec`/`.cnt` — la
                             // liste dit combien de conversations elle porte, et sous quel mot.
+                            //
+                            // **Son crayon.** C'est l'entrée de la multi-sélection, au même endroit
+                            // et de la même forme que le crayon de « Raccourcis » : on voit, à côté
+                            // du titre de la section, le geste qui porte sur cette section. Le rond
+                            // de la tête du volet la proposait aussi, mais il ne se lisait pas comme
+                            // « cette liste » — le crayon de la section, si.
                             item(key = "section") {
-                                GalerieSectionLabel(
-                                    text = OnyxLocalization["Conversations"],
-                                    count = rows.size,
-                                    modifier = Modifier.padding(
-                                        start = OnyxSocle.ScreenMargin,
-                                        top = OnyxSocle.Loose,
-                                        bottom = OnyxSocle.Tight,
-                                    ),
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .defaultMinSize(minHeight = SectionAction.Size)
+                                        .padding(
+                                            start = OnyxSocle.ScreenMargin,
+                                            top = OnyxSocle.Loose,
+                                            bottom = OnyxSocle.Tight,
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    GalerieSectionLabel(
+                                        text = OnyxLocalization["Conversations"],
+                                        count = rows.size,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    // En sélection, la barre du bas porte déjà « Annuler »,
+                                    // « Tout sélectionner » et « Supprimer » : un second contrôle ici
+                                    // dirait deux fois la même chose. Le crayon s'efface donc, et
+                                    // revient quand la sélection se ferme.
+                                    val selectEntry = selection?.takeIf { !it.isSelecting }
+                                    if (selectEntry != null) {
+                                        SectionActionButton(
+                                            symbol = Symbols.Pencil,
+                                            label = "Select conversations",
+                                            onClick = { selectEntry.start() },
+                                        )
+                                    }
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f),

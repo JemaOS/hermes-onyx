@@ -16,6 +16,8 @@ internal val onyxSidebarTilesFrench: Map<String, String> = linkedMapOf(
     "Shortcuts" to "Raccourcis",
     // Le crayon du bout de la ligne de titre, et sa sortie au **même endroit**.
     "Edit shortcuts" to "Modifier les raccourcis",
+    // Le crayon de la section des conversations : l'entrée de la multi-sélection.
+    "Select conversations" to "Sélectionner des conversations",
     // Le retrait d'une tuile : la cible est le rond, et son nom le dit.
     "Remove %1\$s" to "Retirer %1\$s",
     // Ce qui vient d'être retiré, et le rattrapage discret.

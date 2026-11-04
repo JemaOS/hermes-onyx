@@ -148,8 +148,9 @@ class SectionActionGeometryTest {
             !bots.contains("GlassCircleButton("),
         )
         assertEquals(
-            "le crayon de RACCOURCIS et le « + » de TOUS LES PROJETS passent par le même composant",
-            2,
+            "le crayon de RACCOURCIS, le crayon de CONVERSATIONS et le « + » de TOUS LES PROJETS " +
+                "passent par le même composant",
+            3,
             Regex("SectionActionButton\\(").findAll(chats).count(),
         )
         val composant = source("core/src/main/java/com/onyx/app/ui/design/SectionAction.kt")
