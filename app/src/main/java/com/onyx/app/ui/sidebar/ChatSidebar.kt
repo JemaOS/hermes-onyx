@@ -2358,7 +2358,8 @@ private fun ConversationRow(
             if (ageSelecting.isNotEmpty()) {
                 BasicText(
                     text = ageSelecting,
-                    localize = false,
+                    // « now » → « à l'instant » : c'est une chaîne de l'app, pas un nombre.
+                    localize = true,
                     style = theme.caption.copy(color = mutedInk(pane), fontWeight = FontWeight.Medium),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -2381,6 +2382,14 @@ private fun ConversationRow(
                 identity = row.identity,
                 faceCode = row.identityFace,
                 preview = row.subtitle,
+                // **Un état se traduit, un message non.** `working` / `needs-you` sont des clés du
+                // dictionnaire ; la dernière phrase écrite est du texte d'utilisateur. Le modèle le
+                // dit maintenant par `row.activity`, au lieu de laisser l'écran deviner sur la chaîne.
+                localizePreview = row.activity != null,
+                // **Et il bat** tant que l'agent travaille : « En cours. », « En cours.. », « … ».
+                workingPreview = row.activity == com.onyx.app.data.net.ActivityKind.WORKING,
+                // L'heure « now » est une chaîne de l'app : « à l'instant ».
+                localizeMeta = true,
                 metaLeft = row.projectLabel,
                 metaRight = ageLabel.takeIf { it.isNotEmpty() },
                 pinned = row.pinned,

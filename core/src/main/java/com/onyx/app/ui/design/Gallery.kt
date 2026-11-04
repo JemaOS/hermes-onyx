@@ -435,6 +435,21 @@ fun BlocConversation(
     /** Le visage **enregistré** de ce profil, quand il y en a un (lu sur l'identité vivante). */
     faceCode: String?,
     preview: String? = null,
+    /**
+     * **L'aperçu est-il une clé de l'app ?** Vrai pour l'état d'une conversation (« Working »,
+     * « Waiting for you »), faux pour la dernière phrase écrite — du texte d'utilisateur, qui ne se
+     * traduit jamais. Sans cette distinction, la seconde ligne d'un agent au travail restait en
+     * anglais sous un titre français.
+     */
+    localizePreview: Boolean = false,
+    /**
+     * **L'agent travaille** : l'aperçu est alors son état, et il **bat** — « En cours. », deux
+     * points, trois points — pour dire que quelque chose avance vraiment, au lieu d'une ligne figée
+     * qui ressemble à une étiquette.
+     */
+    workingPreview: Boolean = false,
+    /** **L'heure est-elle une chaîne de l'app ?** (« now » → « à l'instant » ; « 3h » est muet.) */
+    localizeMeta: Boolean = false,
     /** Le projet de la conversation, quand la liste est filtrée sur un projet. */
     metaLeft: String? = null,
     /** **L'heure** de la conversation, déjà calculée par le volet (`sidebarAgeLabel`). */
@@ -494,19 +509,33 @@ fun BlocConversation(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (!preview.isNullOrBlank()) {
-                    BasicText(
-                        text = preview,
-                        // **Le texte d'un message n'est pas une chaîne de l'app** : il ne se traduit
-                        // pas et ne passe pas par le catalogue.
-                        localize = false,
-                        style = socleMetaStyle(theme).copy(
-                            fontSize = BlocConversation.PreviewSize,
-                            color = previewInk,
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = OnyxSpace.Hair),
-                    )
+                    if (workingPreview) {
+                        // **La ligne qui montre que ça travaille.** Le libellé est traduit une fois,
+                        // puis les points avancent tout seuls — dans *cette* portée, pour qu'une
+                        // trame d'animation ne recompose pas la carte entière.
+                        WorkingPreviewLine(
+                            text = preview,
+                            style = socleMetaStyle(theme).copy(
+                                fontSize = BlocConversation.PreviewSize,
+                                color = previewInk,
+                            ),
+                        )
+                    } else {
+                        BasicText(
+                            text = preview,
+                            // **Le texte d'un message n'est pas une chaîne de l'app** : il ne se traduit
+                            // pas et ne passe pas par le catalogue. Sauf quand la ligne porte un
+                            // **état** (`localizePreview`) — « Working », « Waiting for you ».
+                            localize = localizePreview,
+                            style = socleMetaStyle(theme).copy(
+                                fontSize = BlocConversation.PreviewSize,
+                                color = previewInk,
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = OnyxSpace.Hair),
+                        )
+                    }
                 }
                 if (!metaLeft.isNullOrBlank() || !metaRight.isNullOrBlank() || pinned || (count ?: 0) > 0) {
                     Row(
@@ -556,7 +585,9 @@ fun BlocConversation(
                         if (!metaRight.isNullOrBlank()) {
                             BasicText(
                                 text = metaRight,
-                                localize = false,
+                                // « now » est une chaîne de l'app (« à l'instant ») ; « 3h », « 2w »
+                                // n'ont pas d'entrée et restent tels quels.
+                                localize = localizeMeta,
                                 style = socleMonoStyle(theme).copy(
                                     fontSize = BlocConversation.MetaSize,
                                     color = metaInk,
@@ -665,6 +696,67 @@ private fun Modifier.blocConversationInkZone(theme: ResolvedTheme): Modifier {
         }
         drawContent()
     }
+}
+
+/**
+ * **La ligne d'un agent au travail : « En cours. », « En cours.. », « En cours... ».**
+ *
+ * Le propriétaire a demandé les deux à la fois : que l'état soit **toujours écrit dans sa langue**
+ * (« En cours », jamais « Working » sous un titre français), et qu'il **bouge** — un libellé figé se
+ * lit comme une étiquette, pas comme du travail en cours.
+ *
+ * **Ce qui bat est le texte, et rien d'autre.** L'étape des points est lue dans cette portée : une
+ * trame d'animation ne recompose donc que cette ligne, jamais la carte, jamais la liste. Sous
+ * « Réduire les animations » ([LocalReduceMotion]), les trois points sont posés d'un coup — la même
+ * règle que les autres boucles de la maison.
+ *
+ * Le libellé est traduit **avant** d'être composé (`OnyxLocalization[text]`), puis rendu
+ * `localize = false` : les points ne font pas partie de la clé, et « En cours... » n'existe pas au
+ * dictionnaire.
+ */
+@Composable
+private fun WorkingPreviewLine(text: String, style: androidx.compose.ui.text.TextStyle) {
+    val reduceMotion = LocalReduceMotion.current
+    val dots = if (reduceMotion) WorkingDots.Static else rememberWorkingDots()
+    BasicText(
+        text = OnyxLocalization[text] + dots,
+        localize = false,
+        style = style,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = OnyxSpace.Hair),
+    )
+}
+
+/**
+ * L'étape des points d'une ligne au travail — **pure**, donc vérifiable sans appareil.
+ *
+ * Trois pas (un, deux, trois points), puis on recommence : c'est ce qui se lit comme un travail qui
+ * avance, et non comme un sablier qui tourne.
+ */
+internal object WorkingDots {
+
+    /** Le pas : assez lent pour ne pas clignoter, assez vif pour se voir. */
+    const val PeriodMs = 420L
+
+    /** Sous « Réduire les animations » : les trois points, posés d'un coup. */
+    const val Static = "..."
+
+    /** Les points de l'étape [step] : un, deux, trois, puis on recommence. */
+    fun of(step: Int): String = ".".repeat(Math.floorMod(step, 3) + 1)
+}
+
+/** Le battement des points, lu dans la portée de la ligne — pas dans celle de la carte. */
+@Composable
+private fun rememberWorkingDots(): String {
+    var step by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(WorkingDots.PeriodMs)
+            step += 1
+        }
+    }
+    return WorkingDots.of(step)
 }
 
 /**

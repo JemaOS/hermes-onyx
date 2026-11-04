@@ -72,6 +72,16 @@ data class SidebarRow(
     val identity: String = "",
     /** Le visage enregistré de ce profil, s'il y en a un ([identity]). */
     val identityFace: String? = null,
+    /**
+     * **L'activité signalée par le serveur**, telle quelle — `null` quand il n'en signale aucune.
+     *
+     * La rangée en a besoin depuis que le sous-titre d'un agent au travail **bat** (« En cours… ») :
+     * il faut distinguer « cette ligne porte un état » (une clé du dictionnaire, qui se traduit) de
+     * « cette ligne porte la dernière phrase écrite » (du texte d'utilisateur, qui ne se traduit
+     * jamais). Le `String` seul ne le disait pas — c'est pourquoi « Working » s'affichait en anglais
+     * sous un titre français : l'aperçu était rendu `localize = false`, à juste titre, pour tous.
+     */
+    val activity: com.onyx.app.data.net.ActivityKind? = null,
 )
 
 /** Une puce de la rangée de projets : « All projects », puis chaque projet et son compte. */
@@ -180,6 +190,7 @@ internal fun sidebarRowOf(
     projectLabel = projectLabel,
     identity = identity,
     identityFace = identityFace,
+    activity = kind,
 )
 
 /**
