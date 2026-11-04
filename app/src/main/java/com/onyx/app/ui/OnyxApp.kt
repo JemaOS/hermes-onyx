@@ -35,6 +35,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -570,7 +571,16 @@ fun OnyxApp() {
             factory = viewModelFactory { initializer { SettingsViewModel(servers, settingsRepo) } },
         )
 
-        val state by chatViewModel.state.collectAsStateWithLifecycle()
+        // **La coquille ne lit plus l'etat du chat : elle lit sa projection stable.**
+        //
+        // `state` etait l'etat **entier**, et il est republié a chaque publication de texte - 33
+        // fois par seconde pendant une reponse. La racine (5 000 lignes) rejouait donc a chaque
+        // jeton, avec trois balayages complets du fil (sous-agents, approbations, questions
+        // d'agent) que le texte qui s'ecrit ne change pourtant pas. `ShellState` (voir son
+        // fichier) ne porte que ce que la coquille lit vraiment, et son egalite structurelle est
+        // stable d'un jeton a l'autre : **la racine ne recompose plus pendant un flux.**
+        val chatState = chatViewModel.state.collectAsStateWithLifecycle()
+        val state by remember { derivedStateOf { ShellState.of(chatState.value) } }
         val history by chatViewModel.history.collectAsStateWithLifecycle()
         // Les serveurs enregistrés, relus pour la liste unifiée (« All Servers »).
         val serverList by servers.servers.collectAsStateWithLifecycle()
@@ -881,7 +891,7 @@ fun OnyxApp() {
         var renameText by remember { mutableStateOf("") }
 
         // Les cartes de départ suivent l'historique sans le relire à chaque recomposition.
-        LaunchedEffect(history, state.messages.size) {
+        LaunchedEffect(history, state.messagesSize) {
             startCards = chatViewModel.startCards()
         }
 
@@ -1297,7 +1307,9 @@ fun OnyxApp() {
         // Le tour est fini : l'agent lit sa réponse, puis se remet à écouter en mains-libres.
         LaunchedEffect(state.isStreaming, route) {
             if (route != Route.GROUP_VOICE.name && !state.isStreaming && voice.phase.value == VoicePhase.THINKING) {
-                val reply = state.messages.lastOrNull { it.role == Role.ASSISTANT }?.text
+                // Lu **au moment de l'effet** : le texte n'a pas a entrer dans la projection de
+                // la coquille, qui ne doit pas changer a chaque jeton.
+                val reply = chatState.value.messages.lastOrNull { it.role == Role.ASSISTANT }?.text
                 // La réponse se lit **de la voix du bot de la conversation ouverte** : c'est le
                 // `readAloud(_, speaker: conversation.bot?.profile)` du modèle. Sans ce profil, le
                 // réglage « Voix » du bot était ignoré en mode vocal.
@@ -1311,24 +1323,24 @@ fun OnyxApp() {
         // détruite, autre app au premier plan) n'aurait plus personne pour l'annoncer.
 
         // Une page d'agent qui a posé une question reçoit la réponse par ce bus.
-        LaunchedEffect(state.messages.size, state.isStreaming) {
+        LaunchedEffect(state.messagesSize, state.isStreaming) {
             if (!state.isStreaming) {
-                state.messages.lastOrNull { it.role == com.onyx.app.data.model.Role.ASSISTANT }
+                chatState.value.messages.lastOrNull { it.role == com.onyx.app.data.model.Role.ASSISTANT }
                     ?.text
                     ?.let { com.onyx.app.ui.rich.PageReplyBus.publish(it) }
             }
         }
 
         // Le widget d'écran d'accueil suit la dernière réponse et le remplissage du contexte.
-        LaunchedEffect(state.messages.size, state.isStreaming) {
+        LaunchedEffect(state.messagesSize, state.isStreaming) {
             if (!state.isStreaming) {
-                val used = state.messages.lastOrNull { it.usage?.contextUsed != null }?.usage?.contextUsed
+                val used = chatState.value.messages.lastOrNull { it.usage?.contextUsed != null }?.usage?.contextUsed
                 AppContainer.publishContext(used, state.server.contextWindow.takeIf { it > 0 })
                 runCatching { OnyxWidget().updateAll(context) }
             }
         }
         // Les approbations qui arrivent pendant que l'app n'est pas au premier plan se notifient.
-        val pendingApprovals = state.messages.flatMap { it.approvals }.filter { it.isPending }
+        val pendingApprovals = state.pendingApprovals
         val notifyInBackground by settingsRepo.notifyInBackground.collectAsStateWithLifecycle()
         val notificationSound by settingsRepo.notificationSound.collectAsStateWithLifecycle()
         // « Appels pour une réponse » : un tour en attente de décision fait sonner le téléphone.
@@ -1414,7 +1426,7 @@ fun OnyxApp() {
 
         // Les questions de l'agent — question, sudo, secret — se répondent de la même façon, avec
         // une action « Reply » quand la saisie en ligne suffit.
-        val pendingQuestions = remember(state.messages) { pendingQuestionsOf(state.messages) }
+        val pendingQuestions = state.pendingQuestions
         LaunchedEffect(pendingQuestions.map { it.notificationId }, inForeground, notifyInBackground, notificationSound, phoneRings, phoneRingsTalk) {
             if (inForeground) {
                 pendingQuestions.forEach {
@@ -2012,7 +2024,7 @@ fun OnyxApp() {
             }
             CompositionLocalProvider(LocalOnyxTheme provides LocalOnyxTheme.current.withColors(botChatColors)) {
             ChatScreen(
-                state = state,
+                stateFlow = chatState,
                 startCards = startCards,
                 // Démarrage de secours : le lancement précédent est mort en restaurant cet
                 // onglet — on rouvre sur Chat plutôt que de refaire le même dessin.
@@ -3374,17 +3386,10 @@ fun OnyxApp() {
             Route.CHAT -> withSidebar { chatPane(true, sidebarToggleControl) }
 
             Route.VOICE -> VoiceScreen(
-                history = state.messages
-                    .filter { it.role == com.onyx.app.data.model.Role.USER }
-                    .mapNotNull { question ->
-                        val index = state.messages.indexOf(question)
-                        val answer = state.messages.drop(index + 1)
-                            .firstOrNull { it.role == com.onyx.app.data.model.Role.ASSISTANT }
-                            ?.text
-                            ?.takeIf { it.isNotBlank() }
-                            ?: return@mapNotNull null
-                        com.onyx.app.ui.voice.VoiceTurn(question = question.text, answer = answer)
-                    },
+                // Les tours **finis** sont calcules une fois dans la projection : la voix
+                // n'affiche que les tours revolus, et les reconstruire ici reparcourt tout le
+                // fil a chaque recomposition de la racine.
+                history = state.voiceTurns,
                 // `VoiceView`: `Self.demo ? .listening : session.phase` — la maquette montre
                 // l'écoute, l'orbe vit de la même onde, et rien n'est un mensonge : c'est une pose.
                 phase = voicePose ?: if (voiceDemo) VoicePhase.LISTENING else phase,
@@ -3403,7 +3408,7 @@ fun OnyxApp() {
                     VOICE_DEMO_TITLE
                 } else {
                     (state.conversationName?.takeIf { it.isNotBlank() }
-                        ?: state.messages.firstOrNull { it.role == com.onyx.app.data.model.Role.USER }?.text)
+                        ?: state.firstUserQuestion)
                         ?.let(::chatHeaderTitle)
                         ?.takeIf { it.isNotBlank() }
                         ?: state.server.displayName
@@ -3423,7 +3428,7 @@ fun OnyxApp() {
                 onRestart = {
                     voiceProblem = null
                     if (phase == VoicePhase.IDLE) {
-                        state.messages.lastOrNull {
+                        chatState.value.messages.lastOrNull {
                             it.role == com.onyx.app.data.model.Role.ASSISTANT && it.text.isNotBlank()
                         }?.let {
                             // La relance sort de la voix du bot de la conversation ouverte —

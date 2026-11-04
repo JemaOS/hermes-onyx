@@ -98,14 +98,25 @@ class TrackingStatesBiteTest {
         )
 
         // (c) Chaque transition d'etat du tour ramene la vue : l'etape est une cle de l'effet.
+        //
+        // LOT projection : l'effet n'est plus **relance** a chaque jeton - il observe une
+        // forme du tour (`FollowShape`) et le collage est une **demande** (`requestScrollToItem`),
+        // appliquee a la mesure suivante. Le contrat est le meme : l'etape du tour, l'etat du
+        // flux et la decision de suivi declinedent toujours le collage au bas.
         assertTrue(
-            "l'etape du tour doit rejouer le collage au bas (attente, reflexion, reponse, 1er jeton)",
-            chatScreen.contains("lastIndex, lastLength, state.isStreaming, state.queued.size, state.live?.step, following,"),
+            "l'observateur du tour doit porter l'etape, l'etat du flux et la decision de suivi",
+            chatScreen.contains("step = ui.live?.step,") &&
+                chatScreen.contains("isStreaming = ui.isStreaming,") &&
+                chatScreen.contains("following = following,"),
+        )
+        assertTrue(
+            "et il doit observer la longueur du texte vivant (le 1er jeton compte)",
+            chatScreen.contains("lastLength = ui.messages.lastOrNull()"),
         )
         // Le collage au bas se borne a la fin du rembourrage : la derniere ligne reste au-dessus.
         assertTrue(
             "le collage au bas passe par le decalage de fin de liste",
-            chatScreen.contains("listState.scrollToItem(latestItemIndex, BottomScrollOffset)"),
+            chatScreen.contains("listState.requestScrollToItem(latestItemIndex, BottomScrollOffset)"),
         )
     }
 
@@ -139,7 +150,7 @@ class TrackingStatesBiteTest {
         // Et l'ecran ne colle au bas que sous cette condition — nommee, pas implicite.
         assertTrue(
             "le collage au bas est conditionne a la decision de suivi",
-            chatScreen.contains("if (ScrollFollow.followsNewContent(following) && state.messages.isNotEmpty())"),
+            chatScreen.contains("if (ScrollFollow.followsNewContent(shape.following) && stateFlow.value.messages.isNotEmpty())"),
         )
         assertTrue(
             "le suivi se detache au premier doigt, sans attendre la position",

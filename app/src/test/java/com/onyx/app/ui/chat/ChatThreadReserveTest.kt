@@ -193,13 +193,15 @@ class ChatThreadReserveTest {
         // règle, et qui vaut désormais aussi pour les transitions d'état du tour.
         assertTrue(
             "le défilement automatique est conditionné au suivi",
-            chatScreen.contains("if (ScrollFollow.followsNewContent(following) && state.messages.isNotEmpty())"),
+            // LOT projection : la decision de suivi passe par la forme observee (`shape`).
+            chatScreen.contains("if (ScrollFollow.followsNewContent(shape.following) && stateFlow.value.messages.isNotEmpty())"),
         )
         // Le défilement automatique laisse le bas **au-dessus** de la réserve : il colle à la
         // dernière ligne avec un grand décalage, qui se borne à la fin du rembourrage.
         assertTrue(
             "le collage au bas passe par le décalage de fin de liste",
-            chatScreen.contains("listState.scrollToItem(latestItemIndex, BottomScrollOffset)"),
+            // LOT projection : le collage est une demande, appliquee a la mesure suivante.
+            chatScreen.contains("listState.requestScrollToItem(latestItemIndex, BottomScrollOffset)"),
         )
     }
 }

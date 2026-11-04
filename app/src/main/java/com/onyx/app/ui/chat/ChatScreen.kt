@@ -156,7 +156,16 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun ChatScreen(
-    state: ChatUiState,
+    /**
+     * L'etat du chat, **tenu par reference**.
+     *
+     * L'ecran le lisait par valeur : chaque publication de texte (33 par seconde pendant une
+     * reponse) remplacait l'etat, donc le corps de l'ecran - 2 200 lignes - etait rejoue a
+     * chaque jeton. Il le recoit desormais **par reference** et n'en projette que la partie
+     * stable ([ChatScreenState]) : le texte vivant n'est lu que par la liste et la ligne qui
+     * s'ecrit.
+     */
+    stateFlow: androidx.compose.runtime.State<ChatUiState>,
     startCards: List<StartCard>,
     onInputChange: (String) -> Unit,
     /**
@@ -341,6 +350,10 @@ fun ChatScreen(
     sidebarToggle: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    // **Le corps de l'écran ne lit plus l'état vivant.** Voir [ChatScreenState] : il ne porte que
+    // ce qui ne bouge pas d'un jeton à l'autre, si bien que la publication du texte (33 fois par
+    // seconde) ne recompose plus que le fil, et non les 2 200 lignes de cet écran.
+    val state by remember { derivedStateOf { ChatScreenState.of(stateFlow.value) } }
     // « Shown in the header and the message box » : un seul nom, partout.
     val agentName = assistantName.ifBlank { state.server.displayName }
     // L'en-tête du fil est un ajout volontaire (l'app la référence n'en a pas) : le visage et le nom de qui
@@ -356,7 +369,7 @@ fun ChatScreen(
     val projectDirectory = rememberChatProjectDirectory(state.server, state.serverSessionId)
     val scope = rememberCoroutineScope()
     // Une longue conversation ne rend que la dernière page ; « N earlier messages » remonte.
-    var visibleFrom by remember(state.messages.firstOrNull()?.id) { mutableIntStateOf(0) }
+    var visibleFrom by remember(state.firstMessageId) { mutableIntStateOf(0) }
     var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
     // La hauteur du composeur (pièces jointes, bandeau « N messages en attente », champ) : le
     // « Jump to latest » s'y accroche pour rester **au-dessus** de lui, jamais dessus.
@@ -416,7 +429,7 @@ fun ChatScreen(
                 shortcut = shortcut,
                 isStreaming = state.isStreaming,
                 hasDraft = hasDraft,
-                hasMessages = state.messages.isNotEmpty(),
+                hasMessages = state.messagesSize > 0,
                 searchOpen = state.searchOpen,
             )
         ) {
@@ -501,22 +514,23 @@ fun ChatScreen(
         }
     }
 
-    val pageStart = remember(state.messages.size, visibleFrom) {
-        maxOf(visibleFrom, state.messages.size - PAGE)
+    val pageStart = remember(state.messagesSize, visibleFrom) {
+        maxOf(visibleFrom, state.messagesSize - PAGE)
     }
     val hiddenCount = pageStart
     val latestItemIndex = (if (hiddenCount > 0) 1 else 0) +
-        (state.messages.size - pageStart - 1).coerceAtLeast(0) + state.queued.size
+        (state.messagesSize - pageStart - 1).coerceAtLeast(0) + state.queuedSize
     // **On ouvre sur le dernier message.** La liste naît déjà posée sur la fin du fil, au lieu
     // d'apparaître en haut puis de sauter en bas au premier passage de l'effet de suivi. L'index
     // n'est lu qu'à la **première** composition (c'est un état initial) ; ensuite, c'est le suivi
     // qui décide où regarde la vue.
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = latestItemIndex)
-    val lastIndex = state.messages.lastIndex
-    val lastLength = state.messages.lastOrNull()?.let { it.text.length + it.reasoning.length + it.tools.size } ?: 0
+    // La longueur du texte vivant n'est lue **que** par l'observateur du suivi du bas : elle
+    // change a chaque publication, et la lire ici recomposerait l'ecran a chaque jeton.
+    val lastIndex = state.messagesSize - 1
     val currentHit = state.searchHits.getOrNull(state.searchCurrent)
     LaunchedEffect(currentHit) {
-        val index = state.messages.indexOfFirst { it.id == currentHit }
+        val index = stateFlow.value.messages.indexOfFirst { it.id == currentHit }
         if (index >= 0) listState.animateScrollToItem(index)
     }
     // Le fil suit la fin **tant que la personne ne remonte pas** : c'est elle qui décide. La
@@ -596,19 +610,38 @@ fun ChatScreen(
     //    (`state.live.step`) est une clé à part entière : un changement d'étape qui ne change pas
     //    encore le texte (le passage de l'attente à la réflexion, le premier jeton d'un raisonnement
     //    vide) doit lui aussi ramener la vue, sinon l'état neuf se peint hors de la vue.
-    LaunchedEffect(
-        lastIndex, lastLength, state.isStreaming, state.queued.size, state.live?.step, following,
-    ) {
-        if (ScrollFollow.followsNewContent(following) && state.messages.isNotEmpty())
-            listState.scrollToItem(latestItemIndex, BottomScrollOffset)
+    //
+    //    **Un seul observateur pour tout le tour, au lieu d'un effet relancé par jeton.**
+    //
+    //    Les clés de l'effet portaient `lastLength`, la longueur du texte vivant : elle change à
+    //    **chaque** publication (trente-trois par seconde), donc l'effet était annulé puis relancé
+    //    trente-trois fois par seconde, et chacun posait un `scrollToItem` — une coroutine suspendue
+    //    qui redemande une mesure complète de la liste.
+    //
+    //    `snapshotFlow` observe la même chose sans relancer personne, et `requestScrollToItem` pose
+    //    la demande **pour la prochaine passe de mesure** : deux jetons arrivés dans la même trame ne
+    //    coûtent plus qu'un déplacement, et la composition n'attend plus un `suspend`.
+    LaunchedEffect(listState, latestItemIndex, stateFlow) {
+        snapshotFlow {
+            val ui = stateFlow.value
+            FollowShape(
+                lastLength = ui.messages.lastOrNull()
+                    ?.let { it.text.length + it.reasoning.length + it.tools.size } ?: 0,
+                isStreaming = ui.isStreaming,
+                queued = ui.queued.size,
+                step = ui.live?.step,
+                following = following,
+            )
+        }.collect { shape ->
+            if (ScrollFollow.followsNewContent(shape.following) && stateFlow.value.messages.isNotEmpty())
+                listState.requestScrollToItem(latestItemIndex, BottomScrollOffset)
+        }
     }
     // Une question part d'où qu'elle soit écrite : elle ramène en bas (`jumpToEnd` de la référence).
     var seenUserTurns by remember { mutableStateOf(0) }
     // La clé est le **nombre** de messages : pendant qu'une réponse s'écrit, la liste change à chaque
     // jeton mais sa taille ne bouge pas — compter les tours à ce rythme ne servait à rien.
-    val userTurns = remember(state.messages.size) {
-        state.messages.count { it.role == com.onyx.app.data.model.Role.USER }
-    }
+    val userTurns = state.userTurnCount
     LaunchedEffect(userTurns) {
         if (userTurns > seenUserTurns) {
             following = ScrollFollow.jumpToLatest()
@@ -621,8 +654,8 @@ fun ChatScreen(
     // (`!following && !withinAnchor`, comme la référence) — pas seulement quand une autre ligne est
     // en tête : une longue réponse couvre plusieurs écrans, la fin peut être hors de vue alors qu'on
     // est en train de la lire.
-    val offersJump = state.messages.isNotEmpty() && !following && !withinAnchor
-    val contextUsage = state.messages.lastOrNull { it.usage?.contextUsed != null }?.usage
+    val offersJump = state.messagesSize > 0 && !following && !withinAnchor
+    val contextUsage = state.contextUsage
 
     // ---------------------------------------------------------------------------------------
     // LOT fil-vivant : l'état du tour, et la lecture
@@ -632,8 +665,24 @@ fun ChatScreen(
     // C'est lui — et rien d'autre — que l'en-tête et les cartes de contexte peignent. Aucun état
     // n'est décoratif : chacun vient d'une étape que le serveur a fait connaître, ou d'une
     // approbation qui attend une réponse (`pendingApprovalCount`).
-    val pendingApprovals = pendingApprovalCount(state.messages)
-    val flow = turnFlowState(state.live, pendingApprovals)
+    val pendingApprovals = state.pendingApprovals
+    // L'etape du tour suffit a peindre l'etat : `turnFlowState` ne lit que `isStreaming` et
+    // `step`, jamais l'horodatage - qui, lui, change a chaque jeton.
+    // Sans phase du tout (le serveur n'en a pas annonce), l'etat est le repos - c'etait deja la
+    // regle de `turnFlowState` pour un `live` nul, et la reconstituer ici la garde identique.
+    val flow = turnFlowState(
+        live = if (!state.hasLivePhase) {
+            null
+        } else {
+            TurnPhase(
+                startedAt = 0L,
+                lastEventAt = 0L,
+                step = state.liveStep ?: TurnStep.STARTING,
+                isStreaming = state.isStreaming,
+            )
+        },
+        pendingApprovals = pendingApprovals,
+    )
     // **« On remonte lire. »** Le suivi du bas est détaché pendant qu'un tour tourne : c'est le
     // signal de la lecture. L'état **ralentit** alors (§ la période est multipliée, jamais
     // divisée) au lieu de continuer à pleine cadence sous les yeux de qui lit.
@@ -727,13 +776,13 @@ fun ChatScreen(
     // cartes du Flux et la liste des fichiers ne lisent que des messages **finis**, donc les
     // recalculer sur toute la conversation à ce rythme ne dessinait rien de neuf et coûtait du
     // temps à chaque image. La clé est la même tant que le dernier message fini ne change pas.
-    val settledCount = if (state.isStreaming) (state.messages.size - 1).coerceAtLeast(0) else state.messages.size
-    val settledLast = state.messages.getOrNull(settledCount - 1)?.id
+    val settledCount = state.settledCount
+    val settledLast = state.settledLastId
     val feedCards = remember(settledCount, settledLast, threadSpeaker.label) {
-        ChatFeed.cards(state.messages.take(settledCount), threadSpeaker.label)
+        ChatFeed.cards(stateFlow.value.messages.take(settledCount), threadSpeaker.label)
     }
     val exchangedFiles = remember(settledCount, settledLast) {
-        ChatFiles.conversationFiles(state.messages.take(settledCount))
+        ChatFiles.conversationFiles(stateFlow.value.messages.take(settledCount))
     }
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
     // Ce qui a été vu du flux : la pastille de non-lu ne compte que le neuf.
@@ -1075,14 +1124,19 @@ fun ChatScreen(
                     // la liste et la `LazyColumn` jette `IndexOutOfBoundsException` — un plantage
                     // qui n'arrive qu'avec beaucoup de conversations, donc jamais en test.
                     items(
-                        count = (state.messages.size - pageStart).coerceAtLeast(0),
-                        key = { offset -> state.messages.getOrNull(pageStart + offset)?.id ?: "gone-$offset" },
+                        // La liste lit le fil **vivant** : `stateFlow` est un `State`, pas une
+                        // valeur, donc c'est cette portee (la `LazyColumn` et ses lignes) qui
+                        // recompose au jeton - pas les 2 200 lignes de l'ecran au-dessus.
+                        count = (stateFlow.value.messages.size - pageStart).coerceAtLeast(0),
+                        key = { offset ->
+                            stateFlow.value.messages.getOrNull(pageStart + offset)?.id ?: "gone-$offset"
+                        },
                         // **Un type de contenu par forme de rangée.** Sans lui, une ligne de
                         // question sortie de la page peut être « réutilisée » pour une réponse :
                         // la liste remesure et recompose alors une rangée d'une autre forme au lieu
                         // de reprendre la bonne.
                         contentType = { offset ->
-                            val message = state.messages.getOrNull(pageStart + offset)
+                            val message = stateFlow.value.messages.getOrNull(pageStart + offset)
                             when {
                                 message == null -> "gone"
                                 message.isUser -> "user"
@@ -1091,20 +1145,21 @@ fun ChatScreen(
                         },
                     ) { offset ->
                         val index = pageStart + offset
-                        val message = state.messages.getOrNull(index) ?: return@items
+                        val message = stateFlow.value.messages.getOrNull(index) ?: return@items
                         val arrival = remember(message.id) {
                             val justSent = System.currentTimeMillis() - message.createdAt < 1_500
                             when {
                                 !justSent -> com.onyx.app.ui.common.ArrivalKind.NONE
                                 message.role == com.onyx.app.data.model.Role.USER -> com.onyx.app.ui.common.ArrivalKind.SENT
-                                index == state.messages.lastIndex && state.isStreaming &&
+                                index == stateFlow.value.messages.lastIndex && state.isStreaming &&
                                     message.text.isEmpty() && message.reasoning.isEmpty() && message.tools.isEmpty() ->
                                     com.onyx.app.ui.common.ArrivalKind.WAITING_REPLY
                                 else -> com.onyx.app.ui.common.ArrivalKind.NONE
                             }
                         }
-                        val dayLabel = remember(message.id, state.messages.getOrNull(index - 1)?.createdAt) {
-                            dayLabelFor(message.createdAt, state.messages.getOrNull(index - 1)?.createdAt)
+                        val previousCreatedAt = stateFlow.value.messages.getOrNull(index - 1)?.createdAt
+                        val dayLabel = remember(message.id, previousCreatedAt) {
+                            dayLabelFor(message.createdAt, previousCreatedAt)
                         }
                         if (dayLabel != null) {
                             DaySeparator(label = dayLabel)
@@ -1119,7 +1174,7 @@ fun ChatScreen(
                         // cet état (`WaitingPulse` n'existe que tant que le texte est vide, et
                         // seulement pour la ligne vivante) : elle reçoit `null`, l'égalité tient, et
                         // Compose la saute.
-                        val isLive = state.isStreaming && index == state.messages.lastIndex
+                        val isLive = state.isStreaming && index == stateFlow.value.messages.lastIndex
                         // **La pose d'arrivée ne s'applique qu'à une rangée qui arrive.**
                         // `messageArrival` est un `Modifier.composed` : monté sur chaque rangée, il
                         // ouvrait une sous-composition et trois animations pour une animation qui
@@ -1135,7 +1190,7 @@ fun ChatScreen(
                             message = message,
                             replyName = threadSpeaker.label,
                             isLive = isLive,
-                            live = if (isLive) state.live else null,
+                            live = if (isLive) stateFlow.value.live else null,
                             linkPreviews = linkPreviews,
                             onRegenerate = if (!message.isUser && !state.isStreaming) {
                                 { onRetry() }
@@ -1182,12 +1237,12 @@ fun ChatScreen(
                         )
                     }
                     items(
-                        count = state.queued.size,
-                        key = { index -> state.queued.getOrNull(index)?.rowID ?: "queued-$index" },
+                        count = state.queuedSize,
+                        key = { index -> stateFlow.value.queued.getOrNull(index)?.rowID ?: "queued-$index" },
                         contentType = { "queued" },
                     ) { index ->
                         // Même règle que le fil : l'outbox peut se vider pendant la composition.
-                        val item = state.queued.getOrNull(index) ?: return@items
+                        val item = stateFlow.value.queued.getOrNull(index) ?: return@items
                         QueuedMessageRow(
                             item = item,
                             isFirst = index == 0,
@@ -1310,13 +1365,13 @@ fun ChatScreen(
                 // Le titre suit le nom donné à la conversation (`Conversation.name` d'la référence, qui prime
                 // sur le premier message) ; sinon la première question, comme avant.
                 title = (state.conversationName?.takeIf { it.isNotBlank() }
-                    ?: state.messages.firstOrNull { it.role == com.onyx.app.data.model.Role.USER }?.text)
+                    ?: state.firstUserQuestion)
                     ?.let(::chatHeaderTitle)
                     ?.takeIf { it.isNotBlank() }
                     ?: "New conversation",
                 titleIsPlaceholder = state.conversationName.isNullOrBlank() &&
-                    state.messages.none { it.role == com.onyx.app.data.model.Role.USER },
-                conversationKey = state.messages.firstOrNull()?.id.orEmpty(),
+                    !state.hasUserTurn,
+                conversationKey = state.firstMessageId.orEmpty(),
                 // La seconde ligne du titre, comme `ContentView:448` : le **handle** du bot
                 // précédé de « @ » (une conversation simple garde le nom d'agent des Réglages),
                 // puis le modèle. Sans le « @ » ni le modèle, la ligne répétait le titre — c'est
@@ -1497,7 +1552,7 @@ fun ChatScreen(
                 isStreaming = state.isStreaming,
                 title = threadSpeaker.label,
                 returnSends = returnSends,
-                queued = state.queued.size,
+                queued = state.queuedSize,
                 attachments = state.attachments,
                 onPasteImages = { uris -> onAddAttachments(uris) },
                 onRemoveAttachment = onRemoveAttachment,
@@ -1698,7 +1753,7 @@ fun ChatScreen(
         // pastille « aller au dernier message » reste, sous la même garde de mesure (`floatAnchor`).
         AnimatedVisibility(
             visible = offersJump && pagerState.currentPage == 0 &&
-                state.queued.isEmpty() && mentionSuggestions.isEmpty() && state.slashItems.isEmpty() &&
+                state.queuedSize == 0 && mentionSuggestions.isEmpty() && state.slashItems.isEmpty() &&
                 // **La garde de mesure** : la pastille ne se dessine pas avant la mesure de la plaque.
                 floatAnchor != null,
             // Il **paraît d'un coup** : un fondu court, figé sous « Réduire les animations »

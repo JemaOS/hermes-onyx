@@ -41,7 +41,9 @@ class FilesTabWiringTest {
     fun `l onglet des fichiers montre les fichiers echanges, avec leur type et leur date`() {
         assertTrue(
             "le fil fournit les fichiers de l'onglet",
-            chatScreen.contains("ChatFiles.conversationFiles(state.messages.take(settledCount))"),
+            // LOT projection : la liste des fichiers se lit sur le fil vivant, dans sa
+            // propre portee - le corps de l'ecran ne lit plus l'etat vivant.
+            chatScreen.contains("ChatFiles.conversationFiles(stateFlow.value.messages.take(settledCount))"),
         )
         assertTrue("le panneau reçoit la liste", chatScreen.contains("files = exchangedFiles"))
         assertTrue("le panneau reçoit le serveur actif", chatScreen.contains("config = state.server"))

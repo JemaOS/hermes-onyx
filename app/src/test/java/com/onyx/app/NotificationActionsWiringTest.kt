@@ -63,7 +63,10 @@ class NotificationActionsWiringTest {
     @Test
     fun `l'app notifie les questions en arriere-plan et non au premier plan`() {
         val app = read("src/main/java/com/onyx/app/ui/OnyxApp.kt")
-        assertTrue(app.contains("pendingQuestionsOf(state.messages)"))
+        // LOT projection : les questions en attente viennent de la projection de la coquille
+        // (`pendingQuestions`), qui les calcule une fois - elles ne changent pas quand le texte
+        // qui s'ecrit grandit. Le contrat est le meme : la question vient du fil.
+        assertTrue(app.contains("pendingQuestions = state.pendingQuestions"))
         assertTrue(app.contains("QuestionNotifier.notifyQuestion("))
         assertTrue(app.contains("canAnswerInline("))
         // Au premier plan, la carte suffit : la notification s'efface (et l'appel qui sonnait se retire).

@@ -116,7 +116,8 @@ class ComposerLayoutTest {
         // d'état. Rien n'est relâché — la condition « il y a des messages » reste exigée.
         assertTrue(
             "le suivi est conditionné",
-            screen.contains("if (ScrollFollow.followsNewContent(following) && state.messages.isNotEmpty())"),
+            // LOT projection : la decision de suivi passe par la forme observee (`shape`).
+            screen.contains("if (ScrollFollow.followsNewContent(shape.following) && stateFlow.value.messages.isNotEmpty())"),
         )
         assertTrue(
             "un geste en cours reprend la main",

@@ -39,7 +39,8 @@ class ChatScrollFollowTest {
     fun `le bouton du dernier message parait des que le suivi est detache`() {
         assertTrue(
             "offert sur « détaché et hors de la marge d'ancrage », comme la référence",
-            screen.contains("val offersJump = state.messages.isNotEmpty() && !following && !withinAnchor"),
+            // LOT projection : la forme du fil, pas son contenu.
+            screen.contains("val offersJump = state.messagesSize > 0 && !following && !withinAnchor"),
         )
     }
 
@@ -51,7 +52,8 @@ class ChatScrollFollowTest {
 
     @Test
     fun `un message de la personne ramene en bas`() {
-        assertTrue(screen.contains("val userTurns = remember(state.messages.size)"))
+        // LOT projection : le nombre de tours vient de la projection, calcule une fois.
+        assertTrue(screen.contains("val userTurns = state.userTurnCount"))
         assertTrue(screen.contains("userTurns > seenUserTurns"))
     }
 

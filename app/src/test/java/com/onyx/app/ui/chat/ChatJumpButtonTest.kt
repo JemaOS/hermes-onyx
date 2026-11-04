@@ -83,11 +83,14 @@ class ChatJumpButtonTest {
     @Test
     fun `le bouton disparait quand la fin est a l ecran`() {
         assertTrue(
-            screen.contains("val offersJump = state.messages.isNotEmpty() && !following && !withinAnchor"),
+            // LOT projection : l'ecran lit la forme du fil (`messagesSize`), pas le fil
+            // lui-meme - un jeton ne doit pas le faire recomposer. Le contrat est le meme :
+            // le bouton s'offre sur « detache et hors de la marge d'ancrage ».
+            screen.contains("val offersJump = state.messagesSize > 0 && !following && !withinAnchor"),
         )
         assertTrue(
             "et il s'efface devant les messages en attente et la liste des mentions",
-            screen.contains("state.queued.isEmpty() && mentionSuggestions.isEmpty()"),
+            screen.contains("state.queuedSize == 0 && mentionSuggestions.isEmpty()"),
         )
     }
 

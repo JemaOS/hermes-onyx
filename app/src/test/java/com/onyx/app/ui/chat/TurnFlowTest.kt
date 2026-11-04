@@ -145,10 +145,13 @@ class TurnFlowTest {
     @Test
     fun `l ecran passe l etat reel et le signal de lecture a l en-tete et aux cartes`() {
         val chat = File("src/main/java/com/onyx/app/ui/chat/ChatScreen.kt").readText()
-        assertTrue("l'état vient du fil, pas d'un ornement", chat.contains("val flow = turnFlowState(state.live, pendingApprovals)"))
+        // LOT projection : la phase du tour est reconstituee depuis l'etape et l'etat du flux
+        // - jamais l'horodatage, qui change a chaque jeton. Le contrat est le meme : l'etat
+        // vient du fil, pas d'un ornement.
+        assertTrue("l'état vient du fil, pas d'un ornement", chat.contains("val flow = turnFlowState("))
         assertTrue(
             "le compte des approbations vient du fil",
-            chat.contains("val pendingApprovals = pendingApprovalCount(state.messages)"),
+            chat.contains("val pendingApprovals = state.pendingApprovals"),
         )
         assertTrue(
             "« on remonte lire » est le suivi détaché pendant un tour",

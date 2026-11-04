@@ -29,7 +29,8 @@ class MentionMenuWiringTest {
         assertTrue(app.contains("mentionBots = mentionRoster,"))
         assertTrue(app.contains("BotMentions.rosterForMentions(bots,"))
         // La liste occupe la place du bouton « Jump to latest », qui s'efface devant elle.
-        assertTrue(screen.contains("state.queued.isEmpty() && mentionSuggestions.isEmpty()"))
+        // LOT projection : la file d'envoi vient de la forme du fil (`queuedSize`).
+        assertTrue(screen.contains("state.queuedSize == 0 && mentionSuggestions.isEmpty()"))
     }
 
     @Test

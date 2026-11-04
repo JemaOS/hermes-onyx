@@ -107,5 +107,25 @@ object ScrollFollow {
     ): Boolean = viewportPx - bottomPaddingPx >= marginPx
 }
 
+/**
+ * **La forme du tour, telle que le suivi du bas l'observe.**
+ *
+ * C'est la clé de l'observateur : elle porte ce qui décide d'un retour en bas — la longueur du
+ * texte vivant, l'état du flux, la file d'envoi, l'étape du tour et la décision de suivi.
+ *
+ * Le suivi du bas observait ces cinq choses par un effet **relancé** à chaque changement de
+ * l'une d'elles. La longueur du texte change à **chaque publication** (trente-trois par seconde
+ * pendant une réponse) : l'effet était donc annulé puis relancé trente-trois fois par seconde, et
+ * chacun posait un `scrollToItem` — une coroutine suspendue qui redemande une mesure complète de
+ * la liste. Un seul `snapshotFlow` sur cette forme observe la même chose sans relancer personne.
+ */
+data class FollowShape(
+    val lastLength: Int,
+    val isStreaming: Boolean,
+    val queued: Int,
+    val step: TurnStep?,
+    val following: Boolean,
+)
+
 /** L'étiquette de la trace du suivi, telle qu'elle se lit dans `logcat`. */
 const val ScrollFollowLogTag: String = "OnyxScrollFollow"
