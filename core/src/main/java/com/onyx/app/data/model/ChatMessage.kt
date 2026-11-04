@@ -1,6 +1,7 @@
 package com.onyx.app.data.model
 
 import kotlinx.serialization.SerialName
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -47,6 +48,14 @@ enum class ToolStatus(val wire: String) {
  * Miroir de `ToolActivity` (Echo/Services/Transport/HermesTransport:45).
  */
 @Serializable
+/**
+ * Un appel d'outil, tel que le fil le dessine.
+ *
+ * `@Immutable` est une **promesse tenue** : tous les champs sont des `val`, et une étape qui change
+ * de statut est **remplacée** (`copy`) — jamais mutée sur place. Sans l'annotation, Compose traite
+ * chaque instance comme instable et **recompose toute la rangée** à chaque réémission du fil.
+ */
+@Immutable
 data class ToolActivity(
     val id: String,
     val name: String,
@@ -234,6 +243,15 @@ data class PrefillProgress(
  * Miroir de `Message` (Echo/Models/Message:3), en gardant ce qui est utile à l'UI Android.
  */
 @Serializable
+/**
+ * Un message du fil.
+ *
+ * `@Immutable`, et c'est la même promesse que [ToolActivity] : tout est `val`, et une réponse qui
+ * coule est remplacée, pas modifiée. C'est l'annotation qui permet à une rangée **de ne pas se
+ * recomposer** quand un autre message change — sans elle, chaque jeton rejouait toutes les lignes
+ * visibles, avec leurs lambdas et leurs mesures.
+ */
+@Immutable
 data class ChatMessage(
     val id: String,
     val role: Role,

@@ -186,6 +186,26 @@ private fun MarkdownPlain(prose: String, tint: Color?) {
     )
 }
 
+/**
+ * **Le cache des moteurs Markwon** — quatre au plus, et l'entrée la moins récemment utilisée part.
+ *
+ * Un moteur ne dépend que du style : la même prose dans deux rangées du même thème n'a aucune
+ * raison d'en construire un second. Quatre entrées suffisent à couvrir deux thèmes (clair/sombre) et
+ * deux échelles de texte ; au-delà, on reconstruit plutôt que de garder indéfiniment.
+ */
+private object MarkwonCache {
+    private const val MaxEngines = 4
+    private val engines = object : LinkedHashMap<String, Markwon>(MaxEngines, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Markwon>): Boolean =
+            size > MaxEngines
+    }
+
+    /** Le moteur pour [key], construit par [build] s'il n'est pas déjà là (jamais un `null` gardé). */
+    fun get(key: String, build: () -> Markwon?): Markwon? = synchronized(engines) {
+        engines[key] ?: build()?.also { engines[key] = it }
+    }
+}
+
 /** Un morceau de prose, rendu par Markwon avec les couleurs et les polices du thème. */
 @Composable
 private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Boolean = false) {
@@ -215,6 +235,11 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
     val baseTextSize = with(density) { theme.messageFont.fontSize.toPx() }
 
     // `getOrNull` : si Markwon refuse de se construire, la prose repart en texte brut (voir plus bas).
+    //
+    // **Le moteur est partagé, pas reconstruit par rangée.** Quatre plugins, leurs constructeurs et
+    // un registre : c'était refait chaque fois qu'une rangée **re-entre** dans la fenêtre de la
+    // liste — c'est-à-dire à chaque défilement qui remonte. Le moteur ne dépend que du style ; il
+    // est donc gardé dans un cache à quatre entrées, et deux rangées du même thème le partagent.
     val markwon = remember(
         textColor,
         codeText,
@@ -228,6 +253,13 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
         baseTextSize,
         headingMultipliers,
     ) {
+        MarkwonCache.get(
+            key = listOf(
+                textColor, codeText, codeBackground, linkColor, quoteColor,
+                bodyTypeface?.hashCode(), checkboxChecked, checkboxOutline,
+                blockQuoteWidth, baseTextSize, headingMultipliers.contentHashCode(),
+            ).joinToString("|"),
+        ) {
         runCatching {
             Markwon.builder(context)
                 .usePlugin(StrikethroughPlugin.create())
@@ -263,6 +295,7 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
                 })
                 .build()
         }.getOrNull()
+        }
     }
 
     AndroidView(

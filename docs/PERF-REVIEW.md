@@ -152,3 +152,45 @@ Aucun chiffre dans ce document ne vient d'un profileur. Pour passer des raisonne
 
 Tant que ces mesures n'existent pas, toute affirmation du type « c'est plus fluide de X % » serait
 inventée.
+
+---
+
+## 7. Passe du 4 novembre — 1.3.29 → 1.3.30 (appliquée)
+
+Sept constats de la section 3 et un de la section 4 sont **appliqués**, chacun relu dans le code
+avant d'être touché, et chacun avec sa raison écrite au-dessus du changement.
+
+| # (section 3) | Défaut | Où | Ce qui change |
+|---|---|---|---|
+| 2 | Quatre analyses parcouraient tout le texte de la réponse à chaque composition : recherche du diff, découpage (**appelé deux fois**), tâches à cocher (JSON), fichiers livrés (regex sur ~12 000 caractères par outil) | `MessageRow.kt` | `MessageDerived.of(message)` : un seul calcul, mémorisé sur `(id, texte, outils)`. La carte lit le compte déjà calculé au lieu de redécouper le diff |
+| 3 | `reasoningLooksForeign` re-découpait tout le raisonnement en mots à chaque composition | `MessageRow.kt` | `remember(raisonnement, langue)`. `OnyxLocalization.isFrench()` est lu une fois, pas à chaque appel |
+| 4 | Le moteur Markwon (quatre plugins + registre) était reconstruit chaque fois qu'une rangée **re-entre** dans la fenêtre | `MarkdownText.kt` | `MarkwonCache` : quatre moteurs au plus, LRU, clefés sur le style (couleurs, tailles, police, densité) |
+| 9 (moitié) | Un `complete.slash` par frappe après « / » | `ChatViewModel.kt` | Délai de calme de 120 ms avant l'appel ; le caractère suivant annule le précédent |
+| 10 | Import des sessions serveur relancé à **chaque émission** de `activeServer` (donc à chaque réglage touché) | `ChatViewModel.kt` | Clé sur `configSignature` : un import par serveur, pas par émission |
+| 11 | Attente active `while (isStreaming) delay(200)` : cinq réveils/s sans limite | `ChatViewModel.kt` | `first { !it.isStreaming }` sous `withTimeoutOrNull(10 min)` |
+| 14 | Deux `TextMeasurer.measure` du compositeur refaits à chaque composition | `OnyxComposer.kt` | Table mémorisée par (police, densité) |
+| 15 (partie) | `localAddresses()` énumérait les interfaces réseau **à chaque démarrage**, pour un écran rarement ouvert | `OnyxApp.kt` | `lazy` : calculé à la première ouverture des écrans de connexion |
+| 4 (section 4) | `pinAll` / `archiveAll` faisaient **N écritures complètes** du fichier | `ConversationRepository.kt` | Une seule écriture, et rien n'est écrit si rien n'a changé |
+
+Plus deux annotations `@Immutable` (`ChatMessage`, `ToolActivity`) — la promesse est tenue : tous les
+champs sont des `val`, une réponse qui coule est **remplacée**. Sans elles, chaque jeton rejouait
+toutes les lignes visibles.
+
+Et un changement de rendu qui n'était pas dans la revue, trouvé en la relisant : **la prose sans
+balisage ne prend plus de vue Android** (`hasMarkup`, `MarkdownText.kt`). Une vue du système par
+message était le poste de dessin le plus lourd du fil.
+
+### Ce qui reste ouvert
+
+Les constats **1** (lambdas par ligne et lecture de `state` dans les items), **5** (lecture de
+`ChatUiState` dans `OnyxApp`), **6** (réserve du compositeur pilotée image par image), **7**
+(`Modifier.composed` sur chaque contrôle), **8** (une surface de verre par rangée de volet), **12**,
+**13** sont **non appliqués**. Le chantier de fond de la section 4 — **un fichier par conversation** —
+non plus. Aucun n'est contesté : ils demandent une reprise de structure, pas un `remember`.
+
+### Toujours aucune mesure
+
+La mesure d'image reste impossible ici : l'émulateur disponible rend en GL émulé et annonce lui-même
+un temps GPU de 4950 ms par image. Les chiffres de `dumpsys gfxinfo` qu'on y lit ne distinguent pas
+une version d'une autre. Tant qu'un appareil réel n'est pas mesuré, aucun pourcentage ne sera écrit
+dans ce document.

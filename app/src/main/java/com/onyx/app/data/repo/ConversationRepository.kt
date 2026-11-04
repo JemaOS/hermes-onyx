@@ -97,13 +97,33 @@ class ConversationRepository(
         return branch
     }
 
-    /** Épingle, archive ou supprime plusieurs conversations d'un coup (la sélection de la référence). */
+    /**
+     * Épingle plusieurs conversations d'un coup (la sélection de la référence).
+     *
+     * **Une écriture, pas N.** Chaque `save` réécrit le fichier **entier** — toutes les
+     * conversations, tous les messages. Épingler douze conversations en réécrivait douze fois le
+     * même fichier, sur une action qui n'a qu'un résultat : la liste change, puis le disque la
+     * reçoit une fois.
+     */
     suspend fun pinAll(ids: Set<String>, pinned: Boolean) {
-        ids.forEach { id -> find(id)?.let { save(it.copy(pinned = pinned)) } }
+        if (ids.isEmpty()) return
+        val touched = _conversations.value.map { conversation ->
+            if (conversation.id in ids) conversation.copy(pinned = pinned) else conversation
+        }
+        if (touched == _conversations.value) return
+        _conversations.value = touched
+        persist()
     }
 
+    /** Range plusieurs conversations dans les archives — même règle : une seule écriture. */
     suspend fun archiveAll(ids: Set<String>) {
-        ids.forEach { id -> find(id)?.let { save(it.copy(archived = true)) } }
+        if (ids.isEmpty()) return
+        val touched = _conversations.value.map { conversation ->
+            if (conversation.id in ids) conversation.copy(archived = true) else conversation
+        }
+        if (touched == _conversations.value) return
+        _conversations.value = touched
+        persist()
     }
 
     suspend fun deleteAll(ids: Set<String>) {

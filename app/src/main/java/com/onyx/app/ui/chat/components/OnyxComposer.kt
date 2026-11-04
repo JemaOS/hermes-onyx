@@ -609,14 +609,22 @@ fun OnyxComposer(
             // version **courte** (sans l'ellipse) quand la pleine n'y tient pas. Le libellé n'est
             // jamais coupé — la mesure décide, pas l'ellipse de Compose.
             val inviteMeasurer = rememberTextMeasurer()
+            // **La mesure d'un libellé ne change pas d'une image à l'autre.** Elle était refaite à
+            // chaque composition — pour chaque clé candidate, à chaque fois que le champ se
+            // recompose, c'est-à-dire à chaque frappe et à chaque trame de prose reçue. La table
+            // est mémorisée sur la police et la densité : deux choses qui ne bougent pas pendant
+            // qu'on écrit.
+            val inviteWidths = remember(inviteMeasurer, theme.body, density) { mutableMapOf<String, Float>() }
             val measureInvite: (String) -> Float = { key ->
-                val label = OnyxLocalization[key]
-                with(density) {
-                    inviteMeasurer.measure(
-                        label,
-                        style = theme.body,
-                        maxLines = 1,
-                    ).size.width.toDp().value
+                inviteWidths.getOrPut(key) {
+                    val label = OnyxLocalization[key]
+                    with(density) {
+                        inviteMeasurer.measure(
+                            label,
+                            style = theme.body,
+                            maxLines = 1,
+                        ).size.width.toDp().value
+                    }
                 }
             }
             // **En grand de base** : le champ réserve trois lignes dès le repos

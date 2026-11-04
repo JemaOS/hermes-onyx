@@ -578,7 +578,14 @@ fun OnyxApp() {
         // Les adresses du réseau de ce téléphone, lues une fois : ce que le mode « Simple » propose
         // en plus des serveurs déjà enregistrés. Relire les interfaces à chaque recomposition ne
         // servirait à rien et coûterait cher.
-        val setupLocalAddresses = remember { com.onyx.app.ui.setup.SetupSuggestions.localAddresses() }
+        // **Énuméré au premier besoin, pas à chaque démarrage.**
+        //
+        // `localAddresses()` parcourt les interfaces réseau du téléphone : un coût payé à **chaque**
+        // lancement, sur le thread principal, pour une suggestion que seuls les écrans de connexion
+        // affichent. La valeur est donc calculée à la première ouverture de l'un d'eux, puis gardée.
+        val setupLocalAddresses = remember {
+            lazy(LazyThreadSafetyMode.NONE) { com.onyx.app.ui.setup.SetupSuggestions.localAddresses() }
+        }
 
         // Le roster est lu tôt : la conversation ouverte le dit deux fois — son fil (le visage, le
         // nom, le placeholder) et les notifications, qui nomment le bot dans son fil.
@@ -1700,7 +1707,7 @@ fun OnyxApp() {
                 // les autres serveurs enregistrés.
                 suggestions = com.onyx.app.ui.setup.SetupSuggestions.known(
                     current = com.onyx.app.ui.setup.setupAddressOf(state.server),
-                    local = setupLocalAddresses,
+                    local = setupLocalAddresses.value,
                     lastGateway = serverList
                         .firstOrNull { it.id != state.server.id }
                         ?.let(::setupAddressOf)
@@ -4679,7 +4686,7 @@ fun OnyxApp() {
                     // précédente, autres serveurs enregistrés).
                     suggestions = com.onyx.app.ui.setup.SetupSuggestions.known(
                         current = com.onyx.app.ui.setup.setupAddressOf(state.server),
-                        local = setupLocalAddresses,
+                        local = setupLocalAddresses.value,
                         lastGateway = serverList
                             .firstOrNull { it.id != state.server.id }
                                 ?.let(::setupAddressOf)

@@ -56,11 +56,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -72,6 +74,12 @@ import java.util.UUID
  * devient [applyEvent], et `ConversationStore` est ici [ConversationRepository].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+/** Le calme avant d'interroger le serveur pour le menu « / » (ms). */
+private const val SlashCompleteDebounceMs = 120L
+
+/** L'attente la plus longue d'un tour avant qu'une commande « / » ne renonce (10 minutes). */
+private const val SlashWaitTimeoutMs = 10 * 60 * 1000L
+
 class ChatViewModel(
     application: Application,
     private val servers: ServerRepository,
@@ -237,8 +245,17 @@ class ChatViewModel(
         // anciennes — s'importent ici, une fois par serveur : sans cela, le volet restait vide
         // alors que le serveur en comptait des dizaines.
         viewModelScope.launch {
+            // **Un import par serveur, pas par émission.** `activeServer` réémet à chaque réglage
+            // touché (thème, police, profil, modèle) : l'import relançait alors une lecture de tous
+            // les profils et une écriture complète de l'historique **par changement**, pour un
+            // résultat identique. La clé est la signature de configuration : elle change quand le
+            // serveur change, pas quand un réglage d'affichage bouge.
+            var importedFor: String? = null
             servers.activeServer.collect { server ->
-                if (server.hasServeCredentials) importServerSessions(server)
+                if (!server.hasServeCredentials) return@collect
+                if (importedFor == server.configSignature) return@collect
+                importServerSessions(server)
+                importedFor = server.configSignature
             }
         }
         // Le menu qui s'ouvre sur un appui long sur l'icône : un raccourci de **bot** ouvre la
@@ -772,6 +789,11 @@ class ChatViewModel(
             return
         }
         slashJob = viewModelScope.launch {
+            // **Une frappe, une requête — au plus.** Chaque caractère tapé après « / » lançait un
+            // `complete.slash` : quatre-vingts appels pour un mot de vingt lettres, dont aucun ne
+            // servait puisque le suivant annulait le précédent. Le petit délai n'ajoute rien à la
+            // sensation (le menu apparaît quand le doigt s'arrête) et supprime la rafale.
+            delay(SlashCompleteDebounceMs)
             val server = _state.value.server
             val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
             val result = runCatching {
@@ -1159,7 +1181,17 @@ class ChatViewModel(
         viewModelScope.launch {
             // Un tour est déjà en cours : la compétence attend son tour au lieu d'ouvrir un second
             // flux sur la même conversation.
-            while (_state.value.isStreaming) delay(200)
+            //
+            // **On attend le changement, on ne le scrute pas.** La boucle réveillait le processus
+            // cinq fois par seconde sans limite ; un flux qui dure dix minutes, c'est trois mille
+            // réveils pour rien — et chacun republie une lecture d'état dans un tour déjà chargé.
+            // `first { }` se réveille au changement, et `withTimeout` rend la main plutôt que
+            // d'attendre indéfiniment un tour qui ne finira jamais.
+            runCatching {
+                withTimeoutOrNull(SlashWaitTimeoutMs) {
+                    state.first { !it.isStreaming }
+                }
+            }
             val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
             val result = runCatching {
                 channel.call(

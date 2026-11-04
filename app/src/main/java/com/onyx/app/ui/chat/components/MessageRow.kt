@@ -211,17 +211,30 @@ fun MessageRow(
             }
         }
 
-        // Un diff dans la réponse ou dans une sortie d'outil se lit à part.
-        val patch = (message.tools.mapNotNull { it.output } + message.text)
-            .lastOrNull { com.onyx.app.ui.rich.looksLikePatch(it) }
+        // **Ce que la rangée déduit de son texte, calculé UNE fois.**
+        //
+        // Quatre analyses parcouraient tout le contenu à **chaque** composition de la ligne : la
+        // recherche d'un diff (une passe `looksLikePatch` par sortie d'outil, plus le texte), le
+        // découpage du diff (`patchFiles`, **appelé deux fois** pour la même valeur), les tâches à
+        // cocher (`todosFrom`, un décodage JSON) et les fichiers livrés (`DeliveredFiles.of`, une
+        // expression régulière sur ~12 000 caractères par outil). Sur une réponse de quarante
+        // outils, c'est un demi-mégaoctet relu à chaque image pendant qu'on fait défiler.
+        //
+        // Les clés sont **le contenu**, pas `message` : une réponse qui coule change de texte à
+        // chaque trame, et une carte d'outil qui se termine change de sorties — les deux doivent
+        // recalculer. Une recomposition qui ne touche à rien, elle, ne recalcule plus rien.
+        val derived = remember(message.id, message.text, message.tools) {
+            MessageDerived.of(message)
+        }
+        val patch = derived.patch
         if (patch != null && onOpenPatch != null) {
             com.onyx.app.ui.chat.components.ContextCard(
                 // LOT fil-vivant : un diff est une **carte de contexte** comme les autres — même
                 // rayon, même filet, même en-tête, état à gauche, action à droite. Son état est
                 // celui d'un travail livré : il est là, complet, dès qu'il s'affiche.
-                state = patchCardState(remember(patch) { com.onyx.app.ui.rich.patchFiles(patch) }.size),
+                state = patchCardState(derived.patchFileCount),
                 title = "View change",
-                detail = remember(patch) { com.onyx.app.ui.rich.patchSummary(com.onyx.app.ui.rich.patchFiles(patch)) },
+                detail = derived.patchSummary,
                 titleMonospace = false,
                 readingUp = readingUp,
                 onClick = { onOpenPatch(patch) },
@@ -240,14 +253,12 @@ fun MessageRow(
             )
         }
 
-        todosFrom(message.tools).takeIf { it.isNotEmpty() }?.let { todos ->
+        derived.todos.takeIf { it.isNotEmpty() }?.let { todos ->
             TodoChecklist(items = todos, isLive = isLive)
         }
 
         // Les fichiers que la réponse a livrés, comme les pastilles de la référence.
-        val delivered = com.onyx.app.ui.chat.DeliveredFiles.of(
-            message.tools.map { it.output } + message.text,
-        )
+        val delivered = derived.delivered
         if (delivered.isNotEmpty() && onOpenDelivered != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 delivered.forEach { file ->
@@ -726,7 +737,14 @@ private fun ThinkingFold(message: ChatMessage, isLive: Boolean) {
     val thinking = isLive && message.text.isEmpty()
     // **Ce que le bloc doit dire de lui-même** : le raisonnement est dans une autre langue que
     // l'app. Rien à annoncer s'il est déjà dans notre langue.
-    val foreign = reasoningLooksForeign(message.reasoning, OnyxLocalization.isFrench())
+    // **Mémorisé par (raisonnement, langue de l'app).** La détection découpe tout le raisonnement
+    // en mots et les compare à deux vocabulaires : c'est une allocation et un `lowercase()` sur un
+    // texte qui peut faire des milliers de caractères, refaits à chaque composition du bloc — donc
+    // à chaque image pendant qu'on fait défiler. Le résultat ne dépend que de ces deux valeurs.
+    val appIsFrench = OnyxLocalization.isFrench()
+    val foreign = remember(message.reasoning, appIsFrench) {
+        reasoningLooksForeign(message.reasoning, appIsFrench)
+    }
     // **L'annonce en petites capitales** : 11 sp SemiBold, interlettrage +0,08 em — la métrique du
     // libellé de section de la maison —, à l'encre mesurée ([reasoningInk]).
     val eyebrow = theme.caption2.copy(
