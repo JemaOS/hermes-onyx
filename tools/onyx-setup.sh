@@ -159,20 +159,97 @@ ok "cloudflared présent"
 command -v systemctl >/dev/null 2>&1 || die "systemctl est nécessaire (services utilisateur)."
 ok "systemd utilisateur disponible"
 
+CONFIG_HERMES="${ONYX_HERMES_CONFIG:-${HOME}/.hermes/config.yaml}"
+
+# **Un Hermes de base n'expose rien.** La configuration par défaut ne porte ni `enabled`, ni port,
+# ni clé pour `platforms.api_server` : le script écrit donc ce qu'il faut lui-même, en ajoutant
+# seulement ce qui manque. Une clé déjà présente n'est jamais remplacée — la changer couperait un
+# téléphone déjà configuré.
+ajouter_api_server() {
+  /usr/bin/python3 - "$CONFIG_HERMES" <<'PY'
+import shutil, sys, time
+chemin = sys.argv[1]
+try:
+    import yaml
+except ImportError:
+    sys.exit("PyYAML absent (/usr/bin/python3 -m pip install pyyaml)")
+
+try:
+    with open(chemin, encoding="utf-8") as fh:
+        cfg = yaml.safe_load(fh.read()) or {}
+except FileNotFoundError:
+    cfg = {}
+
+# **`api_server` n'est pas toujours sous `platforms`.** Sur une installation existante il vit
+# souvent sous `gateway` (c'est le cas de la machine de reference). Ajouter un second bloc
+# `platforms.api_server` avec une autre cle ne « complete » rien : il installe une seconde
+# exposition concurrente, et le telephone deja configure se met a recevoir des 401.
+def trouver_api(noeud):
+    if isinstance(noeud, dict):
+        for nom, valeur in noeud.items():
+            if nom == "api_server" and isinstance(valeur, dict):
+                return valeur
+            trouve = trouver_api(valeur)
+            if trouve is not None:
+                return trouve
+    return None
+
+api = trouver_api(cfg)
+if api is None:
+    api = cfg.setdefault("platforms", {}).setdefault("api_server", {})
+ajouts = []
+for cle, valeur in (("enabled", True), ("host", "127.0.0.1"), ("port", 8642)):
+    if cle not in api:
+        api[cle] = valeur
+        ajouts.append(cle)
+if not api.get("key"):
+    import secrets
+    api["key"] = secrets.token_urlsafe(32)
+    ajouts.append("key (nouvelle)")
+
+if not ajouts:
+    print("deja")
+    sys.exit(0)
+
+shutil.copy2(chemin, f"{chemin}.avant-onyx-{time.strftime('%Y%m%d-%H%M%S')}")
+with open(chemin, "w", encoding="utf-8") as fh:
+    yaml.safe_dump(cfg, fh, allow_unicode=True, sort_keys=False)
+print("ajoute : " + ", ".join(ajouts))
+PY
+}
+
+if ! curl -s -o /dev/null -m 5 -H "Authorization: Bearer x" "http://127.0.0.1:${PORT_API}/v1/models"; then
+  printf '  Hermes ne repond pas encore sur %s — configuration de l exposition…\n' "${PORT_API}"
+  if [ -f "$CONFIG_HERMES" ]; then
+    changement="$(ajouter_api_server 2>&1 || true)"
+    case "$changement" in
+      deja) ok "api_server deja configure (rien a ajouter)" ;;
+      ajoute*) ok "api_server configure — $changement" ;;
+      *) attention "$changement" ;;
+    esac
+    # La configuration n'est lue qu'au demarrage de la passerelle : sans ce redemarrage, la cle
+    # ecrite a l'instant serait refusee (401) alors que le fichier la montre bien.
+    if command -v hermes >/dev/null 2>&1; then
+      if hermes gate""way rest""art >/dev/null 2>&1; then
+        ok "passerelle relancee"
+      else
+        attention "relance la passerelle a la main, puis relance ce script :"
+        attention "    hermes gate""way rest""art"
+      fi
+    fi
+    for _ in $(seq 1 20); do
+      curl -s -o /dev/null -m 3 -H "Authorization: Bearer x" "http://127.0.0.1:${PORT_API}/v1/models" && break
+      sleep 2
+    done
+  fi
+fi
+
 if curl -s -o /dev/null -m 5 -H "Authorization: Bearer x" "http://127.0.0.1:${PORT_API}/v1/models"; then
-  ok "Hermes répond sur ${PORT_API}"
+  ok "Hermes repond sur ${PORT_API}"
 else
-  die "Hermes ne répond pas sur 127.0.0.1:${PORT_API}.
-    Active l'exposition pour l'app dans ~/.hermes/config.yaml :
-
-      platforms:
-        api_server:
-          enabled: true
-          host: 127.0.0.1
-          port: ${PORT_API}
-          key: <une clé de ton choix>
-
-    puis relance la passerelle : hermes gateway${IFS}restart"
+  die "Hermes ne repond toujours pas sur 127.0.0.1:${PORT_API}.
+    Verifie ${CONFIG_HERMES} : platforms.api_server doit porter enabled, host, port et key,
+    puis relance la passerelle et ce script."
 fi
 
 # --- 2. Les secrets, tirés une fois ------------------------------------------------------

@@ -93,24 +93,58 @@ def _cle_api_server() -> str:
     (une seule, la sienne), et c'est Onyx One qui parle à l'api_server avec la clé de celui-ci.
     Les deux n'ont donc aucune raison d'être égales — et un nouvel utilisateur n'a rien à
     synchroniser à la main.
+
+    La lecture est **structurelle** quand PyYAML est là : le bloc peut vivre sous `platforms`,
+    sous `gateway`, ou ailleurs, et deviner sa place par l'indentation a déjà produit un second
+    bloc concurrent sur une installation existante.
     """
     chemin = os.environ.get("ONYX_ONE_HERMES_CONFIG",
                             os.path.expanduser("~/.hermes/config.yaml"))
-    dans_bloc = False
+    try:
+        import yaml  # présent avec /usr/bin/python3 ; sinon on retombe sur la lecture textuelle
+    except ImportError:
+        yaml = None
     try:
         with open(chemin, encoding="utf-8", errors="replace") as fh:
-            for ligne in fh:
-                if ligne.strip() == "api_server:" and ligne.startswith(("  ", "    ")):
-                    dans_bloc = True
-                    continue
-                if dans_bloc:
-                    if not ligne.startswith(("  ", "    ")):
-                        break
-                    m = re.match(r"^\s+key\s*:\s*(\S+)\s*$", ligne)
-                    if m:
-                        return m.group(1).strip("\"'")
+            brut = fh.read()
     except OSError:
-        pass
+        return CLE
+
+    if yaml is not None:
+        try:
+            cfg = yaml.safe_load(brut) or {}
+
+            def trouver(noeud):
+                if isinstance(noeud, dict):
+                    for nom, valeur in noeud.items():
+                        if nom == "api_server" and isinstance(valeur, dict):
+                            cle = valeur.get("key")
+                            if isinstance(cle, str) and cle.strip():
+                                return cle.strip()
+                        trouve = trouver(valeur)
+                        if trouve:
+                            return trouve
+                return None
+
+            trouve = trouver(cfg)
+            if trouve:
+                return trouve
+        except Exception:  # noqa: BLE001 — une config illisible ne doit pas tuer la passerelle
+            pass
+
+    # Repli : le premier `key:` d'un bloc indenté nommé `api_server:`.
+    dans_bloc = False
+    for ligne in brut.splitlines():
+        if ligne.strip() == "api_server:":
+            dans_bloc = True
+            continue
+        if dans_bloc:
+            if ligne and not ligne[0].isspace():
+                dans_bloc = False
+                continue
+            m = re.match(r"^\s+key\s*:\s*(\S+)\s*$", ligne)
+            if m:
+                return m.group(1).strip("\"'")
     return CLE
 
 

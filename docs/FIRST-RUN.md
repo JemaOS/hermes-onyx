@@ -71,6 +71,31 @@ To have it delivered to you automatically when the name changes, write the recip
 echo "telegram:<your-chat-id>" > ~/.onyx-one/telegram-destinataire
 ```
 
+## What the script does that you would otherwise do by hand
+
+- **It enables Hermes' API server.** A fresh Hermes has no `platforms.api_server` block at all — no
+  `enabled`, no port, no key. The script adds only what is missing, keeps an existing key untouched,
+  and backs the file up first (`config.yaml.avant-onyx-*`). If the block already lives under
+  `gateway.api_server`, it is found there and nothing is duplicated.
+- **It restarts the gateway**, because the configuration is only read at startup: a key written a
+  second ago is refused with a `401` while the file shows it.
+- **It installs the dashboard** (`hermes serve`), without which the app gets a `404` on Scheduled
+  and Tools and reports the gateway as unreachable.
+- **It installs the Computer bridge** — code, virtualenv, token, tunnel.
+- **It waits for the tunnel to answer**, then prints the link and its QR.
+
+## What is still yours to do
+
+| Situation | What you do |
+|---|---|
+| After a reboot, if the public name changed | run `tools/onyx-setup.sh --link` and scan the new QR |
+| You want the new link pushed to you automatically | `echo "telegram:<chat-id>" > ~/.onyx-one/telegram-destinataire` |
+| A named tunnel instead of a random one | needs a Cloudflare account and a domain — the script uses a *quick* tunnel, which needs neither |
+
+**Platforms:** Linux with systemd user services. macOS and Windows have no `systemctl --user`, so
+the service installation part does not apply there — the bridge, the gateway and the tunnel can be
+started by hand, but this script will not do it for you.
+
 ## If something is wrong
 
 ```bash
