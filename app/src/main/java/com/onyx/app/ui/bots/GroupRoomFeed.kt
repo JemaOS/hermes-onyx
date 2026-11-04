@@ -55,6 +55,11 @@ data class GroupRoomFeedState(
     val room: GroupRoom,
     val events: List<GroupEvent> = emptyList(),
     val status: GroupState = GroupState(),
+    /**
+     * Le meneur que la **salle** annonce (`groups.state` → `context.lead_member_id`, routage
+     * `lead`). `null` quand la salle n'en a pas — ou quand ce serveur ne connaît pas le routage.
+     */
+    val leadMemberId: String? = null,
     /** Les messages envoyés, pas encore dans le journal. */
     val sending: List<GroupSending> = emptyList(),
     /** Les réponses en train d'être écrites, chacune jusqu'à ce que la salle l'ait. */
@@ -290,6 +295,7 @@ class GroupRoomFeed(
                 state.copy(
                     room = if (members != null) state.room.copy(members = members) else state.room,
                     status = status,
+                    leadMemberId = roomStatus.leadMemberId,
                     problem = null,
                     loaded = true,
                 )

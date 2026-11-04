@@ -102,9 +102,15 @@ class ServeGroupsRpc(private val rpc: RpcChannel) : GroupRoomApi {
     override suspend fun roomState(room: String): GroupRoomStatus {
         val result = rpc.call("groups.state", buildJsonObject { put("room_id", room) }, CALL_TIMEOUT)
         val root = result.asObject()
+        val context = root?.obj("context")
         return GroupRoomStatus(
             room = root?.obj("room")?.let(GroupRoom::from),
             state = GroupState.from(root?.get("driver_status")),
+            // Le meneur n'existe que si le routage est en mode `lead` : un `lead_member_id` laissé
+            // derrière par un passage à `everyone` ne désigne personne.
+            leadMemberId = context
+                ?.takeIf { it.strOrNull("routing") == "lead" }
+                ?.strOrNull("lead_member_id"),
         )
     }
 

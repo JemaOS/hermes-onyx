@@ -8,6 +8,7 @@ import com.onyx.app.data.room.RoomHandoffLine
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -134,5 +135,26 @@ class RoomLeadTest {
             through = 4,
         )
         assertEquals("Coder", fresh.lead)
+    }
+
+    /**
+     * **Le meneur annoncé par la salle** (`context.lead_member_id`) est un identifiant de membre ;
+     * l'écran, lui, coche un profil. C'est le roster qui fait le pont — et un identifiant inconnu
+     * du roster est rendu tel quel plutôt qu'effacé en silence.
+     */
+    @Test
+    fun `le meneur de la salle est resolu dans le roster`() {
+        val members = listOf(
+            GroupMember(id = "m-planner", profile = "planner", handle = "planner", displayName = "Planner"),
+            GroupMember(id = "coder", profile = "coder", handle = "coder", displayName = "coder"),
+        )
+
+        assertEquals("planner", roomLeadProfile("m-planner", members))
+        assertEquals("coder", roomLeadProfile("coder", members))
+        // Un identifiant que le roster ne connaît pas garde son nom : mieux vaut un nom inconnu
+        // qu'un meneur qui disparaît.
+        assertEquals("ghost", roomLeadProfile("ghost", members))
+        // Rien à nommer : pas de meneur.
+        assertNull(roomLeadProfile("   ", members))
     }
 }

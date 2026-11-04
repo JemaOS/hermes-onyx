@@ -253,4 +253,13 @@ data class GroupSessionSlice(
 )
 
 /** Ce que `groups.state` répond pour une salle : la salle telle qu'Hermes la voit, et son état. */
-data class GroupRoomStatus(val room: GroupRoom?, val state: GroupState)
+data class GroupRoomStatus(
+    val room: GroupRoom?,
+    val state: GroupState,
+    /**
+     * Le meneur que la **salle** annonce (`groups.state` → `context.lead_member_id`), quand son
+     * routage est en mode `lead`. `null` : pas de routage par meneur, ou un serveur qui ne le dit
+     * pas — c'est alors le réglage du téléphone qui vaut.
+     */
+    val leadMemberId: String? = null,
+)

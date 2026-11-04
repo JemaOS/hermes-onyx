@@ -119,8 +119,34 @@ class GroupRoomViewModel(
         // venu est l'histoire de la salle (il ne défait pas le choix d'aujourd'hui), et les
         // passages **suivants** changent le destinataire par défaut de la suite — une seule fois
         // chacun.
-        viewModelScope.launch { state.collect { current -> applyHandoffs(current) } }
+        viewModelScope.launch {
+            state.collect { current ->
+                adoptRoomLead(current)
+                applyHandoffs(current)
+            }
+        }
     }
+
+    /**
+     * **Le meneur que la salle annonce** (`groups.state` → `context.lead_member_id`), adopté une
+     * fois à l'ouverture.
+     *
+     * Sans ça, un meneur choisi depuis un autre appareil restait invisible ici : le menu montrait le
+     * choix du téléphone, et l'écran pouvait désigner un autre bot que celui que la salle routait.
+     * La salle fait foi quand elle parle ; le réglage local reste le repli quand elle se tait.
+     */
+    private fun adoptRoomLead(current: GroupRoomFeedState) {
+        if (leadAdopted) return
+        val named = current.leadMemberId ?: return
+        leadAdopted = true
+        val profile = roomLeadProfile(named, current.room.members) ?: return
+        if (profile == _lead.value) return
+        _lead.value = profile
+        leadStore.set(current.room.id, profile)
+    }
+
+    /** L'état de la salle n'a été lu qu'une fois pour le meneur : ensuite, c'est le local qui vit. */
+    private var leadAdopted = false
 
     // — Ce qu'une scène vocale lit dans cette salle (`GroupVoiceThread`) —
 
@@ -356,6 +382,18 @@ class GroupRoomViewModel(
  * chaque reconnexion) ne change pas deux fois le destinataire, et ne réécrit pas le réglage.
  */
 internal data class RoomLeadRead(val lead: String?, val through: Int)
+
+/**
+ * **Le profil d'un meneur annoncé par la salle** (`context.lead_member_id`), résolu dans le roster.
+ *
+ * La salle nomme un **membre** (`coder`), l'écran coche un **profil** : c'est le roster qui fait le
+ * pont. Un identifiant qui ne correspond à aucun membre est rendu tel quel — il vient du serveur, et
+ * l'écran préfère un nom qu'il ne connaît pas à un meneur silencieusement effacé.
+ */
+internal fun roomLeadProfile(memberId: String, members: List<GroupMember>): String? {
+    val id = memberId.trim().takeIf { it.isNotEmpty() } ?: return null
+    return members.firstOrNull { it.id == id }?.profile ?: id
+}
 
 internal fun roomLeadRead(lead: String?, lines: List<RoomHandoffLine>, through: Int): RoomLeadRead {
     val fresh = lines.lastOrNull { it.seq > through } ?: return RoomLeadRead(lead, through)
