@@ -49,6 +49,7 @@ import com.onyx.app.ui.localization.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -59,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -971,6 +973,10 @@ private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boo
     // LOT outils-detail : l'appel dont la **feuille de détail** est ouverte, gardé par son
     // identifiant — jamais une position dans la liste (voir `toolCallSelection`).
     var detailOf by remember { mutableStateOf<String?>(null) }
+    // **Une seule lambda pour toutes les rangées.** Recréée à chaque recomposition, elle rendait
+    // chaque carte non sautable : c'est elle qui décidait si les huit cartes se redessinaient quand
+    // seul le texte de la réponse changeait.
+    val onOpenStep: (String) -> Unit = remember { { id -> detailOf = id } }
     val working = isLive && tools.any { it.isRunning }
     val open = chosen ?: (isLive && textEmpty)
 
@@ -996,35 +1002,19 @@ private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boo
                 fadeOut(animationSpec = OnyxMotion.Sites.MessageFold),
         ) {
             FoldBody {
+                // **Une rangée d'outil est identifiée par son appel, pas par sa place.** Sans
+                // `key`, chaque réémission du fil rejouait les huit cartes comme si elles avaient
+                // changé de nature ; avec, Compose reconnaît celle qui n'a pas bougé et la laisse
+                // telle quelle pendant que le texte s'écrit.
                 tools.forEach { tool ->
-                    val canOpen = tool.args != null || tool.output != null
-                    val rowLabel = toolRowLabel(tool)
-                    // **LOT fil-vivant : chaque appel d'outil est une carte de contexte**
-                    // ([ContextCard]) — même rayon, même filet, même en-tête, état à gauche, action
-                    // à droite, exactement comme un sous-agent ou une approbation. Sa puce dit son
-                    // **vrai** état ([toolCardState] : l'anneau qui tourne, la coche tracée,
-                    // la croix), et le repli est celui de la maison.
-                    //
-                    // Le repli garde son geste d'origine : la **rangée** ouvre la feuille du détail
-                    // (48 dp de haut, le même contrat que le lot « outils-detail »), le **chevron**
-                    // déplie l'appel sur place.
-                    ContextCard(
-                        state = toolCardState(tool.status),
-                        title = rowLabel.text,
-                        titleMonospace = rowLabel.monospace,
-                        identifier = rowLabel.id,
-                        detail = tool.preview?.takeIf { it.isNotBlank() },
-                        trailing = toolElapsedSeconds(tool)?.let { ranToolsDuration(it) },
-                        minHeight = ToolCallRowMinTouch,
-                        leading = { StepMark(status = tool.status, animate = isLive) },
-                        readingUp = readingUp,
-                        onClick = { detailOf = tool.id },
-                        foldBody = if (canOpen) {
-                            { StepDetail(tool) }
-                        } else {
-                            null
-                        },
-                    )
+                    key(tool.id) {
+                        ToolStepRow(
+                            tool = tool,
+                            isLive = isLive,
+                            readingUp = readingUp,
+                            onOpen = onOpenStep,
+                        )
+                    }
                 }
             }
         }
@@ -1035,6 +1025,52 @@ private fun StepsFold(tools: List<ToolActivity>, isLive: Boolean, textEmpty: Boo
             ToolCallDetailSheet(tool = picked, onDismiss = { detailOf = null })
         }
     }
+}
+
+/**
+ * **Une rangée d'outil, isolée pour pouvoir être sautée.**
+ *
+ * Le défaut relevé : « ça lag quand il y a beaucoup de trucs comme ça dans le chat » — une réponse
+ * qui a lancé huit outils affiche huit cartes, et chacune se redessinait à **chaque** réémission du
+ * fil, c'est-à-dire à la cadence du texte qui s'écrit. Le corps de la carte était peint depuis la
+ * boucle, avec ses lambdas recréées à chaque passage : rien n'était sautable, donc rien n'était
+ * sauté.
+ *
+ * Extraite ici, elle ne prend que ce qui la concerne — l'appel (`ToolActivity`, `@Immutable`),
+ * deux drapeaux et **une seule** lambda pour toute la liste. Quand seul le texte de la réponse
+ * change, ces cartes ne bougent plus : elles restent ce qu'elles sont jusqu'à ce que leur propre
+ * appel change.
+ *
+ * `toolRowLabel` et la durée se lisent **une fois par appel**, pas une fois par image : elles
+ * découpent des arguments et du texte, et leur résultat ne dépend que de l'appel.
+ */
+@Composable
+private fun ToolStepRow(
+    tool: ToolActivity,
+    isLive: Boolean,
+    readingUp: Boolean,
+    onOpen: (String) -> Unit,
+) {
+    val rowLabel = remember(tool) { toolRowLabel(tool) }
+    val elapsed = remember(tool) { toolElapsedSeconds(tool) }
+    val canOpen = tool.args != null || tool.output != null
+    ContextCard(
+        state = toolCardState(tool.status),
+        title = rowLabel.text,
+        titleMonospace = rowLabel.monospace,
+        identifier = rowLabel.id,
+        detail = tool.preview?.takeIf { it.isNotBlank() },
+        trailing = elapsed?.let { ranToolsDuration(it) },
+        minHeight = ToolCallRowMinTouch,
+        leading = { StepMark(status = tool.status, animate = isLive) },
+        readingUp = readingUp,
+        onClick = { onOpen(tool.id) },
+        foldBody = if (canOpen) {
+            { StepDetail(tool) }
+        } else {
+            null
+        },
+    )
 }
 
 /** Un outil, ouvert : ce avec quoi il a été appelé et ce qu'il a rendu. */
@@ -1476,18 +1512,24 @@ private fun ActionIcon(
 @Composable
 private fun FoldBody(content: @Composable () -> Unit) {
     val theme = LocalOnyxTheme.current
-    Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-        Box(
-            modifier = Modifier
-                .width(2.dp)
-                .fillMaxHeight()
-                .background(theme.separator),
-        )
-        Column(
-            modifier = Modifier.padding(start = 12.dp, top = 2.dp, bottom = 4.dp),
-        ) {
-            content()
-        }
+    // **Le filet est peint, pas mesuré.** La version d'avant posait une `Row` en
+    // `height(IntrinsicSize.Min)` avec une barre de 2 dp à côté de la colonne : la mesure
+    // intrinsèque traverse **tous** les enfants pour connaître la hauteur du filet — ici une
+    // passe de plus sur chacune des huit cartes, à chaque mise en page du repli. Le filet se
+    // dessine donc derrière la colonne : même 2 dp au même endroit, aucune mesure en plus.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawRect(
+                    color = theme.separator,
+                    topLeft = Offset.Zero,
+                    size = Size(2.dp.toPx(), size.height),
+                )
+            }
+            .padding(start = 14.dp, top = 2.dp, bottom = 4.dp),
+    ) {
+        content()
     }
 }
 
