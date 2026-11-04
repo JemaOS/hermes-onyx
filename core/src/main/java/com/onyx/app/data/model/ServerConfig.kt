@@ -222,6 +222,37 @@ data class ServerConfig(
             servePassword.hashCode().toString(),
         ).joinToString("|")
 
+    /**
+     * **L'identité du serveur, pour ce qui ne dépend pas du modèle choisi.**
+     *
+     * La [configSignature] change dès qu'un champ change — modèle et provider compris. Or ce qui
+     * est gardé **par serveur** (le roster des bots, les salles, l'ordre de la liste) ne dépend pas
+     * du modèle : les bots d'un serveur sont les mêmes quel que soit le modèle qui les sert.
+     *
+     * Avec la signature entière, choisir un modèle dans une conversation simple faisait perdre le
+     * roster : la clé changeait, la garde était introuvable, et l'écran retombait sur Onyx — visage
+     * bleu, « @default » — le temps que le réseau réponde. C'est le défaut que ce correctif
+     * cherche, et il se reproduirait par un autre chemin.
+     *
+     * Cette clé dit donc **quel serveur** on interroge, et rien d'autre : deux serveurs différents
+     * (adresse, profil, identifiants) ne se partagent jamais de roster ; un même serveur, quel que
+     * soit son modèle, garde le sien.
+     */
+    val rosterScope: String
+        get() = listOf(
+            transport.name,
+            baseUrl.trim(),
+            hermesProfile.trim(),
+            apiKey.hashCode().toString(),
+            profileKey.hashCode().toString(),
+            accessID.trim(),
+            accessSecret.hashCode().toString(),
+            customHeaders.joinToString(",") { "${it.name}:${it.value.hashCode()}" },
+            serveBase,
+            serveUsername.trim(),
+            servePassword.hashCode().toString(),
+        ).joinToString("|")
+
     companion object {
         const val DEFAULT_READ_TIMEOUT_SECONDS = 120L
         const val DEFAULT_CALL_TIMEOUT_SECONDS = 3600L

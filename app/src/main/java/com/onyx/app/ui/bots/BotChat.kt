@@ -97,6 +97,12 @@ fun botOfConversation(
  * frames, avant de sauter sur son vrai bot. Ce que la conversation a retenu
  * ([Conversation.botProfile]) comble exactement ce trou : `""` pour le profil principal, sinon le
  * nom du profil. Il ne remplace jamais un bot du roster, il le **précède**.
+ *
+ * **Le nom du profil est l'identité du bot, et il suffit.** C'est lui que la conversation a
+ * retenu, et c'est lui que le roster porte : le bot retrouvé par ce nom est le vrai — avec son
+ * visage, celui que le serveur a réparti sur le roster. Sans cela, le bot retenu était une
+ * coquille sans visage : l'écran dessinait la créature que le **nom** tire, au lieu de celle
+ * d'hier — le même bot, mais pas le même visage, ce qui n'est pas la même chose.
  */
 fun botOfConversationOrRemembered(
     conversation: Conversation,
@@ -105,7 +111,8 @@ fun botOfConversationOrRemembered(
 ): BotProfile? = botOfConversation(conversation, bots, mainName)
     ?: conversation.botProfile?.let { profile ->
         if (profile.isEmpty()) BotProfile(name = "default", isDefault = true)
-        else BotProfile(name = profile)
+        // Le roster connaît peut-être déjà ce profil : alors c'est lui qui parle, visage compris.
+        else bots.firstOrNull { it.name == profile } ?: BotProfile(name = profile)
     }
 
 /**

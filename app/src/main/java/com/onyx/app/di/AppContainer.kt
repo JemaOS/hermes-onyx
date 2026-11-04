@@ -209,6 +209,9 @@ object AppContainer {
         conversations.eraseAll()
         drafts.clearAll()
         botFaces.clearAll()
+        // Le roster gardé fait partie de ce que le téléphone sait des bots : il est effacé avec
+        // eux, sinon un serveur effacé laisserait les visages de l'ancien encore affichés.
+        com.onyx.app.data.local.BotRosterCache(applicationContext).clearAll()
         com.onyx.app.data.local.BotPresenceIndex(applicationContext).clear()
         groupRooms.clearAll()
         com.onyx.app.data.link.LinkPreviews.shared.clear()

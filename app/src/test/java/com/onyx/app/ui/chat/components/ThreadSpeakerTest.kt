@@ -270,4 +270,44 @@ class ThreadSpeakerTest {
         val main = conversation("c2", "Onyx").copy(botProfile = "")
         assertTrue(botOfConversationOrRemembered(main, emptyList())?.isDefault == true)
     }
+
+    /**
+     * **Le bot retenu porte le visage du roster, pas celui que son nom tirerait.**
+     *
+     * C'est le défaut de la capture : au redémarrage, l'en-tête montrait le bot `coder` — mais
+     * avec la créature que le **nom** `coder` tire, et non celle que le serveur lui a attribuée.
+     * Deux bots de noms différents portent alors la même créature, et le même bot porte une
+     * créature différente de la veille.
+     *
+     * Le roster connu du téléphone est donc consulté : le bot retrouvé par son nom de profil est
+     * le vrai, visage compris. La coquille sans visage ne reste que pour le roster qui n'a rien dit.
+     */
+    @Test
+    fun `le bot retenu porte le visage du roster`() {
+        val remembered = conversation("c1", "coder").copy(botProfile = "coder")
+        val roster = BotProfile(
+            name = "coder",
+            title = "Coder",
+            faceCode = "1:round:round:smile:none:6:1:2",
+        )
+
+        val bot = botOfConversationOrRemembered(remembered, listOf(roster))
+
+        assertEquals("coder", bot?.name)
+        assertEquals("1:round:round:smile:none:6:1:2", bot?.faceCode)
+        // Le profil affiché est bien celui du bot : « @coder », pas « @default ».
+        assertEquals("coder", threadHeaderSpeaker(bot, assistantName = "Onyx").botHandle)
+    }
+
+    @Test
+    fun `le bot retenu sans roster reste une coquille`() {
+        // Roster muet : le nom suffit à nommer le bot, mais pas à lui rendre son visage — on ne
+        // l'invente pas. C'est le seul cas où la créature est celle du nom.
+        val remembered = conversation("c1", "coder").copy(botProfile = "coder")
+
+        val bot = botOfConversationOrRemembered(remembered, emptyList())
+
+        assertEquals("coder", bot?.name)
+        assertNull(bot?.faceCode)
+    }
 }

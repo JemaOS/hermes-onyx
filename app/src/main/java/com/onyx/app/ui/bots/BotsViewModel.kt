@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onyx.app.data.local.BotRosterCache
+import com.onyx.app.data.local.CachedRoster
 import com.onyx.app.data.local.FaceKeys
 import com.onyx.app.data.local.GroupRoomStore
 import com.onyx.app.data.model.ServerConfig
@@ -232,8 +233,15 @@ class BotsViewModel(
         _state.update { it.copy(problem = null) }
     }
 
-    /** La connexion à laquelle ce que l'on garde se rapporte, comme `Settings.connectionKey`. */
-    private val serverKey: String get() = config.configSignature
+    /**
+     * La portée du roster gardé : **le serveur**, pas la configuration entière.
+     *
+     * Le roster dit qui sont les bots d'un serveur — les mêmes, quel que soit le modèle qui les
+     * sert. La clé est donc [ServerConfig.rosterScope], et non la signature entière : avec celle-ci,
+     * choisir un modèle faisait perdre le roster, et l'écran retombait sur Onyx (visage bleu) le
+     * temps que le réseau réponde.
+     */
+    private val serverKey: String get() = config.rosterScope
 
     private val _state = MutableStateFlow(BotsUiState())
     val state: StateFlow<BotsUiState> = _state.asStateFlow()
@@ -271,9 +279,15 @@ class BotsViewModel(
         // l'écran se dessine (le réseau n'a pas répondu), la conversation ouverte ne trouve pas son
         // bot et l'en-tête montre Onyx — visage bleu, « @default » — avant de sauter. La lecture est
         // locale et synchrone : elle est là avant toute composition.
-        val remembered = roster.load()
-        if (remembered.isNotEmpty()) {
-            _state.update { it.copy(bots = remembered, loading = false) }
+        //
+        // Ce qui est relu n'est pas le roster **brut** du serveur, mais celui qui a été **affiché** :
+        // les visages y sont les visages *effectifs* — ceux que la répartition du roster a
+        // attribués. Le nom seul ne les redonne pas (`forName("coder")` tire une autre palette que
+        // le `coder` d'un roster de six bots), et le code brut du serveur non plus : sans la table
+        // rendue, le bot retrouverait au redémarrage une autre créature que celle d'hier.
+        val remembered = roster.load(serverKey)
+        if (remembered != null) {
+            _state.update { it.copy(bots = remembered.bots, faces = remembered.faces, loading = false) }
         }
         refresh()
     }
@@ -312,9 +326,6 @@ class BotsViewModel(
                 .filterNot { it in known }
                 .map { BotProfile(name = it, title = faces.titleOf(it), isDefault = false, viaAPI = true) }
             sourceBots = fromServer + extra
-            // **Le roster réussi se garde** : c'est lui qui répondra à la première frame du
-            // prochain démarrage, avant que le réseau n'ait rien dit.
-            roster.save(sourceBots)
             // Les salles et l'activité sont un supplément : si le Dashboard ne répond pas, le
             // roster déjà lu doit rester affiché. Sans cette garde, un échec ici effaçait la
             // liste des bots — l'app paraissait vide alors que le serveur répondait.
@@ -543,9 +554,9 @@ class BotsViewModel(
         val order = activity.order(serverKey)
         // Le roster entier, cachés du serveur compris, tel que l'éditeur l'a laissé : les visages
         // résolus, et le choix de visibilité fait ici qui prime sur le `ui_meta`.
-        val roster = (sourceBots + hiddenSource).distinctBy { it.name }
-        val local = roster.associate { it.name to faces.faceOf(it.name) }
-        val resolved = roster.withSwiftFaces(local).map { faces.edited(it) }
+        val rosterBots = (sourceBots + hiddenSource).distinctBy { it.name }
+        val local = rosterBots.associate { it.name to faces.faceOf(it.name) }
+        val resolved = rosterBots.withSwiftFaces(local).map { faces.edited(it) }
         val hidden = resolved.filter { bot -> bot.isHidden && !bot.isDefault }
         // La section montre les autres, dans l'ordre enregistré, les salles mêlées aux bots.
         val arranged = BotListItem.arranged(bots = resolved.filterNot { it.isHidden }, rooms = sourceRooms, order = order)
@@ -553,6 +564,20 @@ class BotsViewModel(
         val visible = arranged.filterIsInstance<BotListItem.Bot>().map { it.profile }
         val codes = resolved.mapNotNull { bot -> bot.faceCode?.let { bot.name to it } }.toMap()
         val groups = arranged.filterIsInstance<BotListItem.Room>().map { roomChat(it.room, visible) }
+
+        // **Le roster affiché se garde, avec les visages effectifs.** C'est lui qui répondra à la
+        // première frame du prochain démarrage, avant que le réseau n'ait rien dit.
+        //
+        // Ce qui est gardé n'est pas le roster *brut* du serveur, mais celui qui a été **affiché** :
+        // les visages y sont ceux que la répartition du roster a attribués (deux bots ne peuvent
+        // pas avoir la même créature). Le nom seul ne les redonne pas — `forName("coder")` tire la
+        // palette 4 alors que le `coder` d'un roster de six bots porte la palette 6 — et le code
+        // brut du serveur non plus : sans la table rendue, le bot retrouverait au redémarrage une
+        // autre créature que celle d'hier.
+        //
+        // La portée est celle de la connexion (comme les salles gardées) : deux serveurs ne se
+        // partagent jamais leurs bots.
+        roster.save(serverKey, CachedRoster(bots = visible, faces = codes))
 
         // Les lignes vues pour la première fois comptent comme lues : le premier regard sur la
         // liste ne l'allume pas entière (`ChatActivity.listed`). Une salle sans marque d'activité
