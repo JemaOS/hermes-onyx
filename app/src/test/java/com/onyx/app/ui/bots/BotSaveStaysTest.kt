@@ -70,4 +70,21 @@ class BotSaveStaysTest {
         assertEquals("Enregistré", OnyxLocalization.translate("Saved", Locale.FRANCE))
         assertEquals("Enregistrer", OnyxLocalization.translate("Save", Locale.FRANCE))
     }
+
+    /**
+     * **Le champ du nom n'est plus vide.** Un bot sans titre n'affichait que le placeholder
+     * « Scout » — on ne voyait pas le nom qu'on modifiait, alors que la page s'appelait déjà
+     * « coder ». Le champ part maintenant du nom que la page affiche ([BotProfile.label]), et
+     * `label` rend l'identifiant du profil quand il n'y a ni titre ni `display_name` : c'est
+     * exactement le cas de la capture.
+     */
+    @Test
+    fun `le champ du nom part du nom que la page affiche`() {
+        val profile = com.onyx.app.data.model.serve.BotProfile(name = "coder")
+        assertEquals("coder", profile.label("Onyx"))
+        assertTrue(
+            "le champ part du libellé du bot",
+            editor.contains("mutableStateOf(bot?.label(mainName).orEmpty())"),
+        )
+    }
 }

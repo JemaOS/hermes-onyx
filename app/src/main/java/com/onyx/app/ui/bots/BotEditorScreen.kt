@@ -343,11 +343,13 @@ fun BotEditorScreen(
     val isNew = bot == null
     val isMain = bot?.isDefault == true
 
-    // Comme `BotEditor` de la référence (`Original(title: editing.title ?? editing.displayName ?? "")`) : le champ
-    // part du titre du bot, sinon de son `display_name` ; vide seulement si le profil n'a ni l'un
-    // ni l'autre.
+    // Le champ **part du nom que la page affiche déjà**, puis du titre, puis du `display_name` :
+    // un bot sans titre laissait la case **vide** (seul le placeholder « Scout » se voyait) alors
+    // que l'écran s'appelait « coder » — on ne voyait donc pas ce qu'on modifiait. Le nom pré-rempli
+    // est celui de [BotProfile.label] ; l'enregistrer sans y toucher n'écrit rien sur le serveur,
+    // puisque le libellé est identique (`saveEdit` ne renomme que si le titre diffère).
     var title by remember(bot?.name) {
-        mutableStateOf(bot?.title?.takeIf { it.isNotBlank() } ?: bot?.displayName.orEmpty())
+        mutableStateOf(bot?.label(mainName).orEmpty())
     }
     var about by remember(bot?.name) { mutableStateOf(bot?.description.orEmpty()) }
     var template by remember { mutableStateOf(BotTemplateSpec.blank.id) }
