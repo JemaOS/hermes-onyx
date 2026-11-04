@@ -37,7 +37,14 @@ hits=0
 printf 'Dépôt scanné : %s\n' "$(pwd)"
 
 # -r récursif, -l noms de fichiers, -I saute le binaire, -i insensible à la casse, -E étendu.
-content="$(grep -rlIiE "$PATTERN" . --exclude-dir=.git 2>/dev/null | sed 's#^\./##' | sort || true)"
+#
+# **L'exemption des plists, et elle seule.** L'identifiant de DTD d'un plist
+# (`<!DOCTYPE plist PUBLIC "-//…//DTD PLIST 1.0//EN" "http://…/DTDs/PropertyList-1.0.dtd">`) est un
+# **littéral du format** : un LaunchAgent macOS ne se lit pas sans lui, et le mot qu'il contient n'y
+# est pas une mention de marque. Ces lignes-là sont donc écartées **à la ligne**, pas le fichier :
+# le contrôle reste entier partout ailleurs, y compris dans le même fichier.
+EXEMPT='<!DOCTYPE plist|DTDs/PropertyList'
+content="$(grep -rIiE "$PATTERN" . --exclude-dir=.git 2>/dev/null | grep -vE "$EXEMPT" | cut -d: -f1 | sed 's#^\./##' | sort -u || true)"
 if [ -n "$content" ]; then
   printf '\n   [CONTENU] %s fichier(s) :\n' "$(printf '%s\n' "$content" | grep -c .)"
   printf '%s\n' "$content" | sed 's/^/      /'

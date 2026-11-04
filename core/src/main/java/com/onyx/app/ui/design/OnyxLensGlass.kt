@@ -27,7 +27,7 @@ import com.kyant.backdrop.shadow.Shadow
  * **LA LENTILLE — le verre qui courbe ce qu'il recouvre.**
  *
  * Jusqu'ici la vitre d'Onyx savait **flouter** ([LiquidGlass], Haze) : le fil passait derrière, flou,
- * et c'était tout. Le verre de référence (iOS 26, et l'app `myspoti` qui l'a porté sur Android) fait
+ * et c'était tout. Le verre de référence (le verre système de 2025, et l'app `myspoti` qui l'a porté sur Android) fait
  * une chose de plus qui change tout à l'œil : il **courbe** le fond au bord de sa forme, comme une
  * goutte. C'est cette courbure — un déplacement des pixels proportionnel à la distance au bord, écrit
  * en AGSL — qui donne l'épaisseur, l'arête qui s'allume et la « lentille » qu'on voit glisser.
@@ -225,7 +225,7 @@ fun Modifier.onyxLensGlass(
     )
 }
 
-/** L'arête du verre : plus fine et plus franche que le défaut de la bibliothèque, comme iOS 26. */
+/** L'arête du verre : plus fine et plus franche que le défaut de la bibliothèque, comme le verre système de 2025. */
 // **Aucun filet blanc sur le périmètre.** À 0,9, l'arête de la lentille se lisait comme un trait
 // rapporté autour de la capsule (et, sur une surface qui longe un bord d'écran, comme un cadre). La
 // lentille se détache par sa **courbure** et son ombre : c'est le fond qui se plie, pas un contour.
