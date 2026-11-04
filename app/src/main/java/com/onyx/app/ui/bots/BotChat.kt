@@ -66,6 +66,12 @@ fun ledgerProfiles(bots: List<BotProfile>, server: ServerConfig): List<String> =
  *    dans la conversation, et l'ancien test (`serverSessionId == null`) perdait le bot dès que la
  *    conversation avait parlé, ce qui faisait retomber l'en-tête sur Onyx (le défaut « scout »).
  *
+ *    Le nom comparé est [Conversation.botName] : le titre **sans** le suffixe de branche. Une
+ *    branche (« coder (fork) ») est la copie d'une conversation de bot — elle lui garde son bot,
+ *    donc son visage et son profil. C'est ce que « Créer un fil » et « brancher à partir d'ici »
+ *    produisent ; sans cette règle, la branche retombait sur le visage d'Onyx alors que sa
+ *    originale gardait le sien.
+ *
  * Le titre ne compte que s'il a vraiment été **posé** : [Conversation.customName] écarte un titre
  * qui n'est que la première question, qu'un message de l'utilisateur peut reprendre mot pour mot
  * (« scout » en premier message ne fait pas de la conversation celle du bot `scout`). Et il ne
@@ -80,7 +86,7 @@ fun botOfConversation(
 ): BotProfile? = bots.firstOrNull { bot ->
     bot.chatId != null &&
         (bot.chatId == conversation.serverSessionId || bot.chatId == conversation.id)
-} ?: conversation.customName()
+} ?: conversation.botName()
     ?.let { name -> bots.filter { it.label(mainName) == name }.singleOrNull() }
 
 /**

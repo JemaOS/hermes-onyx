@@ -213,7 +213,7 @@ class ConversationRepository(
 }
 
 /** Le titre d'une branche : celui de son originale plus « (fork) », comme la référence. */
-internal fun forkTitle(title: String): String = "$title (fork)"
+internal fun forkTitle(title: String): String = "$title${Conversation.ForkSuffix}"
 
 /**
  * La conversation d'une **branche à partir d'ici** : la copie des messages jusqu'à [messageId]

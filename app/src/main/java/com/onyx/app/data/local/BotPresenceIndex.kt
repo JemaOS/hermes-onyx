@@ -82,14 +82,15 @@ class BotPresenceIndex(context: Context) {
          *
          * Les deux liens sont ceux de [com.onyx.app.ui.bots.botOfConversation] : le **chat serveur
          * du bot** d'abord, puis le **titre posé** par l'ouverture de son chat, qui ne compte que
-         * s'il ne désigne qu'un seul bot.
+         * s'il ne désigne qu'un seul bot. Le nom comparé est [Conversation.botName] : le titre
+         * **sans** le suffixe de branche — une branche garde le bot de son originale.
          */
         fun labelOf(conversation: Conversation, entries: List<BotPresence>): String? {
             entries.firstOrNull { presence ->
                 presence.chatId != null &&
                     (presence.chatId == conversation.serverSessionId || presence.chatId == conversation.id)
             }?.let { return it.label }
-            val name = conversation.customName() ?: return null
+            val name = conversation.botName() ?: return null
             return entries.filter { it.label == name }.map { it.label }.distinct().singleOrNull()
         }
     }
