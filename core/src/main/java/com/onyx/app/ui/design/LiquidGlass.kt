@@ -1302,10 +1302,24 @@ enum class GlassSurface(
      * Il vit dans la **fenêtre principale** (l'hôte des calques, pas une `Dialog` à part) : il peut
      * donc échantillonner ce qui passe dessous et le courber — d'où `IN_SCREEN` et non
      * `OWN_WINDOW`. C'est le changement qui a fait passer le menu du **lavis** (un voile gris, le
-     * texte dessous lisible) au **verre** : le fond est le contenu réel, flouté et courbé, et la
-     * finition de la maison se pose par-dessus.
+     * texte dessous lisible) au **verre** : le fond est le contenu réel, flouté et courbé.
+     *
+     * **`lit = false` : un menu est UNE surface.** Il portait la finition des plaques — lumière de
+     * tête (26 % de blanc au bord haut) et ombre de pied (16 % de noir au bord bas) — et le panneau
+     * se lisait alors comme **deux** : mesure sur la capture du propriétaire, un menu de trois
+     * lignes descendait de **246 à 207** de luminance du haut vers le bas, avec un liseré clair au
+     * milieu. Le reproche est exactement cela (« ça fait pas propre, ça devrait tout uni »). Il ne
+     * reste que la teinte, le flou et l'ombre portée : la surface se sépare de la page par sa
+     * **luminance seule**, comme les plaques du bas et l'en-tête, et elle est uniforme.
      */
-    MENU(40f, GlassInk.TEXT, 12f, RoundedCornerShape(GlassPanelCorner), GlassSampling.IN_SCREEN),
+    MENU(
+        40f,
+        GlassInk.TEXT,
+        12f,
+        RoundedCornerShape(GlassPanelCorner),
+        GlassSampling.IN_SCREEN,
+        lit = false,
+    ),
 
     /**
      * Le volet latéral. En surimpression (téléphone, paysage, pliable replié) il **recouvre le

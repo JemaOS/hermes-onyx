@@ -75,6 +75,43 @@ class MatiereAplatVerrouTest {
         }
     }
 
+    /**
+     * **Le menu ancré est une seule surface.** Le propriétaire l'a encadré : « ça fait pas propre,
+     * ça devrait tout uni ». Mesure sur sa capture : le corps du panneau descendait de **246 à 207**
+     * de luminance entre son bord haut et son bord bas — c'était la lumière de tête (26 % de blanc)
+     * et l'ombre de pied (16 % de noir) de la finition des plaques, et elles faisaient lire le menu
+     * comme une carte blanche posée sur une carte grise.
+     *
+     * Un menu n'est pas une plaque : il ne porte **aucune** finition. Ce qu'il garde est ce qui le
+     * détache de la page — sa teinte, son flou, et son ombre portée.
+     */
+    @Test
+    fun `le menu ancre est une seule surface`() {
+        assertFalse(
+            "MENU doit être un aplat (lit=false) : sa lumière de tête et son ombre de pied " +
+                "faisaient deux surfaces d'un seul panneau (mesuré 246 → 207 sur la capture)",
+            glassFinishLit(GlassSurface.MENU),
+        )
+        for (dark in listOf(false, true)) {
+            assertEquals(
+                "la lumière de tête du menu (sombre=$dark) doit valoir ZÉRO",
+                0f,
+                glassSheenUsed(GlassSurface.MENU, dark),
+                1e-6f,
+            )
+            assertEquals(
+                "l'ombre de pied du menu (sombre=$dark) doit valoir ZÉRO",
+                0f,
+                glassShadeUsed(GlassSurface.MENU, dark),
+                1e-6f,
+            )
+        }
+        assertTrue(
+            "le menu garde son ombre portée : c'est elle qui le détache de la page",
+            glassShadowUsed(GlassSurface.MENU) > 0f,
+        )
+    }
+
     @Test
     fun `les cartes et les tuiles n'ont ni ombre ni arete`() {
         flatCards.forEach { s ->
@@ -103,9 +140,15 @@ class MatiereAplatVerrouTest {
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * Le verrou ne doit **pas** tout aplatir : le volet, les panneaux et la grande carte de matière
+     * Le verrou ne doit **pas** tout aplatir : le volet, les feuilles et la grande carte de matière
      * restent des **vitres** (ils recouvrent du contenu, et c'est là que le flou vit). Sans ce
      * contrôle, « tout mettre à zéro » passerait le test et tuerait le verre de l'app.
+     *
+     * **Le menu ancré n'en est plus** : il portait la finition d'une plaque et se lisait comme deux
+     * surfaces empilées — mesuré sur la capture du propriétaire, son corps descendait de 246 à 207
+     * de luminance du haut vers le bas, pour un panneau de trois lignes. Il est un **aplat** comme
+     * la plaque du bas : teinte, flou, ombre portée, et rien d'autre (`MENU` est vérifié dans
+     * `le menu ancre est une seule surface`).
      */
     @Test
     fun `une surface de verre garde sa profondeur`() {
@@ -113,7 +156,6 @@ class MatiereAplatVerrouTest {
             GlassSurface.SIDEBAR_PANEL,
             GlassSurface.SHEET,
             GlassSurface.ALERT,
-            GlassSurface.MENU,
             GlassSurface.HEADER_CAPSULE,
             GlassSurface.MATTER_CARD,
         )
