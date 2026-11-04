@@ -51,7 +51,7 @@ class ChatScrollFollowTest {
 
     @Test
     fun `un message de la personne ramene en bas`() {
-        assertTrue(screen.contains("val userTurns = remember(state.messages)"))
+        assertTrue(screen.contains("val userTurns = remember(state.messages.size)"))
         assertTrue(screen.contains("userTurns > seenUserTurns"))
     }
 
