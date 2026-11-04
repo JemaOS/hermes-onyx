@@ -260,6 +260,26 @@ fun ChatScreen(
      * QA (`onyx.subagentDemo`) le remplit ; sans elle, le fil fait foi.
      */
     subagentAgents: List<com.onyx.app.data.model.SubagentActivity>? = null,
+    /**
+     * **« Enseigner une compétence »** — la ligne de la feuille du « + », comme « Teach a task » de
+     * la référence.
+     *
+     * Elle ne fait pas la démonstration ici : la capture a besoin de l'**ordinateur connecté** (les
+     * gestes, l'écran, le bail côté serveur). La ligne ouvre donc cet écran et y lance la feuille
+     * d'enregistrement — c'est le chemin le plus court pour la personne, qui ne devine plus qu'il
+     * faut aller chercher « Show me once » dans un menu ailleurs.
+     *
+     * `null` : pas de ligne (serveur sans identifiants Dashboard, ou aperçu). Jamais un bouton mort.
+     */
+    onTeachTask: (() -> Unit)? = null,
+    /**
+     * Doublure de QA du menu « / » (`am start --ez onyx.slashDemo true`) : l'émulateur n'a pas de
+     * passerelle, donc `complete.slash` ne rend rien et le menu ne peut être vu ni mesuré. Le
+     * drapeau injecte une liste fixe qui **ressemble à la vraie** (des noms courts de l'app, des
+     * noms de compétences du serveur et leurs détails longs), pour vérifier la hauteur des rangées,
+     * le plafond et la pose au-dessus de la plaque. `null` : le vrai menu, toujours.
+     */
+    slashDemoItems: List<SlashItem>? = null,
     onClarify: (messageId: String, answers: Map<String, String>) -> Unit = { _, _ -> },
     onSudo: (messageId: String, password: String) -> Unit = { _, _ -> },
     onSecret: (messageId: String, value: String) -> Unit = { _, _ -> },
@@ -800,7 +820,12 @@ fun ChatScreen(
     val slashMenuMaxHeight = (
         LocalConfiguration.current.screenHeightDp.dp - glassTopInset - glassBottomInset -
             OnyxSpace.BlockGap - OnyxSpace.BlockGap
-        ).coerceAtLeast(OnyxSpace.Base)
+        )
+        // **Le plafond d'un téléphone.** La mesure de l'écran reste le garde-fou (clavier ouvert,
+        // écran court, police à 1,3×) ; [SlashMenu.MaxHeight] est la vraie limite — cinq rangées et
+        // demie, de quoi lire la liste sans que le fil disparaisse sous elle.
+        .coerceAtMost(com.onyx.app.ui.chat.components.MaxHeight)
+        .coerceAtLeast(OnyxSpace.Base)
 
 
     // L'état Haze posé à la racine : c'est lui que la barre du haut, le compositeur et la barre
@@ -1127,6 +1152,7 @@ fun ChatScreen(
                     }
                 }
             }
+            }
             // **Le menu « / » se pose AU-DESSUS de la plaque, jamais derrière elle.**
             //
             // Défaut relevé sur l'appareil : la liste était le dernier enfant du pane du fil,
@@ -1134,19 +1160,27 @@ fun ChatScreen(
             // dernières lignes n'étaient ni lisibles ni cliquables (« ça passe derrière »).
             // Elle remonte maintenant d'exactement la réserve du fil : le menu commence là où la
             // plaque finit, et ne recouvre donc jamais le champ.
-            if (state.slashItems.isNotEmpty()) {
+            val shownSlash = slashDemoItems ?: state.slashItems
+            if (shownSlash.isNotEmpty()) {
                 SlashMenu(
-                    items = state.slashItems,
+                    items = shownSlash,
                     onPick = onPickSlash,
                     maxHeight = slashMenuMaxHeight,
                     modifier = Modifier.padding(
-                        start = OnyxSpace.ScreenMargin,
-                        end = OnyxSpace.ScreenMargin,
+                        start = PlaqueGeometry.SideMargin,
+                        end = PlaqueGeometry.SideMargin,
                         top = OnyxSpace.Half,
-                        bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap,
+                        // **Le menu se pose SUR la plaque, pas au milieu de l'écran.**
+                        //
+                        // Il réservait `glassBottomInset + floatLane + BlockGap` : la voie des
+                        // commandes flottantes (56 dp) s'ajoutait à la réserve du compositeur, qui
+                        // la contient déjà — le menu flottait donc 68 dp au-dessus de sa plaque,
+                        // détaché, dans une bande vide. Il ne garde que la réserve du compositeur
+                        // plus un demi-pas : il touche presque sa plaque, comme un menu qui en
+                        // sort.
+                        bottom = glassBottomInset + OnyxSpace.Half,
                     ),
                 )
-            }
             }
 
             }
@@ -1756,7 +1790,10 @@ fun ChatScreen(
             AttachmentSheet(
                 title = "Add to message",
                 subtitle = AttachmentLimits.subtitle(),
-                actions = listOf(
+                // `listOfNotNull` : la ligne « Enseigner une compétence » est **facultative**
+                // (serveur sans identifiants Dashboard), et une liste typée ne peut pas porter un
+                // élément nul.
+                actions = listOfNotNull(
                     AttachmentAction("Photo Library", Lucide.Image) {
                         showAddMenu = false
                         photoPicker.launch(androidx.activity.result.PickVisualMediaRequest(
@@ -1774,6 +1811,16 @@ fun ChatScreen(
                     AttachmentAction("Paste", Lucide.Clipboard) {
                         showAddMenu = false
                         onAddAttachments(clipboardImages(context))
+                    },
+                    // **« Enseigner une compétence »**, comme « Teach a task » de la référence : la
+                    // dernière ligne de la feuille. Elle ferme la feuille et ouvre l'ordinateur
+                    // connecté, où la démonstration s'enregistre — le geste vit là-bas (les clics,
+                    // l'écran, le bail du serveur), la ligne n'est que le chemin.
+                    onTeachTask?.let { teach ->
+                        AttachmentAction("Teach a task", Lucide.Sparkles) {
+                            showAddMenu = false
+                            teach()
+                        }
                     },
                 ),
                 onDismiss = { showAddMenu = false },

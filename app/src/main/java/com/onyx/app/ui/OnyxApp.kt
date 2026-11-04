@@ -338,6 +338,15 @@ private const val EXTRA_VOICE_SCENARIO = "onyx.voiceScenario"
 private const val EXTRA_SUBAGENT_DEMO = "onyx.subagentDemo"
 
 /**
+ * La doublure de QA du **menu « / »** (`am start --ez onyx.slashDemo true`) : une liste de
+ * commandes **posée**, faute de passerelle sur un émulateur — sans serveur, `complete.slash` ne rend
+ * rien et le menu n'est ni visible ni mesurable. Les entrées reprennent la forme réelle : des
+ * commandes de l'app (nom court, détail court) et des compétences du serveur (nom long, détail qui
+ * court sur une ligne). Debug seulement ; sans le drapeau, le menu est celui du serveur.
+ */
+private const val EXTRA_SLASH_DEMO = "onyx.slashDemo"
+
+/**
  * La doublure de QA du **relevé d'agent** (`am start -e onyx.ledgerDemo chargee`) : un fil, un
  * registre de sessions et une table de prix **posés**, faute de Dashboard et d'agent sur un
  * émulateur. Quatre cas nommés — `fraiche` (conversation neuve), `chargee` (conversation chargée),
@@ -704,6 +713,9 @@ fun OnyxApp() {
         // est consommée par l'écran des horaires, qui ouvre son brouillon déjà rempli. Nulle, rien
         // ne change pour les autres chemins.
         var routineSeed by remember { mutableStateOf<com.onyx.app.data.skill.SkillRoutine.Seed?>(null) }
+        // **Une démonstration demandée depuis le fil** (« Enseigner une compétence » du « + ») : la
+        // demande survit à la navigation, l'écran de l'ordinateur la consomme à l'arrivée.
+        var teachRequested by remember { mutableStateOf(false) }
         var openingRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
         var subagentAgent by remember { mutableStateOf<com.onyx.app.data.model.SubagentActivity?>(null) }
         // Doublure de QA des sous-agents (`onyx.subagentDemo`) : le roster et le fil injectés,
@@ -721,6 +733,15 @@ fun OnyxApp() {
             }
         }
         val shownSubagents = if (subagentDemoRun && demoSubagents.isNotEmpty()) demoSubagents else state.subagents
+        // La doublure du **menu « / »** (`onyx.slashDemo`) : la liste que la passerelle rendrait,
+        // posée pour pouvoir la voir et la mesurer sur un émulateur qui n'en a pas.
+        val slashDemoItems = remember {
+            if (context.findActivity()?.intent?.getBooleanExtra(EXTRA_SLASH_DEMO, false) == true) {
+                com.onyx.app.ui.chat.SlashStandIn.items
+            } else {
+                null
+            }
+        }
         // La doublure du relevé d'agent (`onyx.ledgerDemo <cas>`) : elle apporte le monde que
         // l'écran lit d'ordinaire sur le serveur — le fil, le roster, le registre et la table de
         // prix. Absente, l'écran lit le serveur ; rien d'autre ne change.
@@ -2101,6 +2122,20 @@ fun OnyxApp() {
                     }
                 },
                 subagentAgents = if (subagentDemoRun) demoSubagents else null,
+                slashDemoItems = slashDemoItems,
+                // **« Enseigner une compétence »** — la ligne du « + », comme « Teach a task » de la
+                // référence. Elle ne dessine rien ici : la démonstration se capture sur
+                // l'ordinateur connecté, donc elle y mène et l'écran ouvre sa feuille. La ligne
+                // n'existe que si ce serveur porte des identifiants Dashboard — sans eux, aucune
+                // route `onyx-record` n'existe et un bouton ne serait qu'un mensonge.
+                onTeachTask = if (state.server.hasServeCredentials) {
+                    {
+                        teachRequested = true
+                        navTo(Route.COMPUTER.name)
+                    }
+                } else {
+                    null
+                },
                 onOpenPhotos = { attachments, index ->
                     photoSet = attachments
                     photoIndex = index
@@ -4154,6 +4189,9 @@ fun OnyxApp() {
                 probe = remember(state.server.configSignature) {
                     com.onyx.app.data.net.ServerProbe(state.server)
                 },
+                // La démonstration demandée depuis le « + » : la feuille s'ouvre ici, une fois.
+                teachRequested = teachRequested,
+                onTeachRequestConsumed = { teachRequested = false },
                 onDraftSkill = { name, content ->
                     skillName = null
                     skillSeed = SkillEditorSeed(name = name, content = content)

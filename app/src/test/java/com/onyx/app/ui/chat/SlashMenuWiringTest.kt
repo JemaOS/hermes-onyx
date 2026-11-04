@@ -39,9 +39,14 @@ class SlashMenuWiringTest {
             chatScreen.contains("Spacer(Modifier.height(glassBottomInset + floatLane))"),
         )
         assertTrue("le menu est un composant à part", chatScreen.contains("SlashMenu("))
+        // **Il se pose SUR la plaque.** Il réservait `glassBottomInset + floatLane + BlockGap` :
+        // la voie des commandes flottantes s'ajoutait à une réserve qui la contient déjà, et le
+        // menu flottait 68 dp au-dessus de sa plaque — détaché, dans une bande vide (relevé sur la
+        // capture). La réserve du compositeur plus un demi-pas : la garantie « jamais derrière »
+        // tient (la réserve couvre toute la pile), et le menu touche presque sa plaque.
         assertTrue(
-            "il remonte de la réserve du fil (plaque + voie flottante)",
-            chatScreen.contains("bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap"),
+            "il se pose sur la réserve du compositeur, à un demi-pas de la plaque",
+            chatScreen.contains("bottom = glassBottomInset + OnyxSpace.Half"),
         )
         assertTrue(
             "et sa hauteur au plus lui est donnée, mesurée",

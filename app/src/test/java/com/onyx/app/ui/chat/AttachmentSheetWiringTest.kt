@@ -42,8 +42,21 @@ class AttachmentSheetWiringTest {
         assertTrue("le sélecteur de fichiers", screen.contains("filePicker.launch(arrayOf(\"*/*\"))"))
         assertTrue("le collage", screen.contains("AttachmentAction(\"Paste\", Lucide.Clipboard)"))
         assertTrue("les images du presse-papiers", screen.contains("onAddAttachments(clipboardImages(context))"))
-        // Les quatre lignes referment la feuille avant d'agir, sinon elle recouvre l'écran ouvert.
-        assertEquals("les quatre referment la feuille", 4, Regex("showAddMenu = false").findAll(
+        // **« Enseigner une compétence »**, comme « Teach a task » de la référence : la dernière
+        // ligne de la feuille. Elle est **facultative** (serveur sans identifiants Dashboard) et
+        // mène à l'ordinateur connecté, où la démonstration se capture.
+        assertTrue(
+            "la ligne existe",
+            screen.contains("AttachmentAction(\"Teach a task\", Lucide.Sparkles)"),
+        )
+        assertTrue(
+            "elle n'est posée que si l'écran l'autorise",
+            screen.contains("onTeachTask?.let { teach ->"),
+        )
+        assertTrue("et elle referme la feuille", screen.contains("teach()"))
+        // Toutes les lignes referment la feuille avant d'agir, sinon elle recouvre l'écran ouvert.
+        // Cinq maintenant : les quatre pièces jointes et la démonstration.
+        assertEquals("les cinq referment la feuille", 5, Regex("showAddMenu = false").findAll(
             screen.substringAfter("if (showAddMenu) {").substringBefore("onDismiss = { showAddMenu = false }"),
         ).count())
     }

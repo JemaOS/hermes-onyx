@@ -116,6 +116,8 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
 
     // Chat, pièces jointes et approbations.
     "Paste" to "Coller",
+    // La ligne du « + » qui ouvre la démonstration sur l'ordinateur connecté (référence : « Teach a task »).
+    "Teach a task" to "Enseigner une compétence",
     "Sends after this reply" to "Sera envoyé après cette réponse",
     "Send now" to "Envoyer maintenant",
     "Queued" to "En file",

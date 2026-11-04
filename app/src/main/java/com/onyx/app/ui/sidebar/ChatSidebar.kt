@@ -512,6 +512,12 @@ internal fun ChatSidebar(
                                         .defaultMinSize(minHeight = SectionAction.Size)
                                         .padding(
                                             start = OnyxSocle.ScreenMargin,
+                                            // **La marge de fin aussi.** La rangée n'avait qu'une
+                                            // marge de début : le rond du crayon finissait donc
+                                            // **sur le bord de l'écran**, alors que les cartes de la
+                                            // liste s'arrêtent à 16 dp. La même marge des deux côtés
+                                            // aligne le crayon sur le bord des cartes.
+                                            end = OnyxSocle.ScreenMargin,
                                             top = OnyxSocle.Loose,
                                             bottom = OnyxSocle.Tight,
                                         ),

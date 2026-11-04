@@ -164,6 +164,15 @@ fun ComputerScreen(
     probe: ServerProbe? = null,
     /** « En faire un skill » : l'éditeur pré-rempli. Nul, l'aperçu reste consultable. */
     onDraftSkill: ((name: String, content: String) -> Unit)? = null,
+    /**
+     * **Une démonstration demandée depuis le fil** (« Enseigner une compétence » du « + »).
+     *
+     * La ligne du « + » ne peut pas enregistrer elle-même : la capture lit les gestes sur
+     * l'ordinateur connecté. Elle pose donc cette demande, et cet écran ouvre sa feuille
+     * d'enregistrement à l'arrivée — une fois.
+     */
+    teachRequested: Boolean = false,
+    onTeachRequestConsumed: () -> Unit = {},
 ) {
     val theme = LocalOnyxTheme.current
     val clipboard = LocalClipboard.current
@@ -224,6 +233,16 @@ fun ComputerScreen(
                 serverAllowsRecording = probe?.allows(ServerCapability.RECORD) == true,
                 bridgeConfigured = session.configured && phase == ComputerBridgeClient.Phase.LIVE,
             )
+    }
+
+    // **La démonstration demandée depuis le fil.** « Enseigner une compétence » (le « + ») n'a pas
+    // de sens ailleurs que sur l'ordinateur : la ligne y amène, et la feuille s'ouvre ici, une fois.
+    // Le drapeau est consommé même quand rien ne peut s'ouvrir — sans ça, revenir sur l'écran
+    // rouvrirait la feuille pour toujours.
+    LaunchedEffect(teachRequested, record, session.configured, phase, recordAllowed) {
+        if (!teachRequested) return@LaunchedEffect
+        if (record != null) recordOpen = true
+        onTeachRequestConsumed()
     }
 
     // Le chronomètre, et le plafond : à zéro, la capture se ferme **toute seule** et la feuille
