@@ -43,6 +43,7 @@ import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.data.net.DashboardSkill
 import com.onyx.app.data.net.GatewayToolset
 import com.onyx.app.localization.OnyxLocalization
+import com.onyx.app.ui.design.OnyxConfirm
 import com.onyx.app.ui.design.BotAvatar
 import com.onyx.app.ui.design.BotFace
 import com.onyx.app.ui.design.BotLook
@@ -752,21 +753,26 @@ fun BotEditorScreen(
             }
 
             if (confirmingDelete) {
-                IdentitySection {
-                    IdentityRow(onClick = {
+                // **Une confirmation ne se déplie pas au bas d'une page qui défile.**
+                //
+                // Défaut relevé sur l'appareil : « quand je clique sur supprimer le bot, ça me
+                // ramène tout en bas automatiquement et je ne vois pas les options, je suis obligé
+                // de le faire manuellement ». Le bloc de confirmation était **ajouté à la fin** du
+                // `Column` défilant : il tombait sous la ligne de flottaison, et le geste de
+                // l'ouvrir déplaçait la vue au lieu de montrer la question. Ici, la confirmation
+                // est **la boîte de la maison** ([OnyxConfirm]) : centrée, au-dessus de l'écran,
+                // entièrement visible quelle que soit la longueur de la page — et la page ne bouge
+                // plus d'un pixel.
+                OnyxConfirm(
+                    title = "Delete ${bot?.label(mainName) ?: "this bot"}?",
+                    destructiveLabel = OnyxLocalization["Delete"],
+                    cancelLabel = OnyxLocalization["Cancel"],
+                    onDestructive = {
                         confirmingDelete = false
                         onDelete()
-                    }) {
-                        BasicText(
-                            text = "Delete ${bot?.label(mainName) ?: "this bot"}?",
-                            style = socleBodyStyle(theme).copy(color = theme.error, fontWeight = FontWeight.SemiBold),
-                        )
-                    }
-                    IdentityDivider()
-                    IdentityRow(onClick = { confirmingDelete = false }) {
-                        BasicText("Cancel", style = socleBodyStyle(theme).copy(color = theme.secondaryText))
-                    }
-                }
+                    },
+                    onCancel = { confirmingDelete = false },
+                )
             }
 
             // Ce qui a échoué, comme le `Label(problem, …)` orange de `BotEditor` : une
