@@ -556,6 +556,24 @@ class ServeGroupsRpcTest {
     }
 
     @Test
+    fun `l etat de la salle dit le meneur seulement en mode lead`() = runBlocking {
+        val leadRoom = RpcChannel { _, _, _ ->
+            json("""{"room_id":"r1","context":{"purpose":"","notes":"","routing":"lead","lead_member_id":"coder"}}""")
+        }
+        assertEquals("coder", ServeGroupsRpc(leadRoom).roomState("r1").leadMemberId)
+
+        // Un `lead_member_id` laissé derrière par un retour à `everyone` ne désigne personne.
+        val everyone = RpcChannel { _, _, _ ->
+            json("""{"room_id":"r1","context":{"routing":"everyone","lead_member_id":"coder"}}""")
+        }
+        assertNull(ServeGroupsRpc(everyone).roomState("r1").leadMemberId)
+
+        // Serveur d'avant le routage : pas de `context` du tout.
+        val old = RpcChannel { _, _, _ -> json("""{"room_id":"r1"}""") }
+        assertNull(ServeGroupsRpc(old).roomState("r1").leadMemberId)
+    }
+
+    @Test
     fun `un serveur sans routage de salon n ecrit rien`() = runBlocking {
         // État d'un Hermes d'avant `groups.context` : pas de champ `context`. On ne devine pas des
         // valeurs pour `purpose` et `notes` — on n'écrit rien du tout.
