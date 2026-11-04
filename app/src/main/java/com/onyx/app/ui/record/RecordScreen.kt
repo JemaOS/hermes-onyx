@@ -1,8 +1,10 @@
 package com.onyx.app.ui.record
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.onyx.app.data.net.RecordDraft
 import com.onyx.app.data.net.RecordReview
@@ -28,6 +32,7 @@ import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.OnyxRow
 import com.onyx.app.ui.design.OnyxRowDivider
+import com.onyx.app.ui.design.OnyxEdge
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.PillSize
 import com.onyx.app.ui.design.PillVariant
@@ -284,47 +289,98 @@ fun RecordBanner(
 ) {
     val theme = LocalOnyxTheme.current
     val panel = theme.formSurfaceColor
-    Row(
-        modifier = modifier
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(OnyxSpace.ControlCorner)
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // **Deux dispositions, choisie par la largeur — pas par la classe d'appareil.**
+        //
+        // Défaut relevé sur le Magic V3 **plié** : le bandeau tenait sur une seule ligne (un texte,
+        // deux pilules), et à 360 dp la rangée ne passait pas. Le texte se réduisait à rien, les
+        // deux pilules prenaient toute la place et l'une s'écrivait sur deux lignes — « on voit
+        // rien ». Sous [NarrowWidth], le bandeau passe donc sur **deux rangs** : le chronomètre et le
+        // compte au-dessus, les deux gestes en dessous, à parts égales. Déplié, la place suffit : il
+        // revient à une ligne, comme la planche.
+        val narrow = bannerStacksVertically(maxWidth.value)
+        // **Le trait de la maison** : sur un aperçu du PC en clair, un panneau clair sans bord ne se
+        // voyait pas. Le filet le pose sur la page, quelle que soit la couleur dessous.
+        val frame = Modifier
             .fillMaxWidth()
-            .background(panel, androidx.compose.foundation.shape.RoundedCornerShape(OnyxSpace.ControlCorner))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OnyxIcon(Symbols.CircleFill, tint = theme.error, size = 10.dp)
-        Column(modifier = Modifier.weight(1f)) {
-            BasicText(
-                text = OnyxLocalization.format(
-                    "Recording — stops on its own in %1\$s.",
-                    recordClockText(remainingMs),
-                ),
-                localize = false,
-                style = theme.footnote.copy(color = bodyInk(theme, panel)),
-            )
-            BasicText(
-                text = OnyxLocalization.format("%1\$d actions", actions),
-                localize = false,
-                style = theme.caption.copy(color = bodyInk(theme, panel)),
-            )
+            .background(panel, shape)
+            // Le **filet de la maison** ([OnyxEdge.fil]) : c'est le seul trait admis sur une
+            // surface, et il est mesuré (12 %) — un `separator` nu dépassait le jeton.
+            .border(OnyxSpace.Stroke, OnyxEdge.fil(theme), shape)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+
+        Column(modifier = frame, verticalArrangement = Arrangement.spacedBy(OnyxSpace.Half)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OnyxIcon(Symbols.CircleFill, tint = theme.error, size = 10.dp)
+                // **Le chronomètre en premier, et en clair.** « Recording — stops on its own in
+                // 7 min 12 s. » est une phrase ; sur deux rangs elle n'a plus la place d'être lue, et
+                // c'est **le temps** qui compte sous les yeux pendant qu'on montre.
+                BasicText(
+                    text = recordClockText(remainingMs),
+                    localize = false,
+                    style = theme.subheadline.copy(
+                        color = bodyInk(theme, panel),
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                BasicText(
+                    text = OnyxLocalization.format("%1\$d actions", actions),
+                    localize = false,
+                    style = theme.caption.copy(color = bodyInk(theme, panel)),
+                    maxLines = 1,
+                )
+            }
+
+            // **Les deux gestes**, côte à côte et à parts égales quand la place manque : ils
+            // restent atteignables au pouce, et aucun ne se replie sur deux lignes.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ContentPill(
+                    text = "Secret typing",
+                    localize = true,
+                    onClick = onToggleSecret,
+                    variant = if (secretTyping) PillVariant.Primary else PillVariant.Outline,
+                    size = PillSize.Small,
+                    modifier = if (narrow) Modifier.weight(1f) else Modifier,
+                )
+                ContentPill(
+                    text = "Stop recording",
+                    localize = true,
+                    onClick = onStop,
+                    symbol = Symbols.CircleFill,
+                    variant = PillVariant.Primary,
+                    size = PillSize.Small,
+                    modifier = if (narrow) Modifier.weight(1f) else Modifier,
+                )
+            }
         }
-        ContentPill(
-            text = "Secret typing",
-            localize = true,
-            onClick = onToggleSecret,
-            variant = if (secretTyping) PillVariant.Primary else PillVariant.Outline,
-            size = PillSize.Small,
-        )
-        ContentPill(
-            text = "Stop recording",
-            localize = true,
-            onClick = onStop,
-            symbol = Symbols.CircleFill,
-            variant = PillVariant.Primary,
-            size = PillSize.Small,
-        )
     }
 }
+
+/**
+ * **La largeur sous laquelle le bandeau passe sur deux rangs.** 420 dp : un téléphone plié (360),
+ * un pliable fermé ou une fenêtre étroite ; au-delà — déplié, tablette, paysage — la rangée unique
+ * de la planche tient.
+ */
+internal val NarrowWidth = 420.dp
+
+/**
+ * **Le bandeau passe-t-il sur deux rangs ?** La règle, hors du dessin, pour qu'elle se mesure : un
+ * téléphone plié (360 dp) l'exige, un pliable déplié (673) ou une tablette non.
+ */
+internal fun bannerStacksVertically(availableWidthDp: Float): Boolean =
+    availableWidthDp < NarrowWidth.value
 
 /** Une étape du brouillon, prête à peindre : son texte, et la raison de la relire. */
 data class RecordStepLine(val number: Int, val text: String, val review: String? = null)
