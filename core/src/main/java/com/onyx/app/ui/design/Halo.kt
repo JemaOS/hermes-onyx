@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -103,29 +102,19 @@ fun HaloUnderlay(modifier: Modifier = Modifier, theme: ResolvedTheme = LocalOnyx
  *
  * À poser **après** `background(couleur de page)` : la page reste l'aplat du thème, le halo en est
  * la lumière. Ne peint rien quand le halo est éteint ([Halo.topStops] vide).
- *
- * **Le dégradé est gardé** (`drawWithCache`) : il ne dépend que de la couleur d'accent et de la
- * taille, et le reconstruire à chaque image — sur une page qui défile, c'est-à-dire à chaque
- * trame — était du travail jeté.
  */
-fun Modifier.haloBackdrop(theme: ResolvedTheme, height: Dp = 260.dp): Modifier = drawWithCache {
+fun Modifier.haloBackdrop(theme: ResolvedTheme, height: Dp = 260.dp): Modifier = drawWithContent {
     val stops = Halo.topStops(theme)
-    if (stops.isEmpty()) {
-        onDrawBehind { }
-    } else {
+    if (stops.isNotEmpty()) {
         val h = height.toPx().coerceAtMost(size.height)
-        if (h <= 0f) {
-            onDrawBehind { }
-        } else {
-            val brush = Brush.verticalGradient(stops, startY = 0f, endY = h)
-            onDrawBehind {
-                drawRect(
-                    brush = brush,
-                    size = androidx.compose.ui.geometry.Size(size.width, h),
-                )
-            }
+        if (h > 0f) {
+            drawRect(
+                brush = Brush.verticalGradient(stops, startY = 0f, endY = h),
+                size = androidx.compose.ui.geometry.Size(size.width, h),
+            )
         }
     }
+    drawContent()
 }
 
 /**

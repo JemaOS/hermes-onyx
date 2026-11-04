@@ -93,19 +93,9 @@ fun MarkdownText(
     tint: Color? = null,
 ) {
     // Un échec du découpage ne doit jamais laisser la réponse vide : on retombe sur le texte brut.
-    //
-    // **Le découpage d'un texte fini est gardé** (`RowCaches.blocks`) : la liste jette ses rangées
-    // hors écran, et chaque retour refaisait le découpage du texte entier — sur une réponse de
-    // 15 Ko de Markdown, c'est le texte entier qu'on relisait à chaque remontée de fil. Pendant le
-    // flux, le texte change à chaque jeton : le cache ne servirait à rien et retiendrait chaque
-    // état intermédiaire — il n'est donc pas consulté.
-    val blocks = if (isStreaming) {
-        remember(markdown) {
-            runCatching { splitMarkdown(markdown) }
-                .getOrElse { listOf(MarkdownBlock(prose = markdown)) }
-        }
-    } else {
-        RowCaches.blocks(markdown)
+    val blocks = remember(markdown) {
+        runCatching { splitMarkdown(markdown) }
+            .getOrElse { listOf(MarkdownBlock(prose = markdown)) }
     }
 
     Column(
@@ -250,10 +240,7 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
     // un registre : c'était refait chaque fois qu'une rangée **re-entre** dans la fenêtre de la
     // liste — c'est-à-dire à chaque défilement qui remonte. Le moteur ne dépend que du style ; il
     // est donc gardé dans un cache à quatre entrées, et deux rangées du même thème le partagent.
-    //
-    // La **clé** du style est mémorisée à part : elle sert aussi à retrouver la prose déjà analysée
-    // (voir [RowCaches.rendered]) — c'est la même identité.
-    val markwonKey = remember(
+    val markwon = remember(
         textColor,
         codeText,
         codeBackground,
@@ -266,15 +253,12 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
         baseTextSize,
         headingMultipliers,
     ) {
-        listOf(
-            textColor, codeText, codeBackground, linkColor, quoteColor,
-            bodyTypeface?.hashCode(), checkboxChecked, checkboxOutline,
-            blockQuoteWidth, baseTextSize, headingMultipliers.contentHashCode(),
-        ).joinToString("|")
-    }
-    val markwon = remember(markwonKey) {
         MarkwonCache.get(
-            key = markwonKey,
+            key = listOf(
+                textColor, codeText, codeBackground, linkColor, quoteColor,
+                bodyTypeface?.hashCode(), checkboxChecked, checkboxOutline,
+                blockQuoteWidth, baseTextSize, headingMultipliers.contentHashCode(),
+            ).joinToString("|"),
         ) {
         runCatching {
             Markwon.builder(context)
@@ -353,17 +337,6 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
                 // Repli : le texte brut plutôt que rien.
                 view.text = markdown
             } else {
-                // **La prose déjà analysée se retrouve.** Une rangée qui revient à l'écran
-                // reconstruisait son `TextView` : `setMarkdown` re-parsait tout le texte et
-                // reposait chaque span. Le résultat ne dépend que du texte et du style — il est
-                // donc gardé (`RowCaches.rendered`), et la vue le reçoit d'un `setText`.
-                // `SpannableString` : la vue peut vouloir écrire dans son texte (sélection), et
-                // deux rangées ne doivent pas partager un `Spannable` mutable.
-                val cached = if (streaming) null else RowCaches.rendered(markwonKey, markdown)
-                if (cached != null) {
-                    view.text = android.text.SpannableString(cached)
-                    return@AndroidView
-                }
                 runCatching {
                     // Une case remplace le marqueur de sa liste : Markwon n'a pas de liste de
                     // tâches, et sa puce n'existe pas sur la référence.
@@ -382,12 +355,6 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
                             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
                         )
                         view.text = content
-                    } else {
-                        // Copie : la vue peut écrire dans son texte (sélection), et l'entrée du
-                        // cache ne doit pas changer sous les pieds d'une autre rangée.
-                        (view.text as? Spanned)?.let {
-                            RowCaches.rememberRendered(markwonKey, markdown, android.text.SpannableString(it))
-                        }
                     }
                 }.onFailure { view.text = markdown }
             }

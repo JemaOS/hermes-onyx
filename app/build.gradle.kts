@@ -147,19 +147,6 @@ kotlin {
     }
 }
 
-/**
- * **Le rapport du compilateur Compose** — un outil d'audit, pas un réglage de production.
- *
- * Le compilateur dit, fonction par fonction, ce qu'il peut sauter (`skippable`) et ce qu'il ne
- * peut pas (`restartable but not skippable`) : c'est la liste des recompositions que le fil
- * déclenche à chaque publication de l'état. Le rapport est écrit dans
- * `build/compose_compiler/` — il ne change rien au code produit.
- */
-composeCompiler {
-    reportsDestination.set(layout.buildDirectory.dir("compose_compiler"))
-    metricsDestination.set(layout.buildDirectory.dir("compose_compiler/metrics"))
-}
-
 dependencies {
     // **Les travaux périodiques** : la seule voie gratuite pour prévenir d'une réponse alors
     // que l'app est fermée (aucun service de push tiers, Android s'auto-enregistre).
