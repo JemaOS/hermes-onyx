@@ -84,9 +84,19 @@ def commande(nom: str) -> str | None:
     return shutil.which(nom)
 
 
-def http_statut(url: str, cle: str = "x", delai: int = 5) -> int:
-    """Le code HTTP d'une adresse, ou 0 si rien ne répond. Jamais d'exception."""
-    requete = urllib.request.Request(url, headers={"Authorization": "Bearer " + cle})
+def http_statut(url: str, cle: str | None = None, delai: int = 5) -> int:
+    """Le code HTTP d'une adresse, ou 0 si rien ne répond. Jamais d'exception.
+
+    [cle] : la clé de l'`api_server`. La sonde envoyait autrefois `"x"` en dur — et la passerelle
+    journalisait **un avertissement par sonde** (« API server rejected invalid API key », /v1/models),
+    alors que le 401 disait déjà tout : le serveur est là, la clé est fausse. On envoie donc la clé
+    que le fichier de configuration porte ([cle_api_server]) ; s'il n'y en a pas encore — première
+    installation — on n'envoie **aucun** en-tête, plutôt qu'une fausse clé.
+    """
+    if cle is None:
+        cle = cle_api_server()
+    entetes = {"Authorization": "Bearer " + cle} if cle else {}
+    requete = urllib.request.Request(url, headers=entetes)
     try:
         with urllib.request.urlopen(requete, timeout=delai) as reponse:
             return reponse.status
