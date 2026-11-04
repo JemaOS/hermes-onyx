@@ -1064,17 +1064,28 @@ private fun DetailBlock(label: String, text: String, lines: Int) {
 @Composable
 private fun StepMark(status: ToolStatus) {
     val theme = LocalOnyxTheme.current
-    val transition = rememberInfiniteTransition(label = "step")
-    val angle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 900, easing = LinearEasing)),
-        label = "stepSpin",
-    )
 
     Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
         when (status) {
-            ToolStatus.RUNNING -> Canvas(modifier = Modifier.size(16.dp)) {
+            // **La rotation n'existe QUE pour l'étape en cours.**
+            //
+            // Défaut mesuré — le défilement d'une grosse conversation saccadait sur un téléphone
+            // pourtant puissant : la `rememberInfiniteTransition` était créée en tête de fonction,
+            // donc **chaque** étape en portait une, y compris les étapes finies. Une réponse de
+            // quarante outils portait quarante animations infinies écrivant leur état à chaque
+            // image, pour des coches qui ne bougent pas. Ici, une étape finie ne crée rien : son
+            // dessin est statique, et le fil n'a plus rien à recalculer.
+            ToolStatus.RUNNING -> {
+                val transition = rememberInfiniteTransition(label = "step")
+                val angle by transition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 900, easing = LinearEasing),
+                    ),
+                    label = "stepSpin",
+                )
+                Canvas(modifier = Modifier.size(16.dp)) {
                 val stroke = Stroke(width = 2f, cap = StrokeCap.Round)
                 drawArc(
                     color = theme.secondaryText.copy(alpha = 0.3f),
@@ -1094,6 +1105,7 @@ private fun StepMark(status: ToolStatus) {
                     size = Size(this.size.width, this.size.height),
                     style = stroke,
                 )
+                }
             }
 
             ToolStatus.COMPLETED -> Box(
