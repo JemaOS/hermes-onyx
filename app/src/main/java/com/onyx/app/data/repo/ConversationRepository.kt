@@ -126,6 +126,35 @@ class ConversationRepository(
         persist()
     }
 
+    /**
+     * **Renommer un bot renomme ses conversations.**
+     *
+     * Le titre d'une conversation de bot **est** le nom du bot : c'est lui qui la rattache à lui
+     * quand le `canonical_session` ne dit rien (`botOfConversation` lit `botName()`). Renommer le
+     * bot sans retitrer ses fils les laissait porter l'ancien nom dans la liste et, pire, les
+     * **détachait** du bot — qui perdait alors son visage et son sous-titre.
+     *
+     * [profile] est le nom du profil (l'identité, immuable) ; [fromLabel] l'ancien titre, pour les
+     * conversations écrites avant que `botProfile` existe. Une seule écriture, comme les autres
+     * actions de masse.
+     */
+    suspend fun retitleBot(profile: String, fromLabel: String, toLabel: String) {
+        if (toLabel.isBlank() || profile.isBlank()) return
+        val old = fromLabel.trim()
+        val touched = _conversations.value.map { conversation ->
+            val mine = conversation.botProfile == profile ||
+                (conversation.botProfile == null && old.isNotEmpty() && conversation.title.trim() == old)
+            when {
+                !mine -> conversation
+                conversation.title == toLabel -> conversation
+                else -> conversation.copy(title = toLabel)
+            }
+        }
+        if (touched == _conversations.value) return
+        _conversations.value = touched
+        persist()
+    }
+
     suspend fun deleteAll(ids: Set<String>) {
         ids.forEach { deleted.mark(it) }
         _conversations.value = _conversations.value.filterNot { it.id in ids }

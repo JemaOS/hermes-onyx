@@ -747,12 +747,48 @@ class BotsViewModel(
         refresh()
     }
 
-    /** Enregistre ce que l'éditeur a écrit, puis relit la liste telle qu'elle doit s'afficher. */
+    /**
+     * Enregistre ce que l'éditeur a écrit, puis relit la liste telle qu'elle doit s'afficher.
+     *
+     * **Le nom part sur le serveur.** Il n'était écrit que sur ce téléphone, dans `BotFaceStore` :
+     * l'en-tête du fil le lisait donc, mais tout ce qui vient du roster — la liste des
+     * conversations, la tuile, le Dashboard, les autres appareils — continuait d'afficher l'ancien
+     * nom. C'est le « pas synchro de partout » relevé : on renomme un bot, et seul un écran suit.
+     *
+     * Hermes garde le titre d'un bot dans `ui_meta["hermes-bots"].title`, la même clé que sa
+     * visibilité — donc la révision à annoncer est [BotProfile.setUpRevision], pas celle du visage.
+     * Le local est écrit d'abord : hors ligne, le nom change quand même sur cet appareil.
+     */
     fun saveEdit(bot: BotProfile, title: String, about: String, model: String?, shown: Boolean) {
         faces.saveEdit(bot.name, title, about, model, shown)
         // « Hidden » fait partie des réglages d'Hermes Desktop : masquer un bot ici le masque
         // pour tous les appareils, comme `changeBot(BotChange(hidden:))` dans la référence.
         writeHidden(bot, hidden = !shown)
+        // Le serveur, ensuite : un refus se dit, sinon le nom semblerait pris partout.
+        val renomme = title.trim().isNotEmpty() && title.trim() != bot.label()
+        val decrit = about.trim().isNotEmpty() && about.trim() != bot.description.trim()
+        if ((renomme || decrit) && config.hasServeCredentials) {
+            viewModelScope.launch {
+                try {
+                    val rpc = ServeRpc(config)
+                    try {
+                        ServeBotsRpc(rpc).setAbout(
+                            profile = bot.name,
+                            title = title.trim(),
+                            about = about.trim(),
+                            revision = bot.setUpRevision,
+                        )
+                    } finally {
+                        rpc.close()
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    val message = OnyxLocalization.format("Couldn't set that up: %1\$s", error.said())
+                    _state.update { it.copy(problem = message) }
+                }
+            }
+        }
         refresh()
     }
 

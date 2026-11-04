@@ -3645,7 +3645,23 @@ fun OnyxApp() {
                     // Voir `DeletionIdeasGoalsTest` et `FaceGateIdentityTest`.
                     problem = deleteProblem ?: editorState.problem,
                     onSave = { title, about, model, shown ->
+                        // **Un renommage se propage.** Le titre d'une conversation de bot est le
+                        // nom du bot : sans ce report, la liste gardait « coder » et la
+                        // conversation se détachait de son bot (elle perdait son visage).
+                        val ancienLibelle = bot?.label(state.server.displayName)
                         bot?.let { botsViewModel.saveEdit(it, title, about, model, shown) }
+                        val nouveauLibelle = title.trim()
+                        // Sans condition de changement : `retitleBot` ne touche que les
+                        // conversations dont le titre n'est pas déjà le nouveau.
+                        if (bot != null && nouveauLibelle.isNotBlank()) {
+                            scope.launch {
+                                conversationRepo.retitleBot(
+                                    bot.name,
+                                    ancienLibelle.orEmpty(),
+                                    nouveauLibelle,
+                                )
+                            }
+                        }
                         navTo(Route.BOTS.name)
                     },
                     onCreate = { title, about, soul, shown, faceCode ->
