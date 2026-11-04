@@ -86,11 +86,22 @@ class BotPresenceIndex(context: Context) {
          * **sans** le suffixe de branche — une branche garde le bot de son originale.
          */
         fun labelOf(conversation: Conversation, entries: List<BotPresence>): String? {
-            entries.firstOrNull { presence ->
+            val byChat = entries.filter { presence ->
                 presence.chatId != null &&
                     (presence.chatId == conversation.serverSessionId || presence.chatId == conversation.id)
-            }?.let { return it.label }
-            val name = conversation.botName() ?: return null
+            }
+            val name = conversation.botName()
+            // **Une session partagée ne désigne personne.** Un bot cloné hérite du
+            // `canonical_session` de son original : deux bots la revendiquent, et `firstOrNull`
+            // donnait le premier aux deux conversations (même libellé, donc même visage dans le
+            // widget). Le titre tranche entre eux, comme dans [com.onyx.app.ui.bots.botOfConversation].
+            if (byChat.size == 1) return byChat.first().label
+            if (byChat.size > 1) {
+                return name?.let { wanted ->
+                    byChat.filter { it.label == wanted }.map { it.label }.distinct().singleOrNull()
+                }
+            }
+            name ?: return null
             return entries.filter { it.label == name }.map { it.label }.distinct().singleOrNull()
         }
     }

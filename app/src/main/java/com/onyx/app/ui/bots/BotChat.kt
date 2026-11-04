@@ -87,11 +87,27 @@ fun botOfConversation(
     conversation: Conversation,
     bots: List<BotProfile>,
     mainName: String = "Onyx",
-): BotProfile? = bots.firstOrNull { bot ->
-    bot.chatId != null &&
-        (bot.chatId == conversation.serverSessionId || bot.chatId == conversation.id)
-} ?: conversation.botName()
-    ?.let { name -> bots.filter { it.label(mainName) == name }.singleOrNull() }
+): BotProfile? {
+    val named = conversation.botName()
+    val byChat = bots.filter { bot ->
+        bot.chatId != null &&
+            (bot.chatId == conversation.serverSessionId || bot.chatId == conversation.id)
+    }
+    // **Une session canonique n'identifie un bot que si elle n'en désigne qu'un.** Un bot créé
+    // « à partir de » un autre hérite du `canonical_session` de son original (`clone_from`) : deux
+    // bots réclamaient alors la même session, et `firstOrNull` donnait le **premier du roster** à
+    // toutes ses conversations — deux bots, un seul visage, et changer le visage de l'un ne
+    // changeait rien chez lui (relevé par le propriétaire : « tous les coder ont syncro le même
+    // visage »). Quand la session est partagée, elle ne décide donc plus : le **nom de la
+    // conversation** tranche entre les bots qui la revendiquent, et s'il ne tranche pas, la
+    // conversation retombe sur le profil qu'elle a retenu ([Conversation.botProfile]) — jamais sur
+    // un bot choisi au hasard dans une liste.
+    if (byChat.size == 1) return byChat.first()
+    if (byChat.size > 1) {
+        return named?.let { name -> byChat.filter { it.label(mainName) == name }.singleOrNull() }
+    }
+    return named?.let { name -> bots.filter { it.label(mainName) == name }.singleOrNull() }
+}
 
 /**
  * **Le bot d'une conversation, même quand le roster n'est pas encore arrivé.**
