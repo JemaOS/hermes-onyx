@@ -54,15 +54,15 @@ class CapabilitiesDuplicateRemovedTest {
     fun `le groupe Onyx tient sur deux rangees pleines, alignees a gauche`() {
         // La géométrie : la grille range les tuiles par rangées entières (`chunked(columns)`, deux ou
         // trois colonnes selon la largeur), et une rangée incomplète garde ses cases vides — une
-        // tuile orpheline ne s'étire donc jamais, et un groupe de quatre est **deux rangées pleines**
-        // à deux colonnes.
+        // tuile orpheline ne s'étire donc jamais. Le groupe est passé de quatre à **cinq** tuiles
+        // avec le **Coffre de secrets** : deux rangées pleines, puis une tuile seule à gauche — et
+        // c'est le raccourci `Spacer` ci-dessous qui la garde à gauche au lieu de l'étirer.
         //
         // Ce lot-ci rend la grille **personnalisable** : elle ne dessine plus le groupe « Onyx » (ces
         // destinations vivent dans la bibliothèque du mode édition), mais la règle de rangée est la
         // même — la vérification porte donc sur la grille, pas sur le groupe qui n'y est plus.
         val onyx = SidebarDestinations.group(SidebarTileGroup.ONYX)
-        assertEquals(4, onyx.size)
-        assertEquals("la dernière rangée est pleine", 0, onyx.size % 2)
+        assertEquals(5, onyx.size)
         assertTrue("la grille range ses tuiles par rangées entières", chatSidebar.contains("tiles.chunked(columns)"))
         assertTrue(
             "une rangée incomplète garde ses cases vides (alignement à gauche)",
