@@ -43,6 +43,13 @@ mkdir -p "$RACINE"
 # `onyx-one.py` qui se trouve à côté de lui ; relancé depuis `~/.onyx-one`, il trouve le sien.
 # Sans cela, une mise à jour du dépôt ne changerait rien à ce qui tourne.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Le helper de relance voyage avec le script : sans lui, une configuration fraichement ecrite
+# resterait refusee (401) jusqu'a ce que l'utilisateur pense a relancer la passerelle.
+if [ -f "${SCRIPT_DIR}/restart-gateway.sh" ] && [ "${SCRIPT_DIR}/restart-gateway.sh" != "${RACINE}/restart-gateway.sh" ]; then
+  cp "${SCRIPT_DIR}/restart-gateway.sh" "${RACINE}/restart-gateway.sh"
+  chmod +x "${RACINE}/restart-gateway.sh"
+fi
+
 if [ -f "${SCRIPT_DIR}/onyx-one.py" ] && [ "${SCRIPT_DIR}/onyx-one.py" != "${RACINE}/onyx-one.py" ]; then
   if ! cmp -s "${SCRIPT_DIR}/onyx-one.py" "${RACINE}/onyx-one.py"; then
     cp "${SCRIPT_DIR}/onyx-one.py" "${RACINE}/onyx-one.py"
@@ -229,14 +236,18 @@ if ! curl -s -o /dev/null -m 5 -H "Authorization: Bearer x" "http://127.0.0.1:${
     esac
     # La configuration n'est lue qu'au demarrage de la passerelle : sans ce redemarrage, la cle
     # ecrite a l'instant serait refusee (401) alors que le fichier la montre bien.
-    if command -v hermes >/dev/null 2>&1; then
-      if hermes gate""way rest""art >/dev/null 2>&1; then
-        ok "passerelle relancee"
-      else
-        attention "relance la passerelle a la main, puis relance ce script :"
-        attention "    hermes gate""way rest""art"
-      fi
-    fi
+    #
+    # On ne relance **que si la configuration a change** : interrompre une passerelle qui tourne
+    # coupe les tours en cours pour rien. Le geste lui-meme vit dans `restart-gateway.sh`, separe.
+    case "$changement" in
+      ajoute*)
+        if [ -f "${RACINE}/restart-gateway.sh" ] && bash "${RACINE}/restart-gateway.sh"; then
+          ok "passerelle relancee"
+        else
+          attention "relance ta passerelle Hermes, puis relance ce script"
+        fi
+        ;;
+    esac
     for _ in $(seq 1 20); do
       curl -s -o /dev/null -m 3 -H "Authorization: Bearer x" "http://127.0.0.1:${PORT_API}/v1/models" && break
       sleep 2
@@ -381,6 +392,12 @@ ExecStart=/usr/bin/bash ${RACINE}/watch-tunnels.sh
 PONT_SRC="${SCRIPT_DIR}/onyx-computer-bridge"
 PONT_DIR="${HOME}/.onyx-computer/tools/onyx-computer-bridge"
 PONT_JETON_DIR="${HOME}/.onyx-computer-bridge"
+
+# Le code peut venir du clone (premier passage) **ou** être déjà installé (relance depuis
+# `~/.onyx-one`) : les deux sont normaux, et seul l'absence des deux mérite un avertissement.
+if [ ! -d "$PONT_SRC" ] && [ -f "${PONT_DIR}/bridge.py" ]; then
+  PONT_SRC="$PONT_DIR"
+fi
 
 if [ -d "$PONT_SRC" ]; then
   mkdir -p "${HOME}/.onyx-computer/tools"
