@@ -175,11 +175,11 @@ class ThreadSpeakerTest {
     fun `le fil donne le visage de la conversation a la barre du haut`() {
         assertTrue(
             "la barre reçoit le nom du visage de la conversation",
-            screenSource.contains("avatarName = threadSpeaker.faceName"),
+            screenSource.contains("avatarName = if (threadBotUnknown) null else threadSpeaker.faceName"),
         )
         assertTrue(
             "la barre reçoit le visage enregistré quand il y en a un",
-            screenSource.contains("avatarFaceCode = threadSpeaker.faceCode"),
+            screenSource.contains("avatarFaceCode = if (threadBotUnknown) null else threadSpeaker.faceCode"),
         )
     }
 

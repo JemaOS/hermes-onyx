@@ -65,7 +65,7 @@ class EnteteNomModeleVerrouTest {
         val chat = source("app/src/main/java/com/onyx/app/ui/chat/ChatScreen.kt")
         assertTrue(
             "l'écran passe toujours le profil en force à l'en-tête",
-            chat.contains("profileLabel = state.profileInForce"),
+            chat.contains("profileLabel = if (threadBotUnknown) null else state.profileInForce"),
         )
         // Et il reste lisible **ailleurs** quand l'en-tête l'efface : l'identité du bot écrit son
         // handle. C'est la réponse au « où est passée l'information de routage ».

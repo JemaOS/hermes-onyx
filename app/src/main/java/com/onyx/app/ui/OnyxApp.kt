@@ -575,6 +575,8 @@ fun OnyxApp() {
                         faces = BotFaceStore(context.applicationContext),
                         activity = BotActivityStore(context.applicationContext),
                         groupRooms = com.onyx.app.data.local.GroupRoomStore(context.applicationContext),
+                        // Le dernier roster réussi : il tient la première frame, avant le réseau.
+                        roster = com.onyx.app.data.local.BotRosterCache(context.applicationContext),
                     )
                 }
             },
@@ -2165,6 +2167,12 @@ fun OnyxApp() {
                 // L'en-tête du fil : le visage et le nom du bot dont c'est la conversation, sinon
                 // ceux de Onyx (ajout volontaire côté Android).
                 threadBot = openedConversationBot,
+                // **Rien de faux à l'écran pendant la synchronisation.** Si la conversation est
+                // ouverte, que le roster n'a pas encore répondu et que rien (ni le roster, ni la
+                // mémoire de la conversation) ne dit de quel bot il s'agit, l'en-tête reste **nu** :
+                // ni visage bleu d'Onyx, ni « @default » — le temps que la réponse arrive.
+                threadBotUnknown = openedConversation != null &&
+                    openedConversationBot == null && bots.isEmpty() && botsState.loading,
                 // La liste des mentions `@` du composeur : les bots du roster, comme la section
                 // « Bots » les montre.
                 mentionBots = mentionRoster,
