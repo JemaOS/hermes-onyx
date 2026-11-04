@@ -371,7 +371,7 @@ Full index: [`docs/captures/INDEX.md`](docs/captures/INDEX.md).
 
 ## Prerequisites
 
-Two things, one on each side. Nothing else is required — there is no account, no cloud service, no
+A short list on each side. Nothing else is required — there is no account, no cloud service, no
 paid tier anywhere in this path.
 
 **On the machine that answers the phone**
