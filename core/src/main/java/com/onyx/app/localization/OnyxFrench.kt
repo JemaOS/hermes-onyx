@@ -215,7 +215,7 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
         "La salle ne répond pas. Vérifiez la connexion puis réessayez.",
     "The attachment couldn't be uploaded." to "Impossible de téléverser la pièce jointe.",
     "1 message waiting" to "1 message en attente",
-    "Open the editor" to "Ouvrir l’éditeur",
+    "Open the editor in full screen" to "Ouvrir l’éditeur en plein écran",
     "Steer this reply" to "Guider cette réponse",
     "View change · " to "Voir la modification · ",
     "Thought" to "Réflexion",

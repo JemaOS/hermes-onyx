@@ -9,6 +9,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ComposerLayoutTest {
+
+    /**
+     * **Le bouton du champ dit « plein écran », et il le dit avec les quatre coins.**
+     *
+     * Relevé du propriétaire, capture à l'appui : « cette icône est dégueulasse, mal placée et pas
+     * explicite pour mettre en plein écran ». Le glyphe était `Symbols.Expand` — deux flèches en
+     * diagonale — à **13 dp** sur une plaque sombre : au rendu, un trait de griffure. La maison a
+     * déjà tranché ailleurs (`ComputerScreen`, et son verrou) : les diagonales disent « agrandir un
+     * bloc », le plein écran prend `FullScreenEnter`/`FullScreenExit`. Le champ suivait l'ancienne
+     * règle, seul.
+     */
+    @Test
+    fun `le bouton du champ porte le glyphe du plein ecran`() {
+        val source = File("src/main/java/com/onyx/app/ui/chat/components/OnyxComposer.kt").readText()
+        val bouton = source.substringAfter("if (draftIsLong && allowExpand) {").substringBefore("// Les trois boutons ronds")
+        assertTrue("les quatre coins commandent le plein écran", bouton.contains("symbol = Symbols.FullScreenEnter"))
+        assertFalse("les deux flèches en diagonale restent aux blocs", bouton.contains("symbol = Symbols.Expand"))
+        assertTrue(
+            "et le libellé le dit, pour qui ne voit pas le glyphe",
+            bouton.contains("label = \"Open the editor in full screen\""),
+        )
+    }
     @Test
     fun `le bouton rond suit la hauteur du champ dans la densite reelle`() {
         assertEquals(48.dp, measuredComposerButtonSize(rowHeightPx = 76, density = 2f))
@@ -19,7 +41,9 @@ class ComposerLayoutTest {
     fun `les glyphes du composer utilisent les styles de texte référence`() {
         assertEquals(20.dp, ComposerPlusGlyphSize)
         assertEquals(17.dp, ComposerDictateGlyphSize)
-        assertEquals(13.dp, ComposerExpandGlyphSize)
+        // 13 dp lisait un trait de griffure sur la plaque : la taille des voisines.
+        assertEquals(17.dp, ComposerExpandGlyphSize)
+        assertEquals(ComposerDictateGlyphSize, ComposerExpandGlyphSize)
     }
 
     @Test

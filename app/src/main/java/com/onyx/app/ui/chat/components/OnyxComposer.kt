@@ -144,7 +144,15 @@ internal fun measuredComposerButtonSize(rowHeightPx: Int, density: Float): andro
 
 internal val ComposerPlusGlyphSize = 20.dp
 internal val ComposerDictateGlyphSize = 17.dp
-internal val ComposerExpandGlyphSize = 13.dp
+/**
+ * Le glyphe du bouton « plein écran » du champ.
+ *
+ * Il valait **13 dp** — le plus petit de la plaque — et c'était le défaut relevé : les deux flèches
+ * en diagonale n'y lisaient plus qu'un **trait de griffure**, sans rien dire de ce qu'elles font.
+ * Il prend la taille de ses voisines (`ComposerDictateGlyphSize`, 17 dp) : une commande se lit à
+ * la taille des autres, sinon elle a l'air d'un résidu.
+ */
+internal val ComposerExpandGlyphSize = 17.dp
 
 /**
  * Le côté d'une **commande** de la rangée du compositeur : la cible tactile de la maison.
@@ -828,8 +836,12 @@ fun OnyxComposer(
 
                 if (draftIsLong && allowExpand) {
                     IconSlot(
-                        symbol = Symbols.Expand,
-                        label = "Open the editor",
+                        // **Les quatre coins, pas les deux flèches en diagonale.** La maison a
+                        // déjà tranché pour le plein écran ailleurs (`ComputerScreen` : « le
+                        // glyphe des deux flèches en diagonale dit “agrandir un bloc” ») ; le
+                        // champ gardait l'ancien, illisible à 13 dp sur une plaque sombre.
+                        symbol = Symbols.FullScreenEnter,
+                        label = "Open the editor in full screen",
                         // La largeur d'une commande, pas 30 dp : sous 44, le système élargit la cible
                         // de 9 dp de chaque côté et elle recouvre sa voisine (relevé).
                         size = ComposerControlSlotHeight,
