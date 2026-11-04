@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import androidx.compose.runtime.mutableStateMapOf
 import com.onyx.app.data.model.ConversationFile
@@ -460,14 +461,54 @@ class ConversationFilesController(
     private fun decodeBounded(local: File, maxPx: Int = BoundedImages.ROW_PX): Bitmap? =
         BoundedImages.decodeFile(local, maxPx)
 
-    /** La première image d'une vidéo (`getFrameAtTime` au début du flux). */
+    /**
+     * La première image d'une vidéo (`getFrameAtTime` au début du flux), **réduite à la taille
+     * d'une ligne**.
+     *
+     * Elle sortait en résolution native et était gardée telle quelle : une image-clé 4K pèse
+     * 3840×2160×4 = 33 Mo en ARGB_8888 pour une pastille de 56 dp, et cinq vidéos dans un fil
+     * tenaient 165 Mo de tas — de quoi faire tomber l'onglet Fichiers. Depuis Android 8.1,
+     * `getScaledFrameAtTime` décode directement à la taille demandée (l'original n'existe jamais) ;
+     * avant, la frame est réduite et recyclée une fois.
+     */
     private fun frameOf(local: File): Bitmap? = runCatching {
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(local.absolutePath)
-            retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                retriever.getScaledFrameAtTime(
+                    0L,
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                    BoundedImages.ROW_PX,
+                    BoundedImages.ROW_PX,
+                )
+            } else {
+                retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?.let(::shrinkFrame)
+            }
         } finally {
             runCatching { retriever.release() }
         }
     }.getOrNull()
+
+    /**
+     * Réduit une image déjà décodée à [BoundedImages.ROW_PX] sur sa plus grande arête, et
+     * **recycle l'original** : sans cela, la frame pleine résolution resterait en mémoire jusqu'au
+     * prochain passage du GC, pour une vignette que personne ne dessine plus grande.
+     */
+    private fun shrinkFrame(frame: Bitmap): Bitmap {
+        val longest = maxOf(frame.width, frame.height)
+        if (longest <= BoundedImages.ROW_PX) return frame
+        val scale = BoundedImages.ROW_PX.toFloat() / longest
+        val scaled = runCatching {
+            Bitmap.createScaledBitmap(
+                frame,
+                (frame.width * scale).toInt().coerceAtLeast(1),
+                (frame.height * scale).toInt().coerceAtLeast(1),
+                true,
+            )
+        }.getOrNull() ?: return frame
+        if (scaled !== frame) frame.recycle()
+        return scaled
+    }
 }

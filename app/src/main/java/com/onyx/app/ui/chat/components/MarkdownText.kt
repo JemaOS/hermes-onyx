@@ -228,6 +228,14 @@ private fun MarkdownProse(markdown: String, tint: Color? = null, streaming: Bool
             view.typeface = bodyTypeface
             view.setTextSize(TypedValue.COMPLEX_UNIT_PX, baseTextSize)
             val renderer = markwon
+            // **Rien à refaire si le texte n'a pas changé.** `update` s'exécute à chaque
+            // recomposition du parent ; sans ce garde, une simple recomposition de la rangée
+            // (un badge, un état voisin) re-parsait tout le markdown et refaisait la mise en page
+            // du TextView. On marque le texte rendu sur la vue — `streaming` en fait partie, sinon
+            // le point de fin de flux ne serait jamais retiré.
+            val renderKey = if (streaming) "$markdown\u0000stream" else markdown
+            if (view.tag == renderKey) return@AndroidView
+            view.tag = renderKey
             if (renderer == null) {
                 // Repli : le texte brut plutôt que rien.
                 view.text = markdown

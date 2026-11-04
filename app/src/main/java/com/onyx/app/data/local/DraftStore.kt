@@ -17,12 +17,23 @@ class DraftStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("onyx_drafts", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * La carte des brouillons, décodée **une fois**.
+     *
+     * `put` est appelé à chaque caractère tapé : refaire un `getString` + un décodage JSON de tous
+     * les brouillons par frappe faisait payer au clavier plusieurs dizaines de Ko de lecture et
+     * d'allocation à chaque touche. La carte reste ici ; le disque ne voit que l'encodage.
+     */
+    private var cache: MutableMap<String, String>? = null
+
+    private fun all(): MutableMap<String, String> = cache ?: load().toMutableMap().also { cache = it }
+
     /** Le brouillon d'une conversation, ou `""`. */
-    fun get(conversationId: String): String = load()[conversationId].orEmpty()
+    fun get(conversationId: String): String = all()[conversationId].orEmpty()
 
     /** Enregistre (ou efface, si vide) le brouillon d'une conversation. */
     fun put(conversationId: String, text: String) {
-        val drafts = load().toMutableMap()
+        val drafts = all()
         if (text.isEmpty()) drafts.remove(conversationId) else drafts[conversationId] = text
         store(drafts)
     }
@@ -33,6 +44,7 @@ class DraftStore(context: Context) {
 
     /** Efface tous les brouillons de ce téléphone (le « Erase everything » des Réglages). */
     fun clearAll() {
+        cache = null
         prefs.edit().remove(KEY).apply()
     }
 

@@ -1,7 +1,6 @@
 package com.onyx.app.ui.bots
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
@@ -28,6 +27,7 @@ import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.humanFailure
 import com.onyx.app.data.net.visibleBotProfiles
 import com.onyx.app.localization.OnyxLocalization
+import com.onyx.app.ui.chat.BoundedImages
 import com.onyx.app.ui.conversations.GroupChat
 import com.onyx.app.ui.conversations.GroupCreation
 import kotlinx.coroutines.CancellationException
@@ -413,10 +413,15 @@ class BotsViewModel(
                 val found = mutableMapOf<String, ImageBitmap>()
                 for (bot in targets) {
                     val bytes = runCatching { bots.botPicture(bot.name) }.getOrNull() ?: continue
-                    val bitmap = runCatching {
-                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-                    }.getOrNull() ?: continue
-                    // Le nom du profil et le libellé affiché mènent à la même photo.
+                    // **Décodée bornée.** Un avatar de profil arrive en 1024×1024 (4 Mo en
+                    // ARGB_8888) alors que la seule chose qu'on en fait est une tuile de 108 px :
+                    // décodé en pleine résolution et gardé pour la vie du processus, vingt bots
+                    // pesaient ~80 Mo de tas. `BoundedImages` lit l'en-tête, choisit le facteur et
+                    // ne construit jamais l'image entière.
+                    val bitmap = BoundedImages.decodeBytes(bytes, maxPx = AVATAR_PX)
+                        ?.asImageBitmap() ?: continue
+                    // Le nom du profil et le libellé affiché mènent à la même photo (deux clés, un
+                    // seul bitmap : une table ne paie que la référence).
                     found[bot.name] = bitmap
                     found[bot.label(config.displayName)] = bitmap
                 }
@@ -1181,5 +1186,15 @@ class BotsViewModel(
         val ids = _state.value.bots.map { BotListItem.Bot(it).id } + _state.value.groups.map { "room:" + it.id }
         val marks = ids.associateWith { activity.seen(serverKey, it) }
         _state.update { it.copy(seenMarks = marks) }
+    }
+
+    private companion object {
+        /**
+         * La plus grande arête gardée pour la photo d'un bot.
+         *
+         * La tuile du menu d'appui long en dessine 192 px (`BotTileArtwork.SIZE`) : 256 garde la
+         * marge de densité des écrans 3×, et divise par seize la mémoire d'un avatar 1024×1024.
+         */
+        const val AVATAR_PX = 256
     }
 }

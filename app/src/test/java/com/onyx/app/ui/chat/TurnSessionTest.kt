@@ -229,4 +229,37 @@ class TurnSessionTest {
         val stopped = session()
         assertFalse(stopped.departure.hasLeft)
     }
+
+    /**
+     * Le journal réécrivait `conversations.json` — toutes les conversations — à **chaque jeton**,
+     * parce que la forme comparée contenait `text.length` : une réponse de 2 000 jetons valait
+     * 2 000 sérialisations du fichier entier. Le texte est maintenant compté par paliers.
+     */
+    @Test
+    fun `deux mille jetons n'ecrivent pas deux mille fois`() {
+        val session = session()
+        var writes = 0
+        repeat(2_000) { index ->
+            session.apply(TurnEvent.TextDelta("a"), 2_000L + index)
+            if (session.shouldPersist()) writes++
+        }
+
+        assertTrue("le début de la réponse est écrit tout de suite (vu $writes)", writes >= 1)
+        // Le texte s'accumule dans un tampon et ne se matérialise qu'à la cadence de l'écran : la
+        // fin de tour (ou un événement structurel) le publie.
+        session.flushText()
+        assertTrue("2 000 jetons doivent coûter une poignée d'écritures, pas 2 000 (vu $writes)", writes <= 10)
+        assertEquals("le texte en mémoire reste complet", 2_000, session.message.text.length)
+    }
+
+    /** Un changement de **structure** reste écrit tout de suite, sans attendre un palier. */
+    @Test
+    fun `un outil qui demarre est ecrit sans attendre`() {
+        val session = session()
+        session.apply(TurnEvent.TextDelta("je regarde"), 2_000L)
+        session.shouldPersist()
+
+        session.apply(TurnEvent.ToolStarted(name = "terminal", preview = null), 3_000L)
+        assertTrue("une carte d'outil doit exister sur disque immédiatement", session.shouldPersist())
+    }
 }
