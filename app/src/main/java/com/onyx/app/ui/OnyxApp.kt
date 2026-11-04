@@ -1463,6 +1463,9 @@ fun OnyxApp() {
         // « Capture rapide » demandée depuis l'extérieur (raccourci de l'illustration) : l'app
         // s'ouvre sur la note, **sans toucher à la conversation ouverte**.
         val captureRequested by ShareInbox.captureRequested.collectAsStateWithLifecycle()
+        // Le raccourci **« Coffre de secrets »** (menu de l'icône) : l'app s'ouvre sur le coffre,
+        // sans toucher à la conversation ouverte.
+        val vaultRequested by ShareInbox.vaultRequested.collectAsStateWithLifecycle()
 
         // Un **lien de modèle de bot** reçu de l'extérieur (navigateur, autre app, texte partagé) :
         // il n'entre pas dans le composeur, il ouvre l'aperçu du modèle — et l'ajout ne se fait
@@ -1480,7 +1483,14 @@ fun OnyxApp() {
         // Sans ça, une note restée en attente n'aurait reparti qu'au prochain appui.
         LaunchedEffect(Unit) { com.onyx.app.data.capture.QuickCapture.fileNow() }
 
-        LaunchedEffect(pendingIntake, pendingShare, voiceRequested, captureRequested, pendingTemplate) {
+        LaunchedEffect(
+            pendingIntake,
+            pendingShare,
+            voiceRequested,
+            captureRequested,
+            vaultRequested,
+            pendingTemplate,
+        ) {
             val question = pendingIntake
             val shared = pendingShare
             when {
@@ -1516,6 +1526,13 @@ fun OnyxApp() {
                 captureRequested -> {
                     ShareInbox.consume()
                     navTo(Route.QUICK_CAPTURE.name)
+                }
+
+                // Le raccourci du coffre : la page du Coffre, et rien d'autre — aucun texte n'entre
+                // dans le composeur, la conversation ouverte reste intacte.
+                vaultRequested -> {
+                    ShareInbox.consume()
+                    navTo(Route.VAULT.name)
                 }
             }
         }
@@ -2802,6 +2819,13 @@ fun OnyxApp() {
                     }
                 }
 
+                // **« Le Coffre »** dans le volet : empilé par sa ligne des Réglages. Le retour dépile
+                // le volet et rend donc les Réglages, la page quittée.
+                Route.VAULT.name -> VaultScreen(
+                    server = state.server,
+                    onBack = paneBack,
+                )
+
                 Route.INSIGHTS.name -> {
                     val period by settingsRepo.insightsPeriod.collectAsStateWithLifecycle()
                     InsightsScreen(
@@ -2826,21 +2850,6 @@ fun OnyxApp() {
                         skillSeed = null
                         panePush(Route.SKILL_EDITOR.name)
                     },
-                    // La ligne « Secrets › » n'existe que si la sonde prouve la capacité ; la
-                    // sonde est refaite quand la signature de la connexion change (autre machine,
-                    // autres identifiants, autres capacités).
-                    probe = remember(state.server.configSignature) {
-                        com.onyx.app.data.net.ServerProbe(state.server)
-                    },
-                    onOpenVault = { panePush(Route.VAULT.name) },
-                )
-
-                // **« Le Coffre »** — le même écran que la route pleine page, empilé dans le volet
-                // par la ligne « Secrets › » de « Capacités ». Le retour dépile le volet et rend
-                // donc « Capacités », la page quittée.
-                Route.VAULT.name -> VaultScreen(
-                    server = state.server,
-                    onBack = paneBack,
                 )
 
                 // **« Configuration »** — la tuile *Config* de la référence. Chez elle, la roue de
@@ -2879,6 +2888,9 @@ fun OnyxApp() {
 
                 Route.SETTINGS.name -> SettingsScreen(
                     viewModel = settingsViewModel,
+                    // Le **Coffre** : sa page est empilée dans le volet, comme les autres tuiles
+                    // portées ici ; sa ligne n'existe que si la sonde prouve la capacité.
+                    onOpenVault = { panePush(Route.VAULT.name) },
                     onDone = paneBack,
                     // Les pages que le volet porte aussi (Modèles, Fichiers, Planifiés, Kanban,
                     // Compétences, Outils, Aperçus) s'ouvrent **dans** le volet ; les autres sont
@@ -3459,6 +3471,7 @@ fun OnyxApp() {
 
             Route.SETTINGS -> SettingsScreen(
                 viewModel = settingsViewModel,
+                onOpenVault = { navTo(Route.VAULT.name) },
                 // « Terminé » referme la feuille : on revient **d'où l'on est venu** (le fil, la
                 // liste, ou une tuile de bot), et non systématiquement sur le fil — ouvrir les
                 // Réglages depuis la liste des conversations et se retrouver dans le fil était
@@ -4619,19 +4632,15 @@ fun OnyxApp() {
                     skillSeed = null
                     navTo(Route.SKILL_EDITOR.name)
                 },
-                probe = remember(state.server.configSignature) {
-                    com.onyx.app.data.net.ServerProbe(state.server)
-                },
-                onOpenVault = { navTo(Route.VAULT.name) },
             )
 
-            // **« Le Coffre »** — les secrets du profil, et **jamais** une valeur à l'écran. Il ne
-            // s'ouvre que par la ligne « Secrets › » de « Capacités », qui n'existe que si la sonde
-            // a prouvé la capacité : cette branche garde la route vivante et son retour rend la
-            // page quittée.
+            // **« Le Coffre »** — les secrets du profil, et **jamais** une valeur à l'écran. Il
+            // s'ouvre par sa ligne des Réglages (section « Secrets ») et par le raccourci de
+            // l'icône ; les deux n'existent que si la sonde a prouvé la capacité. Son retour rend
+            // la page quittée, et les Réglages à défaut.
             Route.VAULT -> VaultScreen(
                 server = state.server,
-                onBack = { if (!navBack()) navTo(Route.CAPABILITIES.name) },
+                onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
             )
 
             // « Archives » en pleine page : la **même** liste que celle que le volet porte. Elle ne

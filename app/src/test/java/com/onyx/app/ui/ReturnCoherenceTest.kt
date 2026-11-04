@@ -291,8 +291,9 @@ class ReturnCoherenceTest {
         assertTrue(corps.contains("sidebarState.destination?.takeIf { it != id }"))
 
         // Et l'autre moitié : aucune rangée ne peut contourner cette règle. Les vingt rangées des
-        // Réglages du volet passent **toutes** par `paneLeave` (les six autres par `panePush`) —
-        // aucune ne va `navTo` directement.
+        // Réglages du volet passent **toutes** par `paneLeave` (les sept autres par `panePush`,
+        // le Coffre compris depuis qu'il a sa ligne dans « Secrets ») — aucune ne va `navTo`
+        // directement.
         val rangees = app.substringAfter("Route.SETTINGS.name -> SettingsScreen(")
             .substringBefore("// Une tuile sans écran ici")
         assertEquals(
@@ -301,8 +302,8 @@ class ReturnCoherenceTest {
             rangees.lines().count { it.contains("paneLeave(Route.") },
         )
         assertEquals(
-            "les six rangées portées par le volet passent par `panePush`",
-            6,
+            "les sept rangées portées par le volet passent par `panePush`",
+            7,
             rangees.lines().count { it.contains("panePush(Route.") },
         )
         assertFalse(

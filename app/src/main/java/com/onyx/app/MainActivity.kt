@@ -128,6 +128,9 @@ class MainActivity : FragmentActivity() {
         when (intent.action) {
             ACTION_VOICE -> ShareInbox.requestVoice(intent.getStringExtra("query"))
             ACTION_CAPTURE -> ShareInbox.requestCapture()
+            // Le raccourci **« Coffre de secrets »** de l'icône : l'app s'ouvre sur le coffre. La
+            // même demande différée que pour une note — elle est consommée **une fois**.
+            ACTION_VAULT -> ShareInbox.requestVault()
             Intent.ACTION_SEND -> {
                 // Un partage peut porter du texte, une image, un PDF, ou les deux : le texte va au
                 // composeur, le fichier s'y joint (il s'ouvre ensuite dans le lecteur de l'app).
@@ -215,6 +218,9 @@ class MainActivity : FragmentActivity() {
     private companion object {
         /** L'action des App Actions et des raccourcis (`res/xml/shortcuts.xml`). */
         const val ACTION_ASK = "com.onyx.app.action.ASK"
+
+        /** Le raccourci « Coffre de secrets » : `res/xml/shortcuts.xml`. */
+        const val ACTION_VAULT = "com.onyx.app.action.VAULT"
 
         /**
          * Le niveau de teinte des plaques, pour la passe de captures (`onyx.verreTeinte`).

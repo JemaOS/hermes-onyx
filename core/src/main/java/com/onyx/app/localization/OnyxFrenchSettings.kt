@@ -313,6 +313,15 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "Sert au chiffre « ctx % » quand le serveur ne rapporte pas sa fenêtre. " +
         "Un serveur llama.cpp l’annonce de lui-même.",
 
+    // **Le Coffre de secrets** (`SettingsScreen`, section « Secrets ») : sa ligne a **quitté**
+    // « Capacités » pour sa propre section des Réglages, donc son explication vit ici.
+    "Secrets" to "Secrets",
+    "Secrets vault" to "Coffre de secrets",
+    "The keys the agent can use without reading them: they stay on the server, and the app " +
+        "keeps none of them." to
+        "Les clés que l’agent peut utiliser sans les lire : elles restent sur le serveur, et " +
+        "l’app n’en garde aucune.",
+
     // « Erase everything » (`ResetSettings`).
     "Erase everything…" to "Tout effacer…",
     "Erase everything" to "Tout effacer",

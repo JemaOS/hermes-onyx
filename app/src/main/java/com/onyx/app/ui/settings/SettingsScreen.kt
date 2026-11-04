@@ -24,9 +24,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.onyx.app.data.net.ServerCapability
+import com.onyx.app.data.net.ServerProbe
+import com.onyx.app.shortcuts.VaultShortcut
 import com.onyx.app.ui.localization.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -119,6 +123,14 @@ fun SettingsScreen(
     onOpenPhoneTools: (() -> Unit)? = null,
     /** Ouvre les réglages d'appel (sonnerie pour une décision, heures de tranquillité). */
     onOpenCalls: (() -> Unit)? = null,
+    /**
+     * **Le Coffre de secrets** — sa propre entrée, à sa propre page, à part de « Capacités ».
+     *
+     * Sa ligne n'existe que si la sonde a prouvé la capacité : sur un serveur qui ne sert pas le
+     * greffon, rien n'est dessiné — pas de ligne grisée, pas de tap mort. C'est le motif d'entrée
+     * conditionnelle de la maison, le même que celui de « Lock ».
+     */
+    onOpenVault: (() -> Unit)? = null,
     onOpenBots: (() -> Unit)? = null,
     onOpenServers: (() -> Unit)? = null,
     onOpenProfile: (() -> Unit)? = null,
@@ -169,6 +181,18 @@ fun SettingsScreen(
     val speechLocales = SettingsRepository.SPEECH_LOCALES
     // Le serveur actif : ses métriques et la page « Connection details » l'ouvrent.
     val activeServer = servers.firstOrNull { it.id == activeId }
+
+    // **Le Coffre** : sa ligne dans « Secrets » et son raccourci d'icône suivent **la même preuve**.
+    // La sonde dit si ce serveur porte le greffon `onyx-vault` ; sans preuve, ni la ligne ni la tuile
+    // du lanceur n'existent (`VaultShortcut.sync` la retire). Une seule preuve, deux entrées : la
+    // sonde est refaite quand la signature de la connexion change — autre serveur, autres capacités.
+    val vaultProbe = remember(activeServer?.configSignature) { activeServer?.let { ServerProbe(it) } }
+    var vaultReady by remember(activeServer?.id) { mutableStateOf(false) }
+    LaunchedEffect(vaultProbe) {
+        val ready = vaultProbe?.allows(ServerCapability.VAULT) == true
+        vaultReady = ready
+        VaultShortcut.sync(context, ready)
+    }
     var confirmingErase by remember { mutableStateOf(false) }
 
     val editing = draft
@@ -488,6 +512,26 @@ fun SettingsScreen(
                 if (onOpenLock != null && onOpenConnect != null) OnyxAnatomyDivider()
                 onOpenConnect?.let {
                     OnyxValueRow(label = "Set up another device", value = "", symbol = Symbols.QrCode, onClick = it)
+                }
+            }
+
+            // **Le Coffre a sa section et sa page.** Il vivait dans « Capacités », au-dessus de la
+            // liste des compétences — un endroit où il ne se lisait pas comme un réglage. Sa ligne
+            // n'existe que si la sonde a prouvé que ce serveur sert le greffon `onyx-vault` ; la
+            // sonde est refaite quand la signature de la connexion change, et elle pilote aussi le
+            // raccourci de l'icône (`VaultShortcut`) : une seule preuve pour les deux entrées.
+            if (onOpenVault != null && vaultReady) {
+                OnyxFormSection(
+                    header = "Secrets",
+                    footer = "The keys the agent can use without reading them: they stay on the " +
+                        "server, and the app keeps none of them.",
+                ) {
+                    OnyxValueRow(
+                        label = "Secrets vault",
+                        value = "",
+                        symbol = Symbols.LockOutline,
+                        onClick = onOpenVault,
+                    )
                 }
             }
 

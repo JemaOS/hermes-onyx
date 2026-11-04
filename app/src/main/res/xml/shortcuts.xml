@@ -82,4 +82,18 @@
             android:targetClass="com.onyx.app.MainActivity" />
         <categories android:name="android.shortcut.conversation" />
     </shortcut>
+
+    <!-- **« Coffre de secrets »** : les clés du serveur, à leur propre page. La tuile est déclarée
+         ici mais **son activation suit la preuve** (`VaultShortcut.sync`) : sur un serveur qui ne
+         sert pas le greffon `onyx-vault`, le lanceur la retire du menu. -->
+    <shortcut
+        android:shortcutId="vault"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_vault"
+        android:shortcutShortLabel="@string/shortcut_vault_short"
+        android:shortcutLongLabel="@string/shortcut_vault_long">
+        <intent
+            android:action="com.onyx.app.action.VAULT"
+            android:targetClass="com.onyx.app.MainActivity" />
+    </shortcut>
 </shortcuts>

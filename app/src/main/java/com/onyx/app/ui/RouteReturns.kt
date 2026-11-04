@@ -577,12 +577,14 @@ object TableDesRetours {
             repli = "SETTINGS",
             support = SUPPORT_BRANCHE,
         ),
+        // Le Coffre a **sa** ligne dans les Réglages (section « Secrets ») et son raccourci d'icône :
+        // il ne s'ouvre plus depuis « Capacités », donc son repli est les Réglages.
         RetourRoute(
             route = "VAULT",
             ecran = "le Coffre de secrets",
             nature = NatureRetour.PILE,
-            declaration = "onBack = { if (!navBack()) navTo(Route.CAPABILITIES.name) }",
-            repli = "CAPABILITIES",
+            declaration = "onBack = { if (!navBack()) navTo(Route.SETTINGS.name) }",
+            repli = "SETTINGS",
             support = SUPPORT_BRANCHE,
         ),
         RetourRoute(

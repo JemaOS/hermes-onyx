@@ -66,6 +66,19 @@ object ShareInbox {
         _captureRequested.value = true
     }
 
+    /** Le raccourci « coffre de secrets » : l'app s'ouvre sur le coffre. */
+    fun requestVault() {
+        _vaultRequested.value = true
+    }
+
+    private val _vaultRequested = MutableStateFlow(false)
+    /**
+     * Vrai quand l'entrée vient du raccourci **« Coffre de secrets »** de l'icône : l'app s'ouvre
+     * sur le coffre, **sans toucher à la conversation ouverte** — même contrat que « prendre une
+     * note », et la tuile n'existe que sur un serveur qui sert le greffon (`VaultShortcut`).
+     */
+    val vaultRequested: StateFlow<Boolean> = _vaultRequested.asStateFlow()
+
     private val _pendingTemplate = MutableStateFlow<String?>(null)
     /**
      * Un **lien de modèle de bot** reçu de l'extérieur (`onyx://bot?v=1&t=…`) : ouvert depuis un
@@ -88,6 +101,7 @@ object ShareInbox {
         _pendingFile.value = null
         _voiceRequested.value = false
         _captureRequested.value = false
+        _vaultRequested.value = false
         _pendingTemplate.value = null
     }
 }

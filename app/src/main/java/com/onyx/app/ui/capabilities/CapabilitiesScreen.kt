@@ -45,8 +45,6 @@ import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeGatewayApi
 import com.onyx.app.data.net.ServeSkillsApi
 import com.onyx.app.data.net.ServeToolsetsApi
-import com.onyx.app.data.net.ServerCapability
-import com.onyx.app.data.net.ServerProbe
 import com.onyx.app.data.net.TransportError
 import com.onyx.app.data.net.humanFailure
 import com.onyx.app.ui.localization.BasicText
@@ -134,17 +132,6 @@ fun CapabilitiesScreen(
      * retrait de la tuile, `onEditSkill` vit ici : rien n'a été perdu au passage.
      */
     onEditSkill: (String?) -> Unit = {},
-    /**
-     * La sonde de capacités — ce que **ce** serveur sait faire.
-     *
-     * `null` (aperçu, test, écran sans réseau) : la ligne « Secrets › » n'est **pas dessinée du
-     * tout**. C'est le motif d'entrée conditionnelle de la maison (voir `ConnectionDetailsScreen`) :
-     * une entrée absente plutôt qu'un tap mort. Une réponse indécise ([ServerCapability] sans
-     * preuve) vaut un non — la ligne n'existe pas non plus.
-     */
-    probe: ServerProbe? = null,
-    /** Ouvre le Coffre — la ligne n'est dessinée que si la sonde dit que ce serveur le sert. */
-    onOpenVault: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalOnyxTheme.current
@@ -163,14 +150,9 @@ fun CapabilitiesScreen(
     var expandedToolsets by remember(server.id) { mutableStateOf<Set<String>>(emptySet()) }
     var reloadKey by remember(server.id) { mutableStateOf(0) }
 
-    // **La sonde dit si le serveur porte le coffre** — et rien n'est supposé : sans sonde, ou sur
-    // une réponse qui ne prouve pas la capacité, la variable reste fausse et la ligne n'est pas
-    // dessinée. La sonde ne bloque jamais l'ouverture : elle part sur la portée de composition, et
-    // la ligne apparaît quand la réponse arrive.
-    var vaultReady by remember(server.id) { mutableStateOf(false) }
-    LaunchedEffect(probe, server.id, server.configSignature) {
-        vaultReady = probe?.allows(ServerCapability.VAULT) == true
-    }
+    // Le **Coffre** n'est plus ici : il a sa propre entrée dans les Réglages (section « Secrets »)
+    // et son raccourci dans le menu de l'icône. « Capacités » ne liste que ce que l'agent peut
+    // utiliser — compétences, outils, MCP. La capacité VAULT n'y est plus interrogée.
 
     var openServer by remember(server.id) { mutableStateOf<String?>(null) }
     var addingServer by remember { mutableStateOf(false) }
@@ -357,19 +339,6 @@ fun CapabilitiesScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         ) {
-            // **La ligne du Coffre.** Elle n'existe que si la sonde a prouvé que ce serveur sert le
-            // greffon `onyx-vault` : sans sonde, ou sans capacité, rien n'est dessiné — pas de ligne
-            // grisée, pas de tap mort. C'est le motif d'entrée conditionnelle de la maison.
-            if (vaultReady && onOpenVault != null) {
-                ContentCard(padding = 0.dp) {
-                    ContentRow(
-                        title = "Secrets ›",
-                        symbol = Symbols.LockOutline,
-                        onClick = { onOpenVault?.invoke() },
-                    )
-                }
-            }
-
             Note(
                 when (tab) {
                     CapabilityFamily.SKILLS -> "Skills the agent can read when a request matches."

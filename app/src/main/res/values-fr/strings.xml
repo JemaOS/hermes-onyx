@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Les libellés du menu d'appui long sur l'icône, en français.
+
+  Ils ne vivent **pas** dans le dictionnaire de l'app (`OnyxLocalization`) : le lanceur du téléphone
+  lit les ressources de l'app, pas son dictionnaire — c'est Android qui choisit la langue de ces
+  quatre lignes, d'où ce dossier `values-fr`. Les autres langues retombent sur `values/strings.xml`.
+-->
+<resources>
+    <string name="shortcut_ask_short">Demander</string>
+    <string name="shortcut_ask_long">Poser une question à Onyx</string>
+    <string name="shortcut_talk_short">Parler</string>
+    <string name="shortcut_talk_long">Parler à Onyx, mains libres</string>
+    <string name="shortcut_note_short">Prendre une note</string>
+    <string name="shortcut_note_long">Prendre une note qu’Onyx classera</string>
+    <string name="shortcut_vault_short">Coffre de secrets</string>
+    <string name="shortcut_vault_long">Ouvrir le coffre de secrets</string>
+</resources>

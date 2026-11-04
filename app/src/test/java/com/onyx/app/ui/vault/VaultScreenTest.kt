@@ -24,13 +24,14 @@ import org.junit.Test
  *    au milieu d'un écran français ;
  * 4. **la règle de la valeur** — le champ est masqué, la valeur est vidée après écriture, et le
  *    modèle de lecture n'a aucun champ pour elle ;
- * 5. **l'entrée conditionnelle** — la ligne « Secrets › » n'existe que si la sonde prouve la
- *    capacité, et la route a son retour déclaré.
+ * 5. **l'entrée conditionnelle** — la ligne du Coffre vit dans les **Réglages** (section
+ *    « Secrets »), n'existe que si la sonde prouve la capacité, et la route a son retour déclaré.
  */
 class VaultScreenTest {
 
     private val screen = File("src/main/java/com/onyx/app/ui/vault/VaultScreen.kt").readText()
     private val capabilities = File("src/main/java/com/onyx/app/ui/capabilities/CapabilitiesScreen.kt").readText()
+    private val settings = File("src/main/java/com/onyx/app/ui/settings/SettingsScreen.kt").readText()
     private val app = File("src/main/java/com/onyx/app/ui/OnyxApp.kt").readText()
 
     private fun secret(
@@ -126,12 +127,21 @@ class VaultScreenTest {
         assertTrue("l'écran porte bien des libellés à contrôler ($judged)", judged >= 6)
     }
 
+    /**
+     * **Le Coffre a quitté « Capacités ».** Il y vivait au-dessus de la liste des compétences, où il
+     * ne se lisait pas comme un réglage (relevé par le propriétaire) : sa ligne est maintenant dans
+     * les Réglages, dans sa **propre** section, et son nom est une clé du dictionnaire central.
+     */
     @Test
-    fun `la ligne d entree de Capacites est traduite`() {
-        assertTrue("la ligne existe dans « Capacités »", capabilities.contains("title = \"Secrets ›\""))
+    fun `la ligne du Coffre est dans les Reglages, plus dans Capacites`() {
+        assertFalse("« Capacités » ne dessine plus la ligne", capabilities.contains("\"Secrets ›\""))
+        assertFalse("« Capacités » ne reçoit plus onOpenVault", capabilities.contains("onOpenVault"))
+        assertTrue("les Réglages portent la ligne", settings.contains("label = \"Secrets vault\""))
+        assertTrue("dans sa propre section", settings.contains("header = \"Secrets\""))
+        assertTrue("seulement si la sonde prouve la capacité", settings.contains("vaultReady"))
         assertEquals(
-            "Coffre de secrets ›",
-            OnyxLocalization.translate("Secrets ›", Locale.FRANCE),
+            "Coffre de secrets",
+            OnyxLocalization.translate("Secrets vault", Locale.FRANCE),
         )
     }
 
@@ -165,19 +175,24 @@ class VaultScreenTest {
     // MARK: - 5. L'entrée et la route
 
     @Test
-    fun `la ligne Secrets n existe que si la sonde prouve la capacite`() {
+    fun `la ligne du Coffre n existe que si la sonde prouve la capacite`() {
         assertTrue(
-            "la sonde interroge la capacité du coffre",
-            capabilities.contains("probe?.allows(ServerCapability.VAULT) == true"),
+            "la sonde interroge la capacité du coffre, depuis les Réglages",
+            settings.contains("vaultProbe?.allows(ServerCapability.VAULT) == true"),
         )
         assertTrue(
             "la ligne est dessinée sous la condition de la sonde",
-            capabilities.contains("if (vaultReady && onOpenVault != null)"),
+            settings.contains("if (onOpenVault != null && vaultReady)"),
         )
         assertEquals(
-            "aucune ligne « Secrets › » hors de cette condition (pas de tap mort)",
+            "aucune ligne du Coffre hors de cette condition (pas de tap mort)",
             1,
-            Regex("title = \"Secrets ›\"").findAll(capabilities).count(),
+            Regex("label = \"Secrets vault\"").findAll(settings).count(),
+        )
+        assertEquals(
+            "et plus rien dans « Capacités »",
+            0,
+            Regex("Secrets ›").findAll(capabilities).count(),
         )
     }
 
@@ -189,8 +204,8 @@ class VaultScreenTest {
         assertTrue("le routeur plein page la dessine", app.contains("Route.VAULT -> VaultScreen("))
         assertTrue("le volet la dessine aussi", app.contains("Route.VAULT.name -> VaultScreen("))
         assertEquals(
-            "le retour rend « Capacités », la page quittée",
-            "CAPABILITIES",
+            "le retour rend les Réglages, la page quittée",
+            "SETTINGS",
             TableDesRetours.de("VAULT")?.repli,
         )
     }
