@@ -13,15 +13,26 @@ La section « Ce qu'il reste à mesurer » dit comment obtenir les vrais.
 
 ---
 
-## 1. Faux positif à connaître (vérifié, corrigé ailleurs)
+## 1. Le constat n°1 de l'audit était **juste** — et il est corrigé ici
 
 L'audit a affirmé que `TurnSession.shouldPersist()` comparait `message.text.length` et réécrivait donc
-`conversations.json` à chaque jeton. **C'est faux dans ce dépôt** : la fonction compare
-`textBucket(message.text.length)` (`TurnSession.kt:189-207`) depuis le commit `b7f1892`, avec un palier
-de 256 caractères. Deux nouveaux tests le figent désormais (`TurnSessionTest`).
+`conversations.json` à chaque jeton. **C'était vrai** : le commit `b7f1892` (2 novembre) porte encore
+`val shape = "${message.text.length}:…"`, et rien entre lui et `087ca74` ne l'avait changé. Une
+première version de ce document affirmait l'inverse ; elle avait lu l'arbre de travail **après** le
+correctif et attribué le palier à `b7f1892`, ce que `git show b7f1892:…/TurnSession.kt` démentit.
+C'est corrigé ici, parce qu'un document de revue qui se trompe sur son propre point n°1 ne vaut rien
+pour les cinq autres.
 
-Le dire ici compte : un audit qui se trompe sur un point de cette taille invite à vérifier les autres
-avant d'agir. Tous les constats ci-dessous ont été relus dans le code.
+La fonction compare désormais `textBucket(message.text.length)` (`TurnSession.kt:201-216`), avec un
+palier de 256 caractères et un premier palier dès le premier fragment. Deux tests le fixent
+(`TurnSessionTest`) : 2 000 jetons coûtent moins de dix écritures, et un changement de structure (une
+carte d'outil) écrit tout de suite. `TurnStoreTest` vérifie que le texte **complet** arrive sur disque
+à la fin du tour (`turnEnded`) et que le flux n'écrit pas une fois par jeton.
+
+Une erreur de l'audit, en revanche, à ne pas propager : il comptait **deux fois** la mémoire d'une
+photo de bot (« deux clés par bot »). Deux clés pour un même `ImageBitmap` ne paient qu'une référence,
+pas un second bitmap ; le coût réel venait du **décodage en pleine résolution**, et c'est cela qui est
+corrigé (tableau, ligne 6).
 
 ---
 
@@ -34,7 +45,7 @@ avant d'agir. Tous les constats ci-dessous ont été relus dans le code.
 | 3 | Chaque `close()` d'un `ServeRpc` jetable relançait jusqu'à 3 handshakes (login, ticket, upgrade) | `ServeRpc.kt:136, 328, 270` | Drapeau `closed` : une fermeture volontaire ne déclenche plus de reprise |
 | 4 | Journal de salle recopié intégralement toutes les 500 ms, sans borne | `GroupRoomFeed.kt:281` | `takeLast(MAX_EVENTS = 500)` |
 | 5 | Brouillons : décodage + encodage JSON de **tous** les brouillons à chaque frappe | `DraftStore.kt:24` | Carte gardée en mémoire, seule l'écriture reste |
-| 6 | Photos de bots décodées en pleine résolution (4 Mo/avatar), deux clés par bot | `BotsViewModel.kt:417` | `BoundedImages.decodeBytes(maxPx = 256)` |
+| 6 | Photos de bots décodées en pleine résolution (4 Mo/avatar) pour une tuile de 192 px | `BotsViewModel.kt:417` | `BoundedImages.decodeBytes(maxPx = 256)` — divisé par seize sur un avatar 1024×1024 ; les deux clés par bot ne coûtaient qu'une référence, pas un bitmap de plus |
 
 Déjà livrés avant cette revue, rappelés pour ne pas les recompter : animations infinies par étape
 d'outil supprimées (`MessageRow.StepMark`), gel du verre au défilement, cartes du Flux et fichiers non
