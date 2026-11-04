@@ -79,8 +79,15 @@ data class TurnPhase(
     /**
      * Un tour qui n'a rien produit depuis un délai anormal le dit plutôt que de tourner
      * indéfiniment en silence.
+     *
+     * **Sauf quand un outil tourne.** Un `terminal` qui compile, un `process_manage` qui attend
+     * 175 s : le serveur n'envoie rien pendant ce temps, et ce n'est pas du silence — l'app sait
+     * exactement ce qui se passe (elle affiche l'outil). La ligne doit alors lire « Exécution de
+     * process_manage · 8m 08s », pas « Aucune nouvelle du serveur » : le propriétaire a vu cet
+     * avertissement rouge sur un tour parfaitement vivant.
      */
-    fun stalled(now: Long): Boolean = isStreaming && quietSeconds(now) >= STALL_SECONDS
+    fun stalled(now: Long): Boolean =
+        isStreaming && step != TurnStep.TOOL && quietSeconds(now) >= STALL_SECONDS
 
     companion object {
         /** Au-delà, un tour en cours sans nouvelle est signalé comme silencieux. */
