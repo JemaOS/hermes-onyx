@@ -65,6 +65,36 @@ class SharedSessionFaceTest {
         assertEquals("coder_logs", conversationProfile(renamed, bots("1", "2"), server))
     }
 
+    /**
+     * **Le cas du téléphone, tel qu'il se règle.** Deux bots partagent la session du serveur (le
+     * clone a hérité du `canonical_session`) : la session ne désigne plus personne, et c'est le nom
+     * de chaque conversation qui rend son bot — donc son visage.
+     */
+    @Test
+    fun `un nom pose tranche quand la session est partagee`() {
+        val roster = bots("1", "2")
+        val logsOnCoderSession = conversation("coder_logs")
+        assertEquals("coder_logs", conversationProfile(logsOnCoderSession, roster, server))
+        assertEquals("coder", conversationProfile(coder, roster, server))
+    }
+
+    /**
+     * **Mais une session exclusive reste le lien fort** : c'est le contrat que tient
+     * `ThreadSpeakerTest` — un bot dont le `canonical_session` est celui de la conversation la
+     * revendique, même si elle porte un autre nom. On ne l'a pas renversé : le nom ne tranche que
+     * quand la session est **partagée** (donc muette), jamais contre une session qui ne désigne
+     * qu'un bot.
+     */
+    @Test
+    fun `une session exclusive passe avant le nom`() {
+        val atlas = BotProfile(name = "atlas", title = "Atlas", chatId = "session-1")
+        val scout = BotProfile(name = "scout", title = "Scout")
+        assertEquals(
+            "atlas",
+            conversationProfile(conversation("Scout"), listOf(scout, atlas), server),
+        )
+    }
+
     @Test
     fun `une session exclusive reste le lien fort`() {
         // Un seul bot revendique la session : rien ne change, c'est lui — même si la conversation
