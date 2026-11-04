@@ -798,6 +798,13 @@ fun OnyxApp() {
         // l'écran des modèles, un seul état pour les deux.
         val currentReasoning by settingsRepo.reasoningEffort.collectAsStateWithLifecycle()
         var showModelSheet by remember { mutableStateOf(false) }
+        /**
+         * **La feuille des modèles de l'éditeur d'un bot.** Elle vit ici, avec les autres feuilles,
+         * pour deux raisons : le catalogue se lit dans l'effet qui surveille `showModelSheet` et
+         * `roomModelBot` (il suffit d'y ajouter ce drapeau), et la feuille doit se dessiner
+         * **par-dessus** l'écran d'identité, pas dedans.
+         */
+        var editorModelSheet by remember { mutableStateOf(false) }
         // La feuille de modèle ouverte **depuis une salle** : le nom du bot visé. Une salle n'a pas
         // de conversation à un bot, si bien que sans ce nom la feuille parlerait du serveur au lieu
         // de ce bot ; le choix s'écrit sur son profil (`profiles.configure`), et c'est le modèle
@@ -830,8 +837,8 @@ fun OnyxApp() {
         // Le catalogue n'est lu **que** quand la feuille s'ouvre : une requête en moins au démarrage.
         // Il est lu **par profil** (le registre, puis les modèles de chaque profil) : la feuille
         // montre ainsi tous les profils, pas le seul alias de la passerelle.
-        LaunchedEffect(showModelSheet, roomModelBot, state.server.id) {
-            if (!showModelSheet && roomModelBot == null) return@LaunchedEffect
+        LaunchedEffect(showModelSheet, roomModelBot, editorModelSheet, state.server.id) {
+            if (!showModelSheet && roomModelBot == null && !editorModelSheet) return@LaunchedEffect
             modelChoicesLoading = true
             val catalog = runCatching { com.onyx.app.data.net.ModelCatalog.fetchAll(state.server) }
                 .getOrDefault(emptyList())
@@ -3630,6 +3637,11 @@ fun OnyxApp() {
                     onPickModel = { model ->
                         selectedBot?.let { botsViewModel.setModel(it, model, providerForChosen(model)) }
                     },
+                    // **« Modèle » ouvre la vraie liste.** Les deux lignes de l'écran
+                    // (« hermes-agent », un identifiant brut) ne disent rien à la personne qui
+                    // règle son bot ; la feuille du fil montre les modèles disponibles, par profil,
+                    // avec recherche, prix et favoris.
+                    onOpenModelSheet = { editorModelSheet = true },
                     toolsets = editorState.toolsets,
                     toolsSelection = editorState.toolsSelection,
                     mainToolsets = editorState.mainToolsets,
@@ -3703,6 +3715,41 @@ fun OnyxApp() {
                     },
                     onCancel = { if (!navBack()) navTo(Route.BOTS.name) },
                 )
+                // **La feuille des modèles, par-dessus l'identité du bot.** Même composant que le
+                // fil et la salle ; ce que le choix change est écrit sous son titre
+                // (`ModelScope.BOT` : « Pour toutes les conversations de ce bot »), et le choix est
+                // écrit sur le profil du bot — serveur (`profiles.configure`) et copie locale.
+                if (editorModelSheet) {
+                    com.onyx.app.ui.models.ModelSheet(
+                        models = modelChoices,
+                        currentModel = bot?.model ?: state.modelInForce,
+                        reasoning = currentReasoning,
+                        favourites = modelFavourites,
+                        recents = modelRecents,
+                        loading = modelChoicesLoading,
+                        profiles = modelProfiles,
+                        scope = com.onyx.app.ui.models.ModelScope.BOT,
+                        fallback = state.fallback,
+                        // Pas de « Mode rapide » : ce réglage appartient à une session de
+                        // conversation, et l'identité d'un bot n'en a pas.
+                        fastMode = null,
+                        onPickModel = { model ->
+                            bot?.let { botsViewModel.setModel(it, model, providerForChosen(model)) }
+                            // Le roster est relu pour que la rangée « Modèle » montre le choix
+                            // retenu, et le modèle entre dans les récents du serveur.
+                            botsViewModel.refresh()
+                            modelPrefs.noteRecent(state.server.id, model)
+                            modelRecents = modelPrefs.recents(state.server.id)
+                            editorModelSheet = false
+                        },
+                        onPickReasoning = { value -> scope.launch { settingsRepo.setReasoningEffort(value) } },
+                        onToggleFavourite = { id, favourite ->
+                            modelPrefs.setFavourite(state.server.id, id, favourite)
+                            modelFavourites = modelPrefs.favourites(state.server.id)
+                        },
+                        onDismiss = { editorModelSheet = false },
+                    )
+                }
             }
 
             Route.BOT_FACE -> {

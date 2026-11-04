@@ -293,6 +293,17 @@ fun BotEditorScreen(
     voiceSummary: String = "Automatic",
     models: List<String> = emptyList(),
     onPickModel: (String?) -> Unit = {},
+    /**
+     * **La liste des modèles disponibles** — la feuille du fil (`ModelSheet`), avec sa recherche,
+     * ses profils, ses prix et ses favoris.
+     *
+     * `null` : l'écran garde sa liste locale dépliée (les identifiants que le serveur a rendus pour
+     * ce bot). Fourni : un appui sur « Modèle » **ouvre la feuille**, au lieu de déplier deux
+     * lignes qui ne veulent rien dire pour la personne — « hermes-agent », « Identique à Onyx » —
+     * et un seul identifiant. Le retour à « identique à l'agent principal » reste possible : il a sa
+     * propre rangée, sous celle du modèle.
+     */
+    onOpenModelSheet: (() -> Unit)? = null,
     onSave: (title: String, about: String, model: String?, shown: Boolean) -> Unit,
     /**
      * « Create » d'un bot neuf : le nom, ce qu'il fait, la personnalité du modèle choisi, sa
@@ -602,9 +613,14 @@ fun BotEditorScreen(
                         localizeValue = bot?.model == null,
                         monoValue = bot?.model != null,
                         symbol = Symbols.Bolt,
-                        onClick = { showModels = !showModels },
+                        // **Un appui ouvre la feuille des modèles**, quand le parent la fournit :
+                        // c'est la même liste que dans le fil — recherche, profils, prix, favoris.
+                        // Sans elle (aperçus, tests), la liste locale se déplie comme avant.
+                        onClick = {
+                            if (onOpenModelSheet != null) onOpenModelSheet() else showModels = !showModels
+                        },
                     )
-                    if (showModels) {
+                    if (onOpenModelSheet == null && showModels) {
                         IdentityDivider()
                         IdentityRow(onClick = {
                             showModels = false
@@ -638,6 +654,25 @@ fun BotEditorScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                             }
+                        }
+                    }
+                    if (onOpenModelSheet != null) {
+                        IdentityDivider()
+                        // **Le retour à l'agent principal reste à portée.** La feuille choisit un
+                        // modèle ; « identique à X » n'en est pas un, c'est l'absence de choix — il
+                        // garde donc sa rangée, avec sa coche, au lieu de disparaître avec la liste
+                        // locale.
+                        IdentityRow(onClick = { onPickModel(null) }) {
+                            OnyxIcon(
+                                symbol = if (bot?.model == null) Symbols.CheckmarkCircle else Symbols.Circle,
+                                tint = if (bot?.model == null) theme.accent else theme.tertiaryText,
+                                size = 18.dp,
+                            )
+                            BasicText(
+                                text = "Same as $mainName",
+                                style = socleBodyStyle(theme).copy(color = theme.textColor),
+                                modifier = Modifier.weight(1f),
+                            )
                         }
                     }
                     IdentityDivider()
