@@ -158,6 +158,28 @@ object OnyxLocalization {
         "Starts" to "Début",
         "Ends" to "Fin",
         "Ring this phone" to "Faire sonner ce téléphone",
+        // **Les titres et les explications de l'écran Appels.** Ils manquaient : la capture du
+        // propriétaire montrait « CALLS FOR AN ANSWER » et « TRY IT » en anglais au-dessus de
+        // libellés français, et les quatre phrases d'explication — les seules de l'écran — dans la
+        // langue de la source. Le titre, le libellé et la puce passaient déjà par ce dictionnaire ;
+        // ce sont les `header`/`footer` qui n'avaient pas d'entrée.
+        "Calls for an answer" to "Appels pour une réponse",
+        "When a turn is waiting for your decision — an approval or a question — the phone rings " +
+            "like a call, full screen over the lock screen. Off, you get the usual notification " +
+            "instead." to
+            "Quand un tour attend votre décision — un accord ou une question — le téléphone sonne " +
+            "comme un appel, en plein écran par-dessus l’écran verrouillé. Éteint, vous recevez la " +
+            "notification habituelle à la place.",
+        "On: answering puts Onyx on the line, listening — you say your decision out loud. Off: " +
+            "answering opens the conversation, where the buttons wait." to
+            "Allumé : décrocher met Onyx en ligne, à l’écoute — vous dites votre décision à voix " +
+            "haute. Éteint : décrocher ouvre la conversation, où les boutons attendent.",
+        "Try it" to "Essayer",
+        "Rings this phone now, exactly as a decision would. Declining leaves the usual " +
+            "notification." to
+            "Fait sonner ce téléphone maintenant, exactement comme le ferait une décision. Refuser " +
+            "laisse la notification habituelle.",
+        "Nothing is quiet yet." to "Rien n’est encore silencieux.",
         "Decline" to "Refuser",
         "Answer" to "Décrocher",
         // La veille d'appel (le service qui garde Onyx joignable en arrière-plan).
@@ -307,6 +329,16 @@ object OnyxLocalization {
         Regex("^Muted until (.+)$") to { match -> "Silencieux jusqu’à ${match.groupValues[1]}" },
         Regex("^Deleting (.+)…$") to { match -> "Suppression de ${match.groupValues[1]}…" },
         Regex("^Uploading (.+)…$") to { match -> "Téléversement de ${match.groupValues[1]}…" },
+        // **Les heures de tranquillité** (Réglages → Appels) : la plage, ou une plage vide qui ne
+        // tait rien. Deux bornes « HH:MM » — `QuietHours.clock`, jamais une heure formatée par
+        // l'écran. Sans ces motifs, la seule phrase d'explication de la section restait en anglais.
+        Regex("^Nothing rings from (\\d{1,2}:\\d{2}) to (\\d{1,2}:\\d{2})\\.$") to { match ->
+            "Rien ne sonne de ${match.groupValues[1]} à ${match.groupValues[2]}."
+        },
+        Regex("^They start and end at (\\d{1,2}:\\d{2}), so nothing is quiet: pick another time\\.$") to { match ->
+            "Ils commencent et finissent à ${match.groupValues[1]} : rien n’est silencieux, " +
+                "choisissez une autre heure."
+        },
         Regex("^(.+) · task (\\d+) of (\\d+)$") to { match ->
             "${translate(match.groupValues[1], Locale.FRANCE)} · tâche ${match.groupValues[2]} sur ${match.groupValues[3]}"
         },

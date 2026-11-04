@@ -336,14 +336,18 @@ class ThreadOrganisationTest {
         // change pas — la commande est en **monospace**, et la durée se pose après elle, à droite.
         // Le verrou suit les deux morceaux là où ils vivent maintenant, au lieu de les relâcher.
         val row = source("com/onyx/app/ui/chat/components/MessageRow.kt")
-        val steps = row.substringAfter("private fun StepsFold").substringBefore("private fun StepDetail")
+        // LOT performance : la carte d'une rangée d'outil a été extraite dans `ToolStepRow` (une
+        // seule lambda pour toutes les rangées, donc des cartes sautables). Le contrat ne change
+        // pas — commande en monospace, durée à droite —, et le verrou suit le morceau qui les
+        // porte au lieu de relâcher l'assertion.
+        val steps = row.substringAfter("private fun ToolStepRow").substringBefore("private fun StepDetail")
         assertTrue(
             "commande absente de la carte d'outil",
             steps.contains("detail = tool.preview?.takeIf { it.isNotBlank() },"),
         )
         assertTrue(
             "durée absente",
-            steps.contains("trailing = toolElapsedSeconds(tool)?.let { ranToolsDuration(it) },"),
+            steps.contains("trailing = elapsed?.let { ranToolsDuration(it) },"),
         )
         val card = source("com/onyx/app/ui/chat/components/ContextCard.kt")
         val mono = card.indexOf("fontFamily = FontFamily.Monospace")

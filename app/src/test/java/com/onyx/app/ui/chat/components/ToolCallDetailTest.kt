@@ -189,7 +189,12 @@ class ToolCallDetailTest {
             "La rangée doit ouvrir le détail de **son** appel.",
             // LOT fil-vivant : la rangée est une carte de contexte, et c'est **son** geste qui
             // ouvre la feuille — l'identifiant conservé est toujours celui de la rangée touchée.
-            source.contains("onClick = { detailOf = tool.id },"),
+            //
+            // LOT performance : le geste a été factorisé — `ToolStepRow` reçoit `onOpen` (une seule
+            // lambda pour toutes les rangées, donc des cartes sautables) et rend **son** identifiant.
+            // L'invariant tenu ici est le même : c'est l'appel touché qui est conservé.
+            source.contains("onClick = { onOpen(tool.id) },") &&
+                source.contains("onOpen = onOpenStep,"),
         )
         assertTrue(
             "La feuille doit être choisie par l'identifiant conservé.",

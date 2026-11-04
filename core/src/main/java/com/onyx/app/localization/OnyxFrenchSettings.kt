@@ -360,4 +360,35 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "Small" to "Petite",
     "Large" to "Grande",
     "Largest" to "La plus grande",
+
+    // -----------------------------------------------------------------------------------------
+    // LES EXPLICATIONS DES RÉGLAGES QUI RESTAIENT EN ANGLAIS.
+    //
+    // Le défaut relevé sur la capture de l'écran **Appels** n'était pas isolé : les `footer` de
+    // quatre autres écrans de Réglages n'avaient pas d'entrée non plus, et s'affichaient donc en
+    // anglais sous des libellés français. Ce sont les seules phrases longues de ces écrans — celles
+    // qu'on lit pour comprendre ce qu'on règle.
+    // -----------------------------------------------------------------------------------------
+    "The same login as the Hermes Dashboard: its username and password. It unlocks the context " +
+        "and memory files, and the files the agent sends." to
+        "Le même identifiant que le Dashboard Hermes : son nom d’utilisateur et son mot de passe. " +
+        "Il déverrouille les fichiers de contexte et de mémoire, ainsi que les fichiers que " +
+        "l’agent envoie.",
+    "If the Hermes Dashboard sits behind Cloudflare Access instead of a tailnet, create a service " +
+        "token in Zero Trust and paste its ID and secret. Sent as CF-Access-Client-Id / -Secret on " +
+        "every request and WebSocket." to
+        "Si le Dashboard Hermes est derrière Cloudflare Access plutôt que sur un tailnet, créez un " +
+        "jeton de service dans Zero Trust et collez son identifiant et son secret. Envoyé en " +
+        "CF-Access-Client-Id / -Secret à chaque requête et à chaque WebSocket.",
+    "If a reverse proxy in front of your Hermes server asks for a header of its own, add it here. " +
+        "It is sent with every request to this server and kept in the Keystore. Onyx's own headers, " +
+        "such as the API key, take precedence." to
+        "Si un reverse proxy devant votre serveur Hermes réclame son propre en-tête, ajoutez-le " +
+        "ici. Il est envoyé à chaque requête vers ce serveur et conservé dans le Keystore. Les " +
+        "en-têtes d’Onyx, comme la clé d’API, ont la priorité.",
+    "Background alerts tell you when an agent needs an approval while you use another app. They " +
+        "work while Android lets Onyx run; force-stopping Onyx stops them." to
+        "Les alertes en arrière-plan vous préviennent quand un agent attend un accord pendant que " +
+        "vous utilisez une autre app. Elles fonctionnent tant qu’Android laisse Onyx tourner ; " +
+        "forcer l’arrêt d’Onyx les coupe.",
 )
