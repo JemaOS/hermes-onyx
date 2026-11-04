@@ -73,6 +73,7 @@ import com.onyx.app.data.net.DiffLine
 import com.onyx.app.data.net.DiffLineKind
 import com.onyx.app.data.net.RestoreDiff
 import com.onyx.app.data.net.RestorePoint
+import com.onyx.app.data.net.ProcessesRead
 import com.onyx.app.data.net.RestorePointList
 import com.onyx.app.data.net.ServeChatActions
 import com.onyx.app.localization.OnyxLocalization
@@ -128,6 +129,14 @@ fun ChatActionSheet(
      * « sage-a1.5 »). Une seule source : [ModelInForce].
      */
     modelInForce: String? = null,
+    /**
+     * Le profil qui porte cette conversation — celui du bot, quand on parle à un bot.
+     *
+     * La session d'un bot vit dans **sa** base : la consommation consignée s'y lit, et interroger
+     * `default` rendait « pas de ligne » sur une session parfaitement comptée. C'est ce qui fait
+     * que la feuille marche « dans chaque bot ».
+     */
+    profile: String? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val reduceMotion = LocalReduceMotion.current
@@ -138,7 +147,7 @@ fun ChatActionSheet(
     // Le panneau ouvert (s'il y en a un), et l'état de sa lecture.
     var open by remember { mutableStateOf<ChatSheetAction?>(null) }
     var usageState by remember { mutableStateOf<LoadState<UsageRead>>(LoadState.Loading) }
-    var processState by remember { mutableStateOf<LoadState<List<BackgroundProcess>>>(LoadState.Loading) }
+    var processState by remember { mutableStateOf<LoadState<ProcessesRead>>(LoadState.Loading) }
     var restoreState by remember { mutableStateOf<LoadState<RestorePointList>>(LoadState.Loading) }
     var copied by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
@@ -183,7 +192,7 @@ fun ChatActionSheet(
         expandedProcess = null
         when (open) {
             ChatSheetAction.USAGE -> usageState = run {
-                val usage = actions.usage(id)
+                val usage = actions.usage(id, profile = profile)
                 if (usage.isFailure) {
                     LoadState.Failed(readingFailure(usage.exceptionOrNull()!!))
                 } else {
@@ -1096,6 +1105,14 @@ private fun UsagePanel(
     onRetry: () -> Unit,
     fallback: com.onyx.app.ui.design.FallbackDeclaration? = null,
     modelInForce: String? = null,
+    /**
+     * Le profil qui porte cette conversation — celui du bot, quand on parle à un bot.
+     *
+     * La session d'un bot vit dans **sa** base : la consommation consignée s'y lit, et interroger
+     * `default` rendait « pas de ligne » sur une session parfaitement comptée. C'est ce qui fait
+     * que la feuille marche « dans chaque bot ».
+     */
+    profile: String? = null,
 ) {
     val theme = LocalOnyxTheme.current
     when (state) {
@@ -1121,6 +1138,14 @@ private fun UsagePanel(
                 if (model != null) OnyxLocalization["This conversation"] + " · " + model
                 else OnyxLocalization["This conversation"],
             )
+
+            // **La session est finie, les chiffres restent.** Ils viennent du registre, pas d'une
+            // lecture d'instant : la feuille le dit, sinon ils passeraient pour une mesure en cours.
+            if (usage.isRecorded) {
+                // Une seule ligne : le dictionnaire français est vérifié en lisant le **source**,
+                // et une chaîne coupée en deux par `+` n'y apparaît jamais.
+                DetailNote("This conversation is no longer live: these are the counters the server recorded while it ran.")
+            }
 
             if (usage.isEmpty) {
                 DetailNote("This server gives no token count for this conversation yet.")
@@ -1329,7 +1354,7 @@ internal fun contextSliceAlpha(slice: ChatContextSlice, total: Float): Float {
  */
 @Composable
 private fun ProcessPanel(
-    state: LoadState<List<BackgroundProcess>>,
+    state: LoadState<ProcessesRead>,
     expandedId: String?,
     onToggle: (String) -> Unit,
     onRetry: () -> Unit,
@@ -1351,8 +1376,8 @@ private fun ProcessPanel(
         }
 
         is LoadState.Ready -> {
-            val running = state.value.filter { it.running }
-            val finished = state.value.filterNot { it.running }
+            val running = state.value.processes.filter { it.running }
+            val finished = state.value.processes.filterNot { it.running }
 
             // Le titre, puis le point vert et le compte des processus en cours.
             Row(
@@ -1377,8 +1402,16 @@ private fun ProcessPanel(
                 }
             }
 
-            if (state.value.isEmpty()) {
-                DetailNote("Nothing is running in the background for this conversation.")
+            if (state.value.processes.isEmpty()) {
+                DetailNote(
+                    if (state.value.live) {
+                        "Nothing is running in the background for this conversation."
+                    } else {
+                        // Une session terminée ne tient aucun processus : ce n'est pas « rien ne
+                        // tourne » (une mesure), c'est « il n'y a plus de session pour en tenir ».
+                        "This conversation is no longer running, so it holds no background process."
+                    },
+                )
             } else {
                 running.forEach { process ->
                     ProcessRow(process, expandedId == process.id, onToggle, onStop)

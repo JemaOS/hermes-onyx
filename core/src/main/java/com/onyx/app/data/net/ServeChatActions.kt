@@ -61,10 +61,24 @@ data class ChatUsage(
     val actualCostUsd: Double? = null,
     /** `cost_status` du serveur : `estimated` quand le prix vient des tarifs du modèle. */
     val costStatus: String? = null,
+    /**
+     * Quand ces chiffres ont été **consignés** par le serveur, en millisecondes — `null` quand ils
+     * viennent d'une session vivante et sont donc d'instant.
+     *
+     * `session.usage` ne répond que pour une session **vivante** ; le registre (`GET api/sessions`)
+     * garde la même consommation, mais **arrêtée**. Sans ce champ, la feuille n'avait que deux
+     * issues — un échec, ou des chiffres qui avaient l'air d'être mesurés maintenant. Le
+     * propriétaire a vu la première sur une conversation pourtant comptée : « ça fonctionne pas
+     * tout le temps ».
+     */
+    val recordedAt: Long? = null,
     /** Les catégories de `session.context_breakdown` : ce qui remplit la fenêtre. */
     val contextSlices: List<ChatContextSlice> = emptyList(),
     val contextFiles: List<ChatContextFile> = emptyList(),
 ) {
+    /** Vrai quand les chiffres viennent du registre, et non d'une session en cours. */
+    val isRecorded: Boolean get() = recordedAt != null
+
     /** Le prix retenu : le réel s'il est là, sinon l'estimation du serveur. `null` = pas de prix. */
     val costUsd: Double? get() = actualCostUsd ?: estimatedCostUsd
 
@@ -177,6 +191,17 @@ data class RestorePointList(
     val items: List<RestorePoint> = emptyList(),
 )
 
+/**
+ * Ce qu'une lecture de `process.list` a rendu, et **d'où elle vient**.
+ *
+ * [live] est faux quand le gateway ne tient plus la session : la liste est alors vide par
+ * construction, et la feuille le dit autrement que « rien ne tourne » — qui est une mesure.
+ */
+data class ProcessesRead(
+    val processes: List<BackgroundProcess>,
+    val live: Boolean = true,
+)
+
 /** La nature d'une ligne de diff unifié — c'est elle qui porte l'encre à l'affichage. */
 enum class DiffLineKind { HUNK, ADD, REMOVE, FILE, CONTEXT }
 
@@ -253,7 +278,11 @@ class ServeChatActions(
      * toujours de prix, et c'est cette source-là qui le donne. Quand aucun des deux ne le donne, le
      * prix reste absent — jamais zéro.
      */
-    suspend fun usage(sessionId: String, cost: Pair<Double?, Double?>? = null): Result<ChatUsage> {
+    suspend fun usage(
+        sessionId: String,
+        cost: Pair<Double?, Double?>? = null,
+        profile: String? = null,
+    ): Result<ChatUsage> {
         // L'identifiant **d'exécution** d'abord : c'est le seul que ces routes connaissent.
         val params = sessionParams(liveSessionId(sessionId))
         // Les deux routes se lisent ensemble : la consommation d'un côté, les postes du contexte de
@@ -261,13 +290,61 @@ class ServeChatActions(
         // transforme pas une consommation lue en échec.
         val usage = runCatching { channel().call("session.usage", params, TIMEOUT) }
         val breakdown = runCatching { channel().call("session.context_breakdown", params, TIMEOUT) }
-        return usage.map { usageOf(it, breakdown.getOrNull(), cost) }
+        val live = usage.map { usageOf(it, breakdown.getOrNull(), cost) }
+
+        // **La session morte n'est pas une absence de chiffres.** `session.usage` ne répond que
+        // pour une session vivante : dès que le serveur a relâché la conversation — et c'est le cas
+        // de la plupart d'entre elles, y compris le chat de chaque bot dès qu'il a fini de
+        // répondre — la feuille n'avait rien à montrer et affichait un échec. Le registre, lui,
+        // garde la consommation de **toutes** les sessions (`GET api/sessions`, la même source que
+        // la ligne « ▲ 8.2k ▼ 1.1k » de la liste). On y va donc en second, et seulement si la
+        // lecture vivante n'a rien donné.
+        if (live.getOrNull()?.let { !it.isEmpty } == true) return live
+        recordedUsage(sessionId, profile)?.let { return Result.success(it) }
+        return live
     }
 
-    /** Les processus en arrière-plan de cette conversation. */
-    suspend fun processes(sessionId: String): Result<List<BackgroundProcess>> =
+    /**
+     * La consommation **consignée** d'une conversation, vivante ou non, lue dans le registre.
+     *
+     * [profile] est le profil qui porte la session : celle d'un bot vit dans la base de **son**
+     * profil, et interroger `default` rendait « pas de ligne » sur une session parfaitement
+     * comptée. C'est ce qui fait que la lecture marche « dans chaque bot ».
+     */
+    suspend fun recordedUsage(sessionId: String, profile: String? = null): ChatUsage? {
+        if (sessionId.isBlank()) return null
+        val row = runCatching {
+            ServeSessionsApi(ServeClient(server)).summary(sessionId, profile)
+        }.getOrNull() ?: return null
+        val usage = usageOfSummary(row)
+        return usage.takeIf { !it.isEmpty || it.costUsd != null }
+    }
+
+    /**
+     * Les processus en arrière-plan de cette conversation, et **si la session est encore vivante**.
+     *
+     * Le second champ n'est pas décoratif : une session terminée ne tient aucun processus, et
+     * afficher « rien ne tourne » sans le dire ferait passer une **absence de session** pour une
+     * **absence de processus** — deux choses différentes, et la seconde est une mesure.
+     */
+    suspend fun processes(sessionId: String): Result<ProcessesRead> =
         runCatching { channel().call("process.list", sessionParams(liveSessionId(sessionId)), TIMEOUT) }
-            .map { processesOf(it) }
+            .map { ProcessesRead(processesOf(it), live = true) }
+            // Une session terminée ne tient **aucun** processus : la liste vide est la vérité, pas
+            // un échec. Le message « le serveur ne tient plus la session vivante » reste pour les
+            // autres lectures (points de restauration), où il veut bien dire quelque chose.
+            //
+            // On regarde le message **brut** de l'exception autant que sa forme humaine :
+            // `humanFailure` remplace un `IllegalStateException` par « serveur injoignable », et ne
+            // garde donc pas « 4001 session not found » — s'y fier seul rendait le repli mort.
+            .recoverCatching { error ->
+                // `humanFailure` garde le texte du serveur pour une erreur RPC (« The server
+                // refused: 4001 session not found »), et `TransportError.detail` est l'acces
+                // nomme a ce meme texte : jamais `Throwable.message` d'une exception inconnue.
+                val motifs = humanFailure(error) + " " + ((error as? TransportError)?.detail.orEmpty())
+                if (refusesLiveSession(motifs)) ProcessesRead(emptyList(), live = false)
+                else throw error
+            }
 
     /** Arrête un processus ; rend le motif exact de l'échec, ou `null` quand c'est arrêté. */
     suspend fun stopProcess(sessionId: String, processId: String): String? {
@@ -397,6 +474,10 @@ class ServeChatActions(
         /** Les refus du gateway qui veulent dire « cette session n'est pas vivante ». */
         val SESSION_NOT_LIVE = listOf("session not found", "not in memory", "not found")
 
+        /** Le serveur dit-il que cette session n'est plus vivante ? */
+        fun refusesLiveSession(raw: String): Boolean =
+            SESSION_NOT_LIVE.any { raw.contains(it, ignoreCase = true) }
+
         /** Les refus qui veulent dire « ce serveur ne connaît pas cette route ». */
         val NO_SUCH_READING = listOf("unknown method", "method not found", "not supported")
 
@@ -461,6 +542,35 @@ class ServeChatActions(
                 contextFiles = contextFilesOf(breakdown),
             )
         }
+
+        /**
+         * La consommation **consignée** d'une session, telle que le registre la garde
+         * (`GET api/sessions`) — la même ligne qui donne « ▲ 8,2 k ▼ 1,1 k · $0,004 » dans la liste
+         * des conversations.
+         *
+         * C'est ce qui rend la feuille **toujours** utilisable : la route vivante ne répond que
+         * pour une session en cours, alors que ces chiffres-là sont écrits à chaque tour et
+         * survivent au redémarrage du serveur. Le prix n'est pas inventé : réel s'il existe, sinon
+         * l'estimation du serveur, sinon rien.
+         */
+        fun usageOfSummary(row: SessionSummary): ChatUsage = ChatUsage(
+            model = row.model,
+            inputTokens = row.inputTokens,
+            outputTokens = row.outputTokens,
+            reasoningTokens = row.reasoningTokens,
+            cacheReadTokens = row.cacheReadTokens,
+            cacheWriteTokens = row.cacheWriteTokens,
+            totalTokens = row.totalTokensOrNull,
+            apiCalls = row.apiCallCount,
+            estimatedCostUsd = row.estimatedCostUsd,
+            actualCostUsd = row.actualCostUsd,
+            costStatus = when {
+                row.actualCostUsd != null -> "actual"
+                row.estimatedCostUsd != null -> "estimated"
+                else -> null
+            },
+            recordedAt = row.lastActiveMillis,
+        )
 
         /** Les catégories de `session.context_breakdown`, dans l'ordre du serveur. */
         fun contextSlicesOf(breakdown: JsonElement?): List<ChatContextSlice> =

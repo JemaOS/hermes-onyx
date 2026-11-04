@@ -1736,6 +1736,9 @@ fun ChatScreen(
                 // (`ModelInForce`) : sans ça il nommait le modèle figé de `session.usage`, qui ne
                 // suit pas un changement de modèle (le défaut signalé).
                 modelInForce = state.modelInForce,
+                // La session d'un bot vit dans **son** profil : c'est là que se lit la
+                // consommation consignée quand la session n'est plus vivante.
+                profile = state.botProfile,
             )
         }
         projectDirectory?.let { directory ->

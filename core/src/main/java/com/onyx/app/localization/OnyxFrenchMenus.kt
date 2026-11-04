@@ -73,6 +73,8 @@ internal val onyxMenuSheetFrench: Map<String, String> = linkedMapOf(
     "Reading what is running…" to "Lecture de ce qui tourne…",
     "This server would not give the background processes of this conversation." to
         "Ce serveur n'a pas donné les processus en arrière-plan de cette conversation.",
+    "This conversation is no longer running, so it holds no background process." to
+        "Cette conversation n'est plus en cours : elle ne tient donc aucun processus en arrière-plan.",
     "Nothing is running in the background for this conversation." to
         "Rien ne tourne en arrière-plan pour cette conversation.",
     "Process stopped" to "Processus arrêté",
@@ -118,6 +120,8 @@ internal val onyxMenuSheetFrench: Map<String, String> = linkedMapOf(
         "Le serveur ne tient plus la session vivante de cette conversation.",
     "this server does not offer this reading" to "Ce serveur n'offre pas cette lecture.",
     "the server refused to read it: %1\$s" to "Le serveur a refusé la lecture : %1\$s",
+    "This conversation is no longer live: these are the counters the server recorded while it ran." to
+        "Cette conversation n'est plus en cours : voici les compteurs que le serveur a consignés pendant qu'elle tournait.",
     "Usage and its lists are only available while the conversation is running." to
         "La consommation et ses listes ne sont disponibles que pour une conversation en cours.",
     "Retry the reading" to "Relire",
