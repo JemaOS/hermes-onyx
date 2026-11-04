@@ -309,10 +309,22 @@ One command on the machine that runs Hermes, and your phone is set up — chat, 
 and (on Linux) the Computer screen together:
 
 ```bash
+# Linux and macOS
 python3 tools/onyx-setup.py                            # installs, prints the link and its QR code
 python3 tools/onyx-setup.py --voices https://tts.example.com   # …with your Kokoro server
 python3 tools/onyx-setup.py --link                     # print the current link again, any time
 ```
+
+```bat
+REM Windows — PowerShell or cmd, from the repository root
+py tools\onyx-setup.py
+py tools\onyx-setup.py --voices https://tts.example.com
+py tools\onyx-setup.py --link
+```
+
+On Windows `python3` usually does not exist; `py` (the Python launcher, installed with Python) does.
+The `.sh` shortcut is a convenience for Linux and macOS only — the `.py` file is the installer on
+all three.
 
 It runs on **Linux, macOS and Windows**. It installs each piece as a service of the system —
 systemd, launchd, or a task at sign-in — so everything comes back after a reboot without a terminal
@@ -385,21 +397,17 @@ paid tier anywhere in this path.
 
 **On the machine that answers the phone**
 
-| Needed | Why | How to check |
-|---|---|---|
-| **Hermes**, installed and running | it is the agent; the app is a client for it | `hermes --version` |
-| Hermes' API server, enabled | chat and the conversation registry | `platforms.api_server.enabled: true` in `~/.hermes/config.yaml`, then `curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer <key>' http://127.0.0.1:8642/v1/models` → `200` |
-| **`cloudflared`** | the free tunnel that gives your phone a public address, with no account and no open port | `cloudflared --version` |
-| **systemd user services** | everything comes back on its own after a reboot | `systemctl --user status` |
-| A **graphical session** — only for the Computer screen | the bridge captures the machine's screen and injects input | `echo $DISPLAY` |
+| Needed | Linux | macOS | Windows |
+|---|---|---|---|
+| **Hermes**, installed and running | `hermes --version` | `hermes --version` | `hermes --version` |
+| **Python 3.9+** — the installer is a Python script | `python3 --version` | `python3 --version` | `py --version` |
+| **Hermes' API server**, enabled | `platforms.api_server.enabled: true` in `~/.hermes/config.yaml` | same | same, in `%USERPROFILE%\.hermes\config.yaml` |
+| **`cloudflared`** — free, no account, no open port | downloaded by the installer if missing | same | same |
+| **A way to keep services alive** | systemd user units | launchd agents | a task at sign-in |
+| A **graphical session**, only for the Computer screen | `echo $DISPLAY` | — (not supported) | — (not supported) |
 
-Install `cloudflared` in one line:
-
-```bash
-curl -L -o ~/.local/bin/cloudflared \
-  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-chmod +x ~/.local/bin/cloudflared
-```
+The installer checks all of this and tells you which one is missing. You do not have to install
+`cloudflared` yourself — it is fetched for your platform when absent.
 
 **On the phone**
 

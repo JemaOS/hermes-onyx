@@ -388,7 +388,7 @@ class Services:
             ligne = " ".join(f'"{a}"' if " " in a else a for a in arguments)
             script = (
                 "@echo off\r\n"
-                f"rem Onyx — {court}. Lance par la tache planifiee a l'ouverture de session.\r\n"
+                f"rem Onyx: {court}. Started by the sign-in scheduled task.\r\n"
                 f"cd /d \"{dossier}\"\r\n"
                 f"{prefixe}"
                 f"start \"onyx-{court}\" /min {cmd_echappe(ligne)}\r\n"
@@ -397,7 +397,9 @@ class Services:
             existant = fichier.read_text(encoding="utf-8") if fichier.exists() else ""
             change = existant != script
             if change:
-                fichier.write_text(script, encoding="utf-8")
+                # ASCII strict : cmd.exe lit les .cmd avec la page de code du poste, et un tiret
+                # cadratin en UTF-8 y apparaît en charabia.
+                fichier.write_text(script, encoding="ascii", errors="replace")
                 subprocess.run(["schtasks", "/Delete", "/TN", f"Onyx {court}", "/F"],
                                capture_output=True)
                 subprocess.run(["schtasks", "/Create", "/F", "/SC", "ONLOGON",
@@ -639,8 +641,17 @@ def donner_lien(services: Services, ouvrir: bool = True) -> None:
     voix = lire_secret(VOIX_FICHIER)
     if not voix:
         voix = adresse_tunnel("kokoro-tunnel.service", services)
-    pont = adresse_tunnel("onyx-computer-tunnel.service", services)
-    pont_jeton = lire_secret(Path.home() / ".onyx-computer-bridge" / "token")
+    # Le pont : son tunnel peut mettre quelques secondes de plus que la passerelle à publier son
+    # adresse. On l'attend un peu — un lien qui porte le jeton sans l'adresse donne un écran
+    # « Ordinateur » muet, sans que rien ne dise pourquoi.
+    pont = ""
+    for _ in range(10):
+        pont = adresse_tunnel("onyx-computer-tunnel.service", services)
+        if pont:
+            break
+        time.sleep(2)
+    # Pas d'adresse, pas de jeton : les deux champs voyagent ensemble ou pas du tout.
+    pont_jeton = lire_secret(Path.home() / ".onyx-computer-bridge" / "token") if pont else ""
 
     texte = lien(serveur, cle, voix, pont, pont_jeton)
     LIEN.write_text(texte + "\n", encoding="utf-8")

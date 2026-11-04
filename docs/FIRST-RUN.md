@@ -28,13 +28,27 @@ It is one command, and it is safe to run twice.
 
 ## One command
 
-From a clone of this repository:
+From a clone of this repository.
+
+**Linux / macOS**
 
 ```bash
 python3 tools/onyx-setup.py                            # install, then print the link and its QR
 python3 tools/onyx-setup.py --voices https://tts.example.com   # …and point the voice at your server
 python3 tools/onyx-setup.py --link                     # print the current link again
 ```
+
+**Windows** (PowerShell or `cmd`, from the repository root)
+
+```bat
+py tools\onyx-setup.py
+py tools\onyx-setup.py --voices https://tts.example.com
+py tools\onyx-setup.py --link
+```
+
+`python3` usually does not exist on Windows — `py` is the launcher that ships with Python. The
+`tools/onyx-setup.sh` shortcut exists for Linux and macOS only; `onyx-setup.py` is the installer on
+all three.
 
 It does five things, and says which one it is doing:
 
@@ -131,6 +145,8 @@ it again — which is what `tools/onyx-reset.py` is for:
 python3 tools/onyx-reset.py            # asks before doing anything
 python3 tools/onyx-setup.py            # the whole install, from nothing
 ```
+
+On Windows: `py tools\onyx-reset.py` then `py tools\onyx-setup.py`.
 
 `onyx-reset.py` removes the services (systemd units and their `*.service.d` overrides, launchd
 agents, scheduled tasks), `~/.onyx-one` (key, secrets, dashboard credentials), the Computer bridge
