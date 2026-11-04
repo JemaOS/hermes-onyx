@@ -57,6 +57,30 @@ class TurnSessionTest {
         )
     }
 
+    /**
+     * **Un outil qui tourne n'est pas un serveur muet.**
+     *
+     * `terminal` qui compile, `process_manage` qui attend 175 s : le serveur n'envoie rien pendant ce
+     * temps, et l'app le sait — elle affiche l'outil. Le propriétaire voyait pourtant « Aucune
+     * nouvelle du serveur depuis 1m 38s » en rouge sur un tour parfaitement vivant, et jamais sur
+     * Telegram (qui n'a pas cette ligne). La ligne doit dire l'outil, pas l'alerte.
+     */
+    @Test
+    fun `un outil qui tourne longtemps n est pas du silence`() {
+        val session = session()
+        session.apply(TurnEvent.ToolStarted(name = "process_manage", preview = null), 4_000L)
+
+        // Trois minutes plus tard, l'outil tourne encore : rien n'est muet, c'est le travail.
+        assertFalse("un outil en cours n'est pas un serveur muet", session.phase.stalled(184_000L))
+        val line = TurnStatusCopy.line(session.phase, 184_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) }
+        assertTrue("la ligne nomme l'outil, pas l'alerte : $line", line.orEmpty().startsWith("Exécution de process_manage · "))
+        assertFalse("aucune alerte de silence dans la ligne : $line", line.orEmpty().contains("Aucune nouvelle du serveur"))
+        assertFalse(
+            "et ce n'est pas un avertissement rouge",
+            TurnStatusCopy.isWarning(session.phase, 184_000L),
+        )
+    }
+
     @Test
     fun `chaque etape connue a sa phrase, et le raisonnement comme l'outil la donnent`() {
         val session = session()
