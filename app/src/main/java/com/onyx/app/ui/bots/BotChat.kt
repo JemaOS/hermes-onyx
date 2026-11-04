@@ -33,7 +33,11 @@ fun conversationProfile(
     server: ServerConfig,
     mainName: String = "Onyx",
 ): String = ProfileInForce.inForce(
-    botOfConversation(conversation, bots, server.displayName.ifBlank { mainName })?.name,
+    // **Le profil retenu par la conversation compte.** Une conversation importée du serveur ne
+    // porte ni titre de bot ni `canonical_session` : son seul lien est `botProfile`, écrit à
+    // l'import. Sans cette lecture, toutes les conversations réimportées après une réinstallation
+    // retombaient sur le visage d'Onyx (le bleu) au lieu de celui de leur bot.
+    botOfConversationOrRemembered(conversation, bots, server.displayName.ifBlank { mainName })?.name,
     server.effectiveProfile,
 )
 

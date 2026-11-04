@@ -44,12 +44,13 @@ object ServerSessions {
         summaries: List<SessionSummary>,
         known: List<Conversation>,
         botChats: Set<String> = emptySet(),
+        profileOf: (SessionSummary) -> String? = { null },
     ): List<Conversation> {
         val already = known.mapNotNull { serverIdOf(it) }.toSet()
         return summaries
             .filterNot { it.id in already }
             .filterNot { it.id in botChats }
-            .map { summary -> conversation(server, summary) }
+            .map { summary -> conversation(server, summary, profileOf(summary)) }
             .sortedByDescending { it.updatedAt }
     }
 
@@ -64,8 +65,14 @@ object ServerSessions {
     fun staleBotChats(known: List<Conversation>, botChats: Set<String>): List<String> =
         known.filter { it.remote && it.serverSessionId in botChats }.map { it.id }
 
-    /** La conversation locale qui représente une session du serveur. */
-    fun conversation(server: ServerConfig, summary: SessionSummary): Conversation {
+    /**
+     * La conversation locale qui représente une session du serveur.
+     *
+     * [profile] est **le profil qui porte la session** : il devient `botProfile`, le seul lien qui
+     * reste entre une conversation réimportée et son bot. Sans lui, une réinstallation rendait
+     * toutes les conversations au visage d'Onyx.
+     */
+    fun conversation(server: ServerConfig, summary: SessionSummary, profile: String? = null): Conversation {
         val started = summary.startedAt?.let { (it * 1000).toLong() }
         val touched = summary.lastActive?.let { (it * 1000).toLong() }
         val created = started ?: touched ?: 0L
@@ -78,6 +85,7 @@ object ServerSessions {
             serverId = server.id,
             serverSessionId = summary.id,
             remote = true,
+            botProfile = profile?.trim()?.takeIf { it.isNotEmpty() },
         )
     }
 }

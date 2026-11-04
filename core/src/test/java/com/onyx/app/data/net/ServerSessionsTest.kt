@@ -166,4 +166,31 @@ class ServerSessionsTest {
 
         assertEquals(listOf("srv-srv-1-sess-coder"), stale)
     }
+
+    /**
+     * **Le visage d'une conversation réimportée.**
+     *
+     * Une conversation relue du serveur n'a ni titre de bot ni `canonical_session` : le seul lien
+     * qui lui reste est son profil. L'import doit donc l'écrire — sinon, après une réinstallation,
+     * toutes les conversations portent le visage d'Onyx au lieu de celui de leur bot.
+     */
+    @Test
+    fun `une conversation importee porte le profil qui la nomme`() {
+        val made = ServerSessions.conversation(server(), summary("s1", title = "Un titre"), "coder")
+
+        assertEquals("coder", made.botProfile)
+        assertEquals("un profil vide ne compte pas", null, ServerSessions.conversation(server(), summary("s2"), "  ")?.botProfile)
+    }
+
+    @Test
+    fun `l import transmet le profil de chaque session`() {
+        val imported = ServerSessions.conversations(
+            server = server(),
+            summaries = listOf(summary("a", title = "a"), summary("b", title = "b")),
+            known = emptyList(),
+            profileOf = { summary -> if (summary.id == "a") "coder" else "kilo" },
+        )
+
+        assertEquals(mapOf("a" to "coder", "b" to "kilo"), imported.associate { it.serverSessionId to it.botProfile })
+    }
 }

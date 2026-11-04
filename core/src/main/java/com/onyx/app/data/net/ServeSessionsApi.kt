@@ -193,6 +193,30 @@ class ServeSessionsApi(private val client: ServeClient) {
         return all.values.toList()
     }
 
+    /**
+     * **Les sessions, avec le profil qui les porte.**
+     *
+     * Une session est écrite dans la base **de son profil** : lire sans profil ne ramène que le
+     * profil principal. Sans cette association, une conversation réimportée après une
+     * réinstallation n'a plus aucun lien avec son bot — ni titre de bot, ni `canonical_session` —
+     * et retombait sur le visage d'Onyx (le bleu) au lieu de celui du bot qui l'avait écrite.
+     *
+     * L'ordre des profils décide en cas de doublon : elle appartient au premier qui la nomme.
+     */
+    suspend fun summariesByProfile(
+        profiles: List<String>,
+        pageSize: Int = 100,
+        maxPages: Int = 20,
+    ): List<Pair<String, SessionSummary>> {
+        val found = LinkedHashMap<String, Pair<String, SessionSummary>>()
+        for (profile in profiles.map { it.trim() }.filter { it.isNotEmpty() }.distinct()) {
+            allSummaries(pageSize, maxPages, profile).forEach { summary ->
+                if (summary.id !in found) found[summary.id] = profile to summary
+            }
+        }
+        return found.values.toList()
+    }
+
     /** Une page du registre : `offset` trie par date de création, ce qui ne bouge pas d'une page à l'autre. */
     private suspend fun page(limit: Int, offset: Int, profile: String? = null): List<SessionSummary> {
         val payload = client.request(

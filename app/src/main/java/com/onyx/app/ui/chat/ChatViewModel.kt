@@ -267,10 +267,19 @@ class ChatViewModel(
      */
     private suspend fun importServerSessions(server: ServerConfig) {
         if (conversations.conversations.value.isEmpty()) conversations.load()
-        val summaries = runCatching {
-            ServeSessionsApi(ServeClient(server)).allSummaries()
-        }.getOrElse { return }
-        if (summaries.isEmpty()) return
+        // **Les profils à interroger** : ceux des bots retenus sur ce téléphone, plus celui du
+        // serveur. C'est ce qui donne à chaque session le profil qui la porte — sans lui, une
+        // conversation réimportée après une réinstallation perd son bot et prend le visage d'Onyx.
+        val cached = runCatching { roster.load(server.rosterScope) }.getOrNull()
+        val profiles = (cached?.bots.orEmpty().map { it.name } + listOfNotNull(server.effectiveProfile))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        val api = ServeSessionsApi(ServeClient(server))
+        val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { return }
+        if (tagged.isEmpty()) return
+        val summaries = tagged.map { (_, summary) -> summary }
+        val profileById = tagged.associate { (profile, summary) -> summary.id to profile }
         val known = conversations.conversations.value
         // **Les chats des bots du roster ne sont pas des conversations.**
         //
@@ -279,9 +288,7 @@ class ChatViewModel(
         // **vide** par bot, titrée de son nom et sans aperçu, apparaissait tout seule dans la liste
         // dès qu'on créait une conversation avec l'un d'eux (« j'ai 3 bots, je devrais avoir que le
         // bot que j'ai choisi »). Un chat de bot s'ouvre par sa tuile — il n'a rien à faire ici.
-        val botChats = runCatching {
-            roster.load(server.rosterScope)?.bots.orEmpty().mapNotNull { it.chatId }
-        }.getOrNull().orEmpty().toSet()
+        val botChats = cached?.bots.orEmpty().mapNotNull { it.chatId }.toSet()
 
         // **Et les lignes déjà écrites par l'ancien import s'effacent.** Jusqu'ici le chat de
         // chaque bot était importé comme une conversation : les lignes vides sont dans le registre
@@ -294,7 +301,22 @@ class ChatViewModel(
             if (stale.isNotEmpty()) conversations.deleteAll(stale.toSet())
         }
 
-        val imported = ServerSessions.conversations(server, summaries, known, botChats)
+        // **Les conversations déjà importées retrouvent leur profil.** Celles qu'une version
+        // précédente a écrites n'ont pas de `botProfile` : sans cette reprise, le correctif ne
+        // vaudrait que pour les imports suivants, et la liste resterait au visage d'Onyx jusqu'au
+        // prochain redémarrage.
+        known.filter { it.remote && it.botProfile == null }.forEach { conversation ->
+            val profile = profileById[conversation.serverSessionId] ?: return@forEach
+            conversations.save(conversation.copy(botProfile = profile))
+        }
+
+        val imported = ServerSessions.conversations(
+            server = server,
+            summaries = summaries,
+            known = known,
+            botChats = botChats,
+            profileOf = { summary -> profileById[summary.id] },
+        )
         if (imported.isEmpty()) return
         imported.forEach { conversation -> conversations.save(conversation) }
     }
