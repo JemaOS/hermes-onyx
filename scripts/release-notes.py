@@ -20,6 +20,10 @@ import urllib.request
 from pathlib import Path
 
 RACINE = Path("/home/john/Bureau/onyx")
+# Les sujets de commit qui **citent du francais** (un libelle d'interface, par exemple) ne peuvent
+# pas rester tels quels dans une release anglaise : `--apply` les reintroduisait a chaque passage.
+# Ce fichier porte leur forme publiee, indexee par sha court, et il est relu a chaque execution.
+OVERRIDES = RACINE / "scripts" / "release-notes-overrides.json"
 DEPOT = "JemaOS/hermes-onyx"
 def jeton():
     """Le jeton de publication : `GH_TOKEN`, sinon la premiere entree de ~/.git-credentials.
@@ -36,7 +40,13 @@ def jeton():
 
 
 TOK = jeton()
+
+# La table des sujets corriges : vide quand le fichier n'existe pas encore.
+OVERRIDES_JETON = (
+    json.loads(OVERRIDES.read_text(encoding="utf-8")) if OVERRIDES.exists() else {}
+)
 BROUILLON = Path("/tmp/releases-draft")
+
 
 # Les auteurs qui ne sont pas des personnes : l'assistant qui redige les commits.
 PAS_UN_CONTRIBUTEUR = {"hermes@jemaos.local", "hermes@localhost", "onyx@local", "john@jemaos.local"}
@@ -100,6 +110,11 @@ def handle(email, auteur):
 BRUIT = re.compile(r"^(Release notes|Notes \d|Release \d|Changelog)", re.I)
 
 
+def sujet_de(sha, sujet):
+    """Le sujet publie d'un commit : la correction ecrite a la main, s'il y en a une."""
+    return OVERRIDES_JETON.get(sha, sujet)
+
+
 def puce(sujet, sha):
     """`Menu: the panel is flat` devient `**Menu** — the panel is flat`."""
     m = re.match(r"^([A-Za-z0-9][A-Za-z0-9 /_+-]{1,24}):\s+(.+)$", sujet)
@@ -116,7 +131,7 @@ def corps(version, precedent, liste):
     lignes = ["## What's Changed"]
     utiles = [c for c in liste if not BRUIT.match(c[1])] or liste
     for sha, sujet, _, _ in utiles:
-        lignes.append(puce(sujet, sha))
+        lignes.append(puce(sujet_de(sha, sujet), sha))
     lignes.append("")
     lignes.append(f"**Full Changelog**: https://github.com/{DEPOT}/compare/"
                   f"{precedent}...{version}")
