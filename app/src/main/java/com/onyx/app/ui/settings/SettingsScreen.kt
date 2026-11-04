@@ -77,7 +77,7 @@ import com.onyx.app.ui.design.OnyxValueRow
 import com.onyx.app.ui.design.MenuItem
 import com.onyx.app.ui.design.OnyxInkOn
 import com.onyx.app.ui.design.OnyxContrast
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.Lucide
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.hostActivity
@@ -210,7 +210,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = OnyxSocle.Loose),
+                    .padding(bottom = OnyxBase.Loose),
             ) {
                 // La carte de la passerelle, en tête : vignette teintée, adresse, état et « Vérifier ».
                 val gwServer = servers.firstOrNull { it.id == activeId }
@@ -886,7 +886,7 @@ fun AppearanceScreen(
     pureBlack: Boolean,
     /** « Halo » : la lumière colorée douce derrière le haut de chaque écran. */
     halo: Boolean,
-    /** « Fluide » : la couverture animée des cartes de conversation (variante B). */
+    /** « Fluid » : la couverture animée des cartes de conversation (variante B). */
     fluideCover: Boolean,
     voiceOrb: VoiceOrbChoice,
     orbLight: OrbLight,
@@ -903,7 +903,7 @@ fun AppearanceScreen(
     onChatTextSize: (Int) -> Unit,
     onPureBlack: (Boolean) -> Unit,
     onHalo: (Boolean) -> Unit,
-    /** « Fluide » : la couverture animée des cartes de conversation. */
+    /** « Fluid » : la couverture animée des cartes de conversation. */
     onFluideCover: (Boolean) -> Unit,
     onPickVoiceOrb: (VoiceOrbChoice) -> Unit,
     onPickOrbLight: (OrbLight) -> Unit,
@@ -946,7 +946,7 @@ fun AppearanceScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = OnyxSocle.Loose),
+                .padding(bottom = OnyxBase.Loose),
         ) {
             // `NameSettings` : ce que l'en-tête et la zone de saisie appellent l'assistant.
             OnyxFormSection(
@@ -1093,7 +1093,7 @@ fun AppearanceScreen(
                     checked = halo,
                     onCheckedChange = onHalo,
                 )
-                // « Fluide » : la couverture d'une carte de conversation devient un fluide animé —
+                // « Fluid » : la couverture d'une carte de conversation devient un fluide animé —
                 // les filaments de la variante B, tirés de l'identifiant de la conversation.
                 OnyxRowDivider()
                 BlurbToggleRow(
@@ -1201,7 +1201,7 @@ private fun ThemeSwatch(theme: ResolvedTheme) {
             .size(width = 52.dp, height = 40.dp)
             .background(theme.pageColor, RoundedCornerShape(OnyxSpace.ControlCorner))
             .border(OnyxSpace.Stroke, OnyxEdge.fil(theme), RoundedCornerShape(OnyxSpace.ControlCorner))
-            .padding(OnyxSocle.Tight),
+            .padding(OnyxBase.Tight),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Box(
@@ -1285,7 +1285,7 @@ private fun ColorPickerDialog(
                 .fillMaxWidth()
                 .background(theme.formSurfaceColor, RoundedCornerShape(OnyxSpace.FieldCorner))
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(OnyxSocle.Loose),
+            verticalArrangement = Arrangement.spacedBy(OnyxBase.Loose),
         ) {
             BasicText(text = title, style = theme.headline.copy(color = theme.primaryText))
             SaturationValueField(
@@ -1308,7 +1308,7 @@ private fun ColorPickerDialog(
                     .height(26.dp),
             )
             Row(
-                horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Loose),
+                horizontalArrangement = Arrangement.spacedBy(OnyxBase.Loose),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(

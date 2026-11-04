@@ -26,7 +26,7 @@ object SegmentedFit {
      * **On ne descend que sur l'échelle** : 16 → 15 → 12 → 11. Les demi-points d'avant produisaient
      * 15,5 / 14,5 / 13,5 — des corps qui n'existent dans aucun autre écran de l'app.
      */
-    val Rungs: List<Float> get() = OnyxSocle.TypeScale.map { it.value }
+    val Rungs: List<Float> get() = OnyxBase.TypeScale.map { it.value }
 
     /** Le dégagement laissé au texte dans sa case (bords compris), en dp. */
     const val INSET_DP = 6f

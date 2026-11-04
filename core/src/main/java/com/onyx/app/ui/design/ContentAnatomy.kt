@@ -101,7 +101,7 @@ val ContentIconGlyph: Dp = 20.dp
 
 /**
  * Le **grand titre** d'un écran de contenu : le **corps grand de l'échelle unique** de la maison —
- * `OnyxSocle.Display` (30 sp, `.dsp`), en SemiBold comme la source (`HermesTheme.kt:47`). Ce n'est
+ * `OnyxBase.Display` (30 sp, `.dsp`), en SemiBold comme la source (`HermesTheme.kt:47`). Ce n'est
  * pas un corps improvisé : 30 sp **est** l'un des six corps déclarés (`30/26/16/15/12/11`), et il
  * suit le réglage de taille de texte de l'app comme tout le reste (`scaled`).
  */
@@ -206,7 +206,7 @@ fun ContentPageHeader(
                 text = it,
                 localize = localizeSubtitle,
                 style = theme.subheadline.copy(
-                    fontSize = OnyxSocle.Meta,
+                    fontSize = OnyxBase.Meta,
                     color = OnyxInkOn(theme.tertiaryText, theme.formPageColor, TextInkTarget),
                 ),
                 maxLines = 3,
@@ -288,9 +288,9 @@ enum class PillVariant {
 enum class PillSize(val height: Dp, val horizontalPadding: Dp, val glyph: Dp, val fontSize: TextUnit) {
     // La hauteur et le dégagement restent ceux de la source ; le corps du libellé, lui, ne sort
     // pas des six de l'app : 13 et 14 étaient deux corps qui n'existaient qu'ici.
-    Small(36.dp, 14.dp, 15.dp, OnyxSocle.Meta),
-    Medium(44.dp, 18.dp, 16.dp, OnyxSocle.Body),
-    Large(52.dp, 22.dp, 16.dp, OnyxSocle.Body),
+    Small(36.dp, 14.dp, 15.dp, OnyxBase.Meta),
+    Medium(44.dp, 18.dp, 16.dp, OnyxBase.Body),
+    Large(52.dp, 22.dp, 16.dp, OnyxBase.Body),
 }
 
 /**
@@ -413,7 +413,7 @@ fun ContentCountBadge(
     BasicText(
         text = text,
         localize = false,
-        style = theme.caption.copy(fontSize = OnyxSocle.Micro, fontWeight = FontWeight.SemiBold, color = ink),
+        style = theme.caption.copy(fontSize = OnyxBase.Micro, fontWeight = FontWeight.SemiBold, color = ink),
         maxLines = 1,
         modifier = modifier
             .background(ground, CircleShape)
@@ -553,10 +553,10 @@ fun ContentRow(
                     text = it,
                     localize = false,
                     style = if (subtitleMono) {
-                        contentMonoStyle(FontWeight.Normal, theme.tertiaryText).copy(fontSize = OnyxSocle.Meta)
+                        contentMonoStyle(FontWeight.Normal, theme.tertiaryText).copy(fontSize = OnyxBase.Meta)
                     } else {
                         theme.footnote.copy(
-                            fontSize = OnyxSocle.Meta,
+                            fontSize = OnyxBase.Meta,
                             color = OnyxInkOn(theme.tertiaryText, cardGround(theme), TextInkTarget),
                         )
                     },
@@ -643,7 +643,7 @@ fun ContentFloatingBar(
                 BasicText(
                     text = label,
                     localize = false,
-                    style = theme.body.copy(fontSize = OnyxSocle.Body, fontWeight = FontWeight.SemiBold, color = ink),
+                    style = theme.body.copy(fontSize = OnyxBase.Body, fontWeight = FontWeight.SemiBold, color = ink),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

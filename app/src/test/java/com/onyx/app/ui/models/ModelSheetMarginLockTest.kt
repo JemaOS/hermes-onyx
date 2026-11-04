@@ -1,7 +1,7 @@
 package com.onyx.app.ui.models
 
 import androidx.compose.ui.unit.dp
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.ModelContrast
 import com.onyx.app.ui.design.ReasoningLevels
@@ -25,7 +25,7 @@ import org.junit.Test
  * cassées :
  *
  * 1. **Une pastille sort de la marge** : la rangée de pastilles doit être dans la marge de la
- *    feuille ([OnyxSocle.CardPadding] de chaque côté), se **replier** (`FlowRow`) et ne plus
+ *    feuille ([OnyxBase.CardPadding] de chaque côté), se **replier** (`FlowRow`) et ne plus
  *    défiler horizontalement — un défilement qui n'est pas découvert tranche la dernière pastille
  *    au bord de la feuille.
  * 2. **Une rangée n'a pas sa tuile** : chaque rangée porte une tuile arrondie de 44 à 48 dp, du
@@ -61,9 +61,9 @@ class ModelSheetMarginLockTest {
         val flowRow = sheet.substringAfter("private fun ChipFlow(", "").substringBefore("labels.forEach")
         assertTrue(
             "la rangée de pastilles est dans la marge de la feuille",
-            flowRow.contains("padding(horizontal = OnyxSocle.CardPadding)"),
+            flowRow.contains("padding(horizontal = OnyxBase.CardPadding)"),
         )
-        assertTrue("la marge est de chaque côté", OnyxSocle.CardPadding.value > 0f)
+        assertTrue("la marge est de chaque côté", OnyxBase.CardPadding.value > 0f)
     }
 
     // — 2. Chaque rangée a sa tuile, et elle se voit —

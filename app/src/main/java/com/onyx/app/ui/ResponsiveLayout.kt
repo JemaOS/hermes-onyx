@@ -231,7 +231,7 @@ internal fun popRoute(backStack: MutableList<String>): String? = backStack.remov
  * La racine est le fil, **dans les deux largeurs**. La liste des conversations n'est **plus une
  * route** : l'écran qui la portait a été retiré, elle vit dans le **volet**, qui est un panneau et
  * non une destination. `twoPanes` ne déplace donc plus la racine — le volet du pliable déplié peint
- * le même fil — mais la règle le dit explicitement : la [RetourMatriceTest], elle, mesure la réponse
+ * le même fil — mais la règle le dit explicitement : la [ReturnMatrixTest], elle, mesure la réponse
  * sur les deux formats, formats qui ne doivent plus jamais demander deux gestes au lieu d'un.
  */
 internal fun routeBackHandled(

@@ -88,7 +88,7 @@ object OnyxRune {
     val Medium: Dp = 28.dp
 
     /** La vignette de rangée, la carte de serveur, la tête du volet : la cible du pouce. */
-    val Mark: Dp = OnyxSocle.ThumbnailSize
+    val Mark: Dp = OnyxBase.ThumbnailSize
 
     /** Le signe d'une planche, d'un écran vide. */
     val Large: Dp = 56.dp

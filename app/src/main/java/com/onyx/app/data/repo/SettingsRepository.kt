@@ -73,7 +73,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     val halo: StateFlow<Boolean> = _halo.asStateFlow()
 
     /**
-     * « Fluide » : la couverture d'une carte de conversation est le fluide animé (variante B), au
+     * « Fluid » : la couverture d'une carte de conversation est le fluide animé (variante B), au
      * lieu de l'image déterministe. **Vrai par défaut.** Éteint, la carte reprend exactement
      * l'ancienne couverture — rien d'autre ne change.
      */
@@ -389,7 +389,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         // enregistré, la carte prend le défaut **visible** ([ChoixCouverture.DEFAUT] — filaments,
         // graine `3417634283`, teinte bleu) **sans l'écrire** ; dès qu'un choix existe, c'est **LUI**
         // qui gagne. Semer au démarrage reviendrait à écraser en silence le choix de l'utilisateur,
-        // ce que le verrou livré (`AppearancePersistenceVerrouTest`) interdit.
+        // ce que le verrou livré (`AppearancePersistenceLockTest`) interdit.
         _fluideChoix.value = com.onyx.app.ui.design.ChoixCouverture.enregistre(
             variante = preferences[Keys.FLUIDE_VARIANTE],
             graine = preferences[Keys.FLUIDE_GRAINE],
@@ -519,13 +519,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * « Fluide » : la couverture de conversation animée (variante B), ou l'ancienne image.
+     * « Fluid » : la couverture de conversation animée (variante B), ou l'ancienne image.
      *
      * **C'est ici, et seulement ici, que le CHOIX s'écrit** : activer la couverture de fluide, c'est
      * **toucher la variante des filaments sur la planche** — à cet instant, le geste de l'utilisateur
      * enregistre le choix (variante, graine, teinte) par [setFluideChoix]. Le **démarrage ne sème
      * rien** (`load()` ne fait que relire) : sans quoi il écraserait, à chaque lancement, ce que
-     * l'utilisateur avait choisi — ce que le verrou livré (`AppearancePersistenceVerrouTest`) refuse.
+     * l'utilisateur avait choisi — ce que le verrou livré (`AppearancePersistenceLockTest`) refuse.
      */
     suspend fun setFluideCover(value: Boolean) {
         _fluideCover.value = value
@@ -959,7 +959,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val PURE_BLACK = booleanPreferencesKey("pureBlack")
         /** « Halo » : la lumière douce derrière le haut de chaque écran. Même nom que `Settings.Keys`. */
         val HALO = booleanPreferencesKey("halo")
-        /** « Fluide » : la couverture de conversation animée. Vraie par défaut. */
+        /** « Fluid » : la couverture de conversation animée. Vraie par défaut. */
         val FLUIDE_COVER = booleanPreferencesKey("fluideCover")
         /**
          * **Le matériau du fluide** : la variante retenue, la graine du tracé et la teinte nommée.

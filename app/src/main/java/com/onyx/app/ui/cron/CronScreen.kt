@@ -1,6 +1,6 @@
 package com.onyx.app.ui.cron
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.onyxPage
 
 import androidx.compose.foundation.background
@@ -604,7 +604,7 @@ private fun CronDetailScreen(
                     BasicText(
                         text = job.prompt.trim(),
                         localize = false,
-                        style = theme.body.copy(fontSize = OnyxSocle.Body, color = theme.secondaryText),
+                        style = theme.body.copy(fontSize = OnyxBase.Body, color = theme.secondaryText),
                         maxLines = 8,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -614,7 +614,7 @@ private fun CronDetailScreen(
                         text = error,
                         localize = false,
                         // L'erreur est une **donnée technique** : elle s'écrit en monospace.
-                        style = theme.monospacedFootnote.copy(fontSize = OnyxSocle.Meta, color = theme.error),
+                        style = theme.monospacedFootnote.copy(fontSize = OnyxBase.Meta, color = theme.error),
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )

@@ -166,7 +166,7 @@ const val GlassTintDark: Float = 0.30f
 val GlassAnthracite: Color = ReferencePalette.DarkSurface3
 
 // **LE VERRE DES PLAQUES EST FRANCHEMENT TEINTÉ.** Sa teinte, l'échelle des candidats, le niveau
-// retenu, l'écart assumé à la planche et le levier de captures vivent dans `VerreTeinte.kt` — un
+// retenu, l'écart assumé à la planche et le levier de captures vivent dans `GlassTint.kt` — un
 // fichier à part, dispensé dans la liste blanche de `ReferencePaletteLockTest` pour **cette seule**
 // raison. C'est lui que [glassTintColour] lit pour les plaques en apparence claire.
 
@@ -308,10 +308,10 @@ const val GlassBarBlurPlateDp: Float = 44f
 /**
  * **L'arête claire du haut d'une plaque de verre** — `--gedge` / `--gloss` de la planche :
  * blanc **98 %** en clair, **62 %** en sombre (`v4css.py:142` / `:154`), **1,5 px** d'épaisseur
- * (`hcss.py:98-102`, la valeur que [PlaqueGeometry.TopEdge] porte déjà).
+ * (`hcss.py:98-102`, la valeur que [PlateGeometry.TopEdge] porte déjà).
  *
  * **Pourquoi elle arrivait nulle part.** Le jeton existait deux fois dans la maison
- * ([OnyxEdge.TopEdgeLightAlpha], [PlaqueGeometry.TopEdgeAlphaLight]) et une fonction le rendait
+ * ([OnyxEdge.TopEdgeLightAlpha], [PlateGeometry.TopEdgeAlphaLight]) et une fonction le rendait
  * ([OnyxEdge.topEdge]) — **aucun écran ne l'appelait**. Les trois surfaces flottantes (l'en-tête, la
  * plaque du compositeur et des onglets, la carte du compositeur) étaient donc peintes **sans leur
  * arête** : c'est exactement le reproche du propriétaire, « il manque du liquid glass, c'est pas
@@ -320,7 +320,7 @@ const val GlassBarBlurPlateDp: Float = 44f
  * **Pourquoi une ligne droite et pas un contour.** La profondeur complète du verre
  * ([drawGlassFinish] : lumière de tête, ombre de pied, liseré interne, reflet de tranche) a été
  * **retirée** de ces trois surfaces par le lot de la matière, sur la mesure de la planche
- * (`MatiereAplatVerrouTest` : la planche ne dessine ni halo ni liseré autour du corps de la plaque).
+ * (`MaterialFlatLockTest` : la planche ne dessine ni halo ni liseré autour du corps de la plaque).
  * Ce que la planche dessine, en revanche, c'est **son arête haute** — et c'est la seule pièce que
  * ces plaques reçoivent ici. Elle se peint donc **sur le bord haut du plat**, rentrée du rayon pour
  * ne pas dépasser sur les coins, et rien d'autre n'est ajouté : le corps reste un aplat, comme la
@@ -333,7 +333,7 @@ fun glassPlateEdgeUsed(surface: GlassSurface): Boolean = surface.plateEdge
 
 /** L'épaisseur réellement peinte de l'arête d'une plaque, en dp (0 si la surface n'en porte pas). */
 fun glassPlateEdgeDp(surface: GlassSurface): Float =
-    if (surface.plateEdge) PlaqueGeometry.TopEdge.value else 0f
+    if (surface.plateEdge) PlateGeometry.TopEdge.value else 0f
 
 /** L'opacité réellement peinte de l'arête d'une plaque (0 si la surface n'en porte pas). */
 fun glassPlateEdgeAlpha(surface: GlassSurface, dark: Boolean): Float = when {
@@ -345,14 +345,14 @@ fun glassPlateEdgeAlpha(surface: GlassSurface, dark: Boolean): Float = when {
 /**
  * **LE GRAIN DE LA PLAQUE A ÉTÉ RETIRÉ — décision explicite du propriétaire.**
  *
- * Le lot « verre-plaques » peignait le carreau mosaïqué de la matière ([PlaqueGeometry.Grain], 7,5 %,
- * `Matiere.grainTile`) pour « faire matière » au repos. Sur capture d'appareil, le propriétaire a
+ * Le lot « verre-plaques » peignait le carreau mosaïqué de la matière ([PlateGeometry.Grain], 7,5 %,
+ * `Material.grainTile`) pour « faire matière » au repos. Sur capture d'appareil, le propriétaire a
  * entouré les plaques en rouge : *« tu as mis une espèce de grain, supprime ce grain »*. La plaque est
  * donc **lisse**, et cette fonction rend **0** — elle reste, nommée, pour que le verrou lise le chiffre
  * au lieu de le supposer (et pour qu'un lot qui voudrait le remettre doive toucher une fonction dont
  * le nom dit non).
  *
- * `PlaqueGeometry.Grain` reste dans la table : c'est le jeton de la **planche**, et il documente
+ * `PlateGeometry.Grain` reste dans la table : c'est le jeton de la **planche**, et il documente
  * l'écart. Il n'est simplement plus peint.
  */
 fun glassPlateGrainUsed(surface: GlassSurface): Float = 0f
@@ -372,7 +372,7 @@ fun glassPlateGrainUsed(surface: GlassSurface): Float = 0f
  * glass, la c'est pas le cas ».
  *
  * **Pourquoi ce n'est pas le halo que le lot de la matière avait retiré.** Ce que la planche ne
- * dessine pas, et ce que `MatiereAplatVerrouTest` continue d'interdire, c'est un **contour** (un
+ * dessine pas, et ce que `MaterialFlatLockTest` continue d'interdire, c'est un **contour** (un
  * cerceau autour de la plaque) et une bande de pied : deux filets qui se lisent comme un cadre. Ici
  * il n'y a **qu'une** pièce, sur le **haut**, sans contour : la lumière du verre. Le corps de la
  * plaque reste, sous elle, un aplat — et c'est ce que la planche demande.
@@ -1220,7 +1220,7 @@ enum class GlassSurface(
      * `false` : la surface est un **aplat** — la teinte et le flou restent (elle se sépare donc de
      * la page par la seule luminance), mais **aucun filet, aucun halo** n'est ajouté par-dessus.
      *
-     * Pourquoi ce cran existe : la planche d'acceptation (« Galerie ») dessine la plaque du bas et
+     * Pourquoi ce cran existe : la planche d'acceptation (« Gallery ») dessine la plaque du bas et
      * les cartes/tuiles en **aplats** — mesuré sur `fil-clair.png`/`fil-sombre.png` : le corps de la
      * plaque est plat (248–250 en clair, ~22 en sombre) et une carte ne porte **ni ombre ni arête**.
      * L'app, elle, ajoutait à ces surfaces un **filet clair** sur l'arête haute (mesuré L≈254 en
@@ -1273,7 +1273,7 @@ enum class GlassSurface(
      *
      * Son encre était **dérivée** ([GlassInk.DERIVED]) pour la même raison que la barre d'onglets.
      */
-    PANE(GlassBlurDefaultDp, GlassInk.DERIVED, 8f, RoundedCornerShape(PlaqueGeometry.Radius), lit = false, plateEdge = true),
+    PANE(GlassBlurDefaultDp, GlassInk.DERIVED, 8f, RoundedCornerShape(PlateGeometry.Radius), lit = false, plateEdge = true),
 
     /**
      * La capsule d'en-tête (sous-agents) : elle ne porte qu'un chiffre et une icône, donc le seuil
@@ -2183,13 +2183,13 @@ fun Modifier.liquidGlass(
                 // **LA PLAQUE EST LISSE — le grain a été RETIRÉ** (décision explicite du
                 // propriétaire, capture à l'appui : « tu as mis une espèce de grain, supprime ce
                 // grain »). Le lot « verre-plaques » peignait ici le carreau mosaïqué de la matière
-                // ([PlaqueGeometry.Grain], 7,5 %) pour « faire matière » au repos. Le propriétaire
+                // ([PlateGeometry.Grain], 7,5 %) pour « faire matière » au repos. Le propriétaire
                 // n'en veut pas : la vitre doit être lisse, et c'est désormais la **teinte**
                 // ([GlassPlateTintLight]) qui la fait lire comme du verre. Ne pas le remettre.
                 //
                 // **Où était le grain, et où il reste.** Relevé : le grain des plaques n'était peint
                 // qu'**ici**, une seule fois (les trois plaques passent toutes par ce `if`). Le
-                // **second** grain de l'app — celui de la **page** (`Matiere.grainTile`, dans
+                // **second** grain de l'app — celui de la **page** (`Material.grainTile`, dans
                 // `drawMatiere`) — est une autre couche, sous la page, et le propriétaire ne l'a pas
                 // visé : il reste. C'est bien le grain *de la plaque* qui s'en va.
                 //
@@ -2618,7 +2618,7 @@ fun glassBottomRim(surface: GlassSurface, level: GlassLevel, theme: ResolvedThem
 
 /**
  * **L'arête de verre d'une plaque** — l'arête claire du haut, le jeton `--gedge` de la planche
- * ([OnyxEdge.topEdge] : blanc 98 % en clair, 62 % en sombre), peinte sur [PlaqueGeometry.TopEdge]
+ * ([OnyxEdge.topEdge] : blanc 98 % en clair, 62 % en sombre), peinte sur [PlateGeometry.TopEdge]
  * (1,5 dp) et **rentrée de [GlassPlateEdgeInset]** pour ne pas déborder sur les coins arrondis.
  *
  * Elle se peint **au-dessus** de la vitre et **sous** le contenu ([drawWithContent] l'appelle avant
@@ -2639,7 +2639,7 @@ private fun DrawScope.drawGlassPlateGloss(dark: Boolean) {
 
 /**
  * **L'arête de verre d'une plaque** — l'arête claire du haut, le jeton `--gedge` de la planche
- * ([OnyxEdge.topEdge] : blanc 98 % en clair, 62 % en sombre), peinte sur [PlaqueGeometry.TopEdge]
+ * ([OnyxEdge.topEdge] : blanc 98 % en clair, 62 % en sombre), peinte sur [PlateGeometry.TopEdge]
  * (1,5 dp) et **rentrée de [GlassPlateEdgeInset]** pour ne pas déborder sur les coins arrondis.
  *
  * Elle se peint **au-dessus** de la vitre et **sous** le contenu ([drawWithContent] l'appelle avant
@@ -2653,7 +2653,7 @@ private fun DrawScope.drawGlassPlateEdge(shape: Shape, dark: Boolean) {
     // garde son reflet de tête ([drawGlassPlateGloss]), son ombre et sa courbure : elle se détache
     // par la lumière, plus par un trait.
     if (true) return
-    val thickness = PlaqueGeometry.TopEdge.toPx()
+    val thickness = PlateGeometry.TopEdge.toPx()
     if (thickness <= 0f) return
     val inset = GlassPlateEdgeInset.toPx()
     val left = inset.coerceAtMost(size.width / 2f)

@@ -58,7 +58,7 @@ class FinishWiringTest {
         assertTrue("une carte de bot doit porter la surface de carte", bots.contains(".background(cardGround)"))
         assertTrue(
             "et son ombre, réellement posée (sinon R8 retire socleShadow et la carte est plate)",
-            bots.contains(".socleShadow(OnyxSocle.ShadowNear, OnyxSocle.RadiusCard, theme.dark)"),
+            bots.contains(".socleShadow(OnyxBase.ShadowNear, OnyxBase.RadiusCard, theme.dark)"),
         )
         assertTrue("une rangée de salon doit passer par la surface de rangée", bots.contains(".sidebarRowSurface(shape)"))
         assertTrue("la vitre d'une rangée de liste doit rester appelée", flat.contains("liquidGlass(GlassSurface.LIST_ROW, shape)"))
@@ -171,7 +171,7 @@ class FinishWiringTest {
             core("OnyxMenu.kt"),
             // L'alerte héritée a **quitté** cette liste en même temps que son panneau : elle ne porte
             // plus aucun écart à recopier (elle passe par [OnyxConfirmSurface]), donc il n'y a plus
-            // rien à y vérifier. Son panneau partagé, lui, est mesuré par `OnyxConfirmVerrouTest`.
+            // rien à y vérifier. Son panneau partagé, lui, est mesuré par `OnyxConfirmLockTest`.
             core("OnyxForm.kt"),
             app("chat/ChatScreen.kt"),
             app("chat/components/ReplyCardViews.kt"),

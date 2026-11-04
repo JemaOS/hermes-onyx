@@ -39,7 +39,7 @@ class ReferencePaletteLockTest {
      * décision, et elle doit s'écrire ici.
      */
     private val allowList: Map<String, String> = mapOf(
-        "core/src/main/java/com/onyx/app/ui/design/VerreTeinte.kt" to
+        "core/src/main/java/com/onyx/app/ui/design/GlassTint.kt" to
             "**la teinte du verre des plaques — décision explicite du propriétaire.** Le verre clair " +
                 "des plaques est volontairement plus teinté que la planche (« trop subtil », a dit le " +
                 "propriétaire), et cette teinte est une **échelle de six candidats** dont le rang " +
@@ -56,11 +56,11 @@ class ReferencePaletteLockTest {
         "core/src/main/java/com/onyx/app/ui/design/OnyxContrast.kt" to
             "`DarkInk` `#1B1B1D`, le presque-noir maison — neutre (2 points), il porte l'encre des " +
                 "boutons pleins de toute l'app",
-        "core/src/main/java/com/onyx/app/ui/design/OnyxSocle.kt" to
+        "core/src/main/java/com/onyx/app/ui/design/OnyxBase.kt" to
             "les **encres d'ombre** du socle : trois crans de la même famille (proche, moyen, " +
                 "large), recopiés du générateur (hcss.py:16-20). Ce ne sont pas des couleurs de " +
                 "décoration — ce sont les trois opacités d'une ombre, et le socle les tient en un " +
-                "seul endroit ([OnyxSocle.shadowInk])",
+                "seul endroit ([OnyxBase.shadowInk])",
         "core/src/main/java/com/onyx/app/ui/design/IdentityMark.kt" to
             "l'**encre des traits du visage** que la marque pose dans son disque ([IdentityMark" +
                 ".FeatureInk]) : c'est exactement la valeur de `BotAvatar` (`0.09, 0.09, 0.13`), " +
@@ -69,12 +69,12 @@ class ReferencePaletteLockTest {
         "core/src/main/java/com/onyx/app/ui/design/BotAvatar.kt" to
             "le visage d'un bot et sa palette : c'est l'identité d'un bot, elle doit rester " +
                 "distincte d'un bot à l'autre (§4 « ne perds rien »)",
-        "core/src/main/java/com/onyx/app/ui/design/Fluide.kt" to
+        "core/src/main/java/com/onyx/app/ui/design/Fluid.kt" to
             "le fluide d'une carte de conversation : ses couleurs sont **tirées de la graine de " +
                 "la conversation** (six teintes de la maison dérivées en HSL, comme la couverture " +
                 "générative) — c'est l'identité d'une conversation, pas une décoration. Les seules " +
                 "valeurs fixes sont le sol et le voile de page de la matière, recopiés de la " +
-                "maquette (`carte.html`) et posés en un seul endroit ([Fluide.plan]). Le champ " +
+                "maquette (`carte.html`) et posés en un seul endroit ([Fluid.plan]). Le champ " +
                 "d'écoulement lui-même est un programme de rendu, pas une couleur.",
         "core/src/main/java/com/onyx/app/ui/design/Matter.kt" to
             "les deux **ancres de température** de la matière — un ambre (`WarmAnchor`) et un bleu " +

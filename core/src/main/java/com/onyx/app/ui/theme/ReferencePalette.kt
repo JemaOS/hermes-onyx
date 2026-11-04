@@ -162,7 +162,7 @@ object ReferencePalette {
      * L'encre réemployée est celle du séparateur de la maison (`#0A0A1E`) : la planche et
      * [LightLine] ne diffèrent que de quelques points de canal, et une teinte écrite deux fois est
      * une teinte qui divergera — c'est donc l'**opacité** de la planche qui est reprise, jamais une
-     * couleur nouvelle. Le verrou [com.onyx.app.ui.design.OnyxEdgeVerrouTest] tient le plafond.
+     * couleur nouvelle. Le verrou [com.onyx.app.ui.design.OnyxEdgeLockTest] tient le plafond.
      */
     val LightFil = LightLine.copy(alpha = 0.12f)
 

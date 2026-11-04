@@ -114,7 +114,7 @@ object IdentityMark {
      * **L'écart au bord de la carte : la marche `Tight` de la maison (8 dp).** C'est lui qui pose la
      * pastille dans le coin haut-droit d'une carte, et lui seul : le site d'appel ne le réécrit pas.
      */
-    val Inset: Dp = OnyxSocle.Tight
+    val Inset: Dp = OnyxBase.Tight
 
     /** **Le diamètre du point de présence : 11 dp** — l'état d'une conversation, porté par la marque. */
     val PresenceDiameter: Dp = 11.dp

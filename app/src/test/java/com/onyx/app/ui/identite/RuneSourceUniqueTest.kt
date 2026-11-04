@@ -577,8 +577,8 @@ class RuneSourceUniqueTest {
         val cardPath = "ui/settings/GatewayCard.kt"
         val vraieCarte = appSource(cardPath)
         val carte = vraieCarte.replace(
-            "            OnyxBrandMark(\n                size = OnyxSocle.ThumbnailSize,\n",
-            "            OnyxBrandMark(\n                tint = theme.accent,\n                size = OnyxSocle.ThumbnailSize,\n",
+            "            OnyxBrandMark(\n                size = OnyxBase.ThumbnailSize,\n",
+            "            OnyxBrandMark(\n                tint = theme.accent,\n                size = OnyxBase.ThumbnailSize,\n",
         )
         assertTrue("la carte fautive doit vraiment porter la teinte", carte != vraieCarte)
         val appel = brandTintViolations(cardPath, carte, wholeFile = false)

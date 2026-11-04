@@ -487,7 +487,7 @@ fun OnyxTextSizeSlider(
                         // Le « A » du petit bout : **11 sp déclarés**, pas 12 divisé par l'échelle.
                         // Divisé, il tombait à 9,2 sp à police 1,3× et à 6 sp à police 2× — un
                         // glyphe illisible, et une taille qui n'existe pas dans l'app.
-                        fontSize = OnyxSocle.Micro,
+                        fontSize = OnyxBase.Micro,
                         color = OnyxInkOn(theme.secondaryText, theme.formSurfaceColor, OnyxContrast.TEXT_MIN),
                     ),
                 )
@@ -563,7 +563,7 @@ fun OnyxTextSizeSlider(
                 BasicText(
                     text = "A",
                     localize = false,
-                    style = theme.footnote.copy(fontSize = OnyxSocle.Title, color = theme.secondaryText),
+                    style = theme.footnote.copy(fontSize = OnyxBase.Title, color = theme.secondaryText),
                 )
             }
         }

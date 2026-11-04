@@ -35,7 +35,7 @@ package com.onyx.app.ui.design
  *
  * La **pilule du haut** ([com.onyx.app.ui.chat.ChatScreen]) et l'**envoi**
  * ([com.onyx.app.ui.chat.ChatViewModel]) lisent tous deux cette même valeur : **ce qui est écrit est ce
- * qui part**. `PiluleModeleEnvoiVerrouTest` échoue si les deux venaient à diverger ; `ModelInForceTest`
+ * qui part**. `PillModelSendLockTest` échoue si les deux venaient à diverger ; `ModelInForceTest`
  * tient les quatre étages.
  */
 object ModelInForce {

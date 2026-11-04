@@ -121,7 +121,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import com.onyx.app.data.local.ChatPanelStore
 import com.onyx.app.ui.design.ChatTab
 import com.onyx.app.ui.design.ChatTabBar
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.socleShadow
 import androidx.compose.foundation.border
@@ -135,7 +135,7 @@ import com.onyx.app.ui.design.threadFloatAnchor
 import com.onyx.app.ui.design.TabSwipeEdgeGuards
 import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.BotLook
-import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.PlateGeometry
 import com.onyx.app.ui.design.onyxLensPage
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
@@ -679,7 +679,7 @@ fun ChatScreen(
     // qui la peignait. Il ne reste **aucun** chemin — ni état, ni geste, ni clavier, ni frappe, ni
     // préférence — qui puisse changer la visibilité ou l'opacité de la plaque : elle est dessinée
     // **inconditionnellement**, à la même place à chaque position de défilement. Le verrou
-    // `PlaquePerpetuelleTest` échoue si l'un de ces chemins revient.
+    // `PlatePerpetualTest` échoue si l'un de ces chemins revient.
     val pagerState = rememberPagerState(
         initialPage = chatTabIndexOf(panels.selectedTab(panelKey)),
         pageCount = { chatTabCount },
@@ -803,10 +803,10 @@ fun ChatScreen(
     // dernier message » : la poignée à chevron qui partageait cette bande a été retirée de l'écran,
     // sur l'ordre du propriétaire. La bande reste **réservée** — le fil ne la traverse jamais, donc
     // la pastille ne peut pas se poser sur du texte, ce qui était le défaut relevé — mais elle ne
-    // loge plus qu'une pastille : son dégagement plus sa hauteur ([PlaqueGeometry.FloatLane], 56 dp
+    // loge plus qu'une pastille : son dégagement plus sa hauteur ([PlateGeometry.FloatLane], 56 dp
     // au lieu des 68 que la cible et l'écart de la poignée réservaient). **Les 12 dp rendus au fil
     // sont mesurés**, et la pastille ne se pose toujours sur rien.
-    val floatLane = PlaqueGeometry.FloatLane
+    val floatLane = PlateGeometry.FloatLane
 
     /**
      * L'espace dont le menu « / » dispose : **tout l'écran moins les deux vitres**.
@@ -1167,8 +1167,8 @@ fun ChatScreen(
                     onPick = onPickSlash,
                     maxHeight = slashMenuMaxHeight,
                     modifier = Modifier.padding(
-                        start = PlaqueGeometry.SideMargin,
-                        end = PlaqueGeometry.SideMargin,
+                        start = PlateGeometry.SideMargin,
+                        end = PlateGeometry.SideMargin,
                         top = OnyxSpace.Half,
                         // **Le menu se pose SUR la plaque, pas au milieu de l'écran.**
                         //
@@ -1404,16 +1404,16 @@ fun ChatScreen(
                     // restent : ce sont eux qui détachent la plaque du bord, pas un remplissage.
                     .composerBottomInsets()
                     .padding(
-                        start = PlaqueGeometry.SideMargin,
-                        end = PlaqueGeometry.SideMargin,
+                        start = PlateGeometry.SideMargin,
+                        end = PlateGeometry.SideMargin,
                         bottom = OnyxSpace.Half,
                     )
-                    .socleShadow(OnyxSocle.ShadowFar, PlaqueGeometry.Radius, theme.dark)
-                    .clip(RoundedCornerShape(PlaqueGeometry.Radius))
+                    .socleShadow(OnyxBase.ShadowFar, PlateGeometry.Radius, theme.dark)
+                    .clip(RoundedCornerShape(PlateGeometry.Radius))
                     .border(
-                        PlaqueGeometry.Outline,
+                        PlateGeometry.Outline,
                         OnyxSurfaces.hairline(theme),
-                        RoundedCornerShape(PlaqueGeometry.Radius),
+                        RoundedCornerShape(PlateGeometry.Radius),
                     )
                     // **Et elle MASQUE ce qu'elle recouvre.** Le verre est mince par nature : au
                     // plancher de lisibilité d'une encre dérivée (48 % en clair), le texte du fil
@@ -1422,7 +1422,7 @@ fun ChatScreen(
                     // masquage** ([glassMaskingFloor]) — l'opacité à partir de laquelle le contraste
                     // du fil retombe sous le seuil de lisibilité — sans toucher au flou ni à la
                     // finition du verre, qui restent peints **au-dessus**.
-                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlaqueGeometry.Radius), masking = true),
+                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true),
             ) {
             // **LA CARTE D'ACTIVITÉ A ÉTÉ RETIRÉE** — ordre du propriétaire : « supprime la barre de
             // réflexion, encadrée en rouge, ça fait doublon ».
@@ -1519,12 +1519,12 @@ fun ChatScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(PlaqueGeometry.TabRowHeight)
+                    .height(PlateGeometry.TabRowHeight)
                     .drawBehind {
                         drawRect(
                             color = separatorColour,
                             topLeft = Offset.Zero,
-                            size = Size(size.width, PlaqueGeometry.Separator.toPx()),
+                            size = Size(size.width, PlateGeometry.Separator.toPx()),
                         )
                     }
                     // La marge système du bas et le dégagement de la maison sont portés par **la
@@ -1571,7 +1571,7 @@ fun ChatScreen(
                         BotLook(
                             name = threadSpeaker.faceName,
                             faceCode = threadSpeaker.faceCode,
-                            size = PlaqueGeometry.TabCell,
+                            size = PlateGeometry.TabCell,
                             // Le repère ne cligne pas : quatre repères de barre ne bougent
                             // pas, et un visage qui cligne dans une barre attire l'œil pour
                             // rien.
@@ -1865,7 +1865,7 @@ private fun JumpToLatestPill(live: Boolean, onClick: () -> Unit) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         ) {
             OnyxIcon(Symbols.ArrowDown, tint = theme.secondaryText, size = 12.dp)
             BasicText(
@@ -1932,7 +1932,7 @@ private fun ProviderStatusBar(status: String) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         BasicText(
             text = "⏳ $status",
@@ -1954,7 +1954,7 @@ private fun SteerStatusBar(status: String) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         OnyxIcon(Symbols.ArrowTurnDownRight, tint = theme.secondaryText, size = 12.dp)
         BasicText(
@@ -2022,7 +2022,7 @@ private fun SearchBar(
             .frostedBar(com.onyx.app.ui.design.FrostSurface.SEARCH_FIELD)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         OnyxIcon(Symbols.MagnifyingGlass, tint = theme.secondaryText, size = 15.dp)
         Box(modifier = Modifier.weight(1f)) {

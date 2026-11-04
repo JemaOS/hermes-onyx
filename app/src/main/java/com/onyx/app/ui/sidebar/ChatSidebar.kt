@@ -110,7 +110,7 @@ import com.onyx.app.ui.design.BadgeGeometry
 import com.onyx.app.ui.design.flatActivePillColor
 import com.onyx.app.ui.design.flatActivePillInk
 import com.onyx.app.ui.design.FlatChipHeight
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.FlatHairlineDp
 import com.onyx.app.ui.design.flatIconInk
 import com.onyx.app.ui.design.flatWellColor
@@ -360,7 +360,7 @@ internal fun ChatSidebar(
                 // **LA MATIÈRE.** La planche pose ses écrans sur un fond **travaillé** (dégradé
                 // multi-arrêts, formes floues, grain, vignettage) ; l'app posait le sien sur un
                 // aplat. C'est ce qui fait lire tout le reste — le verre ne se lit que s'il y a une
-                // matière derrière (voir [Matiere]).
+                // matière derrière (voir [Material]).
                 .matiereBackdrop(theme)
                 // **Le halo de la maison** : le volet porte la matière comme les autres écrans,
                 // pour que sa vitre ait quelque chose à voir derrière elle (voir `onyxPage`).
@@ -511,15 +511,15 @@ internal fun ChatSidebar(
                                         .fillMaxWidth()
                                         .defaultMinSize(minHeight = SectionAction.Size)
                                         .padding(
-                                            start = OnyxSocle.ScreenMargin,
+                                            start = OnyxBase.ScreenMargin,
                                             // **La marge de fin aussi.** La rangée n'avait qu'une
                                             // marge de début : le rond du crayon finissait donc
                                             // **sur le bord de l'écran**, alors que les cartes de la
                                             // liste s'arrêtent à 16 dp. La même marge des deux côtés
                                             // aligne le crayon sur le bord des cartes.
-                                            end = OnyxSocle.ScreenMargin,
-                                            top = OnyxSocle.Loose,
-                                            bottom = OnyxSocle.Tight,
+                                            end = OnyxBase.ScreenMargin,
+                                            top = OnyxBase.Loose,
+                                            bottom = OnyxBase.Tight,
                                         ),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -877,10 +877,10 @@ private fun SidebarHeader(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = OnyxSocle.ScreenMargin,
-                end = OnyxSocle.ScreenMargin,
-                top = OnyxSocle.ScreenMargin,
-                bottom = OnyxSocle.Tight,
+                start = OnyxBase.ScreenMargin,
+                end = OnyxBase.ScreenMargin,
+                top = OnyxBase.ScreenMargin,
+                bottom = OnyxBase.Tight,
             )
             .semantics { stateDescription = word },
         verticalAlignment = Alignment.CenterVertically,
@@ -912,7 +912,7 @@ private fun SidebarHeader(
         ) {
             BasicText(
                 text = name,
-                // **Le grand titre de la planche** : 30 sp, −0,032 em, ExtraBold ([OnyxSocle.Display]).
+                // **Le grand titre de la planche** : 30 sp, −0,032 em, ExtraBold ([OnyxBase.Display]).
                 // La tête du volet portait 17 sp : ce n'est pas un grand titre.
                 //
                 // **L'ENCRE DU TITRE.** `socleDisplayStyle` ne porte que la **forme** ; sans couleur,
@@ -925,7 +925,7 @@ private fun SidebarHeader(
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+                horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
                 modifier = Modifier.padding(top = 1.dp),
             ) {
                 Box(
@@ -949,7 +949,7 @@ private fun SidebarHeader(
         GlassCircleButton(
             symbol = Symbols.GearshapeSingle,
             label = "Settings",
-            size = OnyxSocle.TouchTarget,
+            size = OnyxBase.TouchTarget,
             iconSize = 20.dp,
             tint = mutedIconInk(pane),
             onClick = onOpenSettings,
@@ -1105,7 +1105,7 @@ private fun SidebarSearch(
             BasicTextField(
                 value = query,
                 onValueChange = onQuery,
-                textStyle = TextStyle(color = theme.textColor, fontSize = OnyxSocle.Body),
+                textStyle = TextStyle(color = theme.textColor, fontSize = OnyxBase.Body),
                 singleLine = true,
                 cursorBrush = SolidColor(theme.accent),
                 modifier = Modifier
@@ -1249,7 +1249,7 @@ private fun SearchEmptyGlyph() {
                     color = ink,
                     start = Offset(size.width * 0.30f, size.height * 0.30f),
                     end = Offset(size.width * 0.70f, size.height * 0.70f),
-                    strokeWidth = OnyxSocle.Stroke.toPx(),
+                    strokeWidth = OnyxBase.Stroke.toPx(),
                     cap = StrokeCap.Round,
                 )
             },
@@ -1329,7 +1329,7 @@ internal const val SidebarTileUndoMillis: Long = 8_000
  */
 internal val TileBadgeStrip: Dp = OnyxSpace.Loose
 
-/** Le glyphe du rond : 11 dp, la marche des identifiants de la maison (`OnyxSocle.Micro`). */
+/** Le glyphe du rond : 11 dp, la marche des identifiants de la maison (`OnyxBase.Micro`). */
 internal val TileRemoveGlyph: Dp = 11.dp
 
 /**
@@ -1495,7 +1495,7 @@ private fun SidebarTileGrid(
                             labelWidth = if (tile.badge > 0) labelWidthBadge else labelWidth,
                             // n° 2 : une seule taille, la même pour toutes les tuiles de la grille.
                             // n° 2 : une seule taille, ramenée au corps du socle, la même partout.
-                            labelStyle = labelStyle.copy(fontSize = OnyxSocle.snap(sizeSp.sp)),
+                            labelStyle = labelStyle.copy(fontSize = OnyxBase.snap(sizeSp.sp)),
                             mode = if (editing) TileCellMode.EDIT else TileCellMode.OPEN,
                             removable = removalRefusal == null,
                             removeLabel = OnyxLocalization.format(
@@ -1799,7 +1799,7 @@ private fun SidebarTileLibrary(
                             onClick = { onAdd(tile) },
                             labelWidth = if (tile.badge > 0) labelWidthBadge else labelWidth,
                             // n° 2 : une seule taille, ramenée au corps du socle, la même partout.
-                            labelStyle = labelStyle.copy(fontSize = OnyxSocle.snap(sizeSp.sp)),
+                            labelStyle = labelStyle.copy(fontSize = OnyxBase.snap(sizeSp.sp)),
                             mode = TileCellMode.LIBRARY,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
@@ -1821,7 +1821,7 @@ private fun SidebarTileNotice(
 ) {
     val theme = LocalOnyxTheme.current
     Row(
-        modifier = modifier.fillMaxWidth().defaultMinSize(minHeight = OnyxSocle.TouchTarget),
+        modifier = modifier.fillMaxWidth().defaultMinSize(minHeight = OnyxBase.TouchTarget),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
     ) {
@@ -1929,12 +1929,12 @@ private fun SidebarTileCell(
             Box(
                 modifier = Modifier
                     .size(TileIconSquare)
-                    .clip(RoundedCornerShape(OnyxSocle.RadiusField))
+                    .clip(RoundedCornerShape(OnyxBase.RadiusField))
                     .background(theme.formSurfaceColor)
                     .border(
                         FlatHairlineDp,
                         theme.separator,
-                        RoundedCornerShape(OnyxSocle.RadiusField),
+                        RoundedCornerShape(OnyxBase.RadiusField),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -1967,7 +1967,7 @@ private fun SidebarTileCell(
             Column(modifier = Modifier.weight(1f, fill = false)) {
                 // Le rapport de la tuile donne une taille **calculée** : elle est ramenée au corps le
                 // plus proche du socle, jamais sous 11 sp (apport de la fusion horaire).
-                val style = base.copy(fontSize = OnyxSocle.snap(base.fontSize * plan.fontRatio))
+                val style = base.copy(fontSize = OnyxBase.snap(base.fontSize * plan.fontRatio))
                 plan.lines.forEach { line ->
                     BasicText(
                         text = line,
@@ -2013,7 +2013,7 @@ private fun TileCellStrip(
     ) {
         Box(
             modifier = Modifier
-                .size(OnyxSocle.TouchTarget)
+                .size(OnyxBase.TouchTarget)
                 .then(
                     if (!interactive) {
                         Modifier
@@ -2087,7 +2087,7 @@ private fun SidebarProjects(
                 .clipToBounds()
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = OnyxSpace.Hair),
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             projects.forEach { chip ->
@@ -2137,7 +2137,7 @@ private fun SidebarFilters(
             // comme les tuiles, s'alignent à 16 dp du bord). n° 1 : la rangée est un `FlowRow` — ce
             // qui ne tient pas descend d'une rangée, donc aucun défilement horizontal.
             .padding(start = OnyxSpace.Hair, end = OnyxSpace.Hair, top = 2.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         SidebarFilter.entries.forEach { option ->
@@ -2274,11 +2274,11 @@ private fun ConversationRow(
 ) {
     val theme = LocalOnyxTheme.current
     // Le coin de la rangée : celui du contrôle en multi-sélection, celui de la **carte** sinon —
-    // la carte de conversation porte le coin de la famille des cartes ([OnyxSocle.RadiusCard]).
+    // la carte de conversation porte le coin de la famille des cartes ([OnyxBase.RadiusCard]).
     val shape = if (selecting) {
         RoundedCornerShape(OnyxSpace.ControlCorner)
     } else {
-        RoundedCornerShape(OnyxSocle.RadiusCard)
+        RoundedCornerShape(OnyxBase.RadiusCard)
     }
     // Le fond réel de la liste : le **panneau**. En sombre il vaut la page, donc rien ne bouge ; en
     // clair il est quasi blanc, et c'est contre lui que l'âge et la seconde ligne doivent tenir
@@ -2326,7 +2326,7 @@ private fun ConversationRow(
             // bords, comme dans la référence.
             .padding(horizontal = OnyxSpace.Base, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         if (selecting) {
             SelectionMark(selected = selected)
@@ -2705,7 +2705,7 @@ private fun SidebarFooter(
             .fillMaxWidth()
             .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         val fill = OnyxContrast.filled(theme.accent)
         val ink = OnyxContrast.inkOn(fill)
@@ -2747,9 +2747,9 @@ private fun SidebarFooter(
         // **marque du lanceur** — la plaque sombre, le cercle et la rune, aux couleurs de l'icône —
         // et il ouvre toujours la feuille de compte. Le point d'état n'est pas le logo : il reste
         // une couleur d'information, mesurée sur le rond.
-        Box(modifier = Modifier.size(OnyxSocle.ThumbnailSize)) {
+        Box(modifier = Modifier.size(OnyxBase.ThumbnailSize)) {
             OnyxBrandMark(
-                size = OnyxSocle.ThumbnailSize,
+                size = OnyxBase.ThumbnailSize,
                 modifier = Modifier
                     .onyxClickable(onClick = onOpenAccount)
                     .tapLabel(resolveOnyxText("Account")),
@@ -2849,7 +2849,7 @@ private fun SidebarChip(
                 )
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         ) {
             if (dot != null) {
                 // Sur la pastille choisie, le point passe au **blanc** (`.chip2.on .dd{background:
@@ -2965,7 +2965,7 @@ internal val SidebarTileHeight: Dp = OnyxSpace.ThumbnailSize
 
 /**
  * **Le carré blanc de l'icône d'une tuile** — le bloc `.tileic` de la planche
- * (`hcss.py:90`) : 32 × 32, rayon 14 (`OnyxSocle.RadiusField`), fond plein et filet de 1 px.
+ * (`hcss.py:90`) : 32 × 32, rayon 14 (`OnyxBase.RadiusField`), fond plein et filet de 1 px.
  *
  * C'est lui qui a été ajouté pour coller à la planche : l'icône d'une tuile n'y porte jamais
  * **directement** sur la tuile, elle est posée dans ce carré — et c'est ce carré qui donne aux six

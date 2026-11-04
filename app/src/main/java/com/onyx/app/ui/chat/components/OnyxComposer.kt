@@ -108,7 +108,7 @@ import com.onyx.app.ui.design.composerFieldSurface
 import com.onyx.app.ui.design.fieldCursorColour
 import com.onyx.app.ui.design.FieldDefaultBorderWidth
 import com.onyx.app.localization.OnyxLocalization
-import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.PlateGeometry
 import com.onyx.app.ui.design.PlaqueInvite
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.design.readableInk
@@ -508,7 +508,7 @@ fun OnyxComposer(
                         // lui-même au maximum. C'est exactement ce qui rend impossible la coupure de
                         // la **première ligne** — le défaut de la capture du propriétaire. Au repos,
                         // la plaque vaut toujours ses 140 dp (la croissance est nulle).
-                        Modifier.heightIn(min = PlaqueGeometry.FieldRowHeight)
+                        Modifier.heightIn(min = PlateGeometry.FieldRowHeight)
                     } else {
                         Modifier.padding(horizontal = ComposerCardSideMargin)
                     },
@@ -668,7 +668,7 @@ fun OnyxComposer(
                     // **Le rembourrage de la planche** : `.askf{padding:0 4px}`. Le champ de la
                     // carte garde ses 12 dp ; celui de la plaque prend les 4 de la planche, et ce
                     // sont ces 16 dp qui laissent le libellé entier à 1,3×.
-                    .padding(horizontal = if (plate) PlaqueGeometry.FieldInset else 12.dp),
+                    .padding(horizontal = if (plate) PlateGeometry.FieldInset else 12.dp),
             ) {
                 // **La couche du champ — au plus UN texte.** L'invite n'est dessinée que si elle
                 // écrit quelque chose (`placeholder != null` : ni cédée, ni recouverte par le
@@ -791,7 +791,7 @@ fun OnyxComposer(
                 // commandes de la plaque et le libellé du champ tenir sur une ligne. La règle
                 // tactile ne bouge pas — à 44 dp de cible visuelle, 4 dp suffisent.
                 horizontalArrangement = Arrangement.spacedBy(
-                    if (plate) PlaqueGeometry.FieldGap else ComposerRowGeometry.Gap,
+                    if (plate) PlateGeometry.FieldGap else ComposerRowGeometry.Gap,
                 ),
             ) {
                 // **Le « + » de la rangée.** Sur la plaque il est posé **en tête** — avant le champ,
@@ -860,7 +860,7 @@ fun OnyxComposer(
                 // large. Le brief est clair — on ne résout pas ce manque de place en supprimant une
                 // commande — donc le bouton **revient**, et c'est la place qui s'ajuste :
                 // la marche de la rangée et le rembourrage du champ prennent les valeurs de la
-                // planche (`PlaqueGeometry.FieldGap`, `.FieldInset`), et le libellé du champ est
+                // planche (`PlateGeometry.FieldGap`, `.FieldInset`), et le libellé du champ est
                 // **choisi par la mesure** (`PlaqueInvite`) plutôt que coupé. Rien n'est supprimé :
                 // le mode vocal est de nouveau joignable directement depuis la plaque, comme la
                 // dictée, et la plaque garde ses 140 dp (64 + 76, inchangés).
@@ -931,7 +931,7 @@ fun OnyxComposer(
                                 // trois autres commandes font 44 (`.press`). C'est l'action
                                 // principale de l'écran, et c'est la planche qui le dit.
                                 size = trailingButtonSize
-                                    ?: if (plate) PlaqueGeometry.SendSlot else ComposerControlSlotHeight,
+                                    ?: if (plate) PlateGeometry.SendSlot else ComposerControlSlotHeight,
                                 // Un envoi sans brouillon ne fait rien : le bouton le dit.
                                 enabled = hasDraft || trailingState != "send",
                                 onSend = onSend,
@@ -1065,7 +1065,7 @@ private fun RowScope.ComposerBodyContainer(
             // c'est la même décision que dans la rangée des commandes, et c'est ce qui laisse le
             // champ assez large pour son libellé à 1,3× de police.
             horizontalArrangement = Arrangement.spacedBy(
-                if (plate) PlaqueGeometry.FieldGap else ComposerRowGeometry.Gap,
+                if (plate) PlateGeometry.FieldGap else ComposerRowGeometry.Gap,
             ),
         ) {
             leading()

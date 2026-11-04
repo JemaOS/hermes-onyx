@@ -40,7 +40,7 @@ l'arbre d'intégration (tête `d7d84bdb`, rev 988), et rejoué par le CI sur le 
   le contenu est posé sur une plaque de verre **transformée par le pageur**, donc elle glisse avec
   le doigt et son arête reste visible **pendant** le mouvement (`panePlate`, `ChatScreen.kt`).
 - Lots : outillage et verre `0696e0e0`, complément de tête (verrous `PANE` et `plateEdge`) `ef9dde64` ;
-  verrou de source neuf `app/src/test/java/com/onyx/app/VerrePlaquesVerrouTest.kt` (297 lignes).
+  verrou de source neuf `app/src/test/java/com/onyx/app/GlassPlatesLockTest.kt` (297 lignes).
 
 ## 2. Les visages des bots défilent dans une conversation de groupe
 
@@ -53,7 +53,7 @@ l'arbre d'intégration (tête `d7d84bdb`, rev 988), et rejoué par le CI sur le 
   la couleur d'un autre (`GroupRoomScreen.kt`, `app/src/main/java/com/onyx/app/ui/bots/`).
 - Commit `84a0a432` (« Visages de groupe : le repère du bas fait défiler les bots, 8 secondes
   chacun ») ; verrou de source neuf
-  `app/src/test/java/com/onyx/app/ui/bots/VisagesGroupeVerrouTest.kt` (154 lignes).
+  `app/src/test/java/com/onyx/app/ui/bots/FacesGroupLockTest.kt` (154 lignes).
 
 ## 3. Ce qu'apportait déjà la 980 (rappel)
 

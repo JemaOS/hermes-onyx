@@ -17,7 +17,7 @@ One batch merges (`--no-ff`, zero conflicts), measured on the integration head:
 - **`lot/liquide-unifie`** (`567feca1`, 2 files, +266 / -44): the card no longer has an inner
   rectangle — the erase band no longer composes over itself, and the lower band is its mirror
   (`app/src/main/java/com/onyx/app/ui/design/Galerie.kt`, locked by
-  `core/src/test/java/com/onyx/app/ui/design/BlocsVerreVerrouTest.kt`).
+  `core/src/test/java/com/onyx/app/ui/design/BlocksGlassLockTest.kt`).
 
 Commits **1047 -> 1049**, hence version `1047 -> 1049`; tests **3673 -> 3674**
 (`:core` 1702 -> 1703, `:app` 1971 unchanged).

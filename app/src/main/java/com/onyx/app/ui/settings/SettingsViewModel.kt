@@ -44,7 +44,7 @@ class SettingsViewModel(
     val pureBlack: StateFlow<Boolean> = settingsRepo.pureBlack
     /** « Halo » : la lumière colorée douce derrière le haut de chaque écran. */
     val halo: StateFlow<Boolean> = settingsRepo.halo
-    /** « Fluide » : la couverture animée des cartes de conversation. Vrai par défaut. */
+    /** « Fluid » : la couverture animée des cartes de conversation. Vrai par défaut. */
     val fluideCover: StateFlow<Boolean> = settingsRepo.fluideCover
     val autoCardLook: StateFlow<AutoCardLook> = settingsRepo.autoCardLook
     val autoVoiceLook: StateFlow<AutoVoiceLook> = settingsRepo.autoVoiceLook
@@ -217,7 +217,7 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepo.setHalo(value) }
     }
 
-    /** « Fluide » : la couverture animée des cartes de conversation (variante B). */
+    /** « Fluid » : la couverture animée des cartes de conversation (variante B). */
     fun setFluideCover(value: Boolean) {
         viewModelScope.launch { settingsRepo.setFluideCover(value) }
     }

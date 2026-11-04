@@ -1,6 +1,6 @@
 """Le convertisseur : même octet que le Kotlin livré dans l'app.
 
-Le golden ``core/src/test/resources/skill/facture.md`` est la référence d'octets
+Le golden ``core/src/test/resources/skill/invoice.md`` est la référence d'octets
 (l'énoncé du lot) : ce fichier le lit tel quel et compare. Aucun Markdown
 attendu n'est recopié ici — s'il l'était, le test comparerait deux copies de la
 même erreur.

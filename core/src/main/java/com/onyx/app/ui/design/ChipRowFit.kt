@@ -28,7 +28,7 @@ object ChipRowFit {
      * rangée « tenait », mais elle ne parlait plus la même langue que le reste des écrans. La
      * descente suit donc les six corps du socle, et rien d'autre : 15 → 12 → 11.
      */
-    val Rungs: List<Float> get() = OnyxSocle.TypeScale.map { it.value }
+    val Rungs: List<Float> get() = OnyxBase.TypeScale.map { it.value }
 
     /**
      * La largeur totale de la rangée : ses libellés mesurés, le dégagement de chaque puce (ses

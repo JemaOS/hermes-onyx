@@ -224,7 +224,7 @@ class SettingsAnatomyAlignmentTest {
         ).forEach { assertTrue("la section $it", screen.contains("header = $it")) }
         // L'entrée « Skills » des Réglages a été **retirée** par le lot du doublon (l'éditeur verse
         // dans « Capacités ») : elle n'est plus de cet inventaire, et son absence est verrouillée par
-        // `CapabilitiesDoublonRetireTest`. Tout le reste de la liste reste exigé.
+        // `CapabilitiesDuplicateRemovedTest`. Tout le reste de la liste reste exigé.
         listOf(
             "AgentEntry(\"Capabilities\"", "AgentEntry(\"Insights\"",
             "AgentEntry(\"Tools\"", "AgentEntry(\"Bots\"", "AgentEntry(\"Profile\"",

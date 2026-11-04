@@ -114,9 +114,9 @@ import com.onyx.app.ui.design.TabFace
 import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.rememberTabFaceCycleIndex
 import com.onyx.app.ui.design.GlassSurface
-import com.onyx.app.ui.design.PlaqueGeometry
+import com.onyx.app.ui.design.PlateGeometry
 import com.onyx.app.ui.design.onyxLensPage
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.composerBottomInsets
 import com.onyx.app.ui.design.liquidGlass
@@ -233,7 +233,7 @@ fun GroupRoomScreen(
                     BotLook(
                         name = member.profile,
                         faceCode = face(member.profile),
-                        size = PlaqueGeometry.TabCell,
+                        size = PlateGeometry.TabCell,
                     )
                 },
             )
@@ -624,20 +624,20 @@ fun GroupRoomScreen(
                     .fillMaxWidth()
                     .composerBottomInsets()
                     .padding(
-                        start = PlaqueGeometry.SideMargin,
-                        end = PlaqueGeometry.SideMargin,
+                        start = PlateGeometry.SideMargin,
+                        end = PlateGeometry.SideMargin,
                         bottom = OnyxSpace.Half,
                     )
-                    .socleShadow(OnyxSocle.ShadowFar, PlaqueGeometry.Radius, theme.dark)
-                    .clip(RoundedCornerShape(PlaqueGeometry.Radius))
+                    .socleShadow(OnyxBase.ShadowFar, PlateGeometry.Radius, theme.dark)
+                    .clip(RoundedCornerShape(PlateGeometry.Radius))
                     .border(
-                        PlaqueGeometry.Outline,
+                        PlateGeometry.Outline,
                         OnyxSurfaces.hairline(theme),
-                        RoundedCornerShape(PlaqueGeometry.Radius),
+                        RoundedCornerShape(PlateGeometry.Radius),
                     )
                     // **La lentille de la maison**, la même que dans un fil de bot — désormais découpée à la
                     // forme (voir `LiquidGlass`), donc plus de rectangle au milieu de la plaque.
-                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlaqueGeometry.Radius), masking = true),
+                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true),
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     GroupComposer(
@@ -663,12 +663,12 @@ fun GroupRoomScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(PlaqueGeometry.TabRowHeight)
+                        .height(PlateGeometry.TabRowHeight)
                         .drawBehind {
                             drawRect(
                                 color = separatorColour,
                                 topLeft = Offset.Zero,
-                                size = Size(size.width, PlaqueGeometry.Separator.toPx()),
+                                size = Size(size.width, PlateGeometry.Separator.toPx()),
                             )
                         },
                     verticalArrangement = Arrangement.Center,
@@ -694,7 +694,7 @@ fun GroupRoomScreen(
                             RoomFaceStack(
                                 members = room.members,
                                 face = face,
-                                size = PlaqueGeometry.TabCell,
+                                size = PlateGeometry.TabCell,
                             )
                         },
                         onSelect = { index ->

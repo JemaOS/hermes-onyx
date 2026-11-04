@@ -32,7 +32,7 @@ import org.junit.Test
  * capacité de la **bibliothèque** et celle de la **plateforme** sont deux choses, et c'est
  * [glassTier] qui les sépare. Le test éprouve les trois paliers, un par un, sans appareil.
  *
- * Le retour de la lumière, lui, est gardé par `GlassTouchLumiereVerrouTest`.
+ * Le retour de la lumière, lui, est gardé par `GlassTouchLightLockTest`.
  */
 class GlassTouchTest {
 

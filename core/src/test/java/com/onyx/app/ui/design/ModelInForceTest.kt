@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * **Le modèle en vigueur** : conversation → bot → serveur → défaut, l'alias de passerelle écarté.
  *
- * La seule valeur que lisent l'affichage **et** l'envoi (`PiluleModeleEnvoiVerrouTest` tient le fait
+ * La seule valeur que lisent l'affichage **et** l'envoi (`PillModelSendLockTest` tient le fait
  * qu'ils ne peuvent pas diverger). Chaque étage a son cas, un étage vide passe la main, et un alias
  * n'est jamais un modèle.
  */

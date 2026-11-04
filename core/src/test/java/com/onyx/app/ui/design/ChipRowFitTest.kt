@@ -201,7 +201,7 @@ class ChipRowFitTest {
             val size = ChipRowFit.fontSize(available, 20f, 8f) { s -> listOf(s * 7.3f) }
             assertTrue(
                 "taille " + size + " sp hors échelle pour " + available + " dp",
-                OnyxSocle.isOnScale(size.sp),
+                OnyxBase.isOnScale(size.sp),
             )
             assertTrue("taille " + size + " sp sous le plancher", size >= ChipRowFit.FLOOR_SP)
         }

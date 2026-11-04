@@ -511,7 +511,7 @@ fun plaqueVeil(theme: ResolvedTheme): Color = glassTintColour(theme.dark).copy(
  */
 fun plaqueGround(theme: ResolvedTheme, selected: Boolean): Color = tabBackground(
     plaqueVeil(theme),
-    if (selected) PlaqueGeometry.activePill(theme) else null,
+    if (selected) PlateGeometry.activePill(theme) else null,
     OnyxSurfaces.page(theme),
 )
 
@@ -758,8 +758,8 @@ fun ChatTabBar(
     // (`.navi.on{background:var(--pill)}`, `fil-clair.html:110`) : l'onglet actif est **posé sur un
     // ovale plus clair**, il ne se dit pas seulement par l'encre. (Le lot « plaque finale » l'avait
     // retirée sur la foi d'un brief qui la croyait absente de la planche — la planche gagne.)
-    val pill = PlaqueGeometry.activePill(theme)
-    val pillLine = PlaqueGeometry.activePillLine(theme)
+    val pill = PlateGeometry.activePill(theme)
+    val pillLine = PlateGeometry.activePillLine(theme)
     // **La teinte du repère suit le visage montré.** Quand les visages défilent, l'`accent` de la
     // conversation n'est plus une seule couleur : c'est celle du visage **à l'écran**. Un repère qui
     // montrerait le bot A sous la couleur du bot B contredirait l'identité — l'accent et le visage
@@ -906,7 +906,7 @@ fun ChatTabBar(
                         // `hcss.py:226`) : elle est ajoutée ici, par-dessus la portée unique de
                         // l'app. C'est un **appelant réel** de [socleShadow] — sans lui, R8
                         // retirait `SocleShadowKt` du binaire.
-                        .socleShadow(OnyxSocle.ShadowFar, OnyxSocle.RadiusPanel, theme.dark)
+                        .socleShadow(OnyxBase.ShadowFar, OnyxBase.RadiusPanel, theme.dark)
                         .clip(shape)
                         .background(OnyxSurfaces.surfaceHigh(theme), shape)
                         .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), shape)
@@ -1005,13 +1005,13 @@ fun ChatTabBar(
                 modifier = Modifier
                     .weight(1f)
                     // **La cellule du repère est contenue dans sa rangée.** Sur la plaque, elle a
-                    // un **plancher de hauteur** ([PlaqueGeometry.TabCellHeight], les 60 px de
+                    // un **plancher de hauteur** ([PlateGeometry.TabCellHeight], les 60 px de
                     // `.navi`) : la pastille, posée dessus, garde donc ses 8 dp de dégagement au
                     // filet de séparation et au bas de la plaque au lieu de monter jusqu'au bord
                     // (« la pastille déborde sur la ligne, c'est même pas centré »). Sur la carte
                     // (hors plaque), rien ne change : la cellule reste au contenu.
                     .then(
-                        if (plate) Modifier.heightIn(min = PlaqueGeometry.TabCellHeight) else Modifier,
+                        if (plate) Modifier.heightIn(min = PlateGeometry.TabCellHeight) else Modifier,
                     )
                     // **La colonne ne découpe plus ses enfants.** Elle portait un
                     // `.clip(SurfaceRole.ActiveCapsule.shape)` : c'est **lui** qui coupait le
@@ -1078,28 +1078,28 @@ fun ChatTabBar(
                 // ne peint plus le repère.
                 val faceContent = face
                 Box(
-                    modifier = Modifier.size(PlaqueGeometry.TabCell),
+                    modifier = Modifier.size(PlateGeometry.TabCell),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isFace) {
                         // **Le visage est ENTIER, sans anneau.** Le repère portait un anneau blanc de
-                        // 2,5 dp (`PlaqueGeometry.FaceRing`, la planche `.capface`) **et** découpait
+                        // 2,5 dp (`PlateGeometry.FaceRing`, la planche `.capface`) **et** découpait
                         // le visage en rond : le propriétaire a refusé les deux — « pas besoin de
                         // mettre le cercle blanc, ça coupe le visage, supprime le cercle ». Les deux
                         // sont retirés : le visage est peint tel quel, entier. La séparation du visage
                         // avec le verre est portée par une **ombre douce** qui **ne rogne pas**
                         // (`clip = false`, donc derrière et débordante) — c'est
-                        // `PlaqueGeometry.faceSeparation` qui la mesure dans les deux apparences,
+                        // `PlateGeometry.faceSeparation` qui la mesure dans les deux apparences,
                         // contre le fond réel de la plaque.
                         Box(
                             modifier = Modifier
-                                .size(PlaqueGeometry.TabCell)
+                                .size(PlateGeometry.TabCell)
                                 .shadow(
-                                    elevation = PlaqueGeometry.FaceShadow,
+                                    elevation = PlateGeometry.FaceShadow,
                                     shape = RoundedCornerShape(50),
                                     clip = false,
-                                    ambientColor = PlaqueGeometry.faceHalo(theme),
-                                    spotColor = PlaqueGeometry.faceHalo(theme),
+                                    ambientColor = PlateGeometry.faceHalo(theme),
+                                    spotColor = PlateGeometry.faceHalo(theme),
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -1363,7 +1363,7 @@ private fun androidx.compose.foundation.layout.BoxScope.TabPill(
                 } else {
                     Modifier
                         .background(pill, SurfaceRole.ActiveCapsule.shape)
-                        .border(PlaqueGeometry.Outline, pillLine, SurfaceRole.ActiveCapsule.shape)
+                        .border(PlateGeometry.Outline, pillLine, SurfaceRole.ActiveCapsule.shape)
                 },
             ),
     )

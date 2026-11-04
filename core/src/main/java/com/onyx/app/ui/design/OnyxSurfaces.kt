@@ -133,7 +133,7 @@ object OnyxSurfaces {
      * carte, d'une pastille, d'un champ ou d'une barre — le reproche « tous les bords gris autour
      * des boutons sont très prononcés ». La planche, elle, pose une **arête claire en haut du
      * verre** et un filet **très faible** ailleurs : c'est ce plafond que [OnyxEdge] porte, et
-     * [OnyxEdgeVerrouTest] le tient.
+     * [OnyxEdgeLockTest] le tient.
      */
     fun hairline(theme: ResolvedTheme): Color = OnyxEdge.fil(theme)
 

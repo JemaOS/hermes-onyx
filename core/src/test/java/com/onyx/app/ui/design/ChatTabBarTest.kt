@@ -163,7 +163,7 @@ class ChatTabBarTest {
 
         val lightVeil = veilColour(light.pageColor, 0.89f, dark = false)
         val withoutPill = tabBackground(lightVeil, null, Color.White)
-        val withPill = tabBackground(lightVeil, PlaqueGeometry.activePill(light), Color.White)
+        val withPill = tabBackground(lightVeil, PlateGeometry.activePill(light), Color.White)
         assertTrue(
             "la pastille doit éclaircir l'onglet actif en clair",
             contrastRatio(Color.White, withPill) < contrastRatio(Color.White, withoutPill),
@@ -178,14 +178,14 @@ class ChatTabBarTest {
 
         val darkVeil = veilColour(dark.pageColor, 0.87f, dark = true)
         val withoutPillDark = tabBackground(darkVeil, null, Color.White)
-        val withPillDark = tabBackground(darkVeil, PlaqueGeometry.activePill(dark), Color.White)
+        val withPillDark = tabBackground(darkVeil, PlateGeometry.activePill(dark), Color.White)
         assertTrue(
             "la pastille doit aussi se détacher en sombre, sans devenir un blanc",
             contrastRatio(Color.White, withPillDark) < contrastRatio(Color.White, withoutPillDark),
         )
         assertTrue(
             "mais elle reste un blanc à 17 % : la page sombre n'est pas inondée",
-            PlaqueGeometry.activePill(dark).alpha < PlaqueGeometry.activePill(light).alpha,
+            PlateGeometry.activePill(dark).alpha < PlateGeometry.activePill(light).alpha,
         )
     }
 
@@ -401,7 +401,7 @@ class ChatTabBarTest {
         // Le plancher **déclaré** est celui de l'app : 11 sp, jamais moins. Il ne se divise pas par
         // l'échelle de police (ce qui donnait 9,5 sp, et 8,5 sp à 1,3×) : à 1,3× le libellé est peint
         // à 14,3 sp, et c'est la mise en page — le mot — qui s'adapte.
-        assertEquals(OnyxSocle.Micro.value, TabLabelFit.FloorSp, 0.001f)
+        assertEquals(OnyxBase.Micro.value, TabLabelFit.FloorSp, 0.001f)
         assertEquals(TabLabelFit.BaseSp, TabLabelFit.FloorSp, 0.001f)
         assertTrue("à 1,3×, le plancher est peint à 14,3 sp", TabLabelFit.FloorSp * 1.3f >= 14.2f)
     }

@@ -1476,7 +1476,7 @@ private fun FinishedProcessRow(
  *
  * **Arbitrage de fusion.** La refonte des trois vues a redessiné ces rangées (`metaLine()` :
  * durée · pid · chemin, puis le code de sortie) et supprimé ce libellé — dont dépend le verrou
- * `MenuLongNeufRangeesTest` du lot voisin (« relevé de l'agent »). Les deux apports sont gardés :
+ * `MenuLongNewRowsTest` du lot voisin (« relevé de l'agent »). Les deux apports sont gardés :
  * la rangée redessinée, et ce libellé, seule source de la phrase d'état d'un processus.
  */
 internal fun processStatusLabel(process: BackgroundProcess): String {

@@ -1,7 +1,7 @@
 package com.onyx.app.ui.conversations
 
 import com.onyx.app.data.net.humanFailure
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 
 import com.onyx.app.ui.design.onyxPage
@@ -598,13 +598,13 @@ private fun androidx.compose.foundation.layout.RowScope.SearchField(
             BasicText(
                 text = placeholder,
                 localize = false,
-                style = TextStyle(color = theme.tertiaryText, fontSize = OnyxSocle.Body),
+                style = TextStyle(color = theme.tertiaryText, fontSize = OnyxBase.Body),
             )
         }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = TextStyle(color = theme.textColor, fontSize = OnyxSocle.Body),
+            textStyle = TextStyle(color = theme.textColor, fontSize = OnyxBase.Body),
             singleLine = true,
             cursorBrush = SolidColor(theme.accent),
             modifier = Modifier.fillMaxWidth(),

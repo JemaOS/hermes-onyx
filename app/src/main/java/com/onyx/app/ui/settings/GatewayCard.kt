@@ -1,6 +1,6 @@
 package com.onyx.app.ui.settings
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.socleShadow
 
 import androidx.compose.foundation.background
@@ -72,22 +72,22 @@ fun GatewayCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = OnyxSocle.ScreenMargin)
-            .padding(top = OnyxSocle.Loose)
+            .padding(horizontal = OnyxBase.ScreenMargin)
+            .padding(top = OnyxBase.Loose)
             // La carte de la référence : coins très arrondis, **aucune bordure**. Et l'**ombre**
             // de la famille, **appelée pour de vrai** (trois couches dessinées) — sans cet appel la
             // carte reste plate, et rien ne ramène `SocleShadowKt` dans le binaire.
-            .socleShadow(OnyxSocle.ShadowMid, OnyxSocle.RadiusCard, theme.dark)
+            .socleShadow(OnyxBase.ShadowMid, OnyxBase.RadiusCard, theme.dark)
             .background(theme.formSurfaceColor, RoundedCornerShape(20.dp))
             // Le rembourrage de la référence : le contrôle (« Vérifier ») est plus proche du bord
             // parce qu'il porte lui-même sa cible tactile.
-            .padding(start = OnyxSocle.CardPadding, end = 4.dp, top = OnyxSocle.Tight, bottom = OnyxSocle.Tight),
+            .padding(start = OnyxBase.CardPadding, end = 4.dp, top = OnyxBase.Tight, bottom = OnyxBase.Tight),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
         ) {
             // **Le logo de l'application** : la marque du lanceur — la plaque sombre, le cercle et
             // la rune — aux couleurs de l'icône, **identiques en clair et en sombre**. Ce n'est pas
@@ -97,7 +97,7 @@ fun GatewayCard(
             // 20 dp elle ne se distingue pas d'une autre initiale. Son côté est celui des vignettes
             // du socle (44 dp) : la cible du pouce.
             OnyxBrandMark(
-                size = OnyxSocle.ThumbnailSize,
+                size = OnyxBase.ThumbnailSize,
                 modifier = Modifier.then(if (onOpen != null) Modifier.onyxTappable { onOpen() } else Modifier),
             )
             Column(
@@ -130,10 +130,10 @@ fun GatewayCard(
             // Le retrait est **aligné sur le libellé** : la marge de la carte, la vignette, puis
             // l'écart icône-libellé — donc sur le **texte**, jamais sur la tuile.
             modifier = Modifier.padding(
-                start = OnyxSocle.CardPadding + OnyxSocle.ThumbnailSize + OnyxSocle.IconLabelGap,
+                start = OnyxBase.CardPadding + OnyxBase.ThumbnailSize + OnyxBase.IconLabelGap,
             ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         ) {
             Box(
                 modifier = Modifier

@@ -57,7 +57,7 @@ class GlassPerceptibilityTest {
         // sombre plus clair (`#1C1C1E`) — et il valait **déjà 1,079:1** avant ce lot (densité 0,76) :
         // ce n'est donc pas une régression, c'est que le cas mesurait un fond qui n'est pas là.
         // Ce qu'il tient, et qui est le point : la vitre **n'est pas la page** — strictement au-dessus
-        // d'elle — et sa **traversée** est verrouillée séparément (`PlaqueTraversanteVerrouTest`,
+        // d'elle — et sa **traversée** est verrouillée séparément (`PlateTraversingLockTest`,
         // ≥ 0,28). La finesse du verre sombre sur une page sombre est la réserve écrite au rapport :
         // son arête, son filet et son reflet la portent, et le levier suivant est une zone d'encre
         // protégée, pas une densité.

@@ -20,7 +20,7 @@ wear `Hermes-Onyx-1.0.0+972-wear.apk` — les trois reconstruits et signés pour
   0 couleur hors palette** (commit `3cd0f588`).
 - **Le thème sombre est mesuré, barreau par barreau.** L'échelle de surfaces est posée en jetons
   (`core/src/main/java/com/onyx/app/ui/design/OnyxSurfaces.kt`, `OnyxSurfaceStyle.kt`) et chaque
-  écart est chiffré (commit `a8c50987`, rapport `UI-UNIFORMITY-SOMBRE.md`) :
+  écart est chiffré (commit `a8c50987`, rapport `UI-UNIFORMITY-DARK.md`) :
 
   | objet | avant | après | chiffre |
   |---|---|---|---|
@@ -40,7 +40,7 @@ wear `Hermes-Onyx-1.0.0+972-wear.apk` — les trois reconstruits et signés pour
   ses modules **`haze`**, **`haze-blur`** et **`haze-glass`**. Le module de verre apporte la
   **réfraction** : le contenu échantillonné est **déplacé** selon le profil d'arête
   (`RefractionProfile.Edge`), avec dispersion chromatique, liseré d'arête et reflet spéculaire
-  (`gradle/libs.versions.toml`, `core/build.gradle.kts`, `RAPPORT-VERRE-LIQUIDE.md`).
+  (`gradle/libs.versions.toml`, `core/build.gradle.kts`, `REPORT-LIQUID-GLASS.md`).
 - **La réfraction est une mesure, pas une promesse.** `GlassRefractionAvailable = true` suit la
   disponibilité réelle ; elle demande un processeur d'ombrage à l'exécution (**API 33+**,
   `GlassRefractionMinSdk`) et un **repli reste branché** en dessous — les deux ne se remplacent
@@ -92,7 +92,7 @@ wear `Hermes-Onyx-1.0.0+972-wear.apk` — les trois reconstruits et signés pour
 
 - **Les retours sont corrigés :** la page quittée n'est plus perdue au sortir du volet (commit
   `f48b2fcd`), et un banc mesure les trois chemins de retour, avant/après (commit `bdb8d2e0`,
-  `RETOUR-AUDIT.md`, `RetourMatriceTest.kt`).
+  `AUDIT-FEEDBACK.md`, `RetourMatriceTest.kt`).
 
 ## 6. Ce que cette version ne fait pas
 

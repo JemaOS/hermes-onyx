@@ -638,7 +638,7 @@ fun DialogWindowBlur(
         // **Le voile de la fenêtre est retiré ICI, et SANS condition.**
         //
         // Mesuré (dialogue « Nouveau salon », apparence claire) : la page derrière tombait de
-        // L≈230 (matière « Galerie claire ») à **L=41** — soit 82 % d'assombrissement. Or
+        // L≈230 (matière « Gallery claire ») à **L=41** — soit 82 % d'assombrissement. Or
         // [HouseSheetScrim] (noir 55 %) n'en explique que la moitié (≈L 104) : le reste venait de
         // la **fenêtre de dialogue** (`dimAmount` ≈ 0,6, posé **en plus** du voile de la maison).
         // Le même empilement en sombre ne se voit pas (page déjà à L≈10) — c'est pourquoi le

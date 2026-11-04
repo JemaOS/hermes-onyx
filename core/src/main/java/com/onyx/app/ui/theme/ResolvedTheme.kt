@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.onyx.app.ui.design.OnyxContrast
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 
 /** Réglages → Apparence : clair, sombre, ou comme le système (comme sur la référence). */
 enum class AppearanceMode(val id: String, val label: String) {
@@ -167,9 +167,9 @@ class ResolvedTheme(
         }
         if (palette.monoFontName != null || palette.bodyFontName != null) {
             val size = when (level) {
-                1 -> OnyxSocle.Title
-                2 -> OnyxSocle.Title
-                else -> OnyxSocle.Body
+                1 -> OnyxBase.Title
+                2 -> OnyxBase.Title
+                else -> OnyxBase.Body
             }
             return TextStyle(
                 fontFamily = responseFamily,
@@ -185,9 +185,9 @@ class ResolvedTheme(
         val family = fonts.familyFor(palette.headingDesign)
         // Un titre de réponse est un **titre de carte** (16) ; un sous-titre, un corps (15).
         val size = when (level) {
-            1 -> OnyxSocle.Title
-            2 -> OnyxSocle.Title
-            else -> OnyxSocle.Body
+            1 -> OnyxBase.Title
+            2 -> OnyxBase.Title
+            else -> OnyxBase.Body
         }
         return TextStyle(
             fontFamily = family,
@@ -207,7 +207,7 @@ class ResolvedTheme(
             val family = if (named != null) responseFamily
             else if (palette.monoTables) fonts.familyFor(FontDesign.MONOSPACED)
             else fonts.familyFor(FontDesign.DEFAULT)
-            return TextStyle(fontFamily = family, fontSize = scaled(OnyxSocle.Meta), lineHeight = scaled(OnyxSocle.Meta) * 1.4f)
+            return TextStyle(fontFamily = family, fontSize = scaled(OnyxBase.Meta), lineHeight = scaled(OnyxBase.Meta) * 1.4f)
         }
 
     /** Vos propres messages : le thème Code les garde en sans système. */
@@ -221,8 +221,8 @@ class ResolvedTheme(
     val codeFont: TextStyle
         get() = TextStyle(
             fontFamily = fonts.familyFor(FontDesign.MONOSPACED, palette.monoFontName),
-            fontSize = scaled(OnyxSocle.Meta),
-            lineHeight = scaled(OnyxSocle.Meta) * 1.45f,
+            fontSize = scaled(OnyxBase.Meta),
+            lineHeight = scaled(OnyxBase.Meta) * 1.45f,
         )
 
     private val responseFamily get() = fonts.familyFor(palette.replyDesign, palette.monoFontName ?: palette.bodyFontName)
@@ -231,7 +231,7 @@ class ResolvedTheme(
      * **Les styles nommés, ramenés aux six corps du socle.**
      *
      * Les noms restent ceux de la référence — les écrans les appellent par leur rôle — mais le **corps** ne
-     * s'écrit plus ici : il vient de [OnyxSocle]. Une seule échelle, donc, pour toutes les routes :
+     * s'écrit plus ici : il vient de [OnyxBase]. Une seule échelle, donc, pour toutes les routes :
      * un titre d'écran est **toujours** 30, un titre de feuille **toujours** 26, un titre de carte
      * **toujours** 16, un corps **toujours** 15, une méta **toujours** 12, un plancher **toujours**
      * 11. Les valeurs la référence intermédiaires (34, 28, 22, 20, 17, 16, 15, 13) n'ont plus de
@@ -239,20 +239,20 @@ class ResolvedTheme(
      * au même corps. Quand deux rôles partagent un corps, c'est le **poids** qui les sépare — plus
      * jamais un demi-point.
      */
-    val largeTitle get() = style(OnyxSocle.Display, FontWeight.Normal, FontDesign.DEFAULT)
-    val title get() = style(OnyxSocle.Heading, FontWeight.Normal, FontDesign.DEFAULT)
-    val title2 get() = style(OnyxSocle.Heading, FontWeight.Normal, FontDesign.DEFAULT)
-    val title3 get() = style(OnyxSocle.Title, FontWeight.Normal, FontDesign.DEFAULT)
-    val headline get() = style(OnyxSocle.Title, FontWeight.SemiBold, FontDesign.DEFAULT)
+    val largeTitle get() = style(OnyxBase.Display, FontWeight.Normal, FontDesign.DEFAULT)
+    val title get() = style(OnyxBase.Heading, FontWeight.Normal, FontDesign.DEFAULT)
+    val title2 get() = style(OnyxBase.Heading, FontWeight.Normal, FontDesign.DEFAULT)
+    val title3 get() = style(OnyxBase.Title, FontWeight.Normal, FontDesign.DEFAULT)
+    val headline get() = style(OnyxBase.Title, FontWeight.SemiBold, FontDesign.DEFAULT)
     val body get() = style(BodySize, FontWeight.Normal, FontDesign.DEFAULT)
     val callout get() = style(BodySize, FontWeight.Normal, FontDesign.DEFAULT)
     val subheadline get() = style(BodySize, FontWeight.Normal, FontDesign.DEFAULT)
-    val footnote get() = style(OnyxSocle.Meta, FontWeight.Normal, FontDesign.DEFAULT)
-    val caption get() = style(OnyxSocle.Meta, FontWeight.Normal, FontDesign.DEFAULT)
-    val caption2 get() = style(OnyxSocle.Micro, FontWeight.Normal, FontDesign.DEFAULT)
+    val footnote get() = style(OnyxBase.Meta, FontWeight.Normal, FontDesign.DEFAULT)
+    val caption get() = style(OnyxBase.Meta, FontWeight.Normal, FontDesign.DEFAULT)
+    val caption2 get() = style(OnyxBase.Micro, FontWeight.Normal, FontDesign.DEFAULT)
 
     /** Le style système pour du texte monospace (métadonnées, compteurs) : une méta, au corps des métas. */
-    val monospacedFootnote get() = codeFont.copy(fontSize = scaled(OnyxSocle.Meta), lineHeight = scaled(OnyxSocle.Meta) * 1.4f)
+    val monospacedFootnote get() = codeFont.copy(fontSize = scaled(OnyxBase.Meta), lineHeight = scaled(OnyxBase.Meta) * 1.4f)
 
     private fun style(size: TextUnit, weight: FontWeight, design: FontDesign): TextStyle =
         TextStyle(
@@ -288,7 +288,7 @@ class ResolvedTheme(
          * aucune route. Le corps de l'app est 15 ; « Chat text size » reste un **facteur** appliqué
          * par-dessus ([chatTextScale]), jamais un corps à part.
          */
-        val BodySize = OnyxSocle.Body
+        val BodySize = OnyxBase.Body
 
         /**
          * Les cinq pas de « Chat text size », et leurs libellés, comme `ChatTextSize` de la référence.

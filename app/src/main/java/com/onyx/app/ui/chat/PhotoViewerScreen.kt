@@ -1,6 +1,6 @@
 package com.onyx.app.ui.chat
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 
 import android.net.Uri
@@ -195,7 +195,7 @@ fun PhotoViewerScreen(
                         localize = false,
                         style = androidx.compose.ui.text.TextStyle(
                             color = Color.White,
-                            fontSize = OnyxSocle.Meta,
+                            fontSize = OnyxBase.Meta,
                         ),
                         maxLines = 2,
                         modifier = Modifier

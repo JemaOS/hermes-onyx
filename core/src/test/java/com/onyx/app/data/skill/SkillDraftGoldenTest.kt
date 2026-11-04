@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * Le **golden** de la conversion : un journal d'exemple, et le brouillon attendu, comparé tel quel.
  *
- * Le fichier attendu (`src/test/resources/skill/facture.md`) n'est pas une paraphrase de la sortie :
+ * Le fichier attendu (`src/test/resources/skill/invoice.md`) n'est pas une paraphrase de la sortie :
  * c'est le brouillon lui-même, recopié à la main depuis ce qu'un enregistrement réel produit. Le
  * comparer octet pour octet tient trois promesses d'un coup :
  *
@@ -43,14 +43,14 @@ class SkillDraftGoldenTest {
 
     @Test
     fun `le journal d'exemple produit exactement le brouillon attendu`() {
-        val attendu = readGolden("/skill/facture.md")
+        val attendu = readGolden("/skill/invoice.md")
 
         assertEquals(attendu, skillDraftMarkdown(journal))
     }
 
     @Test
     fun `le brouillon attendu ne contient pas le texte secret du journal`() {
-        val golden = readGolden("/skill/facture.md")
+        val golden = readGolden("/skill/invoice.md")
         val secret = journal.actions.filterIsInstance<TracedAction.Type>().first { it.isSecret }.text
 
         assertFalse(golden.contains(secret))

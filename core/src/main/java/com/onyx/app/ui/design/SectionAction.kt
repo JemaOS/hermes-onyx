@@ -16,7 +16,7 @@ import kotlin.math.max
  *
  *  - **l'écart.** Un en-tête de section fait exactement la hauteur de son bouton ([Size]) et ne
  *    portait **aucun** rembourrage bas : l'action finissait sur le premier pixel du contenu. La
- *    maison met [Gap] entre un intitulé de section et ce qu'il annonce ([OnyxSocle.Tight], le
+ *    maison met [Gap] entre un intitulé de section et ce qu'il annonce ([OnyxBase.Tight], le
  *    rembourrage bas de l'intitulé « CONVERSATIONS ») ; un en-tête qui porte une action prend le
  *    même écart, et son bouton **ne peut plus** toucher la ligne suivante ;
  *  - **la forme et la taille.** Le rond de la maison est [GlassCircleButton] avec

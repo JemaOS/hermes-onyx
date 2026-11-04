@@ -27,11 +27,11 @@ import androidx.compose.ui.unit.dp
  * qui grandit est celui de la **référence du propriétaire**, qui n'est pas dans les sources. Le
  * maximum est donc **choisi par la hauteur d'écran**, et le voici chiffré : sur l'appareil de
  * référence (1080 × 2400 px à 420 dpi → densité 2,625 → **≈ 914 dp de haut**), huit lignes de corps
- * (`OnyxSocle.Body` × 1,22 ≈ 18,3 dp de ligne) font ≈ 146 dp de texte, plus les 20 dp de rembourrage
+ * (`OnyxBase.Body` × 1,22 ≈ 18,3 dp de ligne) font ≈ 146 dp de texte, plus les 20 dp de rembourrage
  * vertical du champ → ≈ 166 dp ; la plaque étendue vaut alors 166 + 76 (rangée d'onglets) =
  * **≈ 242 dp, soit 26 % de la hauteur**. Il reste ≈ 672 dp au fil : **aucun message n'est caché en
  * bas**, et la pastille « aller au dernier message » garde sa voie au-dessus de la plaque
- * ([PlaqueGeometry.FloatLane]). Huit lignes est aussi le plafond courant d'un champ de chat — au-delà,
+ * ([PlateGeometry.FloatLane]). Huit lignes est aussi le plafond courant d'un champ de chat — au-delà,
  * on n'écrit plus dans la barre, on ouvre l'éditeur plein écran (le bouton « agrandir » apparaît déjà
  * pour un brouillon long).
  *
@@ -100,8 +100,8 @@ object ComposerGrowth {
 
     /**
      * **La largeur fixe de la rangée d'une ligne** : le « + » ([OnyxSpace.ThumbnailSize], 44), le
-     * micro et le mode vocal (44 chacun), l'envoi ([PlaqueGeometry.SendSlot], 48) et les **quatre**
-     * écarts de la planche ([PlaqueGeometry.FieldGap], 10) — soit 220 dp. C'est la place qui n'est
+     * micro et le mode vocal (44 chacun), l'envoi ([PlateGeometry.SendSlot], 48) et les **quatre**
+     * écarts de la planche ([PlateGeometry.FieldGap], 10) — soit 220 dp. C'est la place qui n'est
      * pas au champ quand les commandes tiennent sur sa rangée.
      *
      * Elle **exclut** le bouton « agrandir » : celui-ci n'apparaît que pour un brouillon long, donc
@@ -110,8 +110,8 @@ object ComposerGrowth {
      * l'état d'une ligne (sans « agrandir »), sinon la mesure ne décrirait pas le cas où elle décide.
      */
     val RowFixedWidthDp: Float =
-        3f * OnyxSpace.ThumbnailSize.value + PlaqueGeometry.SendSlot.value +
-            4f * PlaqueGeometry.FieldGap.value
+        3f * OnyxSpace.ThumbnailSize.value + PlateGeometry.SendSlot.value +
+            4f * PlateGeometry.FieldGap.value
 
     /**
      * **La largeur laissée au champ quand les commandes tiennent sur sa rangée** : la largeur du
@@ -149,12 +149,12 @@ object ComposerGrowth {
     /**
      * **La hauteur de la rangée du champ** pour [lineCount] lignes, à une hauteur de ligne donnée
      * (celle de la police **rendue**, donc 1,3× comprise) : jamais moins que la hauteur au repos
-     * ([PlaqueGeometry.FieldRowHeight], 64 dp), et **jamais de coupure** — [shownLines] borne les
+     * ([PlateGeometry.FieldRowHeight], 64 dp), et **jamais de coupure** — [shownLines] borne les
      * lignes, le texte au-delà défile.
      */
     fun fieldRowHeightDp(lineCount: Int, lineHeightDp: Float): Float =
         maxOf(
-            PlaqueGeometry.FieldRowHeight.value,
+            PlateGeometry.FieldRowHeight.value,
             // **En grand de base** : le champ montre toujours [RestLines] lignes, même vide. Une
             // plaque qui grandit à la deuxième ligne déplace le clavier au moment où l'on écrit le
             // premier mot — c'est le défaut du propriétaire (« ça change la taille de l'entrée du
@@ -165,11 +165,11 @@ object ComposerGrowth {
 
     /**
      * **La hauteur de la plaque** quand le champ a [fieldRowHeightDp] : le champ étendu **plus** la
-     * rangée d'onglets ([PlaqueGeometry.Height]). Au repos elle vaut exactement 140 dp ; elle grandit
+     * rangée d'onglets ([PlateGeometry.Height]). Au repos elle vaut exactement 140 dp ; elle grandit
      * avec le champ, et la **réserve du fil suit** (elle se mesure, voir `threadBottomReserve`).
      */
     fun plaqueHeightDp(fieldRowHeightDp: Float): Float =
-        fieldRowHeightDp + PlaqueGeometry.TabRowHeight.value
+        fieldRowHeightDp + PlateGeometry.TabRowHeight.value
 
     /** Le dégagement au-dessus de la pastille « aller au dernier message », pour une plaque de [plaqueHeightDp]. */
     fun pillClearanceDp(plaqueHeightDp: Float, screenHeightDp: Float): Float =

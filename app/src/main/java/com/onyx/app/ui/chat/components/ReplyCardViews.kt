@@ -40,7 +40,7 @@ import com.onyx.app.data.model.ReplyCard
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.cards.ReplyCardFormat
 import com.onyx.app.ui.design.GlassSurface
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxProgressView
@@ -380,7 +380,7 @@ private fun WeatherCard(card: ReplyCard.Weather, pending: Boolean) {
                         localize = false,
                         // Le grand chiffre de la carte : la forme d'un titre (Display), et l'encre
                         // de la maison — sinon la Fondation écrit du noir (invisible en sombre).
-                        style = theme.largeTitle.copy(fontSize = OnyxSocle.Display, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", color = socleTitleInk(theme)),
+                        style = theme.largeTitle.copy(fontSize = OnyxBase.Display, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", color = socleTitleInk(theme)),
                     )
                     val high = now.high
                     val low = now.low
@@ -577,7 +577,7 @@ private fun TimeCard(card: ReplyCard.Clock, pending: Boolean) {
                     text = now.format(DateTimeFormatter.ofPattern("HH:mm")),
                     localize = false,
                     // Le grand chiffre de l'heure : la forme d'un titre (Display), encre de la maison.
-                    style = theme.largeTitle.copy(fontSize = OnyxSocle.Display, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", color = socleTitleInk(theme)),
+                    style = theme.largeTitle.copy(fontSize = OnyxBase.Display, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", color = socleTitleInk(theme)),
                 )
                 BasicText(
                     text = second,

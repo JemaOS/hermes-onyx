@@ -48,21 +48,21 @@ import com.onyx.app.ui.theme.ResolvedTheme
  *
  * Ce panneau est donc la contrepartie de la maison, aux valeurs du socle, sans rien inventer :
  *
- *  - **coins arrondis 28** ([OnyxSocle.RadiusPanel] — le rayon de la famille des panneaux, celui de
+ *  - **coins arrondis 28** ([OnyxBase.RadiusPanel] — le rayon de la famille des panneaux, celui de
  *    la plaque flottante et de la feuille, `.plaque{border-radius:28px}` de `hcss.py:227`) ;
  *  - **verre** : la vitre de la table des panneaux ([FrostSurface.SHEET]) — un fond de barreau haut,
  *    la finition commune ([frostedSheet] : lumière de tête, ombre de pied, liseré, reflet de tranche)
  *    et le flou de **fenêtre** ([DialogWindowBlur], puisque le panneau vit dans sa propre fenêtre) ;
  *  - **l'arête claire en haut** : c'est la *lumière de tête* de [drawGlassFinish], la même que sur
  *    toutes les vitres — elle n'est pas redessinée ici, elle vient du même code ;
- *  - **marges 16** : la marge d'écran du socle ([OnyxSocle.ScreenMargin]), à gauche comme à droite,
+ *  - **marges 16** : la marge d'écran du socle ([OnyxBase.ScreenMargin]), à gauche comme à droite,
  *    une seule valeur ;
  *  - **le titre** : le grand titre du socle (30 sp, `.dsp` — la paire **30/26** de l'échelle
  *    typographique, le grand titre retenu pour ce panneau), **aligné à gauche** comme l'en-tête de
  *    la feuille de la maison — jamais un titre centré de boîte de dialogue ;
  *  - **le corps** : le corps du socle (15 sp, `.mtx2`) ;
  *  - **les actions dans nos formes** : deux pastilles **pleines largeur**, hauteur minimale de
- *    cible 48 dp ([OnyxSocle.TouchTarget]), posées à **16 dp du bord** du panneau
+ *    cible 48 dp ([OnyxBase.TouchTarget]), posées à **16 dp du bord** du panneau
  *    ([OnyxReadyGeometry.Inset]) et séparées de **16 dp** ([OnyxReadyGeometry.ActionGap]) —
  *    c'est la règle que le propriétaire a nommée : « les boutons collent trop au bord, ça devrait
  *    être espacé ».
@@ -73,7 +73,7 @@ import com.onyx.app.ui.theme.ResolvedTheme
  * d'une feuille. Le fond de la pastille est **le gris de capsule** de l'échelle des surfaces — la
  * même marche que la pastille de l'onglet actif — de sorte que la cible **se voie** dans les deux
  * apparences (1,13:1 en clair, 1,23:1 en sombre contre ce panneau). Le libellé tient **≥ 4,5:1**
- * sur son fond, dans les deux apparences : c'est [OnyxConfirmTone], et `OnyxConfirmVerrouTest` le
+ * sur son fond, dans les deux apparences : c'est [OnyxConfirmTone], et `OnyxConfirmLockTest` le
  * mesure. La sortie (« Annuler ») prend la **même** pastille et l'encre du texte : deux formes
  * jumelles, une seule teinte de danger pour toute l'app.
  *
@@ -172,7 +172,7 @@ internal fun ConfirmScrim(content: @Composable () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.35f))
-            .padding(horizontal = OnyxSocle.ScreenMargin),
+            .padding(horizontal = OnyxBase.ScreenMargin),
         contentAlignment = Alignment.Center,
     ) {
         content()
@@ -191,7 +191,7 @@ internal fun OnyxConfirmSurface(
 ) {
     val theme = LocalOnyxTheme.current
     val (scale, alpha) = confirmArrival()
-    val shape = RoundedCornerShape(OnyxSocle.RadiusPanel)
+    val shape = RoundedCornerShape(OnyxBase.RadiusPanel)
     val fill = OnyxSurfaces.surfaceHigh(theme)
     Column(
         modifier = modifier
@@ -210,7 +210,7 @@ internal fun OnyxConfirmSurface(
             // **Le retrait : 16 dp.** Le panneau est la seule source de cette marge — les actions
             // ne portent aucune marge propre, donc aucune ne peut « coller au bord ».
             .padding(OnyxReadyGeometry.Inset),
-        verticalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         content = content,
     )
 }
@@ -272,7 +272,7 @@ internal fun OnyxConfirmAction(
         modifier = Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = OnyxReadyGeometry.Target)
-            .clip(RoundedCornerShape(OnyxSocle.RadiusCapsule))
+            .clip(RoundedCornerShape(OnyxBase.RadiusCapsule))
             .background(ground)
             .onyxTappable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -288,20 +288,20 @@ internal fun OnyxConfirmAction(
 
 /**
  * **La géométrie d'une confirmation, exposée** — le retrait des actions au bord, l'écart entre
- * elles, et la hauteur de cible. Nommée ici pour que la mesure et le verrou (`OnyxConfirmVerrouTest`)
+ * elles, et la hauteur de cible. Nommée ici pour que la mesure et le verrou (`OnyxConfirmLockTest`)
  * lisent **les mêmes** valeurs que le dessin : un chiffre annoncé dans le rapport ne peut pas
  * diverger du chiffre posé.
  */
 object OnyxReadyGeometry {
 
     /** Le retrait d'une action au bord du panneau : **16 dp**. La règle du propriétaire. */
-    val Inset: Dp = OnyxSocle.CardPadding
+    val Inset: Dp = OnyxBase.CardPadding
 
     /** L'écart entre deux actions empilées : **16 dp** (deux blocs distincts). */
-    val ActionGap: Dp = OnyxSocle.BlockGap
+    val ActionGap: Dp = OnyxBase.BlockGap
 
     /** La hauteur minimale d'une action : **48 dp** — la cible tactile de la maison. */
-    val Target: Dp = OnyxSocle.TouchTarget
+    val Target: Dp = OnyxBase.TouchTarget
 
     /**
      * **La règle du retrait** : une action tient la maison si son retrait au bord vaut **au moins**

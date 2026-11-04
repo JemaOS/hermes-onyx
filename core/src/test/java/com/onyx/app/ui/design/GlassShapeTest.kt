@@ -55,7 +55,7 @@ class GlassShapeTest {
         GlassSurface.MATTER_CARD to RoundedCornerShape(GlassCardCorner),
         // La plaque d'un onglet de contenu (celle qui glisse sous le doigt) : le rayon des
         // panneaux, comme la plaque du bas qu'elle double d'un cran plus haut.
-        GlassSurface.PANE to RoundedCornerShape(PlaqueGeometry.Radius),
+        GlassSurface.PANE to RoundedCornerShape(PlateGeometry.Radius),
     )
 
     @Test

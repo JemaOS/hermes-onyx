@@ -1,6 +1,6 @@
 package com.onyx.app.ui.models
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.housePanelSurface
@@ -284,7 +284,7 @@ fun ModelSheet(
                         // feuille (`.sh`, `hcss.py:256`) l'ombre en trois profondeurs du socle.
                         // Appelée ici, elle est réellement dessinée ; sans cet appel, la feuille
                         // reste plate et rien ne ramène `SocleShadowKt` dans le binaire.
-                        .socleShadow(OnyxSocle.ShadowFar, OnyxSocle.RadiusPanel, theme.dark)
+                        .socleShadow(OnyxBase.ShadowFar, OnyxBase.RadiusPanel, theme.dark)
                         // **UNE SEULE SURFACE.** Le défaut du propriétaire, capture à l'appui :
                         // *« on dirait que j'ai deux fenêtres superposées »* — au sommet de la
                         // feuille on voyait **deux** rectangles arrondis : la vitre (`frostedBar`, son
@@ -301,7 +301,7 @@ fun ModelSheet(
                         .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), ModelSheetShape)
                         // Le rembourrage vient **après** la surface : il rentre le contenu, il ne
                         // sépare plus deux plaques.
-                        .padding(top = OnyxSocle.Tight, bottom = OnyxSocle.Tight)
+                        .padding(top = OnyxBase.Tight, bottom = OnyxBase.Tight)
                         // La feuille n'est pas une zone de fermeture : appuyer entre deux rangées
                         // ne doit rien faire.
                         .onyxTappable(onClick = {})
@@ -348,17 +348,17 @@ fun ModelSheet(
                             ),
                             style = theme.caption.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
                             modifier = Modifier.padding(
-                                start = OnyxSocle.CardPadding,
-                                end = OnyxSocle.CardPadding,
-                                top = OnyxSocle.Tight,
+                                start = OnyxBase.CardPadding,
+                                end = OnyxBase.CardPadding,
+                                top = OnyxBase.Tight,
                             ),
                         )
                         BasicText(
                             text = OnyxLocalization["Served locally by the fallback — no price per million tokens."],
                             style = theme.caption.copy(color = theme.tertiaryText),
                             modifier = Modifier.padding(
-                                start = OnyxSocle.CardPadding,
-                                end = OnyxSocle.CardPadding,
+                                start = OnyxBase.CardPadding,
+                                end = OnyxBase.CardPadding,
                             ),
                         )
                     }
@@ -381,9 +381,9 @@ fun ModelSheet(
                             ),
                             style = theme.caption.copy(color = theme.tertiaryText),
                             modifier = Modifier.padding(
-                                start = OnyxSocle.CardPadding,
-                                end = OnyxSocle.CardPadding,
-                                top = OnyxSocle.Tight,
+                                start = OnyxBase.CardPadding,
+                                end = OnyxBase.CardPadding,
+                                top = OnyxBase.Tight,
                             ),
                         )
                     } else reasoningCountLine(reasoningPlan)?.let { line ->
@@ -392,9 +392,9 @@ fun ModelSheet(
                             localize = false,
                             style = theme.caption.copy(color = theme.tertiaryText),
                             modifier = Modifier.padding(
-                                start = OnyxSocle.CardPadding,
-                                end = OnyxSocle.CardPadding,
-                                top = OnyxSocle.Tight,
+                                start = OnyxBase.CardPadding,
+                                end = OnyxBase.CardPadding,
+                                top = OnyxBase.Tight,
                             ),
                         )
                     }
@@ -405,7 +405,7 @@ fun ModelSheet(
                     fastMode?.let { FastModeRow(it) }
 
                     // ---- 4. Le filet en retrait, puis le champ de recherche de la maison ---------
-                    Spacer(Modifier.height(OnyxSocle.Loose))
+                    Spacer(Modifier.height(OnyxBase.Loose))
                     OnyxRowDivider(inset = SheetInsetDp, endInset = SheetInsetDp)
                     ModelSearchField(query = query, onQuery = { query = it })
 
@@ -416,7 +416,7 @@ fun ModelSheet(
                                 facets.map { ChipFace(it.provider, it.providerName, false) },
                             selected = providerFilter,
                             onPick = { providerFilter = it },
-                            modifier = Modifier.padding(top = OnyxSocle.Tight),
+                            modifier = Modifier.padding(top = OnyxBase.Tight),
                         )
                     }
 
@@ -432,8 +432,8 @@ fun ModelSheet(
                                 // La liste prend la place qui reste et **défile dedans** : la
                                 // dernière rangée est atteignable, rien n'est coupé par le bas.
                                 .weight(1f, fill = false)
-                                .padding(top = OnyxSocle.Tight),
-                            contentPadding = PaddingValues(bottom = OnyxSocle.Tight),
+                                .padding(top = OnyxBase.Tight),
+                            contentPadding = PaddingValues(bottom = OnyxBase.Tight),
                         ) {
                             // ---- ÉPINGLÉS ---- (le titre est mis en petites capitales par
                             // `SectionHeader` ; le mot vient de la table de langue)
@@ -533,10 +533,10 @@ internal val ModelControlTarget = 48.dp
 internal val ModelRowMinHeight = 56.dp
 
 /** La marge latérale d'une rangée : elle laisse voir le fond arrondi du modèle retenu. */
-internal val ModelRowSideMargin = OnyxSocle.Tight
+internal val ModelRowSideMargin = OnyxBase.Tight
 
 /** Le dégagement intérieur de la rangée (avant la tuile). */
-internal val ModelRowPadding = OnyxSocle.Tight
+internal val ModelRowPadding = OnyxBase.Tight
 
 /** L'écart entre la tuile et le nom — l'écart icône-libellé de la maison. */
 internal val ModelTileGap = OnyxSpace.ThumbnailGap
@@ -553,10 +553,10 @@ internal val ModelRowDividerInset =
 internal val ModelRowDividerEndInset = ModelRowSideMargin + ModelRowPadding
 
 /** Le retrait des filets de section de la feuille. */
-private val SheetInsetDp = OnyxSocle.CardPadding
+private val SheetInsetDp = OnyxBase.CardPadding
 
 /** L'écart entre deux pastilles — horizontal et vertical (une rangée qui se replie). */
-private val ChipGapDp = OnyxSocle.Tight
+private val ChipGapDp = OnyxBase.Tight
 
 /** La teinte d'accent de la rangée retenue (`ModelContrast.chosenRow` doit mesurer la même). */
 private const val ChosenRowTint = 0.10f
@@ -570,7 +570,7 @@ private const val ChosenRowTint = 0.10f
 private fun ModelSheetHandle() {
     val theme = LocalOnyxTheme.current
     Box(
-        modifier = Modifier.fillMaxWidth().padding(vertical = OnyxSocle.Tight),
+        modifier = Modifier.fillMaxWidth().padding(vertical = OnyxBase.Tight),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -595,7 +595,7 @@ private fun ModelSheetTitleRow(title: String, mention: String, onDismiss: () -> 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = OnyxSocle.CardPadding, end = OnyxSocle.Tight, bottom = OnyxSocle.Tight),
+            .padding(start = OnyxBase.CardPadding, end = OnyxBase.Tight, bottom = OnyxBase.Tight),
         verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -644,10 +644,10 @@ private fun SectionLabel(text: String) {
         text = text,
         style = socleSectionStyle(theme).copy(color = theme.secondaryText),
         modifier = Modifier.padding(
-            start = OnyxSocle.CardPadding,
-            end = OnyxSocle.CardPadding,
-            top = OnyxSocle.Loose,
-            bottom = OnyxSocle.Tight,
+            start = OnyxBase.CardPadding,
+            end = OnyxBase.CardPadding,
+            top = OnyxBase.Loose,
+            bottom = OnyxBase.Tight,
         ),
     )
 }
@@ -668,14 +668,14 @@ private fun ModelSearchField(query: String, onQuery: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = OnyxSocle.CardPadding, end = OnyxSocle.CardPadding, top = OnyxSocle.Tight)
+            .padding(start = OnyxBase.CardPadding, end = OnyxBase.CardPadding, top = OnyxBase.Tight)
             .heightIn(min = ModelControlTarget)
             .clip(shape)
             .background(OnyxSurfaces.well(theme), shape)
             .border(OnyxSpace.Stroke, OnyxSurfaces.hairline(theme), shape)
             .padding(horizontal = OnyxSpace.Snug),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         OnyxIcon(Symbols.MagnifyingGlass, tint = theme.tertiaryText, size = 15.dp)
         OnyxTextField(
@@ -729,7 +729,7 @@ internal data class ChipFace(val value: String, val label: String, val localize:
  *
  * La pastille retenue est **l'accent plein** ([ModelContrast.activeChip]), les autres le gris de la
  * famille des capsules. Toute la rangée est dans **la marge de la feuille**
- * ([OnyxSocle.CardPadding]) : aucune pastille ne touche le bord.
+ * ([OnyxBase.CardPadding]) : aucune pastille ne touche le bord.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -749,7 +749,7 @@ private fun ChipFlow(
     FlowRow(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = OnyxSocle.CardPadding),
+            .padding(horizontal = OnyxBase.CardPadding),
         horizontalArrangement = Arrangement.spacedBy(ChipGapDp),
         verticalArrangement = Arrangement.spacedBy(ChipGapDp),
     ) {
@@ -806,7 +806,7 @@ private fun SheetNote(text: String) {
         text = text,
         localize = false,
         style = theme.footnote.copy(color = theme.secondaryText),
-        modifier = Modifier.padding(start = OnyxSocle.CardPadding, end = OnyxSocle.CardPadding, top = OnyxSocle.Loose, bottom = OnyxSocle.Loose),
+        modifier = Modifier.padding(start = OnyxBase.CardPadding, end = OnyxBase.CardPadding, top = OnyxBase.Loose, bottom = OnyxBase.Loose),
     )
 }
 
@@ -842,7 +842,7 @@ private fun SectionHeader(title: String, subtitle: String? = null) {
     // L'encre de la section est **mesurée sur la feuille**, pas prise du jeton partagé : le tertiaire
     // du système y tombait à 4,41:1 (sous le plancher d'un mot). Voir [ModelContrast.sheetTertiaryInk].
     val ink = ModelContrast.sheetTertiaryInk(theme)
-    Column(modifier = Modifier.padding(start = OnyxSocle.CardPadding, end = OnyxSocle.CardPadding, top = OnyxSocle.Loose, bottom = OnyxSpace.Hair)) {
+    Column(modifier = Modifier.padding(start = OnyxBase.CardPadding, end = OnyxBase.CardPadding, top = OnyxBase.Loose, bottom = OnyxSpace.Hair)) {
         BasicText(
             text = sectionTitle(title),
             localize = false,
@@ -908,14 +908,14 @@ private fun FastModeRow(mode: ModelFastMode) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = OnyxSocle.CardPadding, end = OnyxSocle.CardPadding, top = OnyxSocle.Loose),
+            .padding(start = OnyxBase.CardPadding, end = OnyxBase.CardPadding, top = OnyxBase.Loose),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = ModelRowTargetMin),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
         ) {
             BasicText(
                 text = "Fast mode",
@@ -928,7 +928,7 @@ private fun FastModeRow(mode: ModelFastMode) {
             text = mode.footer,
             localize = false,
             style = theme.caption.copy(color = theme.secondaryText),
-            modifier = Modifier.padding(top = 2.dp, bottom = OnyxSocle.Tight),
+            modifier = Modifier.padding(top = 2.dp, bottom = OnyxBase.Tight),
         )
     }
 }
@@ -950,9 +950,9 @@ private fun AllModelsRow(count: Int, onClick: () -> Unit) {
             .heightIn(min = ModelRowTargetMin)
             .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
             .onyxTappable(onClick = onClick)
-            .padding(start = OnyxSocle.Tight, end = OnyxSocle.Tight),
+            .padding(start = OnyxBase.Tight, end = OnyxBase.Tight),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
     ) {
         BasicText(
             text = OnyxLocalization["All models"],
@@ -1190,7 +1190,7 @@ private const val ModelFastModeFallbackKey = "main"
 private const val ProviderChipInsetDp = 22f
 
 /** L'écart entre deux pastilles d'information. */
-private val OfferChipGapDp = OnyxSocle.Tight
+private val OfferChipGapDp = OnyxBase.Tight
 
 /** Le dégagement intérieur d'une pastille d'information. */
 private const val OfferChipInsetDp = 16f
@@ -1202,7 +1202,7 @@ private val RowSideMargin = 8.dp
  * Le retrait du filet d'une rangée (variante d'origine) : marge latérale, rembourrage, vignette,
  * écart icône-libellé.
  */
-private val RowDividerInset = RowSideMargin + OnyxSocle.Tight + 38.dp + OnyxSocle.IconLabelGap
+private val RowDividerInset = RowSideMargin + OnyxBase.Tight + 38.dp + OnyxBase.IconLabelGap
 
 /**
  * La cible d'une ligne de la feuille : **48 dp au moins** — la ligne « Mode rapide » et la ligne

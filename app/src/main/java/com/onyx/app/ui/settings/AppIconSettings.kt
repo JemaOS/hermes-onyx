@@ -86,7 +86,7 @@ enum class AppIconChoice(
          * (`ic_launcher_graphite_block`). C'est l'illustration que le propriétaire a retenue comme
          * référence ; elle ne doit plus changer par une variante de build, un thème ou une refonte.
          * Le manifeste porte le même choix (`android:enabled` sur l'alias GraphiteBlock) et
-         * `NomEtIconeDuLanceurTest` le vérifie des deux côtés.
+         * `NameAndIconOfLauncherTest` le vérifie des deux côtés.
          */
         val primary: AppIconChoice = GRAPHITE_BLOCK
     }

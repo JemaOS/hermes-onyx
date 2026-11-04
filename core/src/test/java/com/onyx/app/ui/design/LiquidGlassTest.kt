@@ -270,14 +270,14 @@ class LiquidGlassTest {
         // **RE-POINTÉ par le lot « verre-teinte ».** Deux exigences d'origine ne tiennent plus pour
         // les **plaques** en apparence claire, et c'est une décision explicite du propriétaire : il a
         // refusé le verre clair de sa planche (« trop subtil ») et demandé un verre **franchement
-        // teinté** (voir `VerreTeinte.kt`, qui porte l'écart assumé). Ce qui change :
+        // teinté** (voir `GlassTint.kt`, qui porte l'écart assumé). Ce qui change :
         //   · « la vitre dérivée est plus mince que la vitre à encre fixe » — non : les trois plaques
         //     partagent la **même** densité, qui est celle de leur **encre** (plancher de lisibilité),
         //     pour qu'elles se lisent comme une famille ;
         //   · « le voile reste sous 60 % » — non : sous le modèle de la maison (l'encre doit tenir
         //     4,5:1 sur le pire fond, noir pur), aucune teinte **assombrissante** ne tient le seuil à
         //     60 % d'opacité (mesuré : 1,11:1 de détachement au mieux). Le verre teinté est donc plus
-        //     dense — c'est le prix de la décision, et il est chiffré dans `VerreTeinte.kt`.
+        //     dense — c'est le prix de la décision, et il est chiffré dans `GlassTint.kt`.
         // Ce qui **reste** exigé (et c'est l'essentiel, donc la dent ne se désarme pas) : l'encre
         // dérivée tient son seuil, et le voile reste strictement < 1 (ce n'est pas un aplat).
         val derived = GlassSurface.entries.filter { it.ink == GlassInk.DERIVED }

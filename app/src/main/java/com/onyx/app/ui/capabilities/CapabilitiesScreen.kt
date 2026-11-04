@@ -58,7 +58,7 @@ import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxPageHeader
 import com.onyx.app.ui.design.OnyxRowDivider
 import com.onyx.app.ui.design.OnyxSwitch
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.bodyInk
@@ -335,8 +335,8 @@ fun CapabilitiesScreen(
                     query = ""
                 },
                 modifier = Modifier.padding(
-                    start = OnyxSocle.ScreenMargin,
-                    end = OnyxSocle.ScreenMargin,
+                    start = OnyxBase.ScreenMargin,
+                    end = OnyxBase.ScreenMargin,
                 ),
                 // **La moitié active est un aplat d'accent**, son mot en blanc : la règle de la
                 // pastille d'onglet et de la planche validée (`.segi.on{background:var(--accfill);
@@ -350,12 +350,12 @@ fun CapabilitiesScreen(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(
-                    start = OnyxSocle.ScreenMargin,
-                    end = OnyxSocle.ScreenMargin,
-                    top = OnyxSocle.Loose,
-                    bottom = OnyxSocle.Loose,
+                    start = OnyxBase.ScreenMargin,
+                    end = OnyxBase.ScreenMargin,
+                    top = OnyxBase.Loose,
+                    bottom = OnyxBase.Loose,
                 ),
-            verticalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+            verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         ) {
             // **La ligne du Coffre.** Elle n'existe que si la sonde a prouvé que ce serveur sert le
             // greffon `onyx-vault` : sans sonde, ou sans capacité, rien n'est dessiné — pas de ligne
@@ -597,7 +597,7 @@ private fun SkillsBody(
             modifier = Modifier.padding(
                 start = OnyxSpace.CardPadding + OnyxSpace.Hair,
                 end = OnyxSpace.CardPadding,
-                top = OnyxSocle.Loose,
+                top = OnyxBase.Loose,
                 bottom = OnyxSpace.Half,
             ),
         )
@@ -782,7 +782,7 @@ private fun ToolsetRow(
                     style = theme.caption.copy(color = bodyInk(theme, theme.formPageColor)),
                     modifier = Modifier.padding(
                         start = OnyxSpace.CardPadding + Anatomy.DividerInsetWithTile,
-                        bottom = OnyxSocle.Loose,
+                        bottom = OnyxBase.Loose,
                     ),
                 )
             } else {
@@ -799,7 +799,7 @@ private fun ToolsetRow(
                         ),
                     )
                 }
-                Spacer(Modifier.height(OnyxSocle.Loose))
+                Spacer(Modifier.height(OnyxBase.Loose))
             }
         }
     }

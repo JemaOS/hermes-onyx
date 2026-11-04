@@ -20,7 +20,7 @@ tree is the flattened copy of the merge tree, so its history does not carry the 
   0 colour outside the palette** (commit `3cd0f588`).
 - **The dark theme is measured, bar by bar.** The surface scale is laid down in tokens
   (`core/src/main/java/com/onyx/app/ui/design/OnyxSurfaces.kt`, `OnyxSurfaceStyle.kt`) and each
-  difference is given a figure (commit `a8c50987`, report `UI-UNIFORMITY-SOMBRE.md`):
+  difference is given a figure (commit `a8c50987`, report `UI-UNIFORMITY-DARK.md`):
 
   | object | before | after | figure |
   |---|---|---|---|
@@ -40,7 +40,7 @@ tree is the flattened copy of the merge tree, so its history does not carry the 
   **`haze`**, **`haze-blur`** and **`haze-glass`** modules. The glass module brings the
   **refraction**: the sampled content is **displaced** according to the edge profile
   (`RefractionProfile.Edge`), with chromatic dispersion, an edge fringe and a specular highlight
-  (`gradle/libs.versions.toml`, `core/build.gradle.kts`, `RAPPORT-VERRE-LIQUIDE.md`).
+  (`gradle/libs.versions.toml`, `core/build.gradle.kts`, `REPORT-LIQUID-GLASS.md`).
 - **The refraction is a measurement, not a promise.** `GlassRefractionAvailable = true` follows the
   actual availability; it requires a runtime shader processor (**API 33+**,
   `GlassRefractionMinSdk`) and a **fallback stays wired** below that — the two do not replace each
@@ -92,7 +92,7 @@ tree is the flattened copy of the merge tree, so its history does not carry the 
 
 - **The back paths are fixed:** the page you left is no longer lost on the way out of the sidebar
   (commit `f48b2fcd`), and a bench measures the three back paths, before/after (commit `bdb8d2e0`,
-  `RETOUR-AUDIT.md`, `RetourMatriceTest.kt`).
+  `AUDIT-FEEDBACK.md`, `RetourMatriceTest.kt`).
 
 ## 6. What this version does not do
 

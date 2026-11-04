@@ -39,11 +39,11 @@ fun FileThumbnailView(
     image: ImageBitmap? = null,
     /**
      * Le coin de la vignette. **14 dp par défaut** — le coin de champ du socle
-     * ([OnyxSocle.RadiusField]) ; une carte à vignettes le porte à **0** quand la vignette est
+     * ([OnyxBase.RadiusField]) ; une carte à vignettes le porte à **0** quand la vignette est
      * **plein cadre dans le haut de la carte** : la carte découpe alors ses propres coins
-     * ([OnyxSocle.RadiusCard]) et la vignette ne redessine pas un second arrondi par-dessus.
+     * ([OnyxBase.RadiusCard]) et la vignette ne redessine pas un second arrondi par-dessus.
      */
-    corner: androidx.compose.ui.unit.Dp = OnyxSocle.RadiusField,
+    corner: androidx.compose.ui.unit.Dp = OnyxBase.RadiusField,
 ) {
     Box(modifier = modifier.clip(RoundedCornerShape(corner))) {
         Canvas(modifier = Modifier.fillMaxSize()) {

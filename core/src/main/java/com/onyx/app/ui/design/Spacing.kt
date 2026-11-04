@@ -553,7 +553,7 @@ object OnyxSpace {
             where = "Volet latéral — tête du volet",
             file = "app/src/main/java/com/onyx/app/ui/sidebar/ChatSidebar.kt",
             before = ".padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 8.dp)",
-            after = "top = OnyxSocle.ScreenMargin,",
+            after = "top = OnyxBase.ScreenMargin,",
             token = "BarInset = 16 / Half = 8",
             why = "10 dp en haut était une valeur unique dans l'app. Les barres du volet prennent l'écart de barre, en haut comme en bas.",
         ),

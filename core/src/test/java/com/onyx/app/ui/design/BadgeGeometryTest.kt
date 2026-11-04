@@ -150,7 +150,7 @@ class BadgeGeometryTest {
 
     @Test
     fun `la pastille reste entiere dans sa cellule, ancree en dedans`() {
-        val cell = PlaqueGeometry.TabCell.value
+        val cell = PlateGeometry.TabCell.value
         cases.forEach { case ->
             val paintedWidth = BadgeGeometry.paintedWidthDp(case.textWidthDp, case.textHeightDp)
             val paintedHeight = BadgeGeometry.paintedHeightDp(case.textHeightDp)
@@ -185,7 +185,7 @@ class BadgeGeometryTest {
             BadgeGeometry.residualPadDp(oldPaintedHeight, textHeight) < BadgeGeometry.PadVertical.value,
         )
         // L'ancrage d'avant sortait du coin : la marge est négative, donc le verrou le refuse.
-        val cell = PlaqueGeometry.TabCell.value
+        val cell = PlateGeometry.TabCell.value
         val oldWidthDp = BadgeGeometry.paintedWidthDp(textWidth, textHeight)
         val oldHeightDp = BadgeGeometry.paintedHeightDp(textHeight, padVerticalDp = 1f)
         assertTrue(

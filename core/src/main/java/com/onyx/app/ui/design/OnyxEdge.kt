@@ -30,7 +30,7 @@ import com.onyx.app.ui.theme.ResolvedTheme
  * [fil] est ce trait. **Tout** contour de l'app le lit : [OnyxSurfaces.hairline] le rend, donc une
  * carte, une pastille, un champ, une feuille, un menu, la barre d'onglets et la pilule du haut le
  * prennent d'un seul coup. [MaxDarkAlpha] est le **plafond** : aucun contour *sombre* de l'app n'a
- * le droit de le dépasser — c'est ce que [OnyxEdgeVerrouTest] refuse, en nommant le fichier et la
+ * le droit de le dépasser — c'est ce que [OnyxEdgeLockTest] refuse, en nommant le fichier et la
  * ligne fautive.
  */
 object OnyxEdge {

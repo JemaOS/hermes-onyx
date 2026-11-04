@@ -12,7 +12,7 @@ Trois responsabilités, et rien d'autre :
 3. **le convertir** en brouillon Markdown, avec les **mêmes octets** que le
    convertisseur Kotlin déjà livré dans l'app
    (``core/src/main/java/com/onyx/app/data/skill/SkillDraft.kt``, golden
-   ``core/src/test/resources/skill/facture.md``).
+   ``core/src/test/resources/skill/invoice.md``).
 
 Invariants — à ne jamais casser :
 

@@ -13,10 +13,10 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p>
-  <img src="docs/captures/01-salle-chat-clair.png" width="19%" alt="A room, in the Chat tab" />
-  <img src="docs/captures/02-salle-flux-clair.png" width="19%" alt="A room, in the Feed tab" />
-  <img src="docs/captures/04-liste-conversations-clair.png" width="19%" alt="The conversation list" />
-  <img src="docs/captures/05-reglages-notifications-clair.png" width="19%" alt="Notification channels" />
+  <img src="docs/screenshots/01-chat-room-light.png" width="19%" alt="A room, in the Chat tab" />
+  <img src="docs/screenshots/02-stream-light.png" width="19%" alt="A room, in the Feed tab" />
+  <img src="docs/screenshots/04-list-conversations-light.png" width="19%" alt="The conversation list" />
+  <img src="docs/screenshots/05-settings-notifications-light.png" width="19%" alt="Notification channels" />
 </p>
 
 </div>
@@ -193,7 +193,7 @@ here that cannot be shown. The full detail is in
 - **The dark theme is measured, bar by bar** — the composer goes from **1.058:1** to **1.314:1**
   against its page, the active-tab capsule holds **1.201:1** against its bar, its accent ink
   **5.165:1**; a single family of shapes (corners **22 → 26 dp**) and shadows (`a8c50987`,
-  `UI-UNIFORMITY-SOMBRE.md`).
+  `UI-UNIFORMITY-DARK.md`).
 - **The liquid glass moves to Haze 2.0.1, with refraction and welding** — modules `haze`,
   `haze-blur`, `haze-glass`; the refraction displaces the sampled content according to the edge
   profile (`RefractionProfile.Edge`), and `GlassRefractionAvailable = true` is a **measurement**; the
@@ -212,7 +212,7 @@ here that cannot be shown. The full detail is in
 - **The duplicate "Skills" removed** — the sidebar tile and the Settings row leave the interface,
   the "Onyx" group drops to four tiles, everything is **inside** "Capabilities" (`64d8e756`).
 - **The back navigation fixed** — the page you left is no longer lost on the way out of the
-  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`, `RETOUR-AUDIT.md`).
+  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`, `AUDIT-FEEDBACK.md`).
 
 **3674 tests, 0 failures.** The three packages — phone, Android Auto and Wear OS — ship in this
 release.
@@ -290,13 +290,13 @@ Each screen appears twice: the **light** theme and the **dark** one, captured fr
 
 | Screen | Light | Dark |
 |---|---|---|
-| A room, Chat tab | <img src="docs/captures/01-salle-chat-clair.png" width="45%"> | <img src="docs/captures/01-salle-chat-sombre.png" width="45%"> |
-| A room, Feed tab | <img src="docs/captures/02-salle-flux-clair.png" width="45%"> | <img src="docs/captures/02-salle-flux-sombre.png" width="45%"> |
-| Attaching a file | <img src="docs/captures/03-composer-piece-jointe-clair.png" width="45%"> | <img src="docs/captures/03-composer-piece-jointe-sombre.png" width="45%"> |
-| The conversation list | <img src="docs/captures/04-liste-conversations-clair.png" width="45%"> | <img src="docs/captures/04-liste-conversations-sombre.png" width="45%"> |
-| Notification channels | <img src="docs/captures/05-reglages-notifications-clair.png" width="45%"> | <img src="docs/captures/05-reglages-notifications-sombre.png" width="45%"> |
-| The lock settings | <img src="docs/captures/06-reglages-verrouillage-clair.png" width="45%"> | <img src="docs/captures/06-reglages-verrouillage-sombre.png" width="45%"> |
-| The lock screen | <img src="docs/captures/07-verrouillage-clair.png" width="45%"> | <img src="docs/captures/07-verrouillage-sombre.png" width="45%"> |
+| A room, Chat tab | <img src="docs/screenshots/01-chat-room-light.png" width="45%"> | <img src="docs/screenshots/01-chat-room-dark.png" width="45%"> |
+| A room, Feed tab | <img src="docs/screenshots/02-stream-light.png" width="45%"> | <img src="docs/screenshots/02-stream-dark.png" width="45%"> |
+| Attaching a file | <img src="docs/screenshots/03-composer-attachment-light.png" width="45%"> | <img src="docs/screenshots/03-composer-attachment-dark.png" width="45%"> |
+| The conversation list | <img src="docs/screenshots/04-list-conversations-light.png" width="45%"> | <img src="docs/screenshots/04-list-conversations-dark.png" width="45%"> |
+| Notification channels | <img src="docs/screenshots/05-settings-notifications-light.png" width="45%"> | <img src="docs/screenshots/05-settings-notifications-dark.png" width="45%"> |
+| The lock settings | <img src="docs/screenshots/06-settings-lock-light.png" width="45%"> | <img src="docs/screenshots/06-settings-lock-dark.png" width="45%"> |
+| The lock screen | <img src="docs/screenshots/07-lock-light.png" width="45%"> | <img src="docs/screenshots/07-lock-dark.png" width="45%"> |
 
 Provenance and the list of the files actually present: [`docs/captures/INDEX.md`](docs/captures/INDEX.md).
 
@@ -380,13 +380,13 @@ Every screen below is captured from the release build, in the light and the dark
 
 | Screen | Light | Dark |
 |---|---|---|
-| A room, in the Chat tab | ![A room, in the Chat tab (light)](docs/captures/01-salle-chat-clair.png) | ![A room, in the Chat tab (dark)](docs/captures/01-salle-chat-sombre.png) |
-| A room, in the Feed tab | ![A room, in the Feed tab (light)](docs/captures/02-salle-flux-clair.png) | ![A room, in the Feed tab (dark)](docs/captures/02-salle-flux-sombre.png) |
-| Attaching a file from the composer | ![Attaching a file from the composer (light)](docs/captures/03-composer-piece-jointe-clair.png) | ![Attaching a file from the composer (dark)](docs/captures/03-composer-piece-jointe-sombre.png) |
-| The conversation list | ![The conversation list (light)](docs/captures/04-liste-conversations-clair.png) | ![The conversation list (dark)](docs/captures/04-liste-conversations-sombre.png) |
-| Notification channels | ![Notification channels (light)](docs/captures/05-reglages-notifications-clair.png) | ![Notification channels (dark)](docs/captures/05-reglages-notifications-sombre.png) |
-| The lock settings | ![The lock settings (light)](docs/captures/06-reglages-verrouillage-clair.png) | ![The lock settings (dark)](docs/captures/06-reglages-verrouillage-sombre.png) |
-| The lock screen | ![The lock screen (light)](docs/captures/07-verrouillage-clair.png) | ![The lock screen (dark)](docs/captures/07-verrouillage-sombre.png) |
+| A room, in the Chat tab | ![A room, in the Chat tab (light)](docs/screenshots/01-chat-room-light.png) | ![A room, in the Chat tab (dark)](docs/screenshots/01-chat-room-dark.png) |
+| A room, in the Feed tab | ![A room, in the Feed tab (light)](docs/screenshots/02-stream-light.png) | ![A room, in the Feed tab (dark)](docs/screenshots/02-stream-dark.png) |
+| Attaching a file from the composer | ![Attaching a file from the composer (light)](docs/screenshots/03-composer-attachment-light.png) | ![Attaching a file from the composer (dark)](docs/screenshots/03-composer-attachment-dark.png) |
+| The conversation list | ![The conversation list (light)](docs/screenshots/04-list-conversations-light.png) | ![The conversation list (dark)](docs/screenshots/04-list-conversations-dark.png) |
+| Notification channels | ![Notification channels (light)](docs/screenshots/05-settings-notifications-light.png) | ![Notification channels (dark)](docs/screenshots/05-settings-notifications-dark.png) |
+| The lock settings | ![The lock settings (light)](docs/screenshots/06-settings-lock-light.png) | ![The lock settings (dark)](docs/screenshots/06-settings-lock-dark.png) |
+| The lock screen | ![The lock screen (light)](docs/screenshots/07-lock-light.png) | ![The lock screen (dark)](docs/screenshots/07-lock-dark.png) |
 
 Full index: [`docs/captures/INDEX.md`](docs/captures/INDEX.md).
 

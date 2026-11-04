@@ -497,7 +497,7 @@ fun OnyxApp() {
     // « Noir pur » et « Halo » : les deux réglages d'affichage portés par la carte Apparence.
     val pureBlack by settingsRepo.pureBlack.collectAsStateWithLifecycle()
     val halo by settingsRepo.halo.collectAsStateWithLifecycle()
-    // « Fluide » : la couverture animée des cartes de conversation (variante B), vrai par défaut.
+    // « Fluid » : la couverture animée des cartes de conversation (variante B), vrai par défaut.
     val fluideCover by settingsRepo.fluideCover.collectAsStateWithLifecycle()
     // **Le choix de la couverture** : variante, graine, teinte — écrits en préférences (filaments,
     // graine 3417634283, teinte bleu) et relus ici. C'est lui qui porte la graine du dessin.
@@ -531,7 +531,7 @@ fun OnyxApp() {
         // Le réglage « Halo » : posé **au-dessus** de tout l'arbre, donc lu par chaque vitre. Éteint,
         // la surface est inerte au doigt — aucune lumière, aucun appui (voir `GlassTouch.kt`).
         com.onyx.app.ui.design.LocalGlassHalo provides glassHalo,
-        // « Fluide » : posé au-dessus de tout l'arbre, donc lu par chaque carte de conversation.
+        // « Fluid » : posé au-dessus de tout l'arbre, donc lu par chaque carte de conversation.
         // Éteint, la carte reprend l'ancienne couverture déterministe.
         com.onyx.app.ui.design.LocalFluideEnabled provides fluideCover,
         // **Le choix de la couverture** : variante, graine et teinte, posés au-dessus de tout
@@ -3262,7 +3262,7 @@ fun OnyxApp() {
             // repli ne sert **que** quand elle est vide. Il vient ici de la **table des retours**
             // ([TableDesRetours]) — jamais d'une cible écrite en dur. Les flèches des pages
             // écrivent ce même repli à leur site d'appel (`if (!navBack()) navTo(<repli>)`) : les
-            // deux cibles ne peuvent plus diverger, et `FlecheInterneVerrouTest` compare l'une à
+            // deux cibles ne peuvent plus diverger, et `ArrowInnerLockTest` compare l'une à
             // l'autre, en nommant tout écart. (La page de contexte est la seule dont le repli est
             // un **état**, `contextReturn` — sa ligne de table le dit.)
             fun repliDeRetour(): String =
@@ -3642,7 +3642,7 @@ fun OnyxApp() {
                     // réconciliation refuse la rangée que le lot du visage avait ajoutée. La
                     // suppression d'Idées/Objectifs (demande du propriétaire) a retiré l'écran, sa
                     // route, sa destination, sa clé de dictionnaire et cette porte de secours.
-                    // Voir `SuppressionIdeesObjectifsTest` et `VisagePorteIdentiteTest`.
+                    // Voir `DeletionIdeasGoalsTest` et `FaceGateIdentityTest`.
                     problem = deleteProblem ?: editorState.problem,
                     onSave = { title, about, model, shown ->
                         bot?.let { botsViewModel.saveEdit(it, title, about, model, shown) }
@@ -4842,7 +4842,7 @@ fun OnyxApp() {
                             // d'abord, et il ne dépilait `contextReturn` que tant que celle-ci se
                             // trouvait **au sommet**. Dès que l'écran est atteint d'ailleurs (ou après
                             // une restauration), il **empile** la page quittée au lieu de la rendre —
-                            // le défaut que `RetourCoherenceTest` a déjà retiré de cinq autres écrans.
+                            // le défaut que `ReturnCoherenceTest` a déjà retiré de cinq autres écrans.
                             onBack = { if (!navBack()) navTo(contextReturn) },
                             title = label,
                             purpose = purpose,

@@ -167,7 +167,7 @@ fun Modifier.housePanelSurface(shape: Shape, fill: Color): Modifier {
     val theme = LocalOnyxTheme.current
     return this
         // L'ombre du socle, **sous** la face : c'est elle qui pose le panneau sur la page.
-        .socleShadow(OnyxSocle.ShadowFar, OnyxSocle.RadiusPanel, theme.dark)
+        .socleShadow(OnyxBase.ShadowFar, OnyxBase.RadiusPanel, theme.dark)
         .clip(shape)
         .background(fill, shape)
 }
@@ -313,7 +313,7 @@ fun HouseSheetHeader(
             BasicText(
                 text = it,
                 localize = localizeSubtitle,
-                style = theme.footnote.copy(fontSize = OnyxSocle.Meta, color = sheetSubtitleInk(theme)),
+                style = theme.footnote.copy(fontSize = OnyxBase.Meta, color = sheetSubtitleInk(theme)),
                 maxLines = 6,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -408,7 +408,7 @@ fun HouseSheetRow(
  *
  * La pastille prend le gris de gorge de la maison ([houseSheetActionFill], mesuré contre le fond de
  * la feuille — jamais le blanc sur le blanc), sa capsule de la famille des formes
- * ([OnyxSocle.RadiusCapsule]) et sa cible tactile ([OnyxSpace.TouchTarget]). Elle est en retrait de
+ * ([OnyxBase.RadiusCapsule]) et sa cible tactile ([OnyxSpace.TouchTarget]). Elle est en retrait de
  * la marge d'écran ([OnyxSpace.ScreenMargin]) : ce n'est pas un filet, c'est une forme posée.
  *
  * Ce qui **disparaît** et ne doit pas revenir : aucune encre d'accent centrée comme seule action,
@@ -423,7 +423,7 @@ fun HouseSheetCloseRow(label: String, onDismiss: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = OnyxSpace.ScreenMargin, vertical = OnyxSpace.Half)
             .heightIn(min = OnyxSpace.TouchTarget)
-            .clip(RoundedCornerShape(OnyxSocle.RadiusCapsule))
+            .clip(RoundedCornerShape(OnyxBase.RadiusCapsule))
             .background(ground)
             .onyxTappable(onClick = onDismiss),
         contentAlignment = Alignment.Center,

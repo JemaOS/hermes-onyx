@@ -45,7 +45,7 @@ class SectionActionGeometryTest {
         "SectionAction.Gap" -> SectionAction.Gap.value
         "SectionAction.Size" -> SectionAction.Size.value
         "MinTarget" -> 44f
-        "OnyxSocle.TouchTarget" -> 48f
+        "OnyxBase.TouchTarget" -> 48f
         else ->
             if (token.endsWith(".dp")) token.removeSuffix(".dp").toFloat()
             else error("valeur d'espacement inconnue : $token")
@@ -178,7 +178,7 @@ class SectionActionGeometryTest {
 
     @Test
     fun `les mesures sur l'appareil ne repassent pas sous le plancher`() {
-        val mesures = File(root, "qa/2026-10-30-actions-section/apres/mesures.json")
+        val mesures = File(root, "qa/2026-10-30-actions-section/after/measures.json")
         assertTrue("les mesures de l'appareil manquent : ${mesures.path}", mesures.isFile)
         val texte = mesures.readText()
         // Chaque section mesurée est un objet du JSON : on le découpe sur sa clé « section », puis

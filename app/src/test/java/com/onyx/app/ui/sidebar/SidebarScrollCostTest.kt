@@ -29,7 +29,7 @@ class SidebarScrollCostTest {
     private val sidebar = File(ui, "sidebar/ChatSidebar.kt").readText()
     private val bots = File(ui, "sidebar/ChatSidebarBots.kt").readText()
     private val app = File(ui, "OnyxApp.kt").readText()
-    private val galerie = File("../core/src/main/java/com/onyx/app/ui/design/Galerie.kt").readText()
+    private val galerie = File("../core/src/main/java/com/onyx/app/ui/design/Gallery.kt").readText()
 
     // — 1 · la mesure d'une rangée ne réveille personne —
 

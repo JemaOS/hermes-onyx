@@ -2,7 +2,7 @@ package com.onyx.app.ui.sidebar
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -203,7 +203,7 @@ class SidebarLabelsTest {
      *  * **avant** — corps 13 sp, rapport plancher 0,78, aucune borne basse : « Compétences » se
      *    rangeait à **10,1 sp**, sous le plancher de lisibilité de l'app, et en deux colonnes ;
      *  * **après** — corps 12 sp, même rapport, mais la taille est **ramenée sur l'échelle** et
-     *    jamais sous **11 sp** (`OnyxSocle.snap`) ; et si le mot ne tient plus à 11 sp, c'est la
+     *    jamais sous **11 sp** (`OnyxBase.snap`) ; et si le mot ne tient plus à 11 sp, c'est la
      *    **grille** qui cède : une colonne (`tileColumns`), pas le corps.
      *
      * Le compte est imprimé : c'est lui que le rapport cite.
@@ -232,7 +232,7 @@ class SidebarLabelsTest {
                     if (!fitBefore) avantCoupe++
 
                     val planAfter = tileLabelPlan(label, measure(scale), widthAfter)
-                    val sizeAfter = OnyxSocle.snap((baseSp * planAfter.fontRatio).sp).value
+                    val sizeAfter = OnyxBase.snap((baseSp * planAfter.fontRatio).sp).value
                     val fitAfter = planAfter.lines.all {
                         measure(scale)(it) * (sizeAfter / baseSp) <= widthAfter + 0.01f
                     }
@@ -275,7 +275,7 @@ class SidebarLabelsTest {
      *  * **avant** — corps 13 sp, rapport plancher 0,78, aucune borne basse : un libellé étroit
      *    descendait à **10,1 sp**, sous le plancher de lisibilité de l'app ;
      *  * **après** — corps 12 sp, même rapport, mais la taille est **ramenée sur l'échelle** et
-     *    jamais sous **11 sp** (`OnyxSocle.snap`). Si un mot ne tient pas à 11 sp, il est **tronqué
+     *    jamais sous **11 sp** (`OnyxBase.snap`). Si un mot ne tient pas à 11 sp, il est **tronqué
      *    avec une ellipse** — indiqué — plutôt que peint à 10 sp : une taille ne se négocie pas.
      *
      * Le compte est imprimé, et c'est lui que le rapport cite.
@@ -302,7 +302,7 @@ class SidebarLabelsTest {
 
                     // APRÈS : corps 12 sp, taille ramenée sur l'échelle, jamais sous 11 sp.
                     val planAfter = tileLabelPlan(label, measure(scale), width)
-                    val sizeAfter = OnyxSocle.snap((baseSp * planAfter.fontRatio).sp).value
+                    val sizeAfter = OnyxBase.snap((baseSp * planAfter.fontRatio).sp).value
                     val fitAfter = planAfter.lines.all {
                         measure(scale)(it) * (sizeAfter / baseSp) <= width + 0.01f
                     }
@@ -342,14 +342,14 @@ class SidebarLabelsTest {
         // coupé au milieu.
         val width = tileLabelWidthIn((309.6f - TileGridInset.value * 2).dp, columns = 2).value
         val plan = tileLabelPlan("Compétences", measure(1.3f), width)
-        val size = OnyxSocle.snap((baseSp * plan.fontRatio).sp).value
+        val size = OnyxBase.snap((baseSp * plan.fontRatio).sp).value
         assertTrue("le mot garde au moins le plancher de 11 sp", size >= 11f)
         assertTrue("et il ne se plie pas en deux : c'est un mot", plan.lines.size == 1)
         val short = tileLabelPlan("Archives", measure(1.3f), width)
         assertEquals(
             "le mot court, lui, tient entier",
             12f,
-            OnyxSocle.snap((baseSp * short.fontRatio).sp).value,
+            OnyxBase.snap((baseSp * short.fontRatio).sp).value,
             0.001f,
         )
     }

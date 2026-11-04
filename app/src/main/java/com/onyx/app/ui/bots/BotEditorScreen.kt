@@ -1,6 +1,6 @@
 package com.onyx.app.ui.bots
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.socleShadow
 
 import com.onyx.app.ui.design.onyxPage
@@ -228,20 +228,20 @@ fun botHandle(title: String): String = title.trim().lowercase().replace(' ', '_'
  *
  * Elle était restée dans l'ancien : une marge d'écran qui n'était pas la marge, des cartes plates
  * sans l'ombre de la famille, des rangées à une hauteur choisie au cas par cas, et des tuiles de
- * modèle à un rayon qui n'appartenait à aucune famille. Elle prend maintenant [OnyxSocle] et rien
+ * modèle à un rayon qui n'appartenait à aucune famille. Elle prend maintenant [OnyxBase] et rien
  * d'autre :
  *
- * - **marge 16** ([OnyxSocle.ScreenMargin]) à gauche comme à droite ;
- * - **espacements 8 / 16** ([OnyxSocle.Tight] dans un groupe, [OnyxSocle.Loose] entre les
+ * - **marge 16** ([OnyxBase.ScreenMargin]) à gauche comme à droite ;
+ * - **espacements 8 / 16** ([OnyxBase.Tight] dans un groupe, [OnyxBase.Loose] entre les
  *   groupes) — plus une seule valeur intermédiaire ;
- * - **rayons 14 / 20 / 28 / capsule** ([OnyxSocle.RadiusField] pour une vignette,
+ * - **rayons 14 / 20 / 28 / capsule** ([OnyxBase.RadiusField] pour une vignette,
  *   `RadiusCard` pour une carte) ;
  * - **trois profondeurs d'ombre enchaînées** ([Modifier.socleShadow] en `ShadowMid` sur chaque
  *   carte — un appelant de plus, donc l'ombre reste dans le binaire) ;
- * - **trait 1,55 dp** ([OnyxSocle.Stroke]) sur le contour des cartes ;
+ * - **trait 1,55 dp** ([OnyxBase.Stroke]) sur le contour des cartes ;
  * - **six corps** 30 / 26 / 16 / 15 / 12 / 11 (`socleDisplayStyle`…`socleMonoStyle`) ;
- * - **cibles ≥ 48 dp** : chaque rangée fait au moins [OnyxSocle.RowHeight] (56), chaque contrôle
- *   au moins [OnyxSocle.TouchTarget] ;
+ * - **cibles ≥ 48 dp** : chaque rangée fait au moins [OnyxBase.RowHeight] (56), chaque contrôle
+ *   au moins [OnyxBase.TouchTarget] ;
  * - **un seul accent par écran** : l'accent du thème porte l'action et les états choisis, et il
  *   n'y en a pas d'autre ;
  * - **monospace pour les identifiants et les nombres** (`socleMonoStyle`) : la poignée du bot,
@@ -318,7 +318,7 @@ fun BotEditorScreen(
     // lot du visage avait ajouté : la suppression d'Idées/Objectifs (demande du propriétaire) retire
     // l'écran, sa route, sa destination, sa clé de dictionnaire **et** toute porte de secours. Le
     // quatrième repère ouvre donc l'identité du bot, sans plus mener à une liste locale disparue.
-    // Voir `SuppressionIdeesObjectifsTest` (verrou qui mord) et `VisagePorteIdentiteTest` (qui nomme
+    // Voir `DeletionIdeasGoalsTest` (verrou qui mord) et `FaceGateIdentityTest` (qui nomme
     // l'arbitrage).
     /** Ce qui a échoué (une suppression refusée par le serveur, une écriture non gardée). */
     problem: String? = null,
@@ -410,7 +410,7 @@ fun BotEditorScreen(
                         style = socleBodyStyle(theme).copy(color = theme.accent),
                         maxLines = 1,
                         modifier = Modifier
-                            .defaultMinSize(minHeight = OnyxSocle.TouchTarget)
+                            .defaultMinSize(minHeight = OnyxBase.TouchTarget)
                             .onyxClickable {
                                 if (isNew) {
                                     val spec = BotTemplateSpec.all.firstOrNull { it.id == template }
@@ -419,7 +419,7 @@ fun BotEditorScreen(
                                     onSave(title, about, bot?.model, shown)
                                 }
                             }
-                            .padding(horizontal = OnyxSocle.Tight, vertical = OnyxSocle.Tight),
+                            .padding(horizontal = OnyxBase.Tight, vertical = OnyxBase.Tight),
                     )
                 },
             )
@@ -429,7 +429,7 @@ fun BotEditorScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = OnyxSocle.Loose),
+                .padding(bottom = OnyxBase.Loose),
         ) {
             // Le visage, en grand, et « Change Face ».
             //
@@ -437,9 +437,9 @@ fun BotEditorScreen(
             // parce qu'elle dit *qui* est ce bot. Le lien qui suit prend l'accent du thème — le
             // seul accent de l'écran (voir la règle dans le commentaire de l'écran).
             Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = OnyxSocle.Loose),
+                modifier = Modifier.fillMaxWidth().padding(vertical = OnyxBase.Loose),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+                verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
             ) {
                 BotLook(
                     name = bot?.name ?: typed.ifEmpty { "new-bot" },
@@ -450,14 +450,14 @@ fun BotEditorScreen(
                     text = "Change Face",
                     style = socleBodyStyle(theme).copy(color = theme.accent),
                     modifier = Modifier
-                        .defaultMinSize(minHeight = OnyxSocle.TouchTarget)
+                        .defaultMinSize(minHeight = OnyxBase.TouchTarget)
                         .onyxClickable {
                             onFaceChosenNamed(
                                 faceCode,
                                 bot?.name ?: title.ifEmpty { "new-bot" },
                             )
                         }
-                        .padding(horizontal = OnyxSocle.Loose, vertical = OnyxSocle.Tight),
+                        .padding(horizontal = OnyxBase.Loose, vertical = OnyxBase.Tight),
                 )
             }
 
@@ -470,8 +470,8 @@ fun BotEditorScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = OnyxSocle.Tight, vertical = OnyxSocle.Tight),
-                        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Loose),
+                            .padding(horizontal = OnyxBase.Tight, vertical = OnyxBase.Tight),
+                        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Loose),
                     ) {
                         TemplateTile(
                             label = "Blank",
@@ -510,7 +510,7 @@ fun BotEditorScreen(
                         "Give it a name with a letter or number in it."
                     },
                 ) {
-                    Row(modifier = Modifier.padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight)) {
+                    Row(modifier = Modifier.padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight)) {
                         OnyxTextField(
                             value = title,
                             onValueChange = { title = it },
@@ -526,9 +526,9 @@ fun BotEditorScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight),
+                                .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+                            horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
                         ) {
                             BasicText(
                                 text = "@" + (bot?.handle ?: botHandle(typed)),
@@ -558,7 +558,7 @@ fun BotEditorScreen(
                 header = "What it does",
                 footer = "Under its name in your chat list, and how the other bots know what to ask it.",
             ) {
-                Row(modifier = Modifier.padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight)) {
+                Row(modifier = Modifier.padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight)) {
                     OnyxTextField(
                         value = about,
                         onValueChange = { about = it },
@@ -770,7 +770,7 @@ private fun toolsCounted(
 
 /**
  * Une section : son intitulé en petites capitales ([socleSectionStyle], 11 sp, ouvertes), sa
- * **carte** ([OnyxSocle.RadiusCard], l'ombre de la famille, le trait de 1,55), puis sa ligne de
+ * **carte** ([OnyxBase.RadiusCard], l'ombre de la famille, le trait de 1,55), puis sa ligne de
  * contexte (12 sp). C'est la forme de toutes les cartes de la page — aucune n'échappe à la
  * famille, et le contour comme l'ombre ne sont écrits qu'ici.
  */
@@ -781,7 +781,7 @@ private fun IdentitySection(
     content: @Composable () -> Unit,
 ) {
     val theme = LocalOnyxTheme.current
-    Column(modifier = Modifier.fillMaxWidth().padding(top = OnyxSocle.Loose)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = OnyxBase.Loose)) {
         header?.let {
             BasicText(
                 // **La majuscule vient APRÈS la traduction.** L'inverser affichait l'en-tête en
@@ -791,27 +791,27 @@ private fun IdentitySection(
                 text = OnyxLocalization.translate(it).uppercase(),
                 style = socleSectionStyle(theme).copy(color = theme.secondaryText),
                 modifier = Modifier.padding(
-                    start = OnyxSocle.ScreenMargin,
-                    end = OnyxSocle.ScreenMargin,
-                    bottom = OnyxSocle.Tight,
+                    start = OnyxBase.ScreenMargin,
+                    end = OnyxBase.ScreenMargin,
+                    bottom = OnyxBase.Tight,
                 ),
             )
         }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = OnyxSocle.ScreenMargin)
+                .padding(horizontal = OnyxBase.ScreenMargin)
                 // **L'ombre en trois profondeurs, posée pour de vrai** : [Modifier.socleShadow]
                 // dessine chaque couche séparément (un `drop-shadow` à deux ombres ne rend rien).
-                .socleShadow(OnyxSocle.ShadowMid, OnyxSocle.RadiusCard, theme.dark)
-                .clip(RoundedCornerShape(OnyxSocle.RadiusCard))
+                .socleShadow(OnyxBase.ShadowMid, OnyxBase.RadiusCard, theme.dark)
+                .clip(RoundedCornerShape(OnyxBase.RadiusCard))
                 .background(OnyxSurfaces.surface(theme))
                 // **Le trait de la maison : 1,55 dp.** Un filet de 1 dp se lit comme un défaut
                 // d'affichage à côté des surfaces de la planche.
                 .border(
-                    OnyxSocle.Stroke,
+                    OnyxBase.Stroke,
                     OnyxSurfaces.hairline(theme),
-                    RoundedCornerShape(OnyxSocle.RadiusCard),
+                    RoundedCornerShape(OnyxBase.RadiusCard),
                 ),
         ) {
             content()
@@ -821,9 +821,9 @@ private fun IdentitySection(
                 text = it,
                 style = socleMetaStyle(theme).copy(color = theme.secondaryText),
                 modifier = Modifier.padding(
-                    start = OnyxSocle.ScreenMargin,
-                    end = OnyxSocle.ScreenMargin,
-                    top = OnyxSocle.Tight,
+                    start = OnyxBase.ScreenMargin,
+                    end = OnyxBase.ScreenMargin,
+                    top = OnyxBase.Tight,
                 ),
             )
         }
@@ -840,10 +840,10 @@ private fun IdentityRow(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.onyxTappable(onClick = onClick) else Modifier)
-            .defaultMinSize(minHeight = OnyxSocle.RowHeight)
-            .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight),
+            .defaultMinSize(minHeight = OnyxBase.RowHeight)
+            .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
         content = content,
     )
 }
@@ -912,11 +912,11 @@ private fun IdentityToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .defaultMinSize(minHeight = OnyxSocle.RowHeight)
+            .defaultMinSize(minHeight = OnyxBase.RowHeight)
             .onyxTappable { onCheckedChange(!checked) }
-            .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight),
+            .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
     ) {
         BasicText(
             text = label,
@@ -934,7 +934,7 @@ private fun IdentityDivider() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = OnyxSocle.ScreenMargin)
+            .padding(horizontal = OnyxBase.ScreenMargin)
             .height(1.dp)
             .background(theme.separator),
     )
@@ -951,7 +951,7 @@ private fun IdentityDivider() {
  * jamais l'icône générique d'un orbe : c'est sa créature, sa forme, sa couleur et son expression.
  * Sous « Réduire les animations », [rememberBotSeconds] ne rend rien et le visage est **figé**.
  *
- * Sa forme est celle de la famille : **le rayon d'un champ** ([OnyxSocle.RadiusField]), l'écart de
+ * Sa forme est celle de la famille : **le rayon d'un champ** ([OnyxBase.RadiusField]), l'écart de
  * la maison (8), et le fond de la tuile retenue à l'accent. C'est le visage qui porte la couleur
  * du modèle — la tuile, elle, ne fait que l'encadrer.
  */
@@ -968,15 +968,15 @@ private fun TemplateTile(
     val held by press.collectIsPressedAsState()
     Column(
         modifier = Modifier
-            .defaultMinSize(minWidth = OnyxSocle.TouchTarget)
+            .defaultMinSize(minWidth = OnyxBase.TouchTarget)
             .background(
                 color = if (selected) theme.accent.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent,
-                shape = RoundedCornerShape(OnyxSocle.RadiusField),
+                shape = RoundedCornerShape(OnyxBase.RadiusField),
             )
             .onyxTappable(onClick = onClick, interaction = press)
-            .padding(OnyxSocle.Tight),
+            .padding(OnyxBase.Tight),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         if (face != null) {
             val seconds = rememberBotSeconds()
@@ -1060,10 +1060,10 @@ fun BotToolsList(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = OnyxSocle.RowHeight)
-                        .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight),
+                        .defaultMinSize(minHeight = OnyxBase.RowHeight)
+                        .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+                    horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         BasicText(toolset.title, localize = true, style = socleTitleStyle(theme).copy(color = theme.textColor))
@@ -1176,10 +1176,10 @@ private fun SkillRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .defaultMinSize(minHeight = OnyxSocle.RowHeight)
-            .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight),
+            .defaultMinSize(minHeight = OnyxBase.RowHeight)
+            .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.IconLabelGap),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.IconLabelGap),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             BasicText(skill.name, localize = false, style = socleTitleStyle(theme).copy(color = theme.textColor))

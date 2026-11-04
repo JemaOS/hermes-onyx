@@ -110,7 +110,7 @@ class AbsentRoutesReachabilityTest {
         assertTrue("une condition de retour explicite", source.contains("val backHandled = routeBackHandled("))
         // Le repli à pile vide passe par **une seule** règle (`repliDeRetour`) : le repli déclaré
         // de la route dans la table des retours, et `rootRouteBehind` en dernier recours — la même
-        // cible que la flèche de la page (voir `FlecheInterneVerrouTest`).
+        // cible que la flèche de la page (voir `ArrowInnerLockTest`).
         assertTrue(
             "le retour remonte au lieu de ne rien faire",
             source.contains("if (!navBack()) {") && source.contains("navTo(repliDeRetour())"),

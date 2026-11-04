@@ -55,7 +55,7 @@ import com.onyx.app.ui.design.FrostSurface
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxRowDivider
 import com.onyx.app.ui.design.LocalReduceMotion
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSurfaces
 import com.onyx.app.ui.design.sheetSurface
 import com.onyx.app.ui.design.Symbols
@@ -134,9 +134,9 @@ fun ConversationActionSheet(
                         .fillMaxWidth()
                         .offset { IntOffset(0, drag.roundToInt()) }
                         // **L'ombre de la maison**, posée pour de vrai : la feuille se détache du contenu
-                        // qu'elle recouvre par la même profondeur que le gabarit ([OnyxSocle.ShadowFar]),
+                        // qu'elle recouvre par la même profondeur que le gabarit ([OnyxBase.ShadowFar]),
                         // jamais par un aplat qui se confond avec la page.
-                        .socleShadow(OnyxSocle.ShadowFar, ConvSheetCorner, theme.dark)
+                        .socleShadow(OnyxBase.ShadowFar, ConvSheetCorner, theme.dark)
                         .clip(ConvSheetShape)
                         // **La surface de la maison** ([sheetSurface], une seule source pour toutes
                         // les feuilles) : le barreau des surfaces qui flottent, **écarté de la page**
@@ -527,8 +527,8 @@ data class ConversationUndo(val message: String, val undo: () -> Unit)
  *
  *  - **verre** de la famille des bandeaux ([FrostSurface.BANNER] : un flou court, une ombre douce)
  *    et la finition commune de vitre ([frostedSheet] : lumière de tête, liseré, reflet de tranche) ;
- *  - **rayon 28** ([OnyxSocle.RadiusPanel] — le rayon des panneaux de la maison) ;
- *  - **posée à 16 de la marge** ([OnyxSocle.ScreenMargin]) : jamais collée au bord ;
+ *  - **rayon 28** ([OnyxBase.RadiusPanel] — le rayon des panneaux de la maison) ;
+ *  - **posée à 16 de la marge** ([OnyxBase.ScreenMargin]) : jamais collée au bord ;
  *  - **au-dessus de la plaque du bas** : c'est **l'appelant** qui pose le dégagement (la hauteur
  *    mesurée de la plaque plus la marche de la maison) — la pastille ne connaît pas la plaque, mais
  *    elle n'a **jamais** le droit de la recouvrir ;
@@ -558,7 +558,7 @@ fun ConversationUndoBar(
     }
 
     // La forme et la matière de la pastille : le rayon des panneaux, le barreau haut, la vitre.
-    val shape = RoundedCornerShape(OnyxSocle.RadiusPanel)
+    val shape = RoundedCornerShape(OnyxBase.RadiusPanel)
     val fill = OnyxSurfaces.surfaceHigh(theme)
 
     AnimatedVisibility(
@@ -576,10 +576,10 @@ fun ConversationUndoBar(
                 .fillMaxWidth()
                 // **La marge de la maison** : 16 de chaque côté — la pastille n'est jamais collée au
                 // bord du volet.
-                .padding(horizontal = OnyxSocle.ScreenMargin)
+                .padding(horizontal = OnyxBase.ScreenMargin)
                 .clip(shape)
                 .background(fill, shape)
-                .padding(start = OnyxSocle.CardPadding, end = OnyxSpace.Half)
+                .padding(start = OnyxBase.CardPadding, end = OnyxSpace.Half)
                 .heightIn(min = UNDO_TARGET),
             verticalAlignment = Alignment.CenterVertically,
         ) {

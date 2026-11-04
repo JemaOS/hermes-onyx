@@ -30,7 +30,7 @@ class SegmentedFitTest {
         assertTrue("le libellé doit tenir", 5.2f * size <= 74f)
         listOf(40f, 52f, 60f, 74f, 90f, 120f, 200f).forEach { available ->
             val s = SegmentedFit.fontSize(available) { it * 4.7f }
-            assertTrue(s.toString() + " sp hors échelle", OnyxSocle.isOnScale(s.sp))
+            assertTrue(s.toString() + " sp hors échelle", OnyxBase.isOnScale(s.sp))
             assertTrue(s.toString() + " sp sous le plancher", s >= SegmentedFit.FLOOR_SP)
         }
     }

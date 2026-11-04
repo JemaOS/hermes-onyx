@@ -120,12 +120,12 @@ class ComposerFieldTest {
     // de la poignée (`TabBarHandle`) ont été **retirées** avec le bouton qu'elles commandaient, sur
     // l'ordre du propriétaire (« supprime le bouton pour la possibilité de cacher »). La garantie
     // n'est donc plus un comportement mais une **absence**, et elle se lit dans les sources : c'est
-    // ce que verrouille `RetraitPoigneeChevronTest` (module `app`, où les fichiers sont lisibles).
+    // ce que verrouille `RemovalHandleChevronTest` (module `app`, où les fichiers sont lisibles).
     //
     // Ce qui restait du masquage était l'effacement **au défilement** de la pile entière. Il a été
     // **retiré** sur l'ordre du propriétaire (« ça ne doit JAMAIS disparaître quand je défile ») :
     // il n'y a donc plus de règle de pile à éprouver ici, et la garantie est une **absence** —
-    // verrouillée par `PlaquePerpetuelleTest` (module `app`). Ce qui survit du mouvement, c'est la
+    // verrouillée par `PlatePerpetualTest` (module `app`). Ce qui survit du mouvement, c'est la
     // seule décision du bouton flottant ([ComposerStacking.fadeSpec]).
 
     @Test

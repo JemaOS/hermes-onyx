@@ -27,8 +27,8 @@ class ComposerGrowthTest {
 
     @Test
     fun `au repos le champ reserve trois lignes`() {
-        assertEquals("la rangée minimale de la planche reste 64 dp", 64.dp, PlaqueGeometry.FieldRowHeight)
-        assertEquals("la cible de la planche : 140 dp", 140.dp, PlaqueGeometry.Height)
+        assertEquals("la rangée minimale de la planche reste 64 dp", 64.dp, PlateGeometry.FieldRowHeight)
+        assertEquals("la cible de la planche : 140 dp", 140.dp, PlateGeometry.Height)
         // **En grand de base** : le champ montre trois lignes dès qu'il est vide.
         val repos = ComposerGrowth.RestLines * lineDp + ComposerGrowth.VerticalPaddingDp
         assertEquals("trois lignes + le rembourrage", repos, ComposerGrowth.fieldRowHeightDp(1, lineDp), 0.001f)

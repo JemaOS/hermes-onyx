@@ -30,7 +30,7 @@ import com.onyx.app.data.model.Transport
  *    ([com.onyx.app.data.model.ServerConfig.effectiveProfile]) ;
  * 3. **le défaut** — `default`.
  *
- * `BotProfileBindingVerrouTest` échoue si le profil **affiché** ([inForce]) diffère du profil
+ * `BotProfileBindingLockTest` échoue si le profil **affiché** ([inForce]) diffère du profil
  * **appliqué** ([appliedTo]) — les deux lisent la même décision, donc ils ne peuvent pas diverger.
  */
 object ProfileInForce {

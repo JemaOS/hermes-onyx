@@ -62,7 +62,7 @@ import com.onyx.app.ui.design.FileThumbnailView
 import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxMenu
 import com.onyx.app.ui.design.MenuItem
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.socleShadow
 import com.onyx.app.ui.design.socleTitleStyle
 import com.onyx.app.ui.design.socleMetaStyle
@@ -170,13 +170,13 @@ fun ChatFilesPane(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(
-                    start = OnyxSocle.ScreenMargin,
-                    end = OnyxSocle.ScreenMargin,
-                    top = OnyxSocle.Tight,
-                    bottom = OnyxSocle.Loose,
+                    start = OnyxBase.ScreenMargin,
+                    end = OnyxBase.ScreenMargin,
+                    top = OnyxBase.Tight,
+                    bottom = OnyxBase.Loose,
                 ),
-                horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Loose),
-                verticalArrangement = Arrangement.spacedBy(OnyxSocle.Loose),
+                horizontalArrangement = Arrangement.spacedBy(OnyxBase.Loose),
+                verticalArrangement = Arrangement.spacedBy(OnyxBase.Loose),
             ) {
                 items(items = visible, key = { it.path }) { file ->
                     val availability = controller.state(file.path)
@@ -237,11 +237,11 @@ fun ChatFilesPane(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight)
+                    .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight)
                     .background(theme.fill, RoundedCornerShape(50))
-                    .padding(horizontal = OnyxSocle.Loose, vertical = OnyxSocle.Tight),
+                    .padding(horizontal = OnyxBase.Loose, vertical = OnyxBase.Tight),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+                horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
             ) {
                 BasicText(
                     text = message,
@@ -339,8 +339,8 @@ private fun FilesFilterRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight),
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight / 2),
+            .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight / 2),
     ) {
         FileFamily.entries.filter { it.isFilter }.forEach { family ->
             val active = family == selected
@@ -351,11 +351,11 @@ private fun FilesFilterRow(
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp)
-                    .clip(RoundedCornerShape(OnyxSocle.RadiusField))
+                    .clip(RoundedCornerShape(OnyxBase.RadiusField))
                     .background(if (active) theme.accent else Color.Transparent)
                     .semantics { contentDescription = full }
                     .onyxTappable { onSelect(family) }
-                    .padding(vertical = OnyxSocle.Tight),
+                    .padding(vertical = OnyxBase.Tight),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -391,7 +391,7 @@ private fun FilesSortBar(shown: Int, total: Int, sort: FileSort, onOpen: () -> U
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = OnyxSocle.ScreenMargin, end = OnyxSocle.ScreenMargin, bottom = OnyxSocle.Tight),
+            .padding(start = OnyxBase.ScreenMargin, end = OnyxBase.ScreenMargin, bottom = OnyxBase.Tight),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -407,9 +407,9 @@ private fun FilesSortBar(shown: Int, total: Int, sort: FileSort, onOpen: () -> U
                 .clip(RoundedCornerShape(50))
                 .background(theme.fill)
                 .onyxTappable { onOpen() }
-                .padding(horizontal = OnyxSocle.Loose),
+                .padding(horizontal = OnyxBase.Loose),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+            horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
         ) {
             OnyxIcon(symbol = Symbols.ArrowUpArrowDown, tint = theme.secondaryText, size = 13.dp, contentDescription = "Sort")
             BasicText(
@@ -446,12 +446,12 @@ private fun ConversationFileCard(
     // rayon 20, ombre en deux couches — et **non** une vignette posée à même la page. C'est la
     // même famille que la carte de bot et la carte de conversation : une seule surface de carte
     // dans tout l'écran, avec son ombre **rendue** (`socleShadow`).
-    val shape = RoundedCornerShape(OnyxSocle.RadiusCard)
+    val shape = RoundedCornerShape(OnyxBase.RadiusCard)
     val ground = theme.formSurfaceColor
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .socleShadow(OnyxSocle.ShadowNear, OnyxSocle.RadiusCard, theme.dark)
+            .socleShadow(OnyxBase.ShadowNear, OnyxBase.RadiusCard, theme.dark)
             .clip(shape)
             .background(ground)
             .onyxTappable(onLongPress = onLongPress, onClick = onOpen),
@@ -468,7 +468,7 @@ private fun ConversationFileCard(
         Column(
             // `.fbody{padding:12px 14px 0}` — le corps de la carte (hcss.py:218).
             modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(OnyxSocle.Tight / 2),
+            verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight / 2),
         ) {
             BasicText(
                 text = file.name,
@@ -591,11 +591,11 @@ private fun FilesTrouble(problem: String, onRetry: (() -> Unit)?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = OnyxSocle.ScreenMargin, vertical = OnyxSocle.Tight)
-            .background(theme.surfaceColor, RoundedCornerShape(OnyxSocle.RadiusCard))
-            .padding(horizontal = OnyxSocle.Loose, vertical = OnyxSocle.Tight),
+            .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxBase.Tight)
+            .background(theme.surfaceColor, RoundedCornerShape(OnyxBase.RadiusCard))
+            .padding(horizontal = OnyxBase.Loose, vertical = OnyxBase.Tight),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         OnyxIcon(symbol = Symbols.ExclamationTriangle, tint = theme.warning, size = 16.dp, contentDescription = null)
         BasicText(
@@ -648,9 +648,9 @@ private fun FilesEmpty(title: String, detail: String?, modifier: Modifier = Modi
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = OnyxSocle.Loose + OnyxSocle.Tight, vertical = OnyxSocle.Loose),
+            .padding(horizontal = OnyxBase.Loose + OnyxBase.Tight, vertical = OnyxBase.Loose),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(OnyxSocle.Tight),
+        verticalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
         BasicText(
             text = title,

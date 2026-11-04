@@ -294,7 +294,7 @@ class IdentityMarkLockTest {
         assertTrue("le diamètre n'est plus une constante de la maison", mark.contains("val Diameter: Dp = 32.dp"))
         assertTrue("l'épaisseur du trait n'est plus une constante", mark.contains("val StrokeWidth: Dp = 1.dp"))
         assertTrue("le diamètre du visage n'est plus dérivé du disque et du trait", mark.contains("val Face: Dp get() = Diameter - StrokeWidth * 4"))
-        assertTrue("l'écart au bord n'est plus la marche de la maison", mark.contains("val Inset: Dp = OnyxSocle.Tight"))
+        assertTrue("l'écart au bord n'est plus la marche de la maison", mark.contains("val Inset: Dp = OnyxBase.Tight"))
         assertTrue("le rayon de coin n'est plus dérivé du diamètre", mark.contains("fun CornerOf(diameter: Dp): Dp = diameter / 2"))
         assertTrue(
             "la géométrie de la maison ne tient plus : disque, rayon, trait ou glyphe hors des bornes",

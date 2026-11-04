@@ -1,6 +1,6 @@
 package com.onyx.app.ui.insights
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 
 import androidx.compose.foundation.background
@@ -232,9 +232,9 @@ private fun CostHeadline(totals: UsageTotals) {
             // L'auto-ajustement ne sort pas de l'échelle : deux crans, 26 et 30, pas un continuum
             // de 24 à 44 (qui produisait 31,2 / 37,5 / 41 — quatre corps de plus).
             autoSize = TextAutoSize.StepBased(
-                minFontSize = OnyxSocle.Heading,
-                maxFontSize = OnyxSocle.Display,
-                stepSize = (OnyxSocle.Display.value - OnyxSocle.Heading.value).sp,
+                minFontSize = OnyxBase.Heading,
+                maxFontSize = OnyxBase.Display,
+                stepSize = (OnyxBase.Display.value - OnyxBase.Heading.value).sp,
             ),
         )
         BasicText(

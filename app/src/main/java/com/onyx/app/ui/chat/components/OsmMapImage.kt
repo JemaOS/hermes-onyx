@@ -1,6 +1,6 @@
 package com.onyx.app.ui.chat.components
 
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.OnyxSpace
 
 import android.graphics.BitmapFactory
@@ -215,7 +215,7 @@ fun OsmStaticMap(
             // L'attribution : obligatoire, jamais omise, même sur une carte à moitié chargée.
             val label = measurer.measure(
                 text = OsmTiles.attribution,
-                style = TextStyle(fontSize = OnyxSocle.Micro, color = theme.tertiaryText),
+                style = TextStyle(fontSize = OnyxBase.Micro, color = theme.tertiaryText),
             )
             if (tiles.isNotEmpty()) {
                 val pad = 3.dp.toPx()

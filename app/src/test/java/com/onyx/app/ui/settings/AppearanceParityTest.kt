@@ -63,7 +63,7 @@ class AppearanceParityTest {
         // `mipmap-anydpi-v26/ic_launcher_<variante>.xml` est une **icône adaptative**
         // (`<adaptive-icon>`), type que `painterResource` refuse — c'est ce qui **fermait
         // l'application** à l'ouverture de Réglages → Apparence. Le verrou d'ouverture complet est
-        // `ReglagesOuvertureVerrouTest` ; cette ligne-ci re-pointe le verrou de parité de la page.
+        // `SettingsOpeningLockTest` ; cette ligne-ci re-pointe le verrou de parité de la page.
         assertFalse(
             "painterResource ne décode pas une icône adaptative : la page Apparence se fermerait",
             source.contains("painterResource("),

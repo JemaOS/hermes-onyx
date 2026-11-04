@@ -101,7 +101,7 @@ object OnyxBrand {
     const val CENTER: Float = 54f
 
     /** Le côté du carré que la marque occupe : le disque l'occupe en entier. */
-    val Side: Dp = OnyxSocle.ThumbnailSize
+    val Side: Dp = OnyxBase.ThumbnailSize
 
     // =============================================================================================
     // Le dessin — pur Compose, sans aucune couleur de thème

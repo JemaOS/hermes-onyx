@@ -190,7 +190,7 @@ class ComposerFieldWhiteBandTest {
         assertTrue(
             "la plaque peint sa vitre, masquante (masking = true)",
             stack.contains(
-                "liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlaqueGeometry.Radius), masking = true)",
+                "liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true)",
             ),
         )
         assertFalse(

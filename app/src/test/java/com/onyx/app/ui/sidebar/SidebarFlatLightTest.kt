@@ -242,7 +242,7 @@ class SidebarFlatLightTest {
         // Les tuiles : toutes, avec leur écran. C'est la promesse « rien n'est retiré » — le groupe
         // de la référence (6, Inbox écarté) puis le groupe « Onyx » (4), donc **10** au total (n° 5).
         // Le passage de 11 à 10 est le **retrait du doublon** « Compétences » : « Capacités » porte
-        // déjà cette famille, et l'éditeur y a été versé (`CapabilitiesDoublonRetireTest`).
+        // déjà cette famille, et l'éditeur y a été versé (`CapabilitiesDuplicateRemovedTest`).
         assertEquals("le nombre de tuiles a changé", 10, SidebarDestinations.tiles.size)
         SidebarDestinations.tiles.forEach { tile ->
             assertTrue(

@@ -3,7 +3,7 @@ package com.onyx.app.ui.theme
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -57,7 +57,7 @@ class OnyxTypographyTest {
         ).forEach { style ->
             assertTrue(
                 "le style porte " + style.fontSize.value + " sp, hors échelle",
-                OnyxSocle.isOnScale(style.fontSize),
+                OnyxBase.isOnScale(style.fontSize),
             )
         }
     }

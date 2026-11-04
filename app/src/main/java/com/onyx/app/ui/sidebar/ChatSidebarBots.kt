@@ -47,7 +47,7 @@ import com.onyx.app.ui.design.SectionAction
 import com.onyx.app.ui.design.SectionActionButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
-import com.onyx.app.ui.design.OnyxSocle
+import com.onyx.app.ui.design.OnyxBase
 import com.onyx.app.ui.design.socleShadow
 import com.onyx.app.ui.design.socleTitleStyle
 import com.onyx.app.ui.design.socleMetaStyle
@@ -247,7 +247,7 @@ internal object BotsGrid {
      * Le rayon d'une carte — **celui de la planche**. Le générateur donne `R_CARD = 20` à la
      * carte (`hlib.py:330`, `R_CARD, R_TILE, R_PLAQUE = 20, 14, 28`) et les cartes de bot sont
      * bâties sur `.card` (`hlib.py:557`, `box(…, R_CARD, 'solid botc', …)`) : c'est le rayon
-     * `RadiusCard` du socle (`OnyxSocle.RadiusCard`), pas un 14 de tuile.
+     * `RadiusCard` du socle (`OnyxBase.RadiusCard`), pas un 14 de tuile.
      */
     const val CardRadiusDp = 20
 
@@ -360,7 +360,7 @@ private fun BotCard(
     val captionStyle = socleMetaStyle(theme).copy(color = mutedInk(cardGround))
     // L'âge : la donnée chiffrée, en monospace, au plancher de la planche (`.botage`, 10 px,
     // `hcss.py:170`) — comme la durée d'une carte de conversation.
-    val ageStyle = socleMonoStyle(theme).copy(fontSize = OnyxSocle.Micro, color = mutedInk(cardGround))
+    val ageStyle = socleMonoStyle(theme).copy(fontSize = OnyxBase.Micro, color = mutedInk(cardGround))
     val nameLine = lineHeightDp(nameStyle, density)
     val captionLine = lineHeightDp(captionStyle, density)
     val ageLine = lineHeightDp(ageStyle, density)
@@ -405,7 +405,7 @@ private fun BotCard(
             // le binaire (sans appelant, R8 la retire et la carte reste plate). `ShadowNear` est
             // la profondeur d'un contrôle serré, celle de la carte de bot (`hlib.py:563`,
             // `sh='sh1'`).
-            .socleShadow(OnyxSocle.ShadowNear, OnyxSocle.RadiusCard, theme.dark)
+            .socleShadow(OnyxBase.ShadowNear, OnyxBase.RadiusCard, theme.dark)
             .clip(shape)
             .background(cardGround)
             .onyxTappable(
@@ -669,7 +669,7 @@ private fun SectionHeader(title: String, top: Dp, action: @Composable () -> Unit
             // suivant : le « + » touchait le contenu, et l'horodatage d'un salon passait juste sous
             // lui. La maison met [SectionAction.Gap] entre un intitulé et ce qu'il annonce — le
             // même pas que le bas de l'intitulé « CONVERSATIONS ».
-            .padding(start = OnyxSocle.ScreenMargin, top = top, bottom = SectionAction.Gap),
+            .padding(start = OnyxBase.ScreenMargin, top = top, bottom = SectionAction.Gap),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

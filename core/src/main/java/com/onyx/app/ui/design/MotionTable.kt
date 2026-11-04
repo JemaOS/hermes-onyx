@@ -71,7 +71,7 @@ object MotionTable {
     private const val COMPOSER = "app/src/main/java/com/onyx/app/ui/chat/components/OnyxComposer.kt"
     private const val FOLLOW_UP = "app/src/main/java/com/onyx/app/ui/chat/components/FollowUpChips.kt"
     private const val CHAT_SCREEN = "app/src/main/java/com/onyx/app/ui/chat/ChatScreen.kt"
-    private const val GALERIE = "core/src/main/java/com/onyx/app/ui/design/Galerie.kt"
+    private const val GALERIE = "core/src/main/java/com/onyx/app/ui/design/Gallery.kt"
     private const val ARRIVAL = "app/src/main/java/com/onyx/app/ui/common/MessageArrival.kt"
     private const val TYPED_TITLE = "app/src/main/java/com/onyx/app/ui/common/TypedTitle.kt"
 
@@ -451,7 +451,7 @@ object MotionTable {
                 "(BotIdle : clignement 170 ms, regard 760, souffle 2600, micro-sourire 1200, " +
                 "hochement 900) séparés par 4 à 9 s d'immobilité — donc aucune image demandée entre " +
                 "deux pouls, et sous « Réduire les animations » **aucune boucle n'est montée** " +
-                "(le visage reste à sa pose de repos, comme `Fluide.Level.FIGE`). Le clignement propre " +
+                "(le visage reste à sa pose de repos, comme `Fluid.Level.FIGE`). Le clignement propre " +
                 "de BotAvatar est éteint (`blinks = false`) : une seule source donne l'instant.",
         ),
     )
