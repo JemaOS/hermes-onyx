@@ -355,28 +355,40 @@ private fun LedgerRowView(row: LedgerRow) {
     val ground = theme.formSurfaceColor
     Column(modifier = Modifier.fillMaxWidth()) {
         OnyxRow {
+            // **L'étiquette prend ce qu'elle demande, la valeur prend le reste.**
+            //
+            // C'était l'inverse : l'étiquette portait `weight(1f)` — elle absorbait donc la place
+            // laissée par la valeur — et la valeur, elle, se mesurait **sans borne**. Un
+            // identifiant de modèle long occupait toute la rangée, ne laissait rien à l'étiquette,
+            // et « Modèle » se dessinait **une lettre par ligne** (le défaut encadré). Une
+            // étiquette ne se coupe pas : c'est la valeur qui s'élide, et elle est bornée pour ça.
             BasicText(
                 text = row.label,
                 style = theme.body.copy(color = ledgerLabelInk(theme, ground)),
-                modifier = Modifier.weight(1f),
             )
-            if (row.label == "Model" && !row.absent) {
-                // Un identifiant de modèle se rend comme tel : jamais coupé au milieu d'un mot.
-                IdentifierText(
-                    text = row.value,
-                    style = theme.body.copy(color = ledgerValueInk(theme, ground, absent = false)),
-                    maxLines = 1,
-                )
-            } else {
-                BasicText(
-                    text = row.value,
-                    localize = false,
-                    style = theme.body.copy(
-                        color = ledgerValueInk(theme, ground, absent = row.absent),
-                        fontFamily = if (row.monospace) FontFamily.Monospace else FontFamily.Default,
-                        fontWeight = if (row.absent) FontWeight.Normal else FontWeight.Medium,
-                    ),
-                )
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                if (row.label == "Model" && !row.absent) {
+                    // Un identifiant de modèle se rend comme tel : jamais coupé au milieu d'un mot.
+                    IdentifierText(
+                        text = row.value,
+                        style = theme.body.copy(color = ledgerValueInk(theme, ground, absent = false)),
+                        maxLines = 1,
+                    )
+                } else {
+                    BasicText(
+                        text = row.value,
+                        localize = false,
+                        maxLines = 1,
+                        style = theme.body.copy(
+                            color = ledgerValueInk(theme, ground, absent = row.absent),
+                            fontFamily = if (row.monospace) FontFamily.Monospace else FontFamily.Default,
+                            fontWeight = if (row.absent) FontWeight.Normal else FontWeight.Medium,
+                        ),
+                    )
+                }
             }
         }
         row.note?.let { note ->
