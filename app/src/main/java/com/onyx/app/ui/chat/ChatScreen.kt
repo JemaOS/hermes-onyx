@@ -1541,6 +1541,12 @@ fun ChatScreen(
             // place, à chaque position de défilement. La hauteur mesurée des deux morceaux
             // (`composerHeightPx`, `tabBarHeightPx`) reste la même, donc la réserve du fil ne bouge
             // pas — et rien ne peut plus faire disparaître la plaque.
+            // **La pile du bas ne porte que la plaque.** La carte de prise en main n'est ni ici
+            // ni dans le champ : elle est une **ligne du fil** (`item(key = "browser-invite")`),
+            // et c'est le seul endroit juste — posée au-dessus du prompt, elle recouvrait la
+            // première ligne du champ (« Guider la réponse… » passait dessous), et posée dedans
+            // elle faisait la même chose une ligne plus bas. Une invitation à prendre la main est
+            // un contenu de la conversation : elle défile avec le fil.
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -1594,24 +1600,13 @@ fun ChatScreen(
             // prise en main, puis le champ. `composerHeightPx` mesure **les deux** (voir plus
             // bas) : c'est ce qui garde la réserve du fil au-dessus de la plaque quand la bande
             // paraît, au lieu de laisser la plaque recouvrir les dernières bulles.
-            // **La prise en main se voit aussi sans le fil** — et elle se voit **ici**, dans le
-            // puits du prompt. La carte du message n'existe plus : posée en bas du fil, elle
-            // coupait les dernières bulles, et le propriétaire a demandé qu'elle s'affiche « à
-            // l'endroit du prompt ». Cette bande lit l'état du plugin (`onyx-browser/health`),
-            // donc elle couvre aussi le cas où l'agent travaille dans une autre session.
-            //
-            // **Elle est mesurée avec le champ, dans le même bloc.** `composerHeightPx` alimente la
-            // réserve du fil (`threadBottomReserve`) et la place de la pilule « aller au dernier
-            // message » : quand la bande apparaissait, elle grandissait la plaque **sans** que la
-            // réserve suive, et la plaque recouvrait la fin de la conversation — exactement ce que
-            // la capture montrait. Mesurer les deux ensemble garde la réserve au-dessus de la pile.
-            Column(
-                modifier = Modifier.onSizeChanged { composerHeightPx = it.height },
+            // Le champ, mesuré seul : la carte de prise en main est une ligne du fil, donc la
+            // plaque n'a plus qu'un contenu — `composerHeightPx` est sa hauteur, et la réserve du
+            // fil (`threadBottomReserve`) plus la pilule « aller au dernier message » en dérivent.
+            Box(
+                modifier = Modifier.onSizeChanged { composerHeightPx = it.height }
+                    .onGloballyPositioned { composerWeldRect = it.boundsInParent() },
             ) {
-                Box(
-                    modifier = Modifier
-                        .onGloballyPositioned { composerWeldRect = it.boundsInParent() },
-                ) {
                 OnyxComposer(
                 draft = state.input,
                 onDraftChange = onInputChange,
@@ -1657,7 +1652,6 @@ fun ChatScreen(
                 // il ne peint plus sa propre carte, la plaque s'en charge.
                 plate = true,
             )
-                }
             }
 
             // **La barre des onglets, toujours là.** L'ordre est **compositeur puis barre** : le

@@ -2,11 +2,10 @@ package com.onyx.app.ui
 
 import androidx.compose.runtime.Immutable
 import com.onyx.app.data.model.ApprovalRequest
-import com.onyx.app.data.model.ChatMessage
-import com.onyx.app.data.model.Role
 import com.onyx.app.data.model.SubagentActivity
 import com.onyx.app.ui.chat.ChatUiState
 import com.onyx.app.ui.design.FallbackDeclaration
+import com.onyx.app.ui.chat.SettledScans
 import com.onyx.app.ui.voice.VoiceTurn
 import com.onyx.app.notifications.PendingQuestion
 import com.onyx.app.notifications.pendingQuestionsOf
@@ -70,9 +69,26 @@ data class ShellState(
 
         /** Projette l'état du chat en ce que la coquille en lit. Pur, donc mesurable sans appareil. */
         fun of(ui: ChatUiState): ShellState {
-            // Le fil **posé** : les messages finis, dans l'ordre. Pendant un tour, la réponse en
-            // cours s'écrit — elle n'entre pas ici avant sa fin.
-            val settled = ui.messages.filterNot { it.isStreaming }
+            val messages = ui.messages
+            // La frontière des messages **finis** : pendant un tour, la dernière ligne s'écrit et
+            // n'entre pas encore dans un historique.
+            val settledCount = if (ui.isStreaming) (messages.size - 1).coerceAtLeast(0) else messages.size
+
+            // Les approbations en attente, en **une** passe sans allocation intermédiaire. Elles ne
+            // se cachent pas : une approbation peut naître **pendant** le tour, sur la ligne qui
+            // s'écrit, et une carte qui attend une décision ne doit jamais attendre un jeton de plus.
+            val approvals = ArrayList<ApprovalRequest>()
+            for (index in messages.indices) {
+                val pending = messages[index].approvals
+                if (pending.isEmpty()) continue
+                for (approval in pending) if (approval.isPending) approvals.add(approval)
+            }
+
+            // Ce qui ne dépend que du fil fini (première question, historique vocal) est **calculé
+            // une fois par forme du fil**, pas à chaque jeton : c'est ce que grandissait avec
+            // l'historique. Voir [SettledScans].
+            val settled = SettledScans.of(messages, settledCount)
+
             return ShellState(
                 server = ui.server,
                 conversationId = ui.conversationId,
@@ -83,42 +99,13 @@ data class ShellState(
                 modelInForce = ui.modelInForce,
                 fallback = ui.fallback,
                 subagents = ui.subagents,
-                messagesSize = ui.messages.size,
-                pendingApprovals = ui.messages.flatMap { it.approvals }.filter { it.isPending },
-                pendingQuestions = pendingQuestionsOf(ui.messages),
-                firstUserQuestion = ui.messages.firstOrNull { it.role == Role.USER }?.text,
-                voiceTurns = voiceTurnsOf(settled),
+                messagesSize = messages.size,
+                pendingApprovals = approvals,
+                pendingQuestions = pendingQuestionsOf(messages),
+                firstUserQuestion = settled.firstUserQuestion,
+                voiceTurns = settled.voiceTurns,
             )
         }
 
-        /**
-         * Chaque question du fil, suivie de la première réponse **finie** qui vient après elle.
-         *
-         * **Un seul passage, à rebours.** La version d'avant, pour chaque question, refaisait un
-         * `subList` + `firstOrNull` sur tout ce qui la suivait : c'était un balayage **quadratique**
-         * (deux mille messages = quatre millions de comparaisons) refait à chaque publication de
-         * texte, puisque la projection est recalculée à chaque jeton. À rebours, on garde la
-         * première réponse rencontrée et chaque question la lit : même résultat, un seul passage.
-         *
-         * La règle est celle de la référence : la réponse d'une question est la **première** ligne
-         * d'assistant qui la suit ; si cette ligne est vide, la question n'a pas de tour (on ne
-         * saute pas à la suivante).
-         */
-        private fun voiceTurnsOf(messages: List<ChatMessage>): List<VoiceTurn> {
-            val turns = ArrayList<VoiceTurn>()
-            var next: ChatMessage? = null
-            for (index in messages.indices.reversed()) {
-                val message = messages[index]
-                if (message.role == Role.ASSISTANT) {
-                    next = message
-                    continue
-                }
-                if (message.role != Role.USER) continue
-                val answer = next?.text?.takeIf { it.isNotBlank() } ?: continue
-                turns.add(VoiceTurn(question = message.text, answer = answer))
-            }
-            // Le parcours est à rebours : la liste se remet dans l'ordre du fil.
-            return turns.asReversed()
-        }
     }
 }

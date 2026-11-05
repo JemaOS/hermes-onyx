@@ -111,14 +111,20 @@ data class ChatScreenState(
         fun of(ui: ChatUiState): ChatScreenState {
             val messages = ui.messages
             val settled = if (ui.isStreaming) (messages.size - 1).coerceAtLeast(0) else messages.size
+            // Les approbations seules sont balayées par publication : une carte qui attend une
+            // décision peut naître **pendant** le tour, sur la ligne qui s'écrit, et doit paraître
+            // sans attendre un changement de forme. Le compte des questions, lui, ne bouge pas
+            // d'un jeton à l'autre : il vient de la projection du fil fini ([SettledScans]), pas
+            // d'un second balayage de tout l'historique à chaque publication de texte.
             var approvals = 0
-            var users = 0
             for (message in messages) {
-                if (message.approvals.isNotEmpty()) {
-                    for (approval in message.approvals) if (approval.isPending) approvals++
-                }
-                if (message.role == com.onyx.app.data.model.Role.USER) users++
+                val pending = message.approvals
+                if (pending.isEmpty()) continue
+                for (approval in pending) if (approval.isPending) approvals++
             }
+            val scans = com.onyx.app.ui.chat.SettledScans.of(messages, settled)
+            val users = scans.userTurns + if (ui.isStreaming && messages.lastOrNull()
+                    ?.role == com.onyx.app.data.model.Role.USER) 1 else 0
             return ChatScreenState(
                 server = ui.server,
                 conversationId = ui.conversationId,
@@ -160,7 +166,7 @@ data class ChatScreenState(
                 hasLivePhase = ui.live != null,
                 liveStreaming = ui.live?.isStreaming == true,
                 liveStep = ui.live?.step,
-                firstUserQuestion = messages.firstOrNull { it.role == com.onyx.app.data.model.Role.USER }?.text,
+                firstUserQuestion = scans.firstUserQuestion,
                 hasUserTurn = users > 0,
                 userTurnCount = users,
                 settledCount = settled,
