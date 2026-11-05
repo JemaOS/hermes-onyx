@@ -275,8 +275,20 @@ class ChatViewModel(
             // serveur change, pas quand un réglage d'affichage bouge.
             var importedFor: String? = null
             servers.activeServer.collect { server ->
-                if (!server.hasServeCredentials) return@collect
-                if (importedFor == server.configSignature) return@collect
+                // **Marqueurs de diagnostic — à retirer une fois la cause trouvée.**
+                //
+                // Deux correctifs sont restés sans effet visible sans qu'on puisse dire pourquoi :
+                // l'import ne publiait rien du tout. Ces trois lignes lèvent l'ambiguïté à distance.
+                _importNote.value = "DIAG import: task started"
+                if (!server.hasServeCredentials) {
+                    _importNote.value = "DIAG import: server has no Dashboard address"
+                    return@collect
+                }
+                if (importedFor == server.configSignature) {
+                    _importNote.value = "DIAG import: already done for this server"
+                    return@collect
+                }
+                _importNote.value = "DIAG import: reading ${server.serveBase}"
                 // **Un import qui échoue ne se marque pas comme fait.**
                 //
                 // C'était le défaut de la réinstallation : la marque était posée même quand la
