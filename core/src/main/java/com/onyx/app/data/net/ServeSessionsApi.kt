@@ -261,6 +261,22 @@ class ServeSessionsApi(private val client: ServeClient) {
         return payload.toString().take(300)
     }
 
+    /**
+     * **Où les lignes se perdent** : la racine, ses clés, le nombre de lignes, le nombre de lignes
+     * décodées. Un seul relevé, pour ne plus avancer à l'aveugle.
+     */
+    suspend fun debugShape(): String {
+        val payload = client.request(
+            path = "api/sessions",
+            query = pageQuery(limit = 3, offset = 0, order = "created", profile = null),
+        )
+        val obj = payload.asObject()
+        val rows = obj?.array("sessions") ?: obj?.array("data") ?: payload.asArray()
+        val parsed = rows?.mapNotNull { element -> element.asObject()?.let(::sessionSummaryFromRow) }
+        return "type=${payload::class.simpleName} · cles=${obj?.keys?.joinToString(",") ?: "aucune"} · " +
+            "rows=${rows?.size ?: -1} · decodees=${parsed?.size ?: -1}"
+    }
+
     /** Une session par son identifiant, dans [profile] (ou le profil du serveur quand il est vide). */
     suspend fun summary(id: String, profile: String? = null): SessionSummary? =
         allSummaries(profile = profile).firstOrNull { it.id == id }
