@@ -70,12 +70,43 @@ class BrowserUnavailable(RuntimeError):
 _DEVTOOLS_PORT_FILE = "DevToolsActivePort"
 
 
+def _session_keys(task_id: str) -> list[str]:
+    """Les clés de session sous lesquelles ce tour peut avoir un navigateur.
+
+    Le même tour apparaît sous plusieurs formes : la clé nue (`api-xxx`), la clé de profil
+    (`api-xxx@/home/john/.hermes`), et la clé mémorisée comme « dernière session active »
+    quand une navigation a eu lieu. On les essaie dans cet ordre, en ne gardant que celles
+    qui **existent déjà** : interroger une clé absente ferait lancer un navigateur neuf, et
+    l'écran du téléphone afficherait alors une page blanche au lieu de la bonne.
+    """
+    if not task_id:
+        return []
+    cles = [task_id]
+    if "@" not in task_id:
+        try:
+            from hermes_constants import hermes_home_key
+
+            cles.append(f"{task_id}@{hermes_home_key()}")
+        except Exception:
+            pass
+    try:
+        from tools.browser_tool import _last_active_session_key
+
+        memorisee = _last_active_session_key.get(task_id)
+        if memorisee:
+            cles.append(str(memorisee))
+    except Exception:
+        pass
+    return cles
+
+
 def _session_cdp_url(task_id: str) -> str:
     """L'URL DevTools **de la session de ce tour**, ou ``""``.
 
     C'est la voie canonique de Hermes : la commande `agent-browser get cdp-url` sur la session
-    du tour. Elle est liée à la tâche, donc elle ne peut pas renvoyer le navigateur d'une autre
-    session — ce qui compte, puisque plusieurs tours tournent en parallèle sur cette machine.
+    du tour. Elle est liée à la tâche, donc elle ne peut pas renvoyer le navigateur d'une
+    autre session — ce qui compte, puisque plusieurs tours tournent en parallèle sur cette
+    machine.
 
     **Pourquoi elle est nécessaire :** le seam `SUPERVISOR_REGISTRY` ne résout que dans le
     processus qui a lancé le navigateur, et son URL CDP devient périmée dès que ce navigateur
@@ -83,20 +114,29 @@ def _session_cdp_url(task_id: str) -> str:
     à un port mort, s'arrêtait après cinq échecs, et le plugin en concluait « pas de
     navigateur » — alors que la page existait et que le téléphone ne montrait qu'un écran vide.
 
-    Cette commande relance le navigateur au besoin, suit un réapprentissage, et rafraîchit le
-    minuteur du démon : le trafic CDP direct, lui, est invisible pour lui.
+    Cette commande rafraîchit aussi le minuteur du démon : le trafic CDP direct, lui, est
+    invisible pour lui.
     """
     try:
+        from tools.browser_tool import _active_sessions
         from tools.browser_tool_session import _run_browser_command
     except Exception:
         return ""
-    try:
-        res = _run_browser_command(task_id, "get", ["cdp-url"], timeout=20)
-    except Exception:
-        return ""
-    if not (res or {}).get("success"):
-        return ""
-    return str(((res or {}).get("data") or {}).get("cdpUrl") or "")
+    for cle in _session_keys(task_id):
+        # **Seulement une session qui existe déjà** : une clé absente ferait lancer un
+        # navigateur neuf, et l'écran du téléphone montrerait du blanc au lieu de la page.
+        if cle not in _active_sessions:
+            continue
+        try:
+            res = _run_browser_command(cle, "get", ["cdp-url"], timeout=15)
+        except Exception:
+            continue
+        if not (res or {}).get("success"):
+            continue
+        cdp = str(((res or {}).get("data") or {}).get("cdpUrl") or "")
+        if cdp.startswith(("ws://", "wss://")):
+            return cdp
+    return ""
 
 
 def _live_devtools_ws(task_id: str = "") -> str:
