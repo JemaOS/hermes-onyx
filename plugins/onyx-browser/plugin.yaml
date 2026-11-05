@@ -1,0 +1,26 @@
+name: onyx-browser
+label: Onyx Browser
+version: 0.1.0
+description: >
+  Le navigateur de l'agent, en direct sur le téléphone, et sa prise en main : un outil bloquant
+  (`browser_request_takeover`) qui garde le tour ouvert, un WebSocket qui envoie des trames JPEG
+  (3 img/s, 8 en conduite) et rejoue les gestes (tap, glisser, frappe) sur la page de l'agent via
+  CDP, et un bail (« je conduis » / « je rends la main ») qui en fait un écran partagé et non un
+  tapis roulant. Le port 8788 n'est jamais exposé : `onyx-one` relaie `/onyx-browser/`.
+
+provides_tools:
+  - browser_request_takeover
+provides_hooks:
+  - pre_tool_call
+  - post_tool_call
+
+requires_env: []
+optional_env:
+  - name: BROWSER_BIND
+    description: "Adresse d'écoute locale (défaut : 127.0.0.1:8788)."
+    prompt: "Adresse d'écoute"
+    password: false
+  - name: BROWSER_TOKEN
+    description: "Jeton exigé sur les routes du plugin. Vide : la boucle locale seule est acceptée (onyx-one)."
+    prompt: "Jeton du plugin navigateur"
+    password: true
