@@ -69,6 +69,15 @@ data class ChatScreenState(
     val firstMessageId: String?,
     /** Le tour a-t-il annoncé une phase ? (`ChatUiState.live` non nul) */
     val hasLivePhase: Boolean,
+    /**
+     * La phase annonce-t-elle un tour **en cours** ? (`TurnPhase.isStreaming`)
+     *
+     * Distinct de [isStreaming] dans un seul cas : l'instant où le serveur arrête le tour. La
+     * phase le dit avant l'état, et c'est la phase qui fait l'état du fil (`turnFlowState`) — la
+     * projection garde donc **sa** valeur, pour ne pas peindre « travail en cours » sur un tour
+     * que le serveur vient de clore.
+     */
+    val liveStreaming: Boolean,
     /** L'étape du tour en cours — un changement d'étape est un vrai changement d'écran. */
     val liveStep: TurnStep?,
     /** La première question du fil (le titre de repli, l'état vide). */
@@ -136,6 +145,7 @@ data class ChatScreenState(
                 queuedSize = ui.queued.size,
                 firstMessageId = messages.firstOrNull()?.id,
                 hasLivePhase = ui.live != null,
+                liveStreaming = ui.live?.isStreaming == true,
                 liveStep = ui.live?.step,
                 firstUserQuestion = messages.firstOrNull { it.role == com.onyx.app.data.model.Role.USER }?.text,
                 hasUserTurn = users > 0,

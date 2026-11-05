@@ -522,6 +522,7 @@ class OnyxBaseLockTest {
                 "app/src/main/java/com/onyx/app/ui/chat/components/ReplyCardViews.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/SlashMenu.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/StartScreen.kt",
+                "app/src/main/java/com/onyx/app/ui/chat/components/StreamingProse.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/SubagentRows.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/ThreadOrganisation.kt",
                 "app/src/main/java/com/onyx/app/ui/chat/components/TodoChecklist.kt",

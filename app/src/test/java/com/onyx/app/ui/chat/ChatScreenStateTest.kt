@@ -4,6 +4,7 @@ import com.onyx.app.data.model.ChatMessage
 import com.onyx.app.data.model.Role
 import com.onyx.app.data.model.ServerConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +46,19 @@ class ChatScreenStateTest {
         isStreaming = isStreaming,
     )
 
+    /** Le même état, avec une phase de tour ([TurnPhase]) — c'est elle qui dit si le tour court. */
+    private fun stateWithPhase(
+        vararg messages: ChatMessage,
+        isStreaming: Boolean = false,
+        live: TurnPhase,
+    ) = ChatUiState(
+        server = server,
+        conversationId = "c1",
+        messages = messages.toList(),
+        isStreaming = isStreaming,
+        live = live,
+    )
+
     @Test
     fun `une reponse qui grandit ne change pas la projection de l ecran`() {
         val question = message("m1", Role.USER, "Explique le cache")
@@ -83,6 +97,46 @@ class ChatScreenStateTest {
             streaming,
             ChatScreenState.of(state(question, live, message("m3", Role.USER, "Et ensuite ?"))),
         )
+    }
+
+    @Test
+    fun `la phase dit si le tour est encore en cours`() {
+        // La phase (`TurnPhase.isStreaming`) le dit **avant** l'état du chat : c'est elle qui fait
+        // l'état du fil (`turnFlowState`). Au moment où le serveur clôt le tour, la projection doit
+        // donc dire « plus en cours » — sinon l'écran peindrait « travail en cours » sur un tour
+        // terminé.
+        val question = message("m1", Role.USER, "Explique le cache")
+        val live = message("m2", Role.ASSISTANT, "Le cache", streaming = true)
+
+        val open = ChatScreenState.of(
+            stateWithPhase(
+                question,
+                live,
+                isStreaming = true,
+                live = TurnPhase(
+                    startedAt = 0L,
+                    lastEventAt = 0L,
+                    step = TurnStep.WRITING,
+                    isStreaming = true,
+                ),
+            ),
+        )
+        assertTrue("un tour ouvert est un tour en cours", open.liveStreaming)
+
+        val closed = ChatScreenState.of(
+            stateWithPhase(
+                question,
+                live,
+                isStreaming = true,
+                live = TurnPhase(
+                    startedAt = 0L,
+                    lastEventAt = 0L,
+                    step = TurnStep.WRITING,
+                    isStreaming = false,
+                ),
+            ),
+        )
+        assertFalse("un tour que le serveur vient de clore n'est plus en cours", closed.liveStreaming)
     }
 
     @Test

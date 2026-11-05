@@ -137,7 +137,22 @@ fun MarkdownText(
                     // balisage du tout. Celles-là passent par le texte de Compose, qui se compose
                     // avec le reste de la rangée ; Markwon garde les autres, où il a du travail.
                     if (hasMarkup(prose)) {
-                        MarkdownProse(markdown = prose, tint = tint, streaming = trailing)
+                        // **Le bloc qui s'écrit ne passe pas par une vue du système.**
+                        //
+                        // Mesuré (émulateur, GPU hôte) sur un flux de douze mille caractères : le
+                        // `TextView` de Markwon, dont le contenu change à chaque jeton, coûtait
+                        // **17,5 ms de thread UI par trame** — dont 15,7 ms d'enregistrement du
+                        // dessin — tandis que le même texte rendu par Compose en coûtait 1,4. Une
+                        // vue **finie** ne coûte rien : son *display list* est gardée, et c'est
+                        // pourquoi le défilement d'un fil d'archives n'a jamais payé ce prix.
+                        //
+                        // Le bloc vivant passe donc par [StreamingProse] ; dès que la réponse se
+                        // termine, la rangée reprend le chemin Markwon (ci-dessous), mis en cache.
+                        if (trailing) {
+                            StreamingProse(text = prose, tint = tint)
+                        } else {
+                            MarkdownProse(markdown = prose, tint = tint, streaming = false)
+                        }
                     } else {
                         MarkdownPlain(prose = prose, tint = tint)
                     }
@@ -192,6 +207,14 @@ private fun MarkdownPlain(prose: String, tint: Color?) {
     val theme = LocalOnyxTheme.current
     SelectableText(
         text = prose,
+        // **Le corps d'une réponse n'est pas un libellé.**
+        //
+        // `SelectableText` localise par défaut ; ce chemin-ci lui donnait donc chaque réponse à
+        // traduire. `OnyxLocalization.translate` interroge le dictionnaire, puis essaie une centaine
+        // d'expressions régulières ancrées `^…$` sur la chaîne **entière** : sur une réponse de
+        // quinze mille caractères, c'est un balayage complet à chaque composition de la rangée, pour
+        // un texte qui ne peut pas être un libellé de l'interface. Mesuré par `TextPathCostTest`.
+        localize = false,
         style = theme.messageFont.copy(color = tint ?: theme.textColor),
     )
 }

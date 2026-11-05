@@ -91,17 +91,34 @@ data class ShellState(
             )
         }
 
-        /** Chaque question du fil, suivie de la première réponse finie qui vient après elle. */
-        private fun voiceTurnsOf(messages: List<ChatMessage>): List<VoiceTurn> = buildList {
-            messages.forEachIndexed { index, question ->
-                if (question.role != Role.USER) return@forEachIndexed
-                val answer = messages.subList(index + 1, messages.size)
-                    .firstOrNull { it.role == Role.ASSISTANT }
-                    ?.text
-                    ?.takeIf { it.isNotBlank() }
-                    ?: return@forEachIndexed
-                add(VoiceTurn(question = question.text, answer = answer))
+        /**
+         * Chaque question du fil, suivie de la première réponse **finie** qui vient après elle.
+         *
+         * **Un seul passage, à rebours.** La version d'avant, pour chaque question, refaisait un
+         * `subList` + `firstOrNull` sur tout ce qui la suivait : c'était un balayage **quadratique**
+         * (deux mille messages = quatre millions de comparaisons) refait à chaque publication de
+         * texte, puisque la projection est recalculée à chaque jeton. À rebours, on garde la
+         * première réponse rencontrée et chaque question la lit : même résultat, un seul passage.
+         *
+         * La règle est celle de la référence : la réponse d'une question est la **première** ligne
+         * d'assistant qui la suit ; si cette ligne est vide, la question n'a pas de tour (on ne
+         * saute pas à la suivante).
+         */
+        private fun voiceTurnsOf(messages: List<ChatMessage>): List<VoiceTurn> {
+            val turns = ArrayList<VoiceTurn>()
+            var next: ChatMessage? = null
+            for (index in messages.indices.reversed()) {
+                val message = messages[index]
+                if (message.role == Role.ASSISTANT) {
+                    next = message
+                    continue
+                }
+                if (message.role != Role.USER) continue
+                val answer = next?.text?.takeIf { it.isNotBlank() } ?: continue
+                turns.add(VoiceTurn(question = message.text, answer = answer))
             }
+            // Le parcours est à rebours : la liste se remet dans l'ordre du fil.
+            return turns.asReversed()
         }
     }
 }

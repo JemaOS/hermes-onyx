@@ -31,7 +31,13 @@ internal object RowCaches {
     /** Assez pour l'écran et ses voisines, jamais assez pour retenir un historique entier. */
     private const val DerivedEntries = 64
     private const val BlockEntries = 24
-    private const val RenderedEntries = 16
+    /**
+     * Le rendu Markwon d'une prose finie. Seize entrées ne couvraient que l'écran : une remontée de
+     * fil — le geste même du relevé (« ça lag quand je fais défiler ») — retrouvait une LRU vidée et
+     * re-parsait chaque rangée. Quarante-huit tiennent trois écrans de réponses, pour quelques
+     * mégaoctets de spans au plus.
+     */
+    private const val RenderedEntries = 48
     private const val LinkEntries = 64
 
     private class Lru<K, V>(private val max: Int) : LinkedHashMap<K, V>(max, 0.75f, true) {

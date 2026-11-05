@@ -12,6 +12,16 @@ import java.util.Locale
  * telle quelle, ce qui préserve les réponses du serveur et les identifiants.
  */
 object OnyxLocalization {
+    /**
+     * Au-delà de cette longueur, une chaîne n'est pas un libellé : le dictionnaire et les gabarits
+     * sont ignorés, la chaîne est rendue telle quelle.
+     *
+     * Le plus long libellé de l'app fait **390 caractères** (une explication des Réglages) : 512
+     * laisse toute la marge nécessaire aux traductions réelles, et coupe court au balayage des
+     * expressions régulières sur le corps d'une réponse — mesuré par `TextPathCostTest`.
+     */
+    private const val LabelCeiling = 512
+
     /** Anglais explicite pour les termes techniques qui n'ont pas besoin de traduction française. */
     private val english = mapOf(
         "API" to "API",
@@ -551,6 +561,16 @@ object OnyxLocalization {
      * les autres langues utilisent l'anglais, puis la clé d'origine sans la modifier.
      */
     fun translate(key: String, locale: Locale = OnyxLanguage.preferred): String {
+        // **Un corps de texte n'est pas un libellé.**
+        //
+        // Le dictionnaire ne peut pas contenir une réponse du serveur, et les expressions
+        // régulières ci-dessous — une centaine, ancrées `^…$` — la balaieraient en entier à chaque
+        // composition. Le plus long libellé réel de l'app fait 390 caractères et n'a jamais de saut
+        // de ligne (les textes à plusieurs paragraphes passent par [translateParagraphs], qui
+        // découpe ligne par ligne) : au-delà de [LabelCeiling], ou dès qu'il y a un saut de ligne,
+        // la chaîne est rendue telle quelle. Coût du chemin complet sur une réponse de 15 000
+        // caractères : mesuré par `TextPathCostTest`.
+        if (key.length > LabelCeiling || key.indexOf('\n') >= 0) return key
         if (!locale.language.equals("fr", ignoreCase = true)) return english[key] ?: onyxEnglishFromFrench[key] ?: key
         french[key]?.let { return it }
         english[key]?.let { return it }

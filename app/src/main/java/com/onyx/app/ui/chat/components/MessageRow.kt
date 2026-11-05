@@ -31,18 +31,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.onyx.app.ui.localization.BasicText
@@ -893,27 +889,36 @@ private fun ReasoningDetail(message: ChatMessage, isLive: Boolean) {
             .fillMaxWidth()
             .padding(top = OnyxSpace.Hair),
     ) {
-        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            // **Le filet** : un repère de 2 dp au ton de filet de la maison, pas une bordure de
-            // carte — il rattache le bloc au message, il ne l'encadre pas.
-            Box(
-                modifier = Modifier
-                    .width(ReasoningBlock.RailWidth)
-                    .fillMaxHeight()
-                    .background(theme.separator),
-            )
-            Column(modifier = Modifier.padding(start = ReasoningBlock.TextIndent)) {
-                SelectableText(
-                    text = full,
-                    localize = false,
-                    style = body,
-                    maxLines =
-                        if (long && !expanded) ReasoningBlock.CollapsedLines else Int.MAX_VALUE,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (long) {
-                    ReasoningLengthControl(expanded = expanded, onToggle = { expanded = !expanded })
+        // **Le filet est peint, pas mesuré** — même leçon que `FoldBody`, appliquée au raisonnement.
+        //
+        // La version d'avant posait une `Row` en hauteur **intrinsèque** avec une barre de 2 dp
+        // à côté de la colonne. La mesure intrinsèque **traverse le texte** pour connaître la
+        // hauteur du filet : c'est une passe de mesure entière de plus sur ce texte, à chaque mise
+        // en page du bloc — or ce bloc est précisément celui qui (re)entre dans la fenêtre quand on
+        // fait défiler un fil d'outils. Le filet se dessine donc derrière la colonne : même 2 dp au
+        // même endroit, aucune mesure en plus.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    drawRect(
+                        color = theme.separator,
+                        topLeft = Offset.Zero,
+                        size = Size(ReasoningBlock.RailWidth.toPx(), size.height),
+                    )
                 }
+                .padding(start = ReasoningBlock.RailWidth + ReasoningBlock.TextIndent),
+        ) {
+            SelectableText(
+                text = full,
+                localize = false,
+                style = body,
+                maxLines =
+                    if (long && !expanded) ReasoningBlock.CollapsedLines else Int.MAX_VALUE,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (long) {
+                ReasoningLengthControl(expanded = expanded, onToggle = { expanded = !expanded })
             }
         }
     }

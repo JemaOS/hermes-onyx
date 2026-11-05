@@ -678,7 +678,7 @@ fun ChatScreen(
                 startedAt = 0L,
                 lastEventAt = 0L,
                 step = state.liveStep ?: TurnStep.STARTING,
-                isStreaming = state.isStreaming,
+                isStreaming = state.liveStreaming,
             )
         },
         pendingApprovals = pendingApprovals,
