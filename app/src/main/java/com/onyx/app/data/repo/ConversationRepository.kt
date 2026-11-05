@@ -233,6 +233,17 @@ class ConversationRepository(
         var changed = false
         _conversations.update { current ->
             val previous = current.firstOrNull { it.id == conversation.id }
+            // **Le cas courant d'abord, sans comparer le texte.** `previous == conversation` est une
+            // égalité de `data class` : elle compare **tous** les messages, tout leur texte et toutes
+            // leurs sorties d'outil — des mégaoctets, à chaque sauvegarde. Quand la liste est la
+            // **même instance** (le viewModel ne la copie plus s'il n'y a rien à dépouiller) et que
+            // les champs de surface sont égaux, la réponse est connue sans lire un caractère.
+            if (previous === conversation) return@update current
+            if (previous != null && previous.messages === conversation.messages &&
+                previous.copy(messages = emptyList()) == conversation.copy(messages = emptyList())
+            ) {
+                return@update current
+            }
             if (previous == conversation) return@update current
             changed = true
             (current.filterNot { it.id == conversation.id } + conversation).sortedByDescending { it.updatedAt }

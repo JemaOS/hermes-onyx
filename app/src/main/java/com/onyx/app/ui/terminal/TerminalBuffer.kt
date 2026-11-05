@@ -45,6 +45,31 @@ class TerminalBuffer(
     fun cell(row: Int, column: Int): TerminalCell =
         grid.getOrNull(row)?.getOrNull(column) ?: TerminalCell()
 
+    /**
+     * Une empreinte du **style** d'une ligne, bon marché (des entiers, aucun objet).
+     *
+     * Le cache de rendu compare cette empreinte avec le texte : un `ls` coloré peut réécrire la même
+     * chaîne dans une autre couleur, et le rendu doit alors suivre. Un `hashCode` de chaîne sur
+     * 120 cellules coûte quelques additions — infiniment moins qu'un `AnnotatedString` à 120 spans.
+     */
+    fun styleFingerprint(row: Int): Int {
+        val cells = grid.getOrNull(row) ?: return 0
+        var hash = 17
+        for (cell in cells) {
+            val style = cell.style
+            hash = hash * 31 + (if (style.bold) 1 else 0)
+            hash = hash * 31 + (if (style.dim) 2 else 0)
+            hash = hash * 31 + (if (style.inverse) 4 else 0)
+            hash = hash * 31 + style.foreground
+            hash = hash * 31 + style.background
+        }
+        return hash
+    }
+
+    /** Les styles d'une ligne, pour le groupement en plages ([styleRuns]). */
+    fun styles(row: Int): List<TerminalStyle> =
+        grid.getOrNull(row)?.map { it.style } ?: emptyList()
+
     /** Les lignes visibles, du haut vers le bas, espaces de fin retirés. */
     fun lines(): List<String> =
         grid.map { row -> row.map { it.char }.joinToString("").trimEnd() }

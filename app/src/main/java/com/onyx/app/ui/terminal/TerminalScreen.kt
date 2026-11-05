@@ -647,8 +647,17 @@ private fun TerminalSurface(model: TerminalModel, scope: CoroutineScope, modifie
             .onSizeChanged { size = it }
             .background(theme.pageColor),
     ) {
+        // **Une sortie touche une ligne à la fois.** Le cache garde le rendu de chaque rangée tant
+        // que son texte et son style ne changent pas : une ligne de log qui s'ajoute ne fait plus
+        // repeindre les trente-neuf autres (`TerminalLineCache`).
+        val paintCache = remember(model) { TerminalLineCache<AnnotatedString>() }
         val lines = remember(model.revision) {
-            model.buffer.lines().mapIndexed { row, line -> paintLine(model.buffer, row, line) }
+            val rows = model.buffer.lines()
+            rows.mapIndexed { row, line ->
+                paintCache.painted(row, line, model.buffer.styleFingerprint(row)) {
+                    paintLine(model.buffer, row, line)
+                }
+            }
         }
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             lines.forEach { line ->
@@ -922,9 +931,12 @@ fun TerminalSettingsView(
 /** Une ligne du tampon : couleurs SGR et inversion, indexée par rangée (doublons compris). */
 private fun paintLine(buffer: TerminalBuffer, row: Int, line: String): AnnotatedString {
     if (line.isEmpty()) return AnnotatedString("")
+    // **Une plage de style par couleur contiguë, jamais un span par caractère.** Voir
+    // [styleRuns] : une ligne d'une seule couleur (le cas courant) passe de 120 spans à un seul.
+    val styles = buffer.styles(row)
     return buildAnnotatedString {
-        line.forEachIndexed { column, char ->
-            val style = buffer.cell(row, column).style
+        for (run in styleRuns(styles.take(line.length))) {
+            val style = run.style
             val foreground = when {
                 style.inverse -> AnsiColours.getOrElse(style.background) { 0xFF0E0E11 }
                 style.foreground >= 0 -> AnsiColours.getOrElse(style.foreground) { 0xFFE8E8EE }
@@ -942,7 +954,7 @@ private fun paintLine(buffer: TerminalBuffer, row: Int, line: String): Annotated
                     fontWeight = if (style.bold) FontWeight.Bold else null,
                 ),
             ) {
-                append(char)
+                append(line, run.start, run.start + run.length)
             }
         }
     }

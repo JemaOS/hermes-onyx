@@ -2085,7 +2085,13 @@ class ChatViewModel(
         if (state.messages.isEmpty() && queued.items.isEmpty()) return
         val id = conversationId
         val serverId = state.server.id
-        val messages = state.messages.map { it.copy(isStreaming = false) }
+        // **La liste n'est copiée que si elle en a besoin.** `map { it.copy(...) }` allouait un objet
+        // par message à **chaque** appel (seize sites, plusieurs par tour) : un fil de 500 messages
+        // payait 500 allocations pour retirer un drapeau qui, le plus souvent, n'était posé nulle
+        // part. Et la copie empêchait le contrôle d'égalité du dépôt de reconnaître « rien n'a
+        // changé » (liste neuve = jamais égale), donc le fichier repartait pour rien.
+        val streaming = state.messages.any { it.isStreaming }
+        val messages = if (streaming) state.messages.map { it.copy(isStreaming = false) } else state.messages
         val session = serverSessionId
         viewModelScope.launch {
             val existing = conversations.find(id)

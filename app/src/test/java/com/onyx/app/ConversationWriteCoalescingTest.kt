@@ -106,6 +106,46 @@ class ConversationWriteCoalescingTest {
         assertTrue("et l'écriture a bien eu lieu", store.writes >= 1)
     }
 
+
+    @Test
+    fun `la meme instance de messages ne coute pas une comparaison de tout le texte`() = runBlocking {
+        // Ce que le viewModel envoie maintenant quand rien ne s'écrit : la **même** liste. Le dépôt
+        // reconnaît « rien n'a changé » sans comparer un seul caractère — avant, `previous ==
+        // conversation` comparait tous les messages, tout leur texte et toutes leurs sorties d'outil.
+        val store = CountingStore()
+        val repo = ConversationRepository(store)
+        val heavy = conversation("c1", "texte ".repeat(2_000))
+        repo.save(heavy)
+        repo.flush()
+        val writes = store.writes
+
+        repeat(10) { repo.save(heavy.copy()) }   // copies de surface, liste partagée
+        repo.flush()
+
+        assertEquals("aucune réécriture pour un contenu identique", writes, store.writes)
+    }
+
+    @Test
+    fun `un message modifie est bien ecrit`() = runBlocking {
+        val store = CountingStore()
+        val repo = ConversationRepository(store)
+        val initial = conversation("c1", "avant")
+        repo.save(initial)
+        repo.flush()
+
+        val edited = initial.copy(
+            messages = listOf(initial.messages.single().copy(text = "après")),
+        )
+        repo.save(edited)
+        repo.flush()
+
+        assertEquals(
+            "une édition change le fichier",
+            "après",
+            store.lastWritten.single().messages.single().text,
+        )
+    }
+
     @Test
     fun `une conversation inchangee n ecrit pas du tout`() = runBlocking {
         val store = CountingStore()

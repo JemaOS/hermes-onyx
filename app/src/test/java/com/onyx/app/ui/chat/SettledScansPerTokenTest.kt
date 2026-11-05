@@ -64,6 +64,20 @@ class SettledScansPerTokenTest {
     }
 
     @Test
+    fun `deux projections du meme fil partagent la meme liste`() {
+        // `derivedStateOf` décide de recomposer en comparant l'ancienne et la nouvelle projection :
+        // `ShellState.voiceTurns` porte le texte de **tous** les tours. Rendre la **même instance**
+        // fait que cette comparaison s'arrête à l'identité (premier test de `ArrayList.equals`) au
+        // lieu de relire vingt pages de conversation à chaque publication.
+        val settled = (0 until 30).map(::message)
+        val first = ShellState.of(state(settled, streaming = false))
+        val second = ShellState.of(state(settled, streaming = false))
+
+        assertSame("la même liste, donc une comparaison gratuite", first.voiceTurns, second.voiceTurns)
+        assertSame("et la première question aussi", first.firstUserQuestion, second.firstUserQuestion)
+    }
+
+    @Test
     fun `un message de plus refait le calcul, et lui seul`() {
         val settled = (0 until 40).map(::message)
         ShellState.of(state(settled, streaming = false))
