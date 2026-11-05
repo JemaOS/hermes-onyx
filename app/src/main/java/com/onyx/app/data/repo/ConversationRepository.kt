@@ -4,11 +4,20 @@ import androidx.datastore.core.DataStore
 import com.onyx.app.data.local.DeletedConversations
 import com.onyx.app.data.model.ChatMessage
 import com.onyx.app.data.model.Conversation
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -30,6 +39,34 @@ class ConversationRepository(
 ) {
 
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
+
+    /** Le verrou d'écriture du fichier : un seul écrivain à la fois. */
+    private val writeLock = Mutex()
+    /**
+     * Les demandes d'écriture, **fusionnées** : vingt publications pendant un tour ne font qu'une
+     * entrée en attente, et c'est l'état le plus frais qui part.
+     */
+    private val writeRequests = Channel<Unit>(Channel.CONFLATED)
+    /** Vrai quand le fichier ne porte pas encore l'état courant. */
+    private val dirty = AtomicBoolean(false)
+    /**
+     * Le scope du seul écrivain. Interne et vivant aussi longtemps que le dépôt (un singleton de
+     * l'app) : aucune écriture n'a besoin d'être attendue par l'appelant, et une rafale ne peut plus
+     * bloquer le fil qui la produit.
+     */
+    private val writer = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        writer.launch {
+            // **L'écrivain unique.** Chaque demande est suivie d'une courte fenêtre qui laisse la
+            // rafale se tasser ; le canal étant fusionné, tout ce qui arrive pendant ce temps ne
+            // fait qu'une entrée — et l'écriture prend l'état **courant**, pas celui de la demande.
+            for (request in writeRequests) {
+                delay(WRITE_SETTLE_MILLIS)
+                writeLock.withLock { writeFile() }
+            }
+        }
+    }
 
     /** Les conversations, la plus récente d'abord. */
     val conversations: StateFlow<List<Conversation>> = _conversations.asStateFlow()
@@ -157,8 +194,11 @@ class ConversationRepository(
 
     suspend fun deleteAll(ids: Set<String>) {
         ids.forEach { deleted.mark(it) }
-        _conversations.value = _conversations.value.filterNot { it.id in ids }
-        persist()
+        _conversations.update { current -> current.filterNot { it.id in ids } }
+        // **Une suppression attend son écriture.** Les publications du fil peuvent se tasser, une
+        // suppression non : si le processus meurt dans la fenêtre de tassement, la conversation
+        // reviendrait au prochain démarrage. C'est le seul chemin où l'attente est due au disque.
+        flush()
     }
 
     /**
@@ -168,8 +208,8 @@ class ConversationRepository(
      */
     suspend fun eraseAll() {
         _conversations.value.forEach { deleted.mark(it.id) }
-        _conversations.value = emptyList()
-        persist()
+        _conversations.update { emptyList() }
+        flush()
     }
 
     /**
@@ -185,10 +225,19 @@ class ConversationRepository(
         // répondue, un secret donné) et chaque écriture réécrit *toutes* les conversations du
         // fichier : avec beaucoup de conversations, c'est la liste entière qui repart sur le disque
         // pour un champ identique.
-        val previous = _conversations.value.firstOrNull { it.id == conversation.id }
-        if (previous == conversation) return
-        _conversations.value = (_conversations.value.filterNot { it.id == conversation.id } + conversation)
-            .sortedByDescending { it.updatedAt }
+        // **La lecture-écriture doit être atomique.** `_conversations.value = (value - lui + lui)`
+        // lit puis réécrit : deux `save()` simultanés (le viewModel publie, un rappel de tour
+        // publie) repartaient chacun de la même liste et le second **effaçait la conversation de
+        // l'autre** — douze sauvegardes concurrentes n'en laissaient qu'une sur le disque. C'est un
+        // défaut de perte de données, pas de performance, trouvé par le test de coalescence.
+        var changed = false
+        _conversations.update { current ->
+            val previous = current.firstOrNull { it.id == conversation.id }
+            if (previous == conversation) return@update current
+            changed = true
+            (current.filterNot { it.id == conversation.id } + conversation).sortedByDescending { it.updatedAt }
+        }
+        if (!changed) return
         persist()
     }
 
@@ -250,8 +299,9 @@ class ConversationRepository(
      */
     suspend fun delete(id: String) {
         deleted.mark(id)
-        _conversations.value = _conversations.value.filterNot { it.id == id }
-        persist()
+        _conversations.update { current -> current.filterNot { it.id == id } }
+        // Voir [deleteAll] : une suppression attend son écriture, elle ne se tasse pas.
+        flush()
     }
 
     /** La conversation la plus récente à laquelle on peut revenir depuis l'écran de démarrage. */
@@ -259,13 +309,46 @@ class ConversationRepository(
         _conversations.value.firstOrNull { it.id != excluding && it.turnCount > 0 }
 
     private suspend fun persist() {
+        // **Demander, jamais écrire soi-même.** `store.updateData` réécrit le fichier **entier**
+        // (toutes les conversations locales, avec leur historique complet) et `persistCurrent()` est
+        // appelé à seize endroits, plusieurs fois par tour : c'était une réécriture complète par
+        // étape d'outil. La demande est maintenant *fusionnée* (une entrée en attente, jamais N) et
+        // l'écrivain unique y répond avec l'état courant après une courte fenêtre.
+        dirty.set(true)
+        writeRequests.trySend(Unit)
+    }
+
+    /** L'écriture elle-même : l'état courant, sans les conversations du serveur. */
+    private suspend fun writeFile() {
         // Les conversations **du serveur** ne sont pas persistées : elles ne sont qu'une
         // projection du registre du serveur, relue à chaque connexion. Les écrire ici les
         // transformerait en copies locales — et une conversation supprimée reviendrait.
         val snapshot = _conversations.value.filterNot { it.remote }
         withContext(Dispatchers.IO) { store.updateData { snapshot } }
+        // Le fichier porte l'état lu **avant** l'écriture ; une demande arrivée entre-temps a remis
+        // le drapeau à vrai et sera servie par la boucle de l'écrivain.
+        dirty.set(false)
+    }
+
+    /**
+     * Attend que le fichier soit à jour. Le rendu n'en a pas besoin ; un chemin qui **doit** savoir
+     * que l'écriture est posée (avant de rendre la main au système) l'utilise.
+     */
+    suspend fun flush() {
+        // Prendre le verrou, c'est attendre l'écrivain en cours. S'il reste une écriture en attente
+        // (le fichier ne porte pas l'état courant), on l'écrit soi-même ; sinon on ne touche à rien —
+        // un `flush` sur un état déjà écrit ne doit pas coûter une réécriture de tout le fichier.
+        writeLock.withLock { if (dirty.get()) writeFile() }
     }
 }
+/**
+ * La fenêtre pendant laquelle les demandes d'écriture se fondent en une.
+ *
+ * Assez courte pour qu'une fermeture de l'app juste après un envoi retrouve le tour écrit, assez
+ * longue pour qu'une rafale de publications (un tour, dix étapes d'outil) ne coûte qu'une écriture.
+ */
+internal const val WRITE_SETTLE_MILLIS = 250L
+
 /** Le titre d'une branche : celui de son originale plus « (fork) », comme la référence. */
 internal fun forkTitle(title: String): String = "$title${Conversation.ForkSuffix}"
 

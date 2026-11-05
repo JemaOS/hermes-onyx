@@ -116,13 +116,48 @@ class TerminalModel(
     private var attempt = 0L
     private var connecting: Job? = null
     private var reading: Job? = null
+    /** Le débit des publications : voir [OutputPacer]. */
+    private val pacer = OutputPacer()
+    private var trailingPublish: Job? = null
 
     val showsScreen: Boolean get() = phase == TerminalPhase.LIVE
+
+    /**
+     * **Une sortie entre tout de suite, l'écran se repeint à sa cadence.**
+     *
+     * `buffer.write` est de l'écriture en grille (bornée, 40×120 cellules) : elle ne doit pas
+     * attendre. C'est la **publication** qui coûtait cher — `revision++` fait reconstruire les
+     * quarante `AnnotatedString` du rendu, style par cellule. Un terminal bavard envoyait des
+     * centaines de fragments par seconde : autant de repeints complets, et des figements qui
+     * n'ont rien à voir avec le réseau.
+     *
+     * Le tampon restant toujours à jour, une publication de rattrapage suffit : rien n'est perdu,
+     * l'écran montre simplement l'état complet une fois par trame au lieu d'une fois par fragment.
+     */
+    private fun noteOutput(text: String, scope: CoroutineScope) {
+        buffer.write(text)
+        val now = System.nanoTime() / 1_000_000
+        if (pacer.shouldPublishNow(now)) {
+            trailingPublish?.cancel()
+            trailingPublish = null
+            revision++
+            return
+        }
+        if (trailingPublish?.isActive == true) return
+        trailingPublish = scope.launch {
+            delay(pacer.trailingDelayMillis(now))
+            pacer.markPublished(System.nanoTime() / 1_000_000)
+            revision++
+        }
+    }
 
     fun connect(target: TerminalTarget, scope: CoroutineScope) {
         val current = ++attempt
         connecting?.cancel()
         reading?.cancel()
+        trailingPublish?.cancel()
+        trailingPublish = null
+        pacer.reset()
         connecting = scope.launch {
             phase = TerminalPhase.CONNECTING
             failure = null
@@ -141,10 +176,7 @@ class TerminalModel(
                         generation,
                         onOutput = { text ->
                             withContext(Dispatchers.Main.immediate) {
-                                if (current == attempt) {
-                                    buffer.write(text)
-                                    revision++
-                                }
+                                if (current == attempt) noteOutput(text, scope)
                             }
                         },
                         onEnded = { why ->
