@@ -324,7 +324,11 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
 
     // **Le navigateur de l'agent** (`BrowserScreen`) — l'écran, pas seulement la ligne de Réglages.
     "The agent's browser" to "Le navigateur de l'agent",
-    "Waiting for the agent's browser…" to "En attente du navigateur de l'agent…",
+    // **Le numéro de version est écrit dans le texte que l'humain voit.** Une capture d'écran ne dit
+    // pas de quel paquet elle vient : l'ancien panneau et le nouveau affichent tous deux une attente,
+    // et l'on cherche alors une panne réseau qui n'existe pas. Ce suffixe tranche en une seconde, et
+    // il se retire quand le panneau est stabilisé.
+    "Waiting for the agent's browser…" to "En attente du navigateur de l'agent… (v1.3.68)",
     // **La reconnexion se voit.** Sans ces deux entrées, une coupure de socket affichait
     // « En attente… » pour toujours et se lisait comme une panne du serveur.
     "Reconnecting…" to "Reconnexion…",
@@ -354,6 +358,12 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "La page s'est fermée pendant la prise en main. Demandez à l'agent de la rouvrir.",
     "No page is open. Ask the agent to open one." to
         "Aucune page n'est ouverte. Demandez à l'agent d'en ouvrir une.",
+    // **Le flux muet et la page déplacée.** Ces deux messages disent ce qui s'est passé, au
+    // lieu de laisser l'écran sur « En attente… » comme si le serveur était en panne.
+    "The browser stopped sending images. Reconnecting…" to
+        "Le navigateur a cessé d'envoyer des images. Reconnexion…",
+    "The page moved to another process. Reconnecting…" to
+        "La page a changé de processus. Reconnexion…",
     "Save" to "Enregistrer",
     "Not now" to "Pas maintenant",
     "Saved to the vault." to "Enregistré dans le coffre.",

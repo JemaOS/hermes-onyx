@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,10 +56,13 @@ import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.VaultApi
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.theme.LocalOnyxTheme
+import com.onyx.app.ui.theme.ReferencePalette
 import com.onyx.app.ui.design.OnyxLargePageHeader
 import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.localization.BasicText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,6 +70,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
 
 /**
  * Le navigateur de l'agent, en direct sur le téléphone, et sa prise en main.
@@ -109,10 +116,36 @@ class BrowserScreenViewModel(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    private val client = BrowserScreenClient(
+    /**
+     * Le client du flux, et sa déclaration **avant** lui.
+     *
+     * Le callback `onPageElsewhere` parle au client — mais il est passé **au** constructeur du
+     * client. Capturer le champ là-dedans donne au vérificateur de types une boucle
+     * (`client` dépend de `client`), et le compilateur s'arrête sur « recursive problem ».
+     * Le champ est donc construit par une fonction, et affecté juste après : le callback ne
+     * survient qu'une fois le client construit, et il lit le champ à ce moment-là.
+     */
+    private val client: BrowserScreenClient = buildClient()
+
+    private fun buildClient() = BrowserScreenClient(
         server = server,
         onFrame = ::onFrame,
         onLease = { lease -> _state.value = _state.value.copy(lease = lease) },
+        /**
+         * **La page est chez un autre processus.** Le serveur le dit, puis ferme le socket.
+         *
+         * L'app doit le traiter : sinon elle attend un flux qui ne viendra plus, sur un
+         * processus qui n'a rien à montrer. On redemande un ticket — le relais, lui, renverra
+         * alors l'écran vers le processus qui tient la page.
+         */
+        onPageElsewhere = {
+            client.close()
+            _state.value = _state.value.copy(
+                phase = Phase.FAILED,
+                problem = OnyxLocalization["The page moved to another process. Reconnecting…"],
+            )
+            scheduleRetry()
+        },
         onRefused = { seq, reason ->
             _state.value = _state.value.copy(
                 refusal = OnyxLocalization[
@@ -129,6 +162,10 @@ class BrowserScreenViewModel(
                 phase = Phase.FAILED,
                 problem = reason?.let { OnyxLocalization.format("The browser stopped: %1\$s", it) },
             )
+            // **Une coupure se répare seule.** Le ticket est à usage unique, donc on en redemande
+            // un et on rouvre : sans ça l'écran restait figé sur « En attente… » après le moindre
+            // redémarrage du gateway, alors que la page, elle, était toujours vivante.
+            scheduleRetry()
         },
         // **La fin se dit, sinon l'écran ment.** Le serveur rend la main tout seul quand la page
         // meurt (Hermes ferme un navigateur inactif après deux minutes) ou au bout de quinze
@@ -158,8 +195,88 @@ class BrowserScreenViewModel(
     /** Le dernier texte tapé pendant la conduite — **le seul** endroit où un mot de passe existe. */
     private var typed = StringBuilder()
 
+    /**
+     * La reconnexion, et pourquoi elle existe.
+     *
+     * Le socket meurt pour des raisons qui n'ont rien à voir avec une erreur : mise en arrière-plan
+     * de l'écran, changement de réseau, redémarrage du gateway. Le ticket est à usage unique, donc
+     * il faut **redemander un ticket** — une simple reconnexion du socket échouerait. Sans ce
+     * mécanisme l'écran restait sur « En attente du navigateur de l'agent… » indéfiniment, ce qui
+     * se lit comme une panne du serveur alors que la page était vivante.
+     */
+    private var retryJob: Job? = null
+    private var attempts = 0
+    /** La personne conduisait : la reconnexion doit reprendre le bail, pas seulement regarder. */
+    private var wantDriving = false
+    /**
+     * Le chien de garde du flux, et ce qu'il attrape.
+     *
+     * **Un socket peut mourir sans dire pourquoi.** Le relais est un proxy : si la connexion
+     * tombe entre le téléphone et la machine, le socket client peut rester « ouvert » côté
+     * application — aucune erreur, aucune trame, et l'écran reste sur « En attente… » pour
+     * toujours. C'est exactement ce qu'on a vu : le serveur servait des trames parfaites (vérifié
+     * par un client indépendant) pendant que l'app ne recevait rien et ne redemandait rien.
+     *
+     * Le garde compte le temps écoulé depuis la dernière trame : au-delà de quelques secondes,
+     * le flux est mort même si le socket ne le dit pas. On referme alors **proprement** — un
+     * `close()` laisse le socket dans un état que le téléphone peut réutiliser, et la reprise
+     * redemande un ticket neuf, parce que l'ancien est à usage unique.
+     */
+    private var watchdogJob: Job? = null
+    private var lastFrameAt: Long = 0L
+
+    /** Le délai sans trame au-delà duquel le flux est considéré comme mort. */
+    private val silenceMs = 12_000L
+
     fun start() {
-        if (_state.value.phase != Phase.IDLE && _state.value.phase != Phase.FAILED) return
+        attempts = 0
+        wantDriving = false
+        connectNow()
+    }
+
+    /**
+     * Le chien de garde : un flux qui ne parle plus est un flux mort.
+     *
+     * On ne se fie pas au socket : il peut rester ouvert sans rien livrer (le relais est un
+     * proxy, et une coupure en cours de route ne remonte pas comme une erreur). Le seul signe
+     * fiable est le silence. Au-delà de quelques secondes sans trame, on referme et on
+     * redemande un ticket — c'est ce qui manquait pour que l'écran se rattrape tout seul.
+     */
+    private fun armWatchdog() {
+        watchdogJob?.cancel()
+        watchdogJob = viewModelScope.launch {
+            while (true) {
+                delay(2_000)
+                val phase = _state.value.phase
+                if (phase != Phase.WATCHING && phase != Phase.DRIVING) continue
+                // Tant qu'aucune trame n'est arrivée, on ne conclut rien : le démarrage peut
+                // prendre quelques secondes.
+                val last = lastFrameAt
+                if (last == 0L) continue
+                if (System.currentTimeMillis() - last < silenceMs) continue
+                // **Le flux est mort.** On le ferme pour de bon, et on repart de zéro : le
+                // ticket est à usage unique, la reprise en demande un neuf.
+                client.close()
+                _state.value = _state.value.copy(
+                    phase = Phase.FAILED,
+                    problem = OnyxLocalization["The browser stopped sending images. Reconnecting…"],
+                )
+                scheduleRetry()
+                return@launch
+            }
+        }
+    }
+
+    /** Le geste explicite « Réessayer » : repart de zéro, sans attendre le prochain délai. */
+    fun retry() {
+        retryJob?.cancel()
+        retryJob = null
+        attempts = 0
+        connectNow()
+    }
+
+    private fun connectNow() {
+        if (_state.value.phase == Phase.CONNECTING) return
         _state.value = _state.value.copy(phase = Phase.CONNECTING, problem = null, refusal = null)
         viewModelScope.launch {
             val tickets = runCatching { BrowserScreenApi.observe(server) }.getOrNull()
@@ -168,18 +285,54 @@ class BrowserScreenViewModel(
                     phase = Phase.UNAVAILABLE,
                     problem = OnyxLocalization["The browser plugin isn't answering on this server."],
                 )
+                scheduleRetry()
                 return@launch
             }
             if (!client.connect(tickets.value)) {
                 _state.value = _state.value.copy(phase = Phase.FAILED)
+                scheduleRetry()
                 return@launch
             }
             client.watch(on = true, takeover = false)
             _state.value = _state.value.copy(phase = Phase.WATCHING)
+            // **Le chien de garde démarre avec le flux.** Sans lui, un socket qui meurt en
+            // silence laisse l'écran figé sur « En attente… » pour toujours.
+            armWatchdog()
+            if (wantDriving) {
+                // Le bail appartient au socket : une nouvelle connexion doit le redemander, sinon
+                // l'écran afficherait « tu conduis » avec des gestes refusés en `no_lease`.
+                takeOver()
+            }
+        }
+    }
+
+    /**
+     * Réessaie avec un délai qui double (1, 2, 4, 8, 16 s), puis s'arrête et laisse la main.
+     *
+     * Six tentatives couvrent un redémarrage de gateway ; au-delà, insister toutes les seize
+     * secondes sur un serveur éteint vide la batterie pour rien — l'écran propose alors
+     * « Réessayer ».
+     */
+    private fun scheduleRetry() {
+        if (retryJob?.isActive == true) return
+        if (attempts >= MAX_RETRIES) {
+            _state.value = _state.value.copy(
+                problem = OnyxLocalization["The browser is unreachable. Try again."],
+            )
+            return
+        }
+        val pause = 1_000L shl attempts.coerceAtMost(4)
+        attempts += 1
+        retryJob = viewModelScope.launch {
+            delay(pause)
+            if (_state.value.phase == Phase.FAILED || _state.value.phase == Phase.UNAVAILABLE) {
+                connectNow()
+            }
         }
     }
 
     fun takeOver() {
+        wantDriving = true
         viewModelScope.launch {
             val lease = runCatching { BrowserScreenApi.acquire(server) }.getOrNull()
             if (lease == null) {
@@ -195,6 +348,7 @@ class BrowserScreenViewModel(
     }
 
     fun handBack(note: String = "") {
+        wantDriving = false
         val host = hostOf(_state.value.url)
         val hadPassword = typed.isNotEmpty()
         client.handBack(id = null, note = note)
@@ -251,6 +405,12 @@ class BrowserScreenViewModel(
     fun key(name: String) = send(ScreenInput.Key(name))
 
     fun stop() {
+        retryJob?.cancel()
+        retryJob = null
+        watchdogJob?.cancel()
+        watchdogJob = null
+        attempts = 0
+        wantDriving = false
         client.watch(on = false, takeover = false)
         client.close()
         typed = StringBuilder()
@@ -268,6 +428,7 @@ class BrowserScreenViewModel(
     }
 
     private fun onFrame(frame: BrowserFrame) {
+        lastFrameAt = System.currentTimeMillis()
         viewModelScope.launch {
             val decoded = withContext(Dispatchers.Default) { decode(frame.data) }
             _state.value = _state.value.copy(
@@ -294,6 +455,9 @@ class BrowserScreenViewModel(
     }
 
     companion object {
+        /** Combien de reconnexions automatiques avant de rendre la main à la personne. */
+        const val MAX_RETRIES = 6
+
         /** L'hôte d'une URL, sans `www.` — ce qui ira dans `used_by`. */
         fun hostOf(url: String): String = runCatching {
             java.net.URI(url).host?.removePrefix("www.").orEmpty()
@@ -305,13 +469,7 @@ class BrowserScreenViewModel(
     }
 }
 
-/** Une ligne de texte : le `BasicText` de la maison, qui localise et prend sa couleur. */
-@Composable
-private fun Txt(text: String, color: Color, modifier: Modifier = Modifier) {
-    BasicText(text = text, modifier = modifier, style = TextStyle(color = color, fontSize = 15.sp))
-}
-
-/** L'écran : l'image, la barre d'adresse, le bail, les commandes. */
+/** L'écran, dans la forme de la référence : bandeau, adresse, page, puis les commandes. */
 @Composable
 fun BrowserScreen(
     viewModel: BrowserScreenViewModel,
@@ -321,35 +479,90 @@ fun BrowserScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf("") }
 
+    // **L'écran se connecte en s'ouvrant.** Il fallait toucher « Afficher le navigateur » pour
+    // lancer le flux ; l'écran s'ouvrait donc sur un cadre noir et l'on croyait à une panne.
+    LaunchedEffect(Unit) { viewModel.start() }
+
     val theme = LocalOnyxTheme.current
+    val driving = state.lease?.human == true || state.phase == BrowserScreenViewModel.Phase.DRIVING
+    // **Les jetons de la palette, pas des couleurs inventées.** L'écran est une visionneuse : il
+    // prend la page sombre du socle et son texte, comme les autres scènes plein écran. Une couleur
+    // écrite en dur ici serait peinte sans passer par la palette — le verrou de référence le refuse,
+    // à raison.
+    val night = ReferencePalette.DarkPage
+    val ink = ReferencePalette.DarkText
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(theme.formPageColor)
+            .background(night)
             .imePadding()
-            .padding(OnyxSpace.Base),
+            .padding(horizontal = OnyxSpace.Base, vertical = OnyxSpace.Half),
         verticalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
     ) {
-        OnyxLargePageHeader(
-            title = if (state.lease?.human == true) {
-                OnyxLocalization["You're driving"]
-            } else {
-                OnyxLocalization["The agent's browser"]
-            },
-            onBack = { viewModel.stop(); onBack() },
-        )
-        Txt(
-            text = state.title.ifBlank { BrowserScreenViewModel.hostOf(state.url) },
-            color = theme.textColor.copy(alpha = 0.6f),
-            modifier = Modifier.padding(bottom = OnyxSpace.Half),
-        )
+        // -- le bandeau : fermer, qui conduit, l'état --------------------------------------
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.10f))
+                    .clickable { viewModel.stop(); onBack() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Txt("✕", ink, size = 15)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Txt(
+                    text = if (driving) {
+                        OnyxLocalization["You're in control"]
+                    } else {
+                        OnyxLocalization["The agent's browser"]
+                    },
+                    color = ink,
+                    size = 16,
+                    weight = FontWeight.SemiBold,
+                )
+                val sous = state.title.ifBlank { BrowserScreenViewModel.hostOf(state.url) }
+                if (sous.isNotBlank()) {
+                    Txt(
+                        text = sous,
+                        color = ink.copy(alpha = 0.55f),
+                        size = 12,
+                        maxLines = 1,
+                    )
+                }
+            }
+            if (driving) Etiquette(OnyxLocalization["YOU'RE DRIVING"])
+        }
 
+        // -- la barre d'adresse ------------------------------------------------------------
+        if (state.url.isNotBlank()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+            ) {
+                Txt(if (state.url.startsWith("https")) "🔒" else "🌐", ink.copy(alpha = 0.6f), size = 12)
+                Spacer(Modifier.width(8.dp))
+                Txt(
+                    text = state.url,
+                    color = ink.copy(alpha = 0.85f),
+                    size = 12,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        // -- la page, centrée : le noir autour est le letterbox, pas un vide ----------------
         Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(state.aspect.coerceIn(0.4f, 2.5f))
-                .clip(RoundedCornerShape(OnyxSpace.PanelCorner))
-                .background(Color.Black),
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentAlignment = Alignment.Center,
         ) {
             val image = state.image
             if (image != null) {
@@ -360,7 +573,7 @@ fun BrowserScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .then(
-                            if (state.phase != BrowserScreenViewModel.Phase.DRIVING) Modifier
+                            if (!driving) Modifier
                             else Modifier
                                 .pointerInput(Unit) {
                                     detectTapGestures { offset ->
@@ -390,25 +603,22 @@ fun BrowserScreen(
                         ),
                 )
             } else {
-                Txt(
-                    text = OnyxLocalization["Waiting for the agent's browser…"],
-                    color = theme.textColor.copy(alpha = 0.6f),
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                // L'état se dit : « En attente » pendant une reconnexion se lisait comme une panne.
+                val waiting = when (state.phase) {
+                    BrowserScreenViewModel.Phase.CONNECTING,
+                    BrowserScreenViewModel.Phase.FAILED,
+                    BrowserScreenViewModel.Phase.UNAVAILABLE,
+                    -> OnyxLocalization["Reconnecting…"]
+                    else -> OnyxLocalization["Waiting for the agent's browser…"]
+                }
+                Txt(waiting, ink.copy(alpha = 0.45f), size = 15)
             }
         }
 
-        state.problem?.let { problem ->
-            Txt(problem, color = theme.textColor)
-        }
-        state.refusal?.let { refusal ->
-            Txt(refusal, color = theme.textColor)
-        }
+        state.problem?.let { Txt(it, ink.copy(alpha = 0.8f), size = 12) }
+        state.refusal?.let { Txt(it, ink.copy(alpha = 0.8f), size = 12) }
         if (state.stored) {
-            Txt(
-                OnyxLocalization["Saved to the vault."],
-                color = theme.accent,
-            )
+            Txt(OnyxLocalization["Saved to the vault."], theme.accent, size = 12)
         }
 
         state.offer?.let { offer ->
@@ -420,66 +630,74 @@ fun BrowserScreen(
                             offer.host,
                             offer.fingerprint,
                         ),
-                        color = theme.textColor,
+                        ink,
+                        size = 12,
                     )
                     Txt(
                         OnyxLocalization.format("It will only be reused on %1\$s.", offer.host),
-                        color = theme.textColor.copy(alpha = 0.6f),
+                        ink.copy(alpha = 0.55f),
+                        size = 12,
                     )
                 }
                 Txt(
                     OnyxLocalization["Save"],
-                    color = theme.accent,
+                    theme.accent,
+                    size = 15,
                     modifier = Modifier.clickable { viewModel.storeInVault() }.padding(8.dp),
                 )
                 Txt(
                     OnyxLocalization["Not now"],
-                    color = theme.textColor.copy(alpha = 0.6f),
+                    ink.copy(alpha = 0.6f),
+                    size = 15,
                     modifier = Modifier.clickable { viewModel.dismissOffer() }.padding(8.dp),
                 )
             }
         }
 
+        // -- les commandes -----------------------------------------------------------------
         when (state.phase) {
-            BrowserScreenViewModel.Phase.IDLE,
+            BrowserScreenViewModel.Phase.IDLE -> {
+                BoutonPlein(OnyxLocalization["Show the browser"], theme.accent) { viewModel.start() }
+            }
             BrowserScreenViewModel.Phase.UNAVAILABLE,
             BrowserScreenViewModel.Phase.FAILED -> {
-                Txt(
-                    OnyxLocalization["Show the browser"],
-                    color = theme.accent,
-                    modifier = Modifier.clickable { viewModel.start() }.padding(8.dp),
-                )
+                // **La reconnexion est automatique ; ce geste est la sortie de secours** quand les
+                // six tentatives sont épuisées (serveur vraiment éteint, réseau absent).
+                BoutonPlein(OnyxLocalization["Retry"], theme.accent) { viewModel.retry() }
             }
             BrowserScreenViewModel.Phase.CONNECTING -> {
-                Txt(OnyxLocalization["Connecting…"], color = theme.textColor.copy(alpha = 0.6f))
+                Txt(OnyxLocalization["Connecting…"], ink.copy(alpha = 0.55f), size = 12)
             }
             BrowserScreenViewModel.Phase.WATCHING -> {
-                Txt(
-                    OnyxLocalization["Take over"],
-                    color = theme.accent,
-                    modifier = Modifier.clickable { viewModel.takeOver() }.padding(8.dp),
-                )
+                BoutonPlein(OnyxLocalization["Take over"], theme.accent) { viewModel.takeOver() }
             }
             BrowserScreenViewModel.Phase.DRIVING -> {
-                // **Champ masqué, clavier mot de passe** : ce que Dots laisse en clair.
+                // **Le trio de la référence** : un indice, le champ, puis Tab / Échap / Rendre la
+                // main. L'indice n'est pas décoratif — sans lui, on ne devine pas que le texte part
+                // dans la page et non dans la conversation.
+                Txt(
+                    text = OnyxLocalization[
+                        "Tap a field on the page, then type here: the text goes straight to its page, not into the conversation."
+                    ],
+                    color = ink.copy(alpha = 0.45f),
+                    size = 11,
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier
                             .weight(1f)
                             .height(44.dp)
                             .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
-                            .background(theme.tertiarySurfaceColor)
-                            .padding(horizontal = 16.dp),
+                            .background(Color.White.copy(alpha = 0.10f))
+                            .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
+                        // **Champ masqué, clavier mot de passe** : ce que la référence laisse en clair.
                         BasicTextField(
                             value = text,
                             onValueChange = { text = it },
                             singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                color = theme.textColor,
-                                fontSize = 15.sp,
-                            ),
+                            textStyle = TextStyle(color = ink, fontSize = 15.sp),
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 autoCorrectEnabled = false,
@@ -493,23 +711,105 @@ fun BrowserScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Txt(
-                        OnyxLocalization["Tab"],
-                        color = theme.textColor,
-                        modifier = Modifier
-                            .clickable { viewModel.key("Tab") }
-                            .padding(8.dp),
-                    )
-                    Txt(
-                        OnyxLocalization["Hand back"],
-                        color = theme.accent,
-                        modifier = Modifier
-                            .clickable { viewModel.handBack() }
-                            .padding(8.dp),
-                    )
+                    Spacer(Modifier.width(6.dp))
+                    Pastille("⌫") { viewModel.key("Backspace") }
+                    Spacer(Modifier.width(6.dp))
+                    // **Envoyer sans passer par le clavier** : le bouton fait le même geste que la
+                    // touche « Envoyer », utile quand le clavier est replié.
+                    Pastille("⏎") {
+                        viewModel.type(text)
+                        text = ""
+                    }
+                }
+                Spacer(Modifier.height(OnyxSpace.Half))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Pastille(OnyxLocalization["Tab"]) { viewModel.key("Tab") }
+                    // **Échap ferme les suggestions et les dialogues du site** — sans lui, une page
+                    // qui ouvre une bannière ne se débloque pas depuis le téléphone.
+                    Pastille(OnyxLocalization["Esc"]) { viewModel.key("Escape") }
+                    Spacer(Modifier.weight(1f))
+                    BoutonPlein(OnyxLocalization["Hand back"], theme.accent, compact = true) {
+                        viewModel.handBack()
+                    }
                 }
             }
         }
     }
+}
+
+/** Une pastille sombre et cliquable : les touches annexes (⌫, Tab, Échap). */
+@Composable
+private fun Pastille(label: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .height(38.dp)
+            .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
+            .background(Color.White.copy(alpha = 0.12f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Txt(label, ReferencePalette.DarkText, size = 12)
+    }
+}
+
+/** Le bouton principal : un aplat de couleur, comme « Hand back » dans la référence. */
+@Composable
+private fun BoutonPlein(
+    label: String,
+    color: Color,
+    compact: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier
+            // Deux formes, un seul modificateur : `fillMaxWidth(0f)` puis `width(118.dp)` se
+            // combattaient, et le bouton compact pouvait sortir de l'écran.
+            .then(if (compact) Modifier.width(118.dp) else Modifier.fillMaxWidth())
+            .height(if (compact) 40.dp else 46.dp)
+            .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
+            .background(color)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Txt(label, ReferencePalette.DarkPage, size = 15, weight = FontWeight.SemiBold)
+    }
+}
+
+/** L'étiquette rouge « vous conduisez », avec sa pastille. */
+@Composable
+private fun Etiquette(label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
+            .background(ReferencePalette.DarkSurfaceHigh)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(ReferencePalette.Accent))
+        Spacer(Modifier.width(6.dp))
+        Txt(label, ReferencePalette.AccentTextDark, size = 11, weight = FontWeight.Medium, maxLines = 1)
+    }
+}
+
+/** Une ligne de texte : le `BasicText` de la maison, qui localise et prend sa couleur. */
+@Composable
+private fun Txt(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    size: Int = 15,
+    weight: FontWeight = FontWeight.Normal,
+    maxLines: Int = Int.MAX_VALUE,
+) {
+    BasicText(
+        text = text,
+        modifier = modifier,
+        maxLines = maxLines,
+        style = TextStyle(color = color, fontSize = size.sp, fontWeight = weight),
+    )
 }

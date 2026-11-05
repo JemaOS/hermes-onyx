@@ -85,10 +85,17 @@ class BrowserScreenClient(
     private val onLease: (BrowserScreenApi.Lease) -> Unit,
     private val onRefused: (Int, String) -> Unit,
     private val onClosed: (String?) -> Unit,
-    /** La prise en main est finie : `lost` dit que la page a disparu, pas que l'agent a repris. */
-    private val onEnded: (lost: Boolean, reason: String) -> Unit = { _, _ -> },
+    /** La fin d'une prise en main se dit : `lost` dit que la page a disparu, pas que l'agent a repris. */
+    private val onEnded: (Boolean, String) -> Unit = { _, _ -> },
     /** Le flux tourne, mais il n'y a **aucune page** à montrer. */
     private val onIdle: () -> Unit = {},
+    /**
+     * La page est chez un **autre** processus : celui-ci n'a rien à montrer.
+     *
+     * Le serveur le signale puis ferme le socket. L'app doit repartir — c'est le relais qui
+     * renverra alors l'écran vers le bon processus, puisque le ticket sera redemandé.
+     */
+    private val onPageElsewhere: () -> Unit = {},
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -175,6 +182,9 @@ class BrowserScreenClient(
                     rows.strOrNull("reason").orEmpty(),
                 )
                 "idle" -> onIdle()
+                // **La page est chez un autre processus.** Le serveur le signale avant de fermer
+                // le socket : sans ce traitement, l'app attend un flux qui ne viendra plus.
+                "page_elsewhere" -> onPageElsewhere()
             }
         }
 

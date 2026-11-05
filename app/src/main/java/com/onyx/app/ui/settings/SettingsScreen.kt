@@ -546,15 +546,24 @@ fun SettingsScreen(
                 }
             }
 
-            // **Le navigateur de l'agent.** Sa ligne n'existe que si le plugin répond ; sinon rien
-            // n'est dessiné. Le navigateur lui-même ne s'ouvre qu'à la demande de l'agent — cet
-            // écran est la porte quand la demande est déjà passée (ou pour aller voir).
-            if (onOpenBrowser != null && browserReady) {
+            // **Le navigateur de l'agent.** La ligne est là dès qu'un serveur est configuré — elle ne
+            // dépend plus de la sonde de capacité. Motif : la sonde peut rester muette pour des
+            // raisons de configuration (adresse Dashboard périmée, identifiants rangés autrement),
+            // et une fonctionnalité qu'on ne peut alors **ni voir ni ouvrir** devient indiagnosticable.
+            // Le panneau, lui, dit honnêtement où il en est (« Reconnexion… », « Le plugin ne répond
+            // pas »), donc l'entrée peut rester visible sans mentir. `browserReady` ne sert plus qu'au
+            // libellé du pied de section.
+            if (onOpenBrowser != null) {
                 OnyxFormSection(
                     header = "Browser",
-                    footer = "The agent's own browser, live. Take over to sign in, solve a captcha " +
-                        "or answer 2FA, then hand it back: what you type goes to the page, never " +
-                        "to the conversation.",
+                    footer = if (browserReady) {
+                        "The agent's own browser, live. Take over to sign in, solve a captcha " +
+                            "or answer 2FA, then hand it back: what you type goes to the page, never " +
+                            "to the conversation."
+                    } else {
+                        "The agent's own browser. It opens only when the agent has a page running — " +
+                            "otherwise the screen says so and offers to reconnect."
+                    },
                 ) {
                     OnyxValueRow(
                         label = "Agent's browser",
