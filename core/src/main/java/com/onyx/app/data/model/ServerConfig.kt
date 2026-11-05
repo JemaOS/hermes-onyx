@@ -85,8 +85,16 @@ data class ServerConfig(
      * contexte ne s'affiche que si elle est renseignée.
      */
     val contextWindow: Int = 0,
-    /** Nombre de secondes d'inactivité tolérées entre deux octets du flux SSE. */
-    val readTimeoutSeconds: Long = 120L,
+    /**
+     * Nombre de secondes d'inactivité tolérées entre deux octets du flux SSE.
+     *
+     * **Cinq minutes, pas deux.** Un tour qui exécute un outil — navigation, build, lecture d'un
+     * dépôt — ne produit aucun octet pendant tout ce temps. À 120 s, l'app coupait la connexion au
+     * milieu d'un travail parfaitement vivant, et affichait « Le serveur n'a pas répondu à temps »
+     * pendant que le serveur, lui, travaillait encore. Mesuré sur un tour de navigateur : 110 s de
+     * silence, coupé juste avant la réponse.
+     */
+    val readTimeoutSeconds: Long = 300L,
     /** Plafond global d'une requête (les appels d'outils d'un agent peuvent être longs). */
     val callTimeoutSeconds: Long = 3600L,
 ) {
@@ -107,7 +115,12 @@ data class ServerConfig(
      */
     val serveBase: String
         get() {
-            var value = normalizeAddress(serveBaseUrl)
+            // **Une adresse suffit.** En mode « une clé », le compagnon sert `/v1/…` (chat) et
+            // `api/…` + `onyx-browser/…` à la **même** adresse. Quand l'adresse du Dashboard n'a
+            // pas été saisie, retomber sur celle du chat est donc le comportement juste — sans ce
+            // repli, `ServeClient.base()` levait `BadUrl` et l'écran du navigateur restait noir
+            // sur un serveur parfaitement joignable.
+            var value = normalizeAddress(serveBaseUrl.ifBlank { baseUrl })
             while (value.endsWith("/")) value = value.dropLast(1)
             return value
         }
@@ -254,7 +267,12 @@ data class ServerConfig(
         ).joinToString("|")
 
     companion object {
-        const val DEFAULT_READ_TIMEOUT_SECONDS = 120L
+        /**
+     * Le silence toléré, en secondes — cinq minutes : un tour qui travaille (navigateur, build,
+     * lecture de dépôt) n'écrit rien pendant des minutes, et couper à deux minutes tuait des tours
+     * vivants.
+     */
+    const val DEFAULT_READ_TIMEOUT_SECONDS = 300L
         const val DEFAULT_CALL_TIMEOUT_SECONDS = 3600L
 
         /**

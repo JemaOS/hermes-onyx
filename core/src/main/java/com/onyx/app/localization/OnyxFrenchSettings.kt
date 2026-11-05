@@ -325,12 +325,25 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     // **Le navigateur de l'agent** (`BrowserScreen`) — l'écran, pas seulement la ligne de Réglages.
     "The agent's browser" to "Le navigateur de l'agent",
     "Waiting for the agent's browser…" to "En attente du navigateur de l'agent…",
+    // **La reconnexion se voit.** Sans ces deux entrées, une coupure de socket affichait
+    // « En attente… » pour toujours et se lisait comme une panne du serveur.
+    "Reconnecting…" to "Reconnexion…",
+    "Retry" to "Réessayer",
+    "The browser is unreachable. Try again." to
+        "Le navigateur est injoignable. Réessayez.",
     "Connecting…" to "Connexion…",
     "Show the browser" to "Afficher le navigateur",
     "Take over" to "Prendre la main",
     "Hand back" to "Rendre la main",
     "You're driving" to "C'est vous qui conduisez",
+    // **Les libellés de la forme de référence.** « You're in control » et l'étiquette de conduite
+    // n'existaient qu'en anglais dans l'écran : la fenêtre restait donc moitié française.
+    "You're in control" to "Vous avez la main",
+    "YOU'RE DRIVING" to "VOUS CONDUISEZ",
     "Tab" to "Tabulation",
+    "Esc" to "Échap",
+    "Tap a field on the page, then type here: the text goes straight to its page, not into the conversation." to
+        "Touchez un champ sur la page, puis tapez ici : le texte va directement à la page, jamais dans la conversation.",
     "Take over first, then act on the page." to
         "Prenez d'abord la main, puis agissez sur la page.",
     "Another screen is driving this browser." to
@@ -354,6 +367,12 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "Le navigateur de l'agent, en direct. Prenez la main pour vous connecter, passer un " +
         "captcha ou répondre à une 2FA, puis rendez-la : ce que vous tapez va à la page, jamais " +
         "à la conversation.",
+    // Le même pied, quand la sonde de capacité n'a pas répondu : la ligne reste offerte, et le
+    // texte dit franchement ce qui va se passer plutôt que de promettre un direct qui n'existe pas.
+    "The agent's own browser. It opens only when the agent has a page running — otherwise the " +
+        "screen says so and offers to reconnect." to
+        "Le navigateur de l'agent. Il s'ouvre quand l'agent a une page en cours — sinon l'écran " +
+        "le dit et propose de se reconnecter.",
 
     // « Erase everything » (`ResetSettings`).
     "Erase everything…" to "Tout effacer…",

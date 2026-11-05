@@ -117,14 +117,35 @@ class ServerProbe(
      * [Support.UNKNOWN] et **n'est pas gravé** : la prochaine ouverture redemandera.
      */
     suspend fun supports(capability: ServerCapability): Support {
-        if (!config.hasServeCredentials) return Support.UNKNOWN
+        // **Le navigateur se sonde sur la passerelle, jamais sur le Dashboard.** Le plugin
+        // `onyx-browser` est relayé sur l'origine de la passerelle (`/onyx-browser/…`), comme le
+        // chat — pas sur le Dashboard, qui a ses propres routes. Quand l'adresse Dashboard est
+        // périmée (ancien tunnel, ancienne IP) ou vide, la sonde partait vers une adresse morte :
+        // la capacité restait `UNKNOWN`, affichée « absente », et la ligne Browser n'était jamais
+        // dessinée alors que le plugin répondait parfaitement sur la passerelle.
+        val transport = transportFor(capability)
+        if (!transport.first.hasServeCredentials) return Support.UNKNOWN
         val key = keyFor(config, capability)
         cache.read(key)?.let { return it }
 
-        val answer = withContext(Dispatchers.IO) { ask(capability) }
+        val answer = withContext(Dispatchers.IO) { ask(capability, transport.second) }
         if (answer == Support.YES || answer == Support.NO) cache.write(key, answer)
         return answer
     }
+
+    /**
+     * Le couple (config, client) à employer pour cette capacité.
+     *
+     * Pour le navigateur, on force l'adresse de la **passerelle** : c'est là que le plugin est
+     * relayé. Toutes les autres capacités gardent l'adresse du Dashboard.
+     */
+    private fun transportFor(capability: ServerCapability): Pair<ServerConfig, ServeClient> =
+        if (capability == ServerCapability.BROWSER) {
+            val sur = config.copy(serveBaseUrl = config.baseUrl.ifBlank { config.serveBaseUrl })
+            sur to ServeClient(sur)
+        } else {
+            config to client
+        }
 
     /**
      * Vrai seulement si le serveur sait faire — la lecture que les écrans emploieront.
@@ -138,7 +159,7 @@ class ServerProbe(
         declared().associateWith { supports(it) }
 
     /** L'unique requête ; elle ne lève pas. */
-    private suspend fun ask(capability: ServerCapability): Support = try {
+    private suspend fun ask(capability: ServerCapability, client: ServeClient): Support = try {
         // Un GET nu : la route doit exister et répondre, on ne lit pas son corps.
         client.request(capability.route, method = "GET", timeoutSeconds = timeoutSeconds)
         Support.YES

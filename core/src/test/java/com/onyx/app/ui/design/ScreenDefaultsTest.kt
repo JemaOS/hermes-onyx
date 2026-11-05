@@ -60,6 +60,10 @@ class ScreenDefaultsTest {
         "ui/chat/PdfViewerScreen.kt" to "Visionneuse PDF plein écran.",
         "ui/chat/ComposerEditorScreen.kt" to "Éditeur du compositeur : barre à trois positions (Annuler / titre / Enregistrer), hors gabarit de page.",
         "ui/calls/IncomingCallScreen.kt" to "Appel entrant : surface de scène plein écran (sonnerie + répondre), pas une page.",
+        // Visionneuse d'un navigateur distant : la barre EST le contenu (fermer, qui conduit,
+        // l'état de prise en main), et le fond ne peut pas être la matière de l'app — une page
+        // web se regarde sur du noir, comme une photo plein écran.
+        "ui/browser/BrowserScreen.kt" to "Visionneuse plein écran : barre propre (fermer / état de conduite / adresse), pas une barre de page.",
     )
 
     /** Les écrans dont le fond n'est pas une page, avec la raison — une seule règle par famille. */
@@ -71,6 +75,7 @@ class ScreenDefaultsTest {
         "ui/computer/ComputerScreen.kt" to "Espace de travail : la barre de commandes et le flux ont chacun leur fond, l'écran n'a pas de page.",
         "ui/settings/LogsScreen.kt" to "Journal : un défilement de texte brut, sur le fond système (épinglé par le verrou de parité des formulaires).",
         "ui/calls/IncomingCallScreen.kt" to "Appel entrant : surface de scène plein écran, le fond du fil derrière, pas une page.",
+        "ui/browser/BrowserScreen.kt" to "Visionneuse : la page est l'image, le noir autour est son letterbox — pas la matière de l'app.",
     )
 
     /**
