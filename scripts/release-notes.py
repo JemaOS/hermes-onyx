@@ -117,13 +117,9 @@ def sujet_de(sha, sujet):
 
 def puce(sujet, sha):
     """`Menu: the panel is flat` devient `**Menu** — the panel is flat`."""
-    m = re.match(r"^([A-Za-z0-9][A-Za-z0-9 /_+-]{1,24}):\s+(.+)$", sujet)
-    # « Onyx: … » n'apprend rien : la release parle deja d'Onyx.
-    if m and m.group(1).strip().lower() not in ("onyx", "app"):
-        texte = f"**{m.group(1)}** — {m.group(2)}"
-    else:
-        texte = m.group(2) if m else sujet
-    # Une puce commence par une majuscule, meme quand on a retire un prefixe.
+    # **Le sujet du commit, tel quel.** Pas de préfixe réécrit, pas de « **Onyx** — » : la
+    # structure demandée est « * sujet (sha) », comme les notes générées par GitHub.
+    texte = sujet.strip()
     return f"* {texte[:1].upper() + texte[1:]} ({sha})"
 
 
@@ -132,7 +128,6 @@ def corps(version, precedent, liste):
     utiles = [c for c in liste if not BRUIT.match(c[1])] or liste
     for sha, sujet, _, _ in utiles:
         lignes.append(puce(sujet_de(sha, sujet), sha))
-    lignes.append("")
     lignes.append(f"**Full Changelog**: https://github.com/{DEPOT}/compare/"
                   f"{precedent}...{version}")
     return "\n".join(lignes)
@@ -175,7 +170,9 @@ def principal():
                     nouveau.append((h, sha))
         texte = corps(tag, precedent, liste)
         if not liste:
-            texte = (f"## What's Changed\n* No commit landed between `{precedent}` and `{tag}`.\n\n"
+            meme = git("rev-parse", "--short", tag).strip() or tag
+            texte = (f"## What's Changed\n"
+                     f"* No new commit between `{precedent}` and `{tag}` — both tags point to {meme}.\n"
                      f"**Full Changelog**: https://github.com/{DEPOT}/compare/"
                      f"{precedent}...{tag}")
         if nouveau:

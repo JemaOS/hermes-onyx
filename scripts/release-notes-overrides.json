@@ -1,3 +1,11 @@
 {
-  "2e6a3bf": "Label: \"Teach a task\", not \"Show a task\""
+  "078d5a9": "Performance: the streaming block no longer goes through a system view",
+  "0b654fd": "Vault: out of Capabilities, into Settings in its own section, and onto the icon",
+  "2e6a3bf": "Label: \"Teach a task\", not \"Show a task\"",
+  "4c07de0": "The plan states the freshness rule: two seconds, not a counter",
+  "7e0735f": "Bot identity: the \"Save\" button saves and stays",
+  "832eda1": "Bot identity: the \"Model\" row opens the real list of models",
+  "ab86bc9": "The French label test read a path from outside the repository",
+  "b7cd7c2": "Performance: scrolling a dense thread no longer rebuilds its background on every frame",
+  "da51a6c": "Schedules: \"What coder does\" and \"coder's Schedules\" carry French labels"
 }
