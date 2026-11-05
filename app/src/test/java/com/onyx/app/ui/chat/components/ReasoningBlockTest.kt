@@ -40,7 +40,16 @@ class ReasoningBlockTest {
 
         // Le filet est posé au ton de filet de la maison.
         assertTrue("le filet du bloc a disparu", detail.contains("ReasoningBlock.RailWidth"))
-        assertTrue("le filet n'a plus le ton de la maison", detail.contains("background(theme.separator)"))
+        // **Le contrat n'a pas bougé, seule sa façon.** Le filet garde le ton de filet de la maison ;
+        // il est **peint** (`drawRect`) au lieu d'être une barre mesurée à côté du texte — la mesure
+        // intrinsèque traversait le raisonnement entier à chaque mise en page, c'est-à-dire à chaque
+        // fois que le bloc re-entre dans la fenêtre en défilant (voir `FoldBody`, même leçon).
+        assertTrue("le filet n'a plus le ton de la maison", detail.contains("color = theme.separator"))
+        assertTrue("le filet n'est plus peint derrière le texte", detail.contains("drawRect("))
+        assertFalse(
+            "la mesure intrinsèque du filet est revenue (une passe de mesure de plus sur le texte)",
+            detail.contains("IntrinsicSize"),
+        )
         assertTrue("le texte n'est plus en retrait", detail.contains("ReasoningBlock.TextIndent"))
         // **Plus de pavé** : ni vitre, ni aplat de surface, ni bordure de carte.
         assertFalse("une vitre est revenue dans le bloc", detail.contains("liquidGlass"))
