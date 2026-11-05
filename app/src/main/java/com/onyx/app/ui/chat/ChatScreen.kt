@@ -77,6 +77,7 @@ import com.onyx.app.ui.design.GlassScrollFreeze
 import com.onyx.app.data.model.serve.BotMentions
 import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.chat.components.FollowUpChips
+import com.onyx.app.ui.chat.components.BrowserInvite
 import com.onyx.app.ui.chat.components.EmptyHomeTopInset
 import com.onyx.app.ui.chat.components.MentionSuggestions
 import com.onyx.app.ui.chat.components.MessageRow
@@ -281,6 +282,14 @@ fun ChatScreen(
      * `null` : pas de ligne (serveur sans identifiants Dashboard, ou aperçu). Jamais un bouton mort.
      */
     onTeachTask: (() -> Unit)? = null,
+    /**
+     * Ouvre le panneau du navigateur de l'agent depuis le fil.
+     *
+     * C'est ce qui rend la **carte de prise en main** cliquable : l'agent demande, la carte tombe
+     * dans la conversation, la personne appuie et le panneau s'ouvre sur la page déjà chargée.
+     * `null` : pas de carte, plutôt qu'une carte sans issue.
+     */
+    onOpenBrowser: (() -> Unit)? = null,
     /**
      * Doublure de QA du menu « / » (`am start --ez onyx.slashDemo true`) : l'émulateur n'a pas de
      * passerelle, donc `complete.slash` ne rend rien et le menu ne peut être vu ni mesuré. Le
@@ -1192,6 +1201,7 @@ fun ChatScreen(
                             isLive = isLive,
                             live = if (isLive) stateFlow.value.live else null,
                             linkPreviews = linkPreviews,
+                            onOpenBrowser = onOpenBrowser,
                             onRegenerate = if (!message.isUser && !state.isStreaming) {
                                 { onRetry() }
                             } else {
@@ -1541,6 +1551,10 @@ fun ChatScreen(
             // La pile du bas ne contient donc plus que le champ : sa réserve (`composerHeightPx`)
             // mesure le champ seul, et la plaque garde exactement sa géométrie. La réserve du fil
             // au-dessus du compositeur diminue d'autant (voir la mesure dans le rapport).
+            // **La prise en main se voit aussi sans le fil.** La carte du message ne peut apparaître
+            // que si l'agent écrit son appel dans *cette* session ; cette bande interroge l'état du
+            // plugin et couvre le cas où l'agent travaille ailleurs. Elle se retire toute seule.
+            BrowserInvite(server = state.server, onOpen = onOpenBrowser)
             Box(
                 modifier = Modifier
                     .onSizeChanged { composerHeightPx = it.height }

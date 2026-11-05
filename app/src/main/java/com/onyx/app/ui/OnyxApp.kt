@@ -2217,6 +2217,13 @@ fun OnyxApp() {
                 } else {
                     null
                 },
+                // **La carte de prise en main du navigateur.** Elle ouvre le panneau depuis le
+                // fil : c'est le geste que l'agent ne peut pas faire à la place de la personne.
+                onOpenBrowser = if (state.server.hasServeCredentials) {
+                    { navTo(Route.BROWSER_SCREEN.name) }
+                } else {
+                    null
+                },
                 onOpenPhotos = { attachments, index ->
                     photoSet = attachments
                     photoIndex = index

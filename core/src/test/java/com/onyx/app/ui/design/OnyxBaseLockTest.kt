@@ -720,6 +720,10 @@ private val NOT_SCREENS: Set<String> = setOf(
     // ni fond à lui (le fil les porte), et il est déjà couvert par les verrous du fil.
     "ui/chat/components/StreamingProse.kt",
     "ui/chat/components/SlashMenu.kt",
+    // La bande de prise en main : un composant posé **au-dessus du champ**, pas une page — elle
+    // n'a ni en-tête ni fond à elle, et c'est le fil qui les porte. Elle est couverte par les
+    // verrous du compositeur, comme les deux précédents.
+    "ui/chat/components/BrowserInvite.kt",
 )
 
 /** Les racines d'interface et le préfixe de clé qui va avec (`com/onyx/app/`). */

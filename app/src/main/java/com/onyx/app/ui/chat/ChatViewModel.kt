@@ -149,6 +149,8 @@ class ChatViewModel(
     private var retryJob: Job? = null
     /** Le rattrapage d'un tour fini sans nous (voir [resumeDetachedTurn]) : un seul à la fois. */
     private var recoveryJob: Job? = null
+    /** Le veilleur du silence : il relit la session quand le flux n'envoie plus rien. */
+    private var rescueJob: Job? = null
     private var retryAttempt = 0
     private val retryDelaysMs = longArrayOf(2_000, 5_000, 15_000, 30_000, 60_000)
     /** Ancienneté initiale des tours sortis de la file, par bulle de réponse. */
@@ -1836,6 +1838,48 @@ class ChatViewModel(
         startStream(server, request, assistantId, prompt = fullText)
     }
 
+    /**
+     * **Une réponse qui arrive sans le flux n'est pas perdue.**
+     *
+     * Le serveur se tait pendant qu'un outil travaille — parfois plusieurs minutes, et Telegram
+     * affiche « en train d'écrire » pendant tout ce temps sans rien perdre, parce qu'il relit la
+     * session. Le flux, lui, peut finir par être coupé par un relais, un changement de réseau ou
+     * une veille : la réponse était alors écrite chez l'hôte et jamais montrée.
+     *
+     * Ce veilleur relit la session dès que le flux se tait plus de [RESCUE_AFTER_SECONDS] : si
+     * l'hôte a écrit la réponse, elle est posée dans le message du tour et le tour se clôt
+     * proprement. Il ne touche à rien tant que le flux parle, et ne devine jamais rien : sans
+     * message d'assistant après le prompt, il attend simplement le tour suivant.
+     */
+    private fun watchForRescue(
+        conversation: String,
+        assistantId: String,
+        server: ServerConfig,
+    ) {
+        rescueJob?.cancel()
+        rescueJob = viewModelScope.launch {
+            var essais = 0
+            while (essais < RESCUE_ATTEMPTS) {
+                delay(RESCUE_POLL_MS)
+                val session = turns.session(conversation) ?: return@launch
+                val phase = session.phase
+                if (!phase.isStreaming) return@launch
+                if (phase.quietSeconds(System.currentTimeMillis()) < RESCUE_AFTER_SECONDS) continue
+                val id = session.serverSessionId ?: serverSessionId ?: continue
+                essais += 1
+                val fromHost = runCatching {
+                    com.onyx.app.data.net.ServeSessionMessages(server).reply(id)
+                }.getOrNull() ?: continue
+                val courant = _state.value.messages.firstOrNull { it.id == assistantId }
+                val fusion = com.onyx.app.data.net.ServeSessionMessages
+                    .merge(courant?.text.orEmpty(), fromHost) ?: continue
+                session.edit { message -> message.copy(text = fusion, isStreaming = false) }
+                session.succeed()
+                return@launch
+            }
+        }
+    }
+
     private fun startStream(
         server: ServerConfig,
         request: ChatRequest,
@@ -1858,6 +1902,8 @@ class ChatViewModel(
             // et la requête en portait une autre. Si rien n'est en vigueur, **rien n'est envoyé** : le
             // serveur choisit, et c'est exactement ce que « Modèle par défaut » annonce.
             lastRequest = request
+            // **Le flux n'est pas la seule source de la réponse.** Voir `watchForRescue`.
+            watchForRescue(conversation, assistantId, server)
             val effectiveRequest = lastRequest ?: request
             // Ce qui part vraiment : la barre du haut le montre (c'est la même valeur).
             effectiveRequest.model?.trim()?.takeIf { it.isNotEmpty() }?.let { resolved ->
@@ -2096,6 +2142,13 @@ class ChatViewModel(
     private fun now(): Long = System.currentTimeMillis()
 
     private companion object {
+        /** Silence toléré avant la première relecture de la session : en deçà, un tour écrit. */
+        const val RESCUE_AFTER_SECONDS = 25.0
+        /** Une relecture toutes les dix secondes — le rythme d'un humain qui vérifie. */
+        const val RESCUE_POLL_MS = 10_000L
+        /** Plafond : cinq minutes de relectures, puis on laisse le tour tel qu'il est. */
+        const val RESCUE_ATTEMPTS = 30
+
         /**
          * Effort de raisonnement demandé aux modèles qui le supportent.
          * Aucune consigne système par défaut, comme sur la référence : `instructions` reste vide tant que

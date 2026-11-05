@@ -109,7 +109,11 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Writing the reply" to "Rédaction de la réponse",
     "a tool" to "un outil",
     "Running %1\$s" to "Exécution de %1\$s",
-    "No news from the server for %1\$s" to "Aucune nouvelle du serveur depuis %1\$s",
+    // **Un tour qui travaille n'est pas un tour en panne.** La formulation disait « aucune
+    // nouvelle », ce qui se lit comme une alerte alors que c'est l'état normal d'un outil qui
+    // s'exécute — et la réponse est désormais récupérée même sans le flux.
+    "Still working — nothing from the server for %1\$s" to
+        "Toujours en cours — rien du serveur depuis %1\$s",
     "The server sent your message back — waiting for the answer" to
         "Le serveur a renvoyé votre message — en attente de la réponse",
     "The server sent no answer for this turn." to "Le serveur n'a rien répondu à ce tour.",

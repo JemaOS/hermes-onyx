@@ -589,7 +589,7 @@ object TurnStatusCopy {
             // croire que c'est la réponse.
             phase.echoedPrompt -> OnyxLocalization["The server sent your message back — waiting for the answer"]
 
-            phase.stalled(now) -> OnyxLocalization.format("No news from the server for %1\$s", quiet)
+            phase.stalled(now) -> OnyxLocalization.format("Still working — nothing from the server for %1\$s", quiet)
 
             phase.step == TurnStep.TOOL -> OnyxLocalization.format(
                 "Running %1\$s",

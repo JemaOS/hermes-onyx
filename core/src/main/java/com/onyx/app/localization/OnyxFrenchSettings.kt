@@ -324,6 +324,13 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
 
     // **Le navigateur de l'agent** (`BrowserScreen`) — l'écran, pas seulement la ligne de Réglages.
     "The agent's browser" to "Le navigateur de l'agent",
+    // **La carte de prise en main dans le fil.** Sans ces trois entrées, la demande s'affichait en
+    // anglais au milieu d'une conversation française, et le bouton n'avait pas de mot.
+    "The agent's browser asks you to take the hand" to
+        "Le navigateur de l'agent vous demande la main",
+    "Sign in, solve a captcha or approve a 2FA, then hand it back: what you type goes to the page, never to the conversation." to
+        "Connectez-vous, passez un captcha ou validez une 2FA, puis rendez la main : ce que vous " +
+        "tapez va à la page, jamais à la conversation.",
     // **Le numéro de version est écrit dans le texte que l'humain voit.** Une capture d'écran ne dit
     // pas de quel paquet elle vient : l'ancien panneau et le nouveau affichent tous deux une attente,
     // et l'on cherche alors une panne réseau qui n'existe pas. Ce suffixe tranche en une seconde, et

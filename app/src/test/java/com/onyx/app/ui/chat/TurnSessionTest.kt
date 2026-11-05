@@ -52,7 +52,7 @@ class TurnSessionTest {
         assertFalse("vingt secondes de silence ne sont pas anormales", session.phase.stalled(31_000L))
         assertTrue("au-delà du délai, l'écran le dit", session.phase.stalled(71_000L))
         assertEquals(
-            "Aucune nouvelle du serveur depuis 1m 00s · 1m 10s",
+            "Toujours en cours — rien du serveur depuis 1m 00s · 1m 10s",
             TurnStatusCopy.line(session.phase, 71_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) },
         )
     }
@@ -74,7 +74,7 @@ class TurnSessionTest {
         assertFalse("un outil en cours n'est pas un serveur muet", session.phase.stalled(184_000L))
         val line = TurnStatusCopy.line(session.phase, 184_000L)?.let { OnyxLocalization.translate(it, Locale.FRANCE) }
         assertTrue("la ligne nomme l'outil, pas l'alerte : $line", line.orEmpty().startsWith("Exécution de process_manage · "))
-        assertFalse("aucune alerte de silence dans la ligne : $line", line.orEmpty().contains("Aucune nouvelle du serveur"))
+        assertFalse("aucune alerte de silence dans la ligne : $line", line.orEmpty().contains("Toujours en cours"))
         assertFalse(
             "et ce n'est pas un avertissement rouge",
             TurnStatusCopy.isWarning(session.phase, 184_000L),

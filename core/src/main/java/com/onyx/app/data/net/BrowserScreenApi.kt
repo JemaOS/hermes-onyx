@@ -117,6 +117,40 @@ object BrowserScreenApi {
         }
     }
 
+    /**
+     * `GET onyx-browser/health` — l'état du plugin, et **surtout la demande en attente**.
+     *
+     * C'est ce qui permet à l'app de savoir qu'on lui demande la main **sans dépendre du fil** :
+     * l'agent peut tourner dans une autre session que celle affichée, ou le client peut ne pas
+     * rendre sa carte. Le serveur, lui, dit toujours la vérité sur ce qu'il attend.
+     */
+    suspend fun health(
+        server: ServerConfig,
+        client: ServeClient = ServeClient(server),
+    ): Health? = runCatching {
+        healthOf(client.request("$ROOT/health", method = "GET"))
+    }.getOrNull()
+
+    /** Lit la santé publiée par le plugin ; `null` si le corps n'est pas un JSON d'état. */
+    fun healthOf(payload: JsonElement?): Health? {
+        val rows = payload as? JsonObject ?: return null
+        val attente = rows["pending"] as? JsonObject
+        return Health(
+            ok = rows.bool("ok") ?: false,
+            browser = rows.bool("browser") ?: false,
+            lease = leaseOf(rows["lease"]) ?: Lease(holder = "agent", epoch = 0),
+            watching = rows.int("watching") ?: 0,
+            pending = attente?.let {
+                PendingRequest(
+                    id = it.strOrNull("id").orEmpty(),
+                    // Le plugin publie `reason` ; `note` est la même chose dite autrement selon
+                    // la version. Une demande sans texte reste une demande : elle s'affiche.
+                    reason = it.strOrNull("reason") ?: it.strOrNull("note").orEmpty(),
+                )
+            },
+        )
+    }
+
     /** `POST onyx-browser/lease` avec `release` — rend la main à l'agent. */
     suspend fun release(
         server: ServerConfig,
