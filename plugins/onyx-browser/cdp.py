@@ -17,6 +17,12 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+import socket
+import struct
+import time
+import urllib.request
+from pathlib import Path
 from typing import Any
 
 #: Un Chromium Android crédible : c'est lui que le site sert quand on demande sa version mobile.
@@ -59,6 +65,166 @@ class BrowserUnavailable(RuntimeError):
     """Aucun navigateur d'agent vivant pour ce tour."""
 
 
+#: Le fichier où Chromium écrit le port DevTools qu'il a choisi, à la racine de son
+#: `--user-data-dir`. C'est la seule source qui survit au réapprentissage d'un navigateur.
+_DEVTOOLS_PORT_FILE = "DevToolsActivePort"
+
+
+def _live_devtools_ws() -> str:
+    """Le `webSocketDebuggerUrl` du Chromium d'agent qui montre une vraie page.
+
+    **Pourquoi ce repli existe :** le seam `SUPERVISOR_REGISTRY` ne résout que dans le
+    processus qui a lancé le navigateur, et son URL CDP devient périmée dès que ce
+    navigateur est récolté puis rouvert sur un autre port. Le superviseur essayait alors de
+    se reconnecter à un port mort, s'arrêtait après cinq échecs, et le plugin en concluait
+    « pas de navigateur » — alors que la page existait et que le téléphone ne montrait
+    qu'un écran vide.
+
+    Le port courant, lui, est écrit par Chromium dans `DevToolsActivePort` : il est relu à
+    chaque appel, donc toujours juste. On garde le profil le plus récemment touché qui
+    expose une page `http(s)` — un onglet `about:blank` ne compte pas comme une page.
+    """
+    scratch = Path(os.environ.get("TMPDIR") or (Path.home() / ".hermes" / "cache" / "scratch"))
+    candidats: list[tuple[float, int]] = []
+    for profil in scratch.glob("agent-browser-chrome-*"):
+        fichier = profil / _DEVTOOLS_PORT_FILE
+        try:
+            port = int(fichier.read_text().splitlines()[0])
+        except Exception:
+            continue  # navigateur mort : pas de fichier, ou fichier illisible
+        try:
+            mtime = fichier.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        candidats.append((mtime, port))
+    for _mtime, port in sorted(candidats, reverse=True):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=1.0) as r:
+                cibles = json.loads(r.read().decode())
+        except Exception:
+            continue  # port mort : le navigateur a été récolté
+        if not any(
+            t.get("type") == "page" and str(t.get("url") or "").startswith("http") for t in cibles
+        ):
+            continue  # un onglet vide n'est pas une page à montrer
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2.0) as r:
+                ws = str(json.loads(r.read().decode()).get("webSocketDebuggerUrl") or "")
+        except Exception:
+            continue
+        if ws.startswith(("ws://", "wss://")):
+            return ws
+    return ""
+
+
+class _DirectCDP:
+    """Un client CDP synchrone et minimal, branché en direct sur le DevTools du navigateur.
+
+    Il parle la même surface que le seam de Hermes (`call`, `is_valid`, `page_session_id`),
+    donc le reste du plugin n'a pas à savoir comment la connexion a été obtenue. Sans
+    dépendance : la poignée WebSocket est faite à la main sur une socket nue.
+    """
+
+    def __init__(self, ws_url: str, timeout: float = 10.0) -> None:
+        self._timeout = timeout
+        self.page_session_id = ""
+        reste = ws_url.split("://", 1)[-1]
+        hote, _, chemin = reste.partition("/")
+        self._hote = hote.partition(":")[0]
+        self._port = int(hote.partition(":")[2] or 80)
+        self._sock = socket.create_connection((self._hote, self._port), timeout=timeout)
+        self._sock.settimeout(timeout)
+        cle = base64.b64encode(os.urandom(16)).decode()
+        self._sock.sendall(
+            (
+                f"GET /{chemin} HTTP/1.1\r\nHost: {hote}\r\nUpgrade: websocket\r\n"
+                f"Connection: Upgrade\r\nSec-WebSocket-Key: {cle}\r\n"
+                "Sec-WebSocket-Version: 13\r\n\r\n"
+            ).encode()
+        )
+        entete = b""
+        while b"\r\n\r\n" not in entete:
+            bloc = self._sock.recv(4096)
+            if not bloc:
+                raise BrowserUnavailable("deuxième connexion DevTools interrompue")
+            entete += bloc
+        if b" 101 " not in entete.split(b"\r\n", 1)[0]:
+            raise BrowserUnavailable("DevTools n'a pas accepté la poignée WebSocket")
+        self._buf = entete.split(b"\r\n\r\n", 1)[1]
+        self._prochain = 0
+        self._vivant = True
+
+    # -- transport ---------------------------------------------------------------------------
+
+    def _lire(self, n: int) -> bytes:
+        while len(self._buf) < n:
+            bloc = self._sock.recv(1 << 20)
+            if not bloc:
+                raise BrowserUnavailable("DevTools a fermé la connexion")
+            self._buf += bloc
+        sortie, self._buf = self._buf[:n], self._buf[n:]
+        return sortie
+
+    def _envoyer(self, texte: str) -> None:
+        charge = texte.encode()
+        masque = os.urandom(4)
+        entete = bytes([0x81])
+        n = len(charge)
+        if n < 126:
+            entete += bytes([0x80 | n])
+        elif n < 65536:
+            entete += bytes([0x80 | 126]) + struct.pack(">H", n)
+        else:
+            entete += bytes([0x80 | 127]) + struct.pack(">Q", n)
+        melange = bytes(b ^ masque[i % 4] for i, b in enumerate(charge))
+        self._sock.sendall(entete + masque + melange)
+
+    def _recevoir(self) -> dict[str, Any]:
+        while True:
+            tete = self._lire(2)
+            op = tete[0] % 16
+            n = tete[1] % 128
+            if n == 126:
+                n = struct.unpack(">H", self._lire(2))[0]
+            elif n == 127:
+                n = struct.unpack(">Q", self._lire(8))[0]
+            charge = self._lire(n)
+            if op == 8:  # fermeture
+                raise BrowserUnavailable("DevTools a fermé la connexion")
+            if op == 1:
+                return json.loads(charge)
+
+    # -- surface du seam ----------------------------------------------------------------------
+
+    def call(
+        self,
+        method: str,
+        params: dict[str, Any] | None = None,
+        *,
+        session_id: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        self._prochain += 1
+        message: dict[str, Any] = {"id": self._prochain, "method": method}
+        if params:
+            message["params"] = params
+        if session_id:
+            message["sessionId"] = session_id
+        if timeout:
+            self._sock.settimeout(timeout)
+        self._envoyer(json.dumps(message))
+        while True:
+            reponse = self._recevoir()
+            if reponse.get("id") != self._prochain:
+                continue  # un événement : on n'y est pas abonné, on l'ignore
+            if "error" in reponse:
+                raise RuntimeError(f"CDP {method}: {reponse['error']}")
+            return reponse
+
+    def is_valid(self) -> bool:
+        return self._vivant
+
+
 class Controller:
     """Un client CDP pour le navigateur d'un tour, avec ses sessions de page en cache."""
 
@@ -77,9 +243,23 @@ class Controller:
         cdp = self._cdp
         if cdp is not None and getattr(cdp, "is_valid", lambda: False)():
             return cdp
-        from tools.browser_supervisor import SUPERVISOR_REGISTRY
+        # Voie 1 : le seam de Hermes. Elle est la plus rapide quand elle répond, mais elle ne
+        # voit que le navigateur du processus courant et son URL CDP peut être périmée.
+        try:
+            from tools.browser_supervisor import SUPERVISOR_REGISTRY
 
-        cdp = self._cdp = SUPERVISOR_REGISTRY.capture(self.task_id, timeout=3)
+            cdp = self._cdp = SUPERVISOR_REGISTRY.capture(self.task_id, timeout=3)
+            self._sessions = {}
+            return cdp
+        except Exception:
+            pass
+        # Voie 2 : le DevTools du navigateur d'agent, relu à chaque fois. C'est cette voie qui
+        # survit au réapprentissage du navigateur — le superviseur, lui, reste lié à l'ancien
+        # port et finit par s'arrêter après cinq échecs de reconnexion.
+        ws = _live_devtools_ws()
+        if not ws:
+            raise BrowserUnavailable("no browser")
+        cdp = self._cdp = _DirectCDP(ws)
         self._sessions = {}
         return cdp
 
