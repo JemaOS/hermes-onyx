@@ -70,20 +70,51 @@ class BrowserUnavailable(RuntimeError):
 _DEVTOOLS_PORT_FILE = "DevToolsActivePort"
 
 
-def _live_devtools_ws() -> str:
-    """Le `webSocketDebuggerUrl` du Chromium d'agent qui montre une vraie page.
+def _session_cdp_url(task_id: str) -> str:
+    """L'URL DevTools **de la session de ce tour**, ou ``""``.
 
-    **Pourquoi ce repli existe :** le seam `SUPERVISOR_REGISTRY` ne résout que dans le
-    processus qui a lancé le navigateur, et son URL CDP devient périmée dès que ce
-    navigateur est récolté puis rouvert sur un autre port. Le superviseur essayait alors de
-    se reconnecter à un port mort, s'arrêtait après cinq échecs, et le plugin en concluait
-    « pas de navigateur » — alors que la page existait et que le téléphone ne montrait
-    qu'un écran vide.
+    C'est la voie canonique de Hermes : la commande `agent-browser get cdp-url` sur la session
+    du tour. Elle est liée à la tâche, donc elle ne peut pas renvoyer le navigateur d'une autre
+    session — ce qui compte, puisque plusieurs tours tournent en parallèle sur cette machine.
 
-    Le port courant, lui, est écrit par Chromium dans `DevToolsActivePort` : il est relu à
-    chaque appel, donc toujours juste. On garde le profil le plus récemment touché qui
-    expose une page `http(s)` — un onglet `about:blank` ne compte pas comme une page.
+    **Pourquoi elle est nécessaire :** le seam `SUPERVISOR_REGISTRY` ne résout que dans le
+    processus qui a lancé le navigateur, et son URL CDP devient périmée dès que ce navigateur
+    est récolté puis rouvert sur un autre port. Le superviseur essayait alors de se reconnecter
+    à un port mort, s'arrêtait après cinq échecs, et le plugin en concluait « pas de
+    navigateur » — alors que la page existait et que le téléphone ne montrait qu'un écran vide.
+
+    Cette commande relance le navigateur au besoin, suit un réapprentissage, et rafraîchit le
+    minuteur du démon : le trafic CDP direct, lui, est invisible pour lui.
     """
+    try:
+        from tools.browser_tool_session import _run_browser_command
+    except Exception:
+        return ""
+    try:
+        res = _run_browser_command(task_id, "get", ["cdp-url"], timeout=20)
+    except Exception:
+        return ""
+    if not (res or {}).get("success"):
+        return ""
+    return str(((res or {}).get("data") or {}).get("cdpUrl") or "")
+
+
+def _live_devtools_ws(task_id: str = "") -> str:
+    """Le `webSocketDebuggerUrl` du navigateur qui montre une vraie page.
+
+    Deux voies, dans l'ordre :
+
+    1. **la session du tour** (`_session_cdp_url`) — elle est liée à la tâche, donc exacte ;
+    2. **le profil le plus récemment touché** qui expose une page `http(s)` — un filet de
+       sécurité quand la session du tour ne répond pas.
+
+    Un onglet `about:blank` ne compte pas comme une page : le plugin ne doit jamais montrer
+    du blanc en croyant montrer la page.
+    """
+    if task_id:
+        cible = _session_cdp_url(task_id)
+        if cible.startswith(("ws://", "wss://")):
+            return cible
     scratch = Path(os.environ.get("TMPDIR") or (Path.home() / ".hermes" / "cache" / "scratch"))
     candidats: list[tuple[float, int]] = []
     for profil in scratch.glob("agent-browser-chrome-*"):
@@ -256,7 +287,7 @@ class Controller:
         # Voie 2 : le DevTools du navigateur d'agent, relu à chaque fois. C'est cette voie qui
         # survit au réapprentissage du navigateur — le superviseur, lui, reste lié à l'ancien
         # port et finit par s'arrêter après cinq échecs de reconnexion.
-        ws = _live_devtools_ws()
+        ws = _live_devtools_ws(self.task_id)
         if not ws:
             raise BrowserUnavailable("no browser")
         cdp = self._cdp = _DirectCDP(ws)
