@@ -80,6 +80,16 @@ private const val SlashCompleteDebounceMs = 120L
 /** L'attente la plus longue d'un tour avant qu'une commande « / » ne renonce (10 minutes). */
 private const val SlashWaitTimeoutMs = 10 * 60 * 1000L
 
+/**
+ * Les deux temps de la reprise d'import après une réinstallation.
+ *
+ * Premier essai rapide (le serveur répond souvent dès la deuxième frame), puis on double jusqu'à
+ * une minute : au pire une lecture par minute tant que ça échoue, et plus aucune dès que c'est fait.
+ * Sans ce plafond, un serveur injoignable ferait tourner une boucle serrée.
+ */
+private const val IMPORT_RETRY_FIRST_MS = 3_000L
+private const val IMPORT_RETRY_CEILING_MS = 60_000L
+
 class ChatViewModel(
     application: Application,
     private val servers: ServerRepository,
@@ -254,8 +264,26 @@ class ChatViewModel(
             servers.activeServer.collect { server ->
                 if (!server.hasServeCredentials) return@collect
                 if (importedFor == server.configSignature) return@collect
-                importServerSessions(server)
-                importedFor = server.configSignature
+                // **Un import qui échoue ne se marque pas comme fait.**
+                //
+                // C'était le défaut de la réinstallation : la marque était posée même quand la
+                // lecture avait échoué — serveur pas encore joignable, tunnel qui démarre, réseau
+                // pas prêt sur les premières frames. La condition « déjà importé pour ce serveur »
+                // était donc vraie pour toujours, et l'app restait vide **sans jamais réessayer**.
+                // C'est exactement ce que le propriétaire a vu : « j'ai réinstallé, mes
+                // conversations ne reviennent que dans Home ».
+                //
+                // On réessaie donc jusqu'à ce que ça passe, à intervalle croissant, plafonné :
+                // une lecture par minute au pire, et plus rien dès que c'est fait.
+                var attente = IMPORT_RETRY_FIRST_MS
+                while (importedFor != server.configSignature) {
+                    if (importServerSessions(server)) {
+                        importedFor = server.configSignature
+                    } else {
+                        kotlinx.coroutines.delay(attente)
+                        attente = (attente * 2).coerceAtMost(IMPORT_RETRY_CEILING_MS)
+                    }
+                }
             }
         }
         // Le menu qui s'ouvre sur un appui long sur l'icône : un raccourci de **bot** ouvre la
@@ -282,7 +310,7 @@ class ChatViewModel(
      *
      * Un échec de lecture ne casse rien : le registre local reste, et l'app continue.
      */
-    private suspend fun importServerSessions(server: ServerConfig) {
+    private suspend fun importServerSessions(server: ServerConfig): Boolean {
         if (conversations.conversations.value.isEmpty()) conversations.load()
         // **Les profils à interroger** : ceux des bots retenus sur ce téléphone, plus celui du
         // serveur. C'est ce qui donne à chaque session le profil qui la porte — sans lui, une
@@ -293,8 +321,9 @@ class ChatViewModel(
             .filter { it.isNotEmpty() }
             .distinct()
         val api = ServeSessionsApi(ServeClient(server))
-        val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { return }
-        if (tagged.isEmpty()) return
+        val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { return false }
+        // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
+        if (tagged.isEmpty()) return true
         val summaries = tagged.map { (_, summary) -> summary }
         val profileById = tagged.associate { (profile, summary) -> summary.id to profile }
         val known = conversations.conversations.value
@@ -334,8 +363,10 @@ class ChatViewModel(
             botChats = botChats,
             profileOf = { summary -> profileById[summary.id] },
         )
-        if (imported.isEmpty()) return
         imported.forEach { conversation -> conversations.save(conversation) }
+        // Vrai dès que la lecture a abouti — même sans rien de neuf à écrire : c'est la **lecture**
+        // qui doit être marquée comme faite, pas l'écriture.
+        return true
     }
 
     /**
