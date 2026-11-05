@@ -1000,16 +1000,15 @@ private fun StepsFold(
     val open = chosen ?: (isLive && textEmpty)
 
     Column {
-        // **La carte passe devant le repli, et ne se replie pas.** Une demande de prise en main est
-        // une décision attendue, pas une étape de travail : si elle se cachait derrière « Ran 3
-        // tools », la personne ne saurait pas qu'on lui demande quelque chose et le tour resterait
-        // en attente jusqu'au délai. Elle se dessine donc **avant** l'en-tête du repli, toujours
-        // visible, avec le seul geste qui a un sens : ouvrir le panneau.
-        tools.lastOrNull { estUneDemandeDeMain(it.name) }?.let { demande ->
-            if (onOpenBrowser != null) {
-                BrowserTakeoverCard(tool = demande, onOpen = onOpenBrowser, readingUp = readingUp)
-            }
-        }
+        // **Une demande de prise en main ne se dessine plus ici.**
+        //
+        // Elle vivait dans le fil, en tête de la rangée d'outils : au bas de la conversation, la
+        // carte se retrouvait donc *posée sur le fil*, coupant les dernières bulles. Ordre du
+        // propriétaire (capture du 2026-11-05) : elle doit s'afficher « à l'endroit du prompt »,
+        // pas dans le chat. C'est désormais `BrowserInvite`, dans le puits du compositeur
+        // (`ChatScreen`), qui la porte — et elle a un avantage que cette carte n'avait pas : elle
+        // lit l'état du plugin (`onyx-browser/health`), donc elle apparaît aussi quand l'agent
+        // travaille dans une **autre** session.
         // LOT organisation-fil-competences : la puce repliée de la référence — deux icônes de
         // genre d'outil, puis « Ran 3 tools · 1 s » (et « Working · 3 tools » tant que ça tourne).
         FoldHeader(
@@ -1601,77 +1600,3 @@ private fun tickingSeconds(since: Long, active: Boolean): Long? = produceState<L
         delay(1000)
     }
 }.value
-
-// ---------------------------------------------------------------------------------------------
-// **La demande de prise en main, en carte — et non en ligne d'outil.**
-//
-// L'agent ne peut pas ouvrir un écran à distance : la seule chose qu'il puisse faire, c'est
-// *demander*. Encore faut-il que la demande se voie. Rendue comme les autres outils, elle
-// s'affichait au mieux comme « ran 1 tool » — une étape de travail parmi d'autres — et la personne
-// n'avait aucune raison d'aller ouvrir le panneau. La vignette vivante de la référence viendra
-// quand le panneau saura prêter une image au fil ; en attendant, la carte dit qui demande, quoi
-// faire, et offre le seul geste utile.
-// ---------------------------------------------------------------------------------------------
-
-/**
- * Les noms d'outils qui valent une **demande à la personne**.
- *
- * Le contrat du plugin est `browser_request_takeover` ; les variantes sont tolérées parce qu'un
- * serveur peut exposer `browser_takeover` ou `computer_request_takeover`, et qu'une carte manquée
- * coûte plus cher qu'une carte affichée pour un outil voisin.
- */
-private val OUTILS_DE_PRISE_EN_MAIN = setOf(
-    "browser_request_takeover",
-    "browser_takeover",
-    "computer_request_takeover",
-)
-
-private fun estUneDemandeDeMain(nom: String): Boolean {
-    val n = nom.lowercase()
-    if (n in OUTILS_DE_PRISE_EN_MAIN) return true
-    return n.contains("browser") && (n.contains("takeover") || n.contains("request_hand"))
-}
-
-/**
- * La carte elle-même : une décision attendue, le texte qui dit quoi faire, et le bouton.
- *
- * Elle reste posée après coup (`DONE`) — la trace de ce qui a été demandé — mais le bouton
- * disparaît alors : un bouton mort se touche et ne fait rien, ce qui se lit comme une panne.
- */
-@Composable
-private fun BrowserTakeoverCard(tool: ToolActivity, onOpen: () -> Unit, readingUp: Boolean) {
-    val theme = LocalOnyxTheme.current
-    val enAttente = tool.status == ToolStatus.RUNNING
-    ContextCard(
-        state = if (enAttente) ContextCardState.WAITING else ContextCardState.DONE,
-        title = OnyxLocalization["The agent's browser asks you to take the hand"],
-        detail = OnyxLocalization[
-            "Sign in, solve a captcha or approve a 2FA, then hand it back: what you type goes to the page, never to the conversation."
-        ],
-        readingUp = readingUp,
-        onClick = onOpen,
-        action = if (!enAttente) {
-            null
-        } else {
-            {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(theme.accent)
-                        .clickable(onClick = onOpen)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    BasicText(
-                        text = OnyxLocalization["Take over"],
-                        localize = false,
-                        style = theme.caption.copy(
-                            color = com.onyx.app.ui.theme.ReferencePalette.OnAccent,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                    )
-                }
-            }
-        },
-    )
-}
