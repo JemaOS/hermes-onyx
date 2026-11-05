@@ -15,7 +15,7 @@ class ServeProfilesApi(private val client: ServeClient) {
     /** `GET api/profiles` — tous les profils, bots compris. */
     suspend fun profiles(): List<BotProfile> {
         val payload = client.request("api/profiles").asObject()
-        val rows = payload?.array("profiles") ?: payload?.array("data") ?: emptyList()
+        val rows = payload?.arrayOrNull("profiles") ?: payload?.arrayOrNull("data") ?: emptyList()
         return rows.mapNotNull { element -> element.asObject()?.let(::botProfileFromRow) }
     }
 

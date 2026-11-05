@@ -26,7 +26,7 @@ class ServeBotsRpc(private val rpc: RpcChannel) {
     /** Le roster complet de `profiles.list`, avec `canonical_session`, aperçu et dernière activité. */
     suspend fun profiles(): List<BotProfile> {
         val payload = rpc.call("profiles.list", buildJsonObject { }, LIST_TIMEOUT).asObject()
-        val rows = payload?.array("profiles") ?: payload?.array("data") ?: emptyList()
+        val rows = payload?.arrayOrNull("profiles") ?: payload?.arrayOrNull("data") ?: emptyList()
         return rows.mapNotNull { element -> element.asObject()?.let(::botProfileFromRow) }
     }
 

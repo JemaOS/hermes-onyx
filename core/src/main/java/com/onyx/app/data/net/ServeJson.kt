@@ -52,6 +52,18 @@ fun JsonObject.obj(key: String): JsonObject? = this[key].asObject()
 
 fun JsonObject.array(key: String): List<JsonElement> = this[key].asArray().orEmpty()
 
+/**
+ * **La liste sous une clé, ou `null` quand la clé est absente.**
+ *
+ * [array] rend une liste **vide** pour une clé absente, ce qui la rend inutilisable dans une
+ * chaîne « essaie ce nom, puis celui-là » : `arrayOrNull("sessions") ?: array("data")` ne retombait
+ * jamais sur `data`, puisque le premier terme n'était jamais nul. Le gateway nomme sa liste
+ * `data` : la lecture rendait donc zéro session d'une réponse qui en contenait quinze, sans une
+ * erreur — le « toujours vide » de la réinstallation.
+ */
+fun JsonObject.arrayOrNull(key: String): List<JsonElement>? = this[key]?.asArray()
+
+
 /** La première clé dont la valeur est une chaîne non vide : les serveurs changent de nom. */
 fun JsonObject.firstString(vararg keys: String): String? =
     keys.firstNotNullOfOrNull { this[it]?.asString()?.takeIf { value -> value.isNotEmpty() } }

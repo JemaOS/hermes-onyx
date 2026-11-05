@@ -372,13 +372,7 @@ class ChatViewModel(
         // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
         // Mais elle se **dit** : c'est le silence de ce cas qui a coûté quatre versions.
         if (lues.isEmpty()) {
-            val forme = runCatching { api.debugShape() }.getOrElse { "erreur: ${it.message}" }
-            _importNote.value =
-                "diag · tagged=${tagged.size} · simple=${runCatching { api.allSummaries().size }.getOrElse { -1 }} · $forme"
-            // **Zéro ligne n'est pas un succès la première fois.** Une lecture vide au démarrage
-            // (serveur qui s'éveille, tunnel qui se monte) ne doit pas clore l'import : on réessaie
-            // quelques fois, puis on accepte le vide — sinon l'app tournerait en boucle sur un
-            // serveur qui n'a réellement aucune session.
+            _importNote.value = OnyxLocalization.format("%1\$d sessions read, %2\$d imported", 0, 0)
             vides += 1
             return vides >= 3
         }

@@ -146,7 +146,7 @@ class ServeSessionsApi(private val client: ServeClient) {
             query = pageQuery(limit = limit, offset = 0, order = "recent", profile = profile),
         )
         val object_ = payload.asObject()
-        val rows = object_?.array("sessions") ?: object_?.array("data") ?: payload.asArray() ?: emptyList()
+        val rows = object_?.arrayOrNull("sessions") ?: object_?.arrayOrNull("data") ?: payload.asArray() ?: emptyList()
         return rows.mapNotNull { element -> element.asObject()?.let(::sessionSummaryFromRow) }
     }
 
@@ -243,39 +243,11 @@ class ServeSessionsApi(private val client: ServeClient) {
             query = pageQuery(limit = limit, offset = offset, order = "created", profile = profile),
         )
         val object_ = payload.asObject()
-        val rows = object_?.array("sessions") ?: object_?.array("data") ?: payload.asArray() ?: emptyList()
+        val rows = object_?.arrayOrNull("sessions") ?: object_?.arrayOrNull("data") ?: payload.asArray() ?: emptyList()
         return rows.mapNotNull { element -> element.asObject()?.let(::sessionSummaryFromRow) }
     }
 
-    /**
-     * **La réponse brute**, pour le diagnostic à distance. Provisoire.
-     *
-     * Deux lectures du même serveur donnaient l'une quinze lignes, l'autre zéro : impossible de
-     * trancher depuis le code, la différence est dans ce que le serveur répond à *cette* requête.
-     */
-    suspend fun rawPage(profile: String? = null): String {
-        val payload = client.request(
-            path = "api/sessions",
-            query = pageQuery(limit = 3, offset = 0, order = "created", profile = profile),
-        )
-        return payload.toString().take(300)
-    }
 
-    /**
-     * **Où les lignes se perdent** : la racine, ses clés, le nombre de lignes, le nombre de lignes
-     * décodées. Un seul relevé, pour ne plus avancer à l'aveugle.
-     */
-    suspend fun debugShape(): String {
-        val payload = client.request(
-            path = "api/sessions",
-            query = pageQuery(limit = 3, offset = 0, order = "created", profile = null),
-        )
-        val obj = payload.asObject()
-        val rows = obj?.array("sessions") ?: obj?.array("data") ?: payload.asArray()
-        val parsed = rows?.mapNotNull { element -> element.asObject()?.let(::sessionSummaryFromRow) }
-        return "type=${payload::class.simpleName} · cles=${obj?.keys?.joinToString(",") ?: "aucune"} · " +
-            "rows=${rows?.size ?: -1} · decodees=${parsed?.size ?: -1}"
-    }
 
     /** Une session par son identifiant, dans [profile] (ou le profil du serveur quand il est vide). */
     suspend fun summary(id: String, profile: String? = null): SessionSummary? =
