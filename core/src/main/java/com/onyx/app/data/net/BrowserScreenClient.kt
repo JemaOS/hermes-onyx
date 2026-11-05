@@ -90,6 +90,15 @@ class BrowserScreenClient(
     /** Le flux tourne, mais il n'y a **aucune page** à montrer. */
     private val onIdle: () -> Unit = {},
     /**
+     * **Le flux est vivant.** Tout message reçu le prouve — une trame, un `idle`, un bail.
+     *
+     * Le chien de garde s'appuie dessus : c'est le **silence** qui dit qu'un flux est mort, pas
+     * l'absence de trame. Sans ce signal, un écran qui ne reçoit que des `idle` (le cas normal
+     * quand aucune page n'est ouverte) passait pour mort... ou, pire, pour vivant alors que le
+     * socket était coupé : les deux sens étaient faux.
+     */
+    private val onAlive: () -> Unit = {},
+    /**
      * La page est chez un **autre** processus : celui-ci n'a rien à montrer.
      *
      * Le serveur le signale puis ferme le socket. L'app doit repartir — c'est le relais qui
@@ -167,6 +176,9 @@ class BrowserScreenClient(
 
     private inner class Listener : WebSocketListener() {
         override fun onMessage(webSocket: WebSocket, text: String) {
+            // **Tout message prouve que le flux est vivant.** C'est le signal dont le chien de
+            // garde a besoin : un `idle` répété (aucune page ouverte) compte autant qu'une trame.
+            onAlive()
             val rows = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull()
                 ?: return
             when (rows.strOrNull("type")) {

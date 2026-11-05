@@ -190,6 +190,12 @@ class BrowserScreenViewModel(
                 )
             }
         },
+        // **Le flux est vivant.** Tout message reçu — trame, `idle`, bail — compte. C'est ce que
+        // le chien de garde mesure : sans lui, il ne voyait que les trames et ne se déclenchait
+        // jamais sur un écran qui n'a pas de page à montrer.
+        onAlive = {
+            lastAliveAt = System.currentTimeMillis()
+        },
     )
 
     /** Le dernier texte tapé pendant la conduite — **le seul** endroit où un mot de passe existe. */
@@ -225,6 +231,16 @@ class BrowserScreenViewModel(
     private var watchdogJob: Job? = null
     private var lastFrameAt: Long = 0L
 
+    /**
+     * La dernière **activité** du flux — n'importe quel message reçu.
+     *
+     * Elle est distincte de [lastFrameAt] : une trame prouve qu'une page s'affiche, mais un
+     * `idle` prouve aussi que le flux est vivant. Compter les trames seules rendait le chien
+     * de garde aveugle : un écran qui ne reçoit que des `idle` (aucune page ouverte) ne
+     * déclenchait jamais la garde, et un socket mort en silence ne la déclenchait pas non plus.
+     */
+    private var lastAliveAt: Long = 0L
+
     /** Le délai sans trame au-delà duquel le flux est considéré comme mort. */
     private val silenceMs = 12_000L
 
@@ -249,9 +265,11 @@ class BrowserScreenViewModel(
                 delay(2_000)
                 val phase = _state.value.phase
                 if (phase != Phase.WATCHING && phase != Phase.DRIVING) continue
-                // Tant qu'aucune trame n'est arrivée, on ne conclut rien : le démarrage peut
-                // prendre quelques secondes.
-                val last = lastFrameAt
+                // **Le silence se mesure sur l'activité, pas sur les trames.** Un `idle` répété
+                // est une preuve de vie : c'est lui qui distingue « le flux tourne mais il n'y a
+                // pas de page » de « le flux est mort ». Avant, une trame manquait et la garde
+                // ne se déclenchait jamais — l'écran restait figé sur « En attente… ».
+                val last = lastAliveAt
                 if (last == 0L) continue
                 if (System.currentTimeMillis() - last < silenceMs) continue
                 // **Le flux est mort.** On le ferme pour de bon, et on repart de zéro : le
@@ -297,6 +315,12 @@ class BrowserScreenViewModel(
             _state.value = _state.value.copy(phase = Phase.WATCHING)
             // **Le chien de garde démarre avec le flux.** Sans lui, un socket qui meurt en
             // silence laisse l'écran figé sur « En attente… » pour toujours.
+            //
+            // On **arme la mesure** au même instant : l'activité repart de zéro à chaque
+            // nouvelle connexion, sinon le garde comparerait l'heure d'un flux précédent et
+            // conclurait trop vite — ou, si l'horloge n'avait jamais été armée, ne conclurait
+            // jamais (`lastAliveAt == 0`).
+            lastAliveAt = System.currentTimeMillis()
             armWatchdog()
             if (wantDriving) {
                 // Le bail appartient au socket : une nouvelle connexion doit le redemander, sinon

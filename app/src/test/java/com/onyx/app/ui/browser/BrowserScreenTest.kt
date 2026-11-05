@@ -162,6 +162,45 @@ class BrowserScreenTest {
     }
 
     @Test
+    fun `le chien de garde mesure l activite, pas seulement les trames`() {
+        val client = File("../core/src/main/java/com/onyx/app/data/net/BrowserScreenClient.kt").readText()
+        val ecran = File("src/main/java/com/onyx/app/ui/browser/BrowserScreen.kt").readText()
+        // **Le bug qui figeait l'écran sur « En attente… » pour toujours.**
+        //
+        // Le chien de garde ne comptait que les **trames**. Un écran sans page à montrer ne
+        // reçoit que des `idle` : son `lastFrameAt` restait à zéro, la garde ne se déclenchait
+        // jamais, et le socket mort en silence derrière le relais n'était jamais noticed. La
+        // reconnexion automatique existait, mais rien ne la déclenchait.
+        //
+        // Le remède : c'est le **silence** qui dit qu'un flux est mort, et tout message reçu le
+        // prouve — un `idle` autant qu'une trame.
+        assertTrue(
+            "le client signale toute activité",
+            client.contains("private val onAlive: () -> Unit = {}"),
+        )
+        assertTrue(
+            "et il la signale à chaque message",
+            client.contains("onAlive()"),
+        )
+        assertTrue(
+            "l'écran mesure l'activité",
+            ecran.contains("lastAliveAt"),
+        )
+        assertTrue(
+            "la garde se sert de l'activité",
+            ecran.contains("val last = lastAliveAt"),
+        )
+        assertFalse(
+            "la garde ne se sert plus des trames seules",
+            ecran.contains("val last = lastFrameAt"),
+        )
+        assertTrue(
+            "et l'activité est armée à chaque connexion",
+            ecran.contains("lastAliveAt = System.currentTimeMillis()"),
+        )
+    }
+
+    @Test
     fun `les libelles de l ecran existent en francais`() {
         // **Le chemin part de la racine du dépôt**, pas du module : Gradle exécute le test avec
         // le répertoire du projet comme point de départ, et `../core/...` sortait du dépôt.
