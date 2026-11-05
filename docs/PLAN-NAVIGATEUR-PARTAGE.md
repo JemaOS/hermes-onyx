@@ -12,7 +12,7 @@ critères qui disent « c'est fini ». Ce qui n'y est pas écrit n'est pas dans 
 
 | # | Question | Défaut recommandé | Pourquoi |
 |---|---|---|---|
-| D1 | **Où vit le serveur ?** | Un **plugin** `onyx-browser`, comme `onyx-vault` | Installable et versionné à part, sans patcher Hermes ; `display` est déjà dans `hermes serve`, on n'y ajoute pas une deuxième source |
+| D1 | **Où vit le serveur ?** | Un **plugin de plateforme** `onyx-browser`, avec son **propre serveur aiohttp** (pas une route du Dashboard) | Un plugin de Dashboard reçoit l'app FastAPI pour du REST ; c'est `register(ctx)` + `register_tool` des plugins de **plateforme** qui donne l'outil bloquant — et `dots` prouve, sur cette même version, qu'un plugin de plateforme peut tenir son propre WebSocket derrière un proxy TLS |
 | D2 | **Budget de latence ?** | 3 img/s au repos, **8 img/s** en conduite | 3 suffit pour lire un formulaire ; 8 rend le tap et la frappe utilisables |
 | D3 | **Périmètre ?** | **Téléphone seulement** en v1 | L'app web de Dots n'a que la carte, pas l'écran ; on l'ajoutera si le besoin existe |
 
@@ -136,15 +136,26 @@ périmée (§7).
 
 ## 4. Serveur — le plugin `onyx-browser`
 
-Nouveau dossier, sur le modèle de `~/.hermes/plugins/onyx-vault/` :
+**Plugin de plateforme**, pas plugin de Dashboard. La différence n'est pas cosmétique : c'est
+`register(ctx)` qui donne `register_tool` (l'outil bloquant) et les crochets `pre/post_tool_call`
+d'où vient le `task_id` du navigateur. Un plugin de Dashboard, lui, ne reçoit que l'app FastAPI, pour
+du REST.
+
+C'est le montage de `dots` (`server/hermes-plugin-dots/adapter.py`) — `register(ctx)` y déclare
+`browser_request_takeover` (`adapter.py:1874`) et le plugin y tient **son propre** `aiohttp`
+(`web.AppRunner` + `TCPSite`, derrière un proxy TLS). On ne touche donc pas à `hermes serve`.
 
 ```
 plugins/onyx-browser/
-  plugin.yaml              # métadonnées + requires (aucun secret requis)
-  __init__.py              # register(ctx) : l'outil + la route
-  adapter.py               # la logique : capture, input, bail
-  dashboard/browser_api.py # /api/plugins/onyx-browser/{health,observe,lease}
+  plugin.yaml   # kind: platform ; requires: DOTS-like token (BROWSER_TOKEN) ; bind 127.0.0.1:8788
+  __init__.py   # register(ctx) : l'outil + les crochets de task_id
+  adapter.py    # capture, input, bail, capture d'identifiants
+  server.py     # aiohttp : /onyx-browser/ws, /onyx-browser/health (ticket à usage unique)
 ```
+
+**Conséquence opérationnelle** : le plugin écoute sur son propre port (8788), comme `dots` sur 8787.
+Il faut une règle de proxy vers ce port dans le tunnel qui expose déjà la passerelle — une ligne de
+configuration, pas du code.
 
 ### Ce qu'on réutilise tel quel
 
