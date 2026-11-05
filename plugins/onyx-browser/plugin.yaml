@@ -1,5 +1,6 @@
 name: onyx-browser
 label: Onyx Browser
+kind: standalone
 version: 0.1.0
 description: >
   Le navigateur de l'agent, en direct sur le téléphone, et sa prise en main : un outil bloquant

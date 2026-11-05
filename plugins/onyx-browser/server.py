@@ -16,11 +16,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import threading
 from typing import Any
 
 from aiohttp import WSMsgType, web
+
+log = logging.getLogger(__name__)
 
 from .cdp import BrowserUnavailable, Controller
 from .session import AlreadyHeld, Session
@@ -256,19 +259,45 @@ async def _serve() -> None:
     runner = web.AppRunner(build_app(), access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, HOST, PORT)
-    await site.start()
+    try:
+        await site.start()
+    except OSError as erreur:
+        # Hermes charge un plugin **une fois par portée** (lancement puis chaque profil) : le
+        # deuxième `register()` trouve le port déjà pris par le premier. Ce n'est pas une panne —
+        # c'est le même serveur, une fois. On le dit et on s'arrête là, au lieu de laisser
+        # remonter un OSError qui fait passer le plugin pour cassé.
+        if getattr(erreur, "errno", None) in (98, 48):  # EADDRINUSE : Linux, macOS
+            log.info("onyx-browser: déjà en écoute sur %s:%s — instance ignorée", HOST, PORT)
+            STARTED.set()
+            return
+        raise
     STARTED.set()
+    log.info("onyx-browser: en écoute sur %s:%s/onyx-browser/health", HOST, PORT)
+
+
+_LANCE = threading.Lock()
+_TENTE = False
 
 
 def ensure_started() -> None:
-    """Démarre le serveur une fois, dans son propre fil : `register()` est synchrone."""
+    """Démarre le serveur une fois, dans son propre fil : `register()` est synchrone.
+
+    Le verrou n'est pas décoratif : Hermes appelle `register()` plusieurs fois (lancement, puis
+    chaque profil), et deux appels rapprochés voyaient tous deux `STARTED` vide — deux `TCPSite`
+    sur le même port, un `EADDRINUSE`, et le plugin passait pour mort.
+    """
+    global _TENTE
     if STARTED.is_set():
         return
+    with _LANCE:
+        if STARTED.is_set() or _TENTE:
+            return
+        _TENTE = True
 
-    def run() -> None:
-        asyncio.run(_serve())
+        def run() -> None:
+            asyncio.run(_serve())
 
-    threading.Thread(target=run, name="onyx-browser", daemon=True).start()
+        threading.Thread(target=run, name="onyx-browser", daemon=True).start()
     STARTED.wait(timeout=5)
 
 
