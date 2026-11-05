@@ -142,6 +142,39 @@ def clear_pending() -> None:
     write_peer()
 
 
+# **Le navigateur meurt d'inactivité pendant que l'humain tape.**
+#
+# `browser.inactivity_timeout` vaut 120 s par défaut, et le balayeur de Hermes ferme la session
+# quand aucun outil `browser_*` n'a été appelé. Or une prise en main bloque le tour jusqu'à 15
+# minutes **sans appeler d'outil** : la page était donc fermée au bout de deux minutes, et
+# l'écran du téléphone affichait `about:blank` — un formulaire de connexion qui disparaît pendant
+# qu'on le remplit. On demande explicitement à Hermes de compter ce temps comme de l'activité.
+KEEPALIVE_S = 30.0
+
+
+def _touch() -> None:
+    task_id = STATE.get("task_id")
+    if not task_id:
+        return
+    try:
+        from tools.browser_tool_lifecycle import _update_session_activity
+
+        _update_session_activity(str(task_id))
+    except Exception:  # version de Hermes sans ce crochet : la prise en main reste possible
+        pass
+
+
+def _keepalive() -> None:
+    """Un battement tant qu'une prise en main est en attente ou qu'un écran regarde."""
+    while True:
+        try:
+            if HUB.pending is not None or STATE["clients"]:
+                _touch()
+        except Exception:
+            pass
+        time.sleep(KEEPALIVE_S)
+
+
 def _controller() -> Controller:
     task_id = STATE.get("task_id")
     if not task_id:
@@ -411,6 +444,7 @@ def ensure_started() -> None:
             asyncio.run(_serve())
 
         threading.Thread(target=run, name="onyx-browser", daemon=True).start()
+        threading.Thread(target=_keepalive, name="onyx-browser-keepalive", daemon=True).start()
     STARTED.wait(timeout=5)
 
 
@@ -428,6 +462,7 @@ def notify_pending(takeover_id: str, reason: str) -> bool:
     # l'écran du téléphone à CE processus plutôt qu'à celui qui tient le port 8788.
     HUB.pending = takeover_id
     write_peer()
+    _touch()
     try:
         asyncio.run_coroutine_threadsafe(
             _broadcast({"type": "takeover", "id": takeover_id, "reason": reason}), boucle

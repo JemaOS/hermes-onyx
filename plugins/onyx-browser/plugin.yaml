@@ -1,7 +1,7 @@
 name: onyx-browser
 label: Onyx Browser
 kind: standalone
-version: 0.1.0
+version: 0.1.1
 description: >
   Le navigateur de l'agent, en direct sur le téléphone, et sa prise en main : un outil bloquant
   (`browser_request_takeover`) qui garde le tour ouvert, un WebSocket qui envoie des trames JPEG
