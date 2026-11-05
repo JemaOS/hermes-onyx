@@ -337,6 +337,10 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "Un autre écran conduit ce navigateur.",
     "The browser plugin isn't answering on this server." to
         "Le plugin du navigateur ne répond pas sur ce serveur.",
+    "The page closed during the takeover. Ask the agent to open it again." to
+        "La page s'est fermée pendant la prise en main. Demandez à l'agent de la rouvrir.",
+    "No page is open. Ask the agent to open one." to
+        "Aucune page n'est ouverte. Demandez à l'agent d'en ouvrir une.",
     "Save" to "Enregistrer",
     "Not now" to "Pas maintenant",
     "Saved to the vault." to "Enregistré dans le coffre.",

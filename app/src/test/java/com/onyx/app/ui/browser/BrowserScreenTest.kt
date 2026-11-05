@@ -145,13 +145,41 @@ class BrowserScreenTest {
     }
 
     @Test
+    fun `la fin d une prise en main ne reste pas silencieuse`() {
+        val client = File("../core/src/main/java/com/onyx/app/data/net/BrowserScreenClient.kt").readText()
+        val ecran = File("src/main/java/com/onyx/app/ui/browser/BrowserScreen.kt").readText()
+        // Le serveur rend la main d'office : page morte (Hermes ferme un navigateur inactif après
+        // deux minutes) ou délai de quinze minutes. Ignoré, l'écran restait sur la dernière image
+        // marquée « en attente » — la personne attendait un rendez-vous qui n'existait plus.
+        assertFalse(
+            "takeover_done n'est plus avalé",
+            client.contains("\"takeover_done\" -> Unit"),
+        )
+        assertTrue("il porte l'état de perte", client.contains("\"lost\""))
+        assertTrue("l'écran reçoit la fin", ecran.contains("onEnded = { lost, _ ->"))
+        assertTrue("et une page absente se dit", ecran.contains("onIdle = {"))
+        assertFalse("idle n'est plus avalé", client.contains("\"idle\" -> Unit"))
+    }
+
+    @Test
     fun `les libelles de l ecran existent en francais`() {
-        val fr = File("../core/src/main/java/com/onyx/app/localization/OnyxFrenchSettings.kt").readText()
+        // **Le chemin part de la racine du dépôt**, pas du module : Gradle exécute le test avec
+        // le répertoire du projet comme point de départ, et `../core/...` sortait du dépôt.
+        val racine = File(System.getProperty("user.dir")).let { base ->
+            if (File(base, "core/src/main/java/com/onyx/app/localization").isDirectory) base
+            else base.parentFile ?: base
+        }
+        val fr = File(
+            racine,
+            "core/src/main/java/com/onyx/app/localization/OnyxFrenchSettings.kt",
+        ).readText()
         listOf(
             "The agent's browser", "Waiting for the agent's browser…", "Take over", "Hand back",
             "You're driving", "Tab", "Show the browser", "Connecting…",
+            "The page closed during the takeover. Ask the agent to open it again.",
+            "No page is open. Ask the agent to open one.",
         ).forEach { cle ->
-            assertTrue("manque : $cle", fr.contains("\"$cle\" to "))
+            assertTrue("manque : $cle", fr.contains("\"$cle\" to"))
         }
     }
 }

@@ -130,6 +130,29 @@ class BrowserScreenViewModel(
                 problem = reason?.let { OnyxLocalization.format("The browser stopped: %1\$s", it) },
             )
         },
+        // **La fin se dit, sinon l'écran ment.** Le serveur rend la main tout seul quand la page
+        // meurt (Hermes ferme un navigateur inactif après deux minutes) ou au bout de quinze
+        // minutes. Sans ce message, l'écran restait sur la dernière image, marqué « en attente ».
+        onEnded = { lost, _ ->
+            val phase = if (_state.value.phase == Phase.DRIVING) Phase.WATCHING else _state.value.phase
+            _state.value = _state.value.copy(
+                phase = phase,
+                lease = null,
+                problem = if (lost) {
+                    OnyxLocalization["The page closed during the takeover. Ask the agent to open it again."]
+                } else {
+                    _state.value.problem
+                },
+            )
+        },
+        onIdle = {
+            val current = _state.value
+            if (current.image == null && current.problem == null) {
+                _state.value = current.copy(
+                    problem = OnyxLocalization["No page is open. Ask the agent to open one."],
+                )
+            }
+        },
     )
 
     /** Le dernier texte tapé pendant la conduite — **le seul** endroit où un mot de passe existe. */

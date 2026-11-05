@@ -85,6 +85,10 @@ class BrowserScreenClient(
     private val onLease: (BrowserScreenApi.Lease) -> Unit,
     private val onRefused: (Int, String) -> Unit,
     private val onClosed: (String?) -> Unit,
+    /** La prise en main est finie : `lost` dit que la page a disparu, pas que l'agent a repris. */
+    private val onEnded: (lost: Boolean, reason: String) -> Unit = { _, _ -> },
+    /** Le flux tourne, mais il n'y a **aucune page** à montrer. */
+    private val onIdle: () -> Unit = {},
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -162,8 +166,15 @@ class BrowserScreenClient(
                 "frame" -> BrowserFrames.frameOf(text)?.let(onFrame)
                 "lease" -> BrowserScreenApi.leaseOf(rows)?.let(onLease)
                 "refused" -> onRefused(rows.int("seq") ?: 0, rows.strOrNull("reason").orEmpty())
-                "takeover_done" -> Unit
-                "idle" -> Unit
+                // **La fin d'une prise en main se dit.** Elle était ignorée : quand le serveur
+                // rendait la main d'office — page fermée par l'inactivité de Hermes, délai de
+                // quinze minutes écoulé — l'écran restait sur la dernière image avec « en
+                // attente », et la personne attendait un rendez-vous qui n'existait plus.
+                "takeover_done" -> onEnded(
+                    rows["lost"]?.let { it is JsonPrimitive && it.content == "true" } == true,
+                    rows.strOrNull("reason").orEmpty(),
+                )
+                "idle" -> onIdle()
             }
         }
 
