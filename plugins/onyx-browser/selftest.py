@@ -239,6 +239,36 @@ async def main() -> int:
             except Exception:
                 check("le ticket est à usage unique", True)
 
+        # --- le viewport suit le volant ------------------------------------------------------
+        # L'outil posait le viewport mobile de son côté ; l'app peut prendre la main seule, et
+        # la page restait alors en 1280 px écrasés dans la largeur du téléphone.
+        class FauxEcran:
+            def __init__(self):
+                self.vues = []
+
+            def use_phone_viewport(self):
+                self.vues.append("phone")
+                return (390, 844)
+
+            def clear_viewport(self):
+                self.vues.append("desktop")
+
+        ecran = FauxEcran()
+        ancien_controleur = server._controller
+        ancien_task = server.STATE.get("task_id")
+        server._controller = lambda: ecran
+        server.STATE["task_id"] = "tache-de-test"
+        try:
+            await server._pose_viewport(True)
+            await server._pose_viewport(False)
+        finally:
+            server._controller = ancien_controleur
+            server.STATE["task_id"] = ancien_task
+        check(
+            "prendre la main pose un viewport de téléphone, la rendre le retire",
+            ecran.vues == ["phone", "desktop"],
+        )
+
     print()
     if failures:
         print(f"{len(failures)} échec(s): " + ", ".join(failures))
