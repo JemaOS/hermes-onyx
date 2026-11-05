@@ -261,6 +261,17 @@ async def main() -> int:
         def __init__(self):
             self.css_reçu = (0, 0)
             self.geste = None
+            # **Ce que le serveur demande au navigateur pour la forme de la page.** L'outil posait
+            # le viewport mobile de son côté ; l'app peut prendre la main sans lui, et la page
+            # restait alors en 1280 px écrasés dans la largeur du téléphone.
+            self.vues: list[str] = []
+
+        def use_phone_viewport(self):
+            self.vues.append("phone")
+            return (390, 844)
+
+        def clear_viewport(self):
+            self.vues.append("desktop")
 
         def frame(self, scale):
             return {
@@ -316,6 +327,12 @@ async def main() -> int:
             client_ws,
         )
         check("un css nul retombe sur la mesure du serveur", faux.css_reçu == (390, 844))
+
+        # **Le viewport suit le volant, pas seulement l'outil.** Prendre la main doit mettre la
+        # page à la forme du pouce ; rendre la main doit la remettre en bureau pour l'agent.
+        await server._pose_viewport(True)
+        await server._pose_viewport(False)
+        check("prendre la main pose un viewport de téléphone", faux.vues == ["phone", "desktop"])
     finally:
         server._controller = ancien_controleur
         server.STATE["task_id"] = None

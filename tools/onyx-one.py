@@ -184,6 +184,13 @@ def _navigateur_a_joindre() -> tuple[str, int]:
         sante = _sante(port)
         if not sante.get("ok"):
             continue
+        # **Un pair dont la page est morte ne doit jamais gagner.** `browser` seul ne suffit pas :
+        # la copie du gateway annonçait `browser: true` (son `task_id` reste collé après la
+        # fermeture du navigateur) avec `alive: false` — et l'écran du téléphone atterrissait sur
+        # un processus qui n'avait plus rien à montrer, d'où un flux `idle` au lieu des images.
+        # `alive` absent = plugin antérieur, qui ne sait pas mentir : on lui garde sa chance.
+        if sante.get("alive") is False:
+            continue
         score = 3 if sante.get("pending") else (2 if sante.get("browser") else 1)
         # **Une vraie page bat un onglet vide, à demande égale.** Deux processus Hermes tiennent
         # chacun leur navigateur ; sans ce départage, l'écran pouvait atterrir sur un onglet blanc

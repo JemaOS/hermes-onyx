@@ -224,6 +224,28 @@ def _controller() -> Controller:
     return Controller(str(task_id))
 
 
+async def _pose_viewport(phone: bool) -> None:
+    """Donne à la page la forme du pouce, ou la lui retire.
+
+    **Le viewport suit le volant, pas l'outil.** L'outil posait le viewport mobile avant de
+    sonner, mais l'app peut prendre la main seule : la page restait alors en 1280 px réduits à
+    la largeur d'un téléphone — le formulaire illisible et le doigt à côté du champ. Poser ici
+    garantit la même page à celui qui conduit, quel que soit le chemin qui l'a amené.
+    """
+    try:
+        controleur = _controller()
+    except Exception:
+        return  # pas de page : rien à mettre en forme
+    try:
+        await asyncio.to_thread(
+            controleur.use_phone_viewport if phone else controleur.clear_viewport
+        )
+    except Exception:
+        # Un viewport refusé ne doit pas faire échouer la prise en main : on préfère un écran
+        # en desktop à un bouton « Prendre la main » qui ne répond pas.
+        pass
+
+
 # -- authentification -------------------------------------------------------------------------
 
 def _authorised(request: web.Request) -> bool:
@@ -302,7 +324,12 @@ async def health(request: web.Request) -> web.Response:
         {
             "ok": True,
             "plugin": "onyx-browser",
-            "browser": bool(STATE.get("task_id")),
+            # **`browser` veut dire « il y a une page à montrer », pas « ce processus a déjà eu un
+            # navigateur ».** Le drapeau tiré de `STATE` restait vrai après la fermeture de la page,
+            # et le relais routait l'écran du téléphone vers un processus vide (`idle` au lieu
+            # d'images). `attached` garde la trace du tour, pour le diagnostic.
+            "browser": alive,
+            "attached": bool(STATE.get("task_id")),
             "alive": alive,
             # **L'écran a besoin de savoir ce qu'il y a à montrer.** `blank` n'est pas une panne :
             # c'est un navigateur neuf, et l'app peut le dire (« rouvre la page ») au lieu
@@ -349,10 +376,18 @@ async def lease(request: web.Request) -> web.Response:
             return web.json_response(
                 {"ok": False, "error": "lease_held", "epoch": held.epoch}, status=409
             )
+        # **La page prend la forme du pouce dès que l'humain conduit.** L'outil le faisait avant
+        # de sonner, mais l'app peut aussi prendre la main seule (bouton « Prendre la main ») :
+        # elle héritait alors d'un viewport de 1280 px réduit à la largeur de l'écran — texte
+        # minuscule, cibles de trois pixels, et un tap qui tombe à côté.
+        await _pose_viewport(True)
         await _broadcast({"type": "lease", **state})
         return web.json_response({"ok": True, **state})
     if action == "release":
         state = SESSION.release(str((body or {}).get("note") or ""))
+        # Rendre la main rend aussi la page à sa forme de bureau : l'agent reprend son tour, et
+        # il ne doit pas hériter du gabarit du téléphone.
+        await _pose_viewport(False)
         await _broadcast({"type": "lease", **state})
         return web.json_response({"ok": True, **state})
     return _refused("action", status=400)
