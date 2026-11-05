@@ -55,9 +55,31 @@ class ScheduleCopyLocalizationTest {
 
     @Test
     fun `l ecran compose bien ces quatre textes`() {
-        assertTrue(screen.contains("header = \"What \$botName does\","))
+        assertTrue(screen.contains("header = OnyxLocalization.format(\"What %s does\", botName)"))
         assertTrue(screen.contains("OnyxPageHeader(title = \"\$name's Schedules\""))
         assertTrue(screen.contains("description = \"Give \$name something to do at a time:"))
         assertTrue(screen.contains("footer = \"Each run is \$name's,"))
+    }
+
+    /**
+     * **Le nom traverse le gabarit, pas un motif.**
+     *
+     * Un motif doit reconnaître un nom qu'il n'a pas écrit : un nom en majuscules, avec une espace
+     * de plus ou une apostrophe lui échappait, et l'en-tête repassait en anglais au-dessus de
+     * libellés français. Le gabarit remplit le trou, donc il n'y a plus rien à reconnaître.
+     */
+    @Test
+    fun `un nom quelconque est rempli dans la phrase francaise`() {
+        listOf("coder", "Coder", "Le Bot de John", "l'agent d'Olympe", "  espacé  ").forEach { name ->
+            assertEquals("Ce que fait $name", OnyxLocalization.format("What %s does", name, locale = Locale.FRANCE))
+        }
+    }
+
+    /** Le motif reste, tolérant à la casse : un libellé déjà mis en capitales se traduit encore. */
+    @Test
+    fun `le motif ne depend pas de la casse`() {
+        // Un libellé déjà en capitales se traduit quand même ; le nom, lui, garde sa casse.
+        assertEquals("Ce que fait CODER", fr("WHAT CODER DOES"))
+        assertEquals("Ce que fait coder", fr("What  coder  does"))
     }
 }

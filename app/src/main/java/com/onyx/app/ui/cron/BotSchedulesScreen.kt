@@ -572,7 +572,11 @@ private fun RoutineEditorScreen(
             }
 
             OnyxFormSection(
-                header = "What $botName does",
+                // Le nom du bot est rempli **dans** la phrase française : l'en-tête ne dépend plus
+                // d'un motif qui devrait reconnaître un nom quelconque, et il est déjà traduit quand
+                // le composant le reçoit (`localizeHeader = false`, sinon on retraduirait du français).
+                header = OnyxLocalization.format("What %s does", botName),
+                localizeHeader = false,
                 footer = "As you would ask it in its chat. Its answer comes into the chat, with a notification.",
             ) {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp)) {

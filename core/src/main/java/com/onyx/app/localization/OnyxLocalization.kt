@@ -247,6 +247,13 @@ object OnyxLocalization {
 
         // Les horaires d'un bot : la pastille d'une routine partagée, et son pied.
         "Shared" to "Partagée",
+
+        // **L'en-tête du prompt d'un horaire** (« What *coder* does »). Le gabarit porte le nom du
+        // bot : il ne peut pas être une phrase composée puis retrouvée par un motif — un nom qui
+        // sort de l'ordinaire (majuscules, espaces, apostrophe) échapperait au motif et l'en-tête
+        // repasserait en anglais, ce qui est arrivé sur la capture du propriétaire. On l'écrit avec
+        // `OnyxLocalization.format`, qui remplit le trou sans rien traduire d'autre.
+        "What %s does" to "Ce que fait %s",
     )
 
     // Les traductions spécifiques à Onyx priment sur les termes partagés, puis les ajouts locaux
@@ -357,7 +364,9 @@ object OnyxLocalization {
         // Les deux **explications** de cet écran avaient déjà leurs motifs (plus bas, avec le nom
         // réinjecté) : on n'en ajoute pas un second, qui prendrait la parole sur le premier.
         Regex("^(.+)'s Schedules$") to { match -> "Horaires de ${match.groupValues[1]}" },
-        Regex("^What (.+) does$") to { match -> "Ce que fait ${match.groupValues[1]}" },
+        Regex("^What\\s+(.+?)\\s+does$", RegexOption.IGNORE_CASE) to { match ->
+            "Ce que fait ${match.groupValues[1]}"
+        },
         Regex("^(.+) · task (\\d+) of (\\d+)$") to { match ->
             "${translate(match.groupValues[1], Locale.FRANCE)} · tâche ${match.groupValues[2]} sur ${match.groupValues[3]}"
         },
