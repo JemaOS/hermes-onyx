@@ -393,8 +393,16 @@ class ChatViewModel(
             profileOf = { summary -> profileById[summary.id] },
         )
         imported.forEach { conversation -> conversations.save(conversation) }
-        // Une lecture qui a abouti efface la note : plus rien à expliquer.
-        _importNote.value = null
+        // **Ce que la lecture a réellement trouvé, dit à l'écran.**
+        //
+        // Une lecture muette ne se distingue pas d'une lecture vide : le volet est pareil. Cette
+        // ligne coupe court au diagnostic à distance — « 15 lues, 15 importées » sur une liste
+        // vide n'accuse plus le réseau mais l'affichage, et « 0 lue » accuse la route.
+        _importNote.value = OnyxLocalization.format(
+            "%1\$d sessions read, %2\$d imported",
+            summaries.size,
+            imported.size,
+        )
         // Vrai dès que la lecture a abouti — même sans rien de neuf à écrire : c'est la **lecture**
         // qui doit être marquée comme faite, pas l'écriture.
         return true

@@ -102,6 +102,8 @@ internal val onyxMenuSheetFrench: Map<String, String> = linkedMapOf(
     // ses cinq rangées. Le titre vient de la mesure (« joignable » / « muette ») ; la ligne porte
     // la latence relevée ou le compte à rebours de la prochaine tentative réelle.
     "Offline" to "Hors ligne",
+    "%1\$d sessions read, %2\$d imported" to
+        "%1\$d sessions lues, %2\$d importées",
     "The server's conversations did not load: %1\$s" to
         "Les conversations du serveur ne se sont pas chargées : %1\$s",
     "Refresh conversations" to "Actualiser les conversations",
