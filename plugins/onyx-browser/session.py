@@ -33,7 +33,6 @@ TAKEOVER_TIMEOUT_S = 15 * 60
 #: page a bougé entre l'image et le geste. Une image qui a moins de deux secondes est encore
 #: celle que l'humain voit : on laisse passer. Au-delà, la page a pu défiler, et le refus est la
 #: bonne réponse.
-STALE_SEQ_SLACK = 0
 #: Fenêtre de fraîcheur, en secondes. Assez large pour un geste humain (regarder, viser,
 #: poser le doigt), assez étroite pour que le clic ne parte pas sur une page qui a bougé.
 STALE_AFTER_S = 2.0

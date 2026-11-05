@@ -129,13 +129,20 @@ socket `refused {reason}` ∈ `stale`, `no_lease`, `no_page`, `action`.
 
 | `type` | Champs |
 |---|---|
-| `frame` | `seq`, `data` (JPEG base64), `url`, `title`, `width`, `height`, `live`, `ts` |
+| `frame` | `seq`, `data` (JPEG base64), `url`, `title`, `width`, `height`, `css` (viewport CSS `[w,h]`), `live`, `ts` |
 | `idle` | — (aucun navigateur ouvert, le flux continue de sonder à 1,5 s) |
 | `lease` | `holder`, `viewer_hash`, `epoch` |
 | `refused` | `seq`, `reason` ∈ `stale\|no_lease\|no_page\|origin` |
 
 Le `seq` est **monotone par connexion** : il sert à refuser une saisie calculée sur une image
 périmée (§7).
+
+> **`css` est obligatoire dans la trame.** C'est la taille du viewport en pixels CSS, et c'est
+> elle qui dit à l'app où poser le doigt : le geste part en fractions de l'image (0..1), et le
+> serveur le multiplie par cette taille. Sans elle, l'app calcule ses gestes sur un viewport de
+> zéro pixel — et le clic atterrit au coin de l'écran. Le serveur la diffuse donc **avec** la
+> trame ; il en garde aussi une copie pour lui, et retombe dessus si l'app envoie une taille
+> nulle (app plus ancienne, ou trame reçue avant la correction).
 
 ---
 
@@ -324,8 +331,16 @@ poste. Le mot de passe n'a jamais quitté le serveur, et il n'est jamais passé 
    jamais le jeton d'appairage en clair dans l'URL.
 2. **Pas de saisie sans bail.** `input` refusé si `holder != human` → `refused {reason: "no_lease"}`.
    (Dots ne le fait pas : chez lui le drapeau ne change que la cadence.)
-3. **Pas de saisie périmée.** `seq` plus vieux que la dernière trame émise, ou `epoch` changé →
-   `refused {reason: "stale"}`. C'est le garde qui empêche de cliquer sur un champ qui a bougé.
+3. **Pas de saisie périmée.** Un `seq` nul, inconnu, ou postérieur à la dernière trame émise →
+   `refused {reason: "stale"}` ; de même, un geste calculé sur une image de plus de deux
+   secondes → `refused {reason: "stale"}`. C'est le garde qui empêche de cliquer sur un champ qui
+   a bougé.
+   > *Pourquoi deux secondes et pas « la dernière trame ».* Le serveur diffuse à 8 img/s pendant
+   > que l'humain conduit : le `seq` de la trame **affichée** est forcément déjà dépassé au
+   > moment où le doigt se pose. Comparer des `seq` refusait donc *chaque* geste, et l'écran ne
+   > servait plus à rien. La règle compare une **durée**, pas un compteur : deux secondes
+   > couvrent le temps de réaction humain (regarder, viser, poser le doigt) et pas plus. Le `seq`
+   > reste vérifié — il refuse un numéro que le serveur n'a jamais émis.
 4. **Un seul conducteur.** `browser.lease.acquire` quand un autre conduit → `5302 LEASE_HELD` ; les
    autres appareils reçoivent `lease {holder: "human", viewer_hash}` et restent en lecture.
 5. **Rien dans le modèle.** `input` ne touche que CDP : aucun chemin de `screen_input` vers
