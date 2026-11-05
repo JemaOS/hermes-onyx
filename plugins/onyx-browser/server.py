@@ -273,6 +273,11 @@ async def _serve() -> None:
         raise
     STARTED.set()
     log.info("onyx-browser: en écoute sur %s:%s/onyx-browser/health", HOST, PORT)
+    # **Le serveur vit aussi longtemps que la boucle.** `_serve()` rendait la main juste après le
+    # `site.start()` : `asyncio.run()` fermait alors la boucle et le runner tombait avec elle — le
+    # port se refermait une poignée de millisecondes après s'être ouvert (connexion réinitialisée,
+    # jamais un 500). On attend ici, pour toujours.
+    await asyncio.Event().wait()
 
 
 _LANCE = threading.Lock()
