@@ -55,13 +55,13 @@ async def main() -> int:
     # pendant que l'humain conduit : le `seq` de l'image affichée est toujours dépassé au moment
     # du geste. Comparer des `seq` refusait donc *chaque* tap, et l'écran ne servait à rien.
     s.next_seq()
-    check("une trame légèrement dépassée passe encore", s.refusal(seq) is None)
-    # Un `seq` que le serveur n'a jamais émis, lui, est refusé.
-    check("un seq inconnu est refusé", s.refusal(seq + 99) == "stale")
-    # ... et une image vieille de plus de deux secondes ne vaut plus un clic.
-    clock[0] += session_mod.STALE_AFTER_S + 0.5
-    check("une image périmée est refusée", s.refusal(seq) == "stale")
-    clock[0] -= session_mod.STALE_AFTER_S + 0.5
+    # **La fraîcheur se mesure en secondes, pas en numéros de trame.** À 8 img/s pendant la
+    # conduite, le `seq` de l'image affichée est toujours dépassé : comparer les `seq` refusait
+    # chaque tap, et l'écran ne servait à rien. Ce qui compte, c'est que l'image soit récente.
+    check("une trame encore fraîche passe, même dépassée", s.refusal(seq) is None)
+    check("un seq inconnu est refusé", s.refusal(seq + 500) == "stale")
+    clock[0] += session_mod.STALE_AFTER_S + 1
+    check("une trame périmée est refusée", s.refusal(seq) == "stale")
     s.release("fini")
     check("rendre la main remet l'agent", s.holder == "agent" and s.epoch == 2)
     check("et une saisie est alors refusée", s.refusal(s.seq) == "no_lease")
@@ -253,6 +253,7 @@ async def main() -> int:
     # (`frame.pop("css")`), et l'app recevait donc une taille de zéro : ses gestes étaient
     # calculés sur un viewport de zéro pixel, et le serveur les rejouait au coin de l'écran.
     # L'app n'a rien à corriger : c'est le serveur qui ne diffusait pas la mesure.
+    ancien_task = server.STATE.get("task_id")
     captured: list[dict] = []
 
     class FauxPompe:
@@ -335,7 +336,7 @@ async def main() -> int:
         check("prendre la main pose un viewport de téléphone", faux.vues == ["phone", "desktop"])
     finally:
         server._controller = ancien_controleur
-        server.STATE["task_id"] = None
+        server.STATE["task_id"] = ancien_task
 
     print()
     if failures:
