@@ -2043,6 +2043,9 @@ fun OnyxApp() {
                 onPickSlash = chatViewModel::pickSlash,
                 onSend = chatViewModel::send,
                 onSteer = chatViewModel::steer,
+                // « Messages précédents » au-delà de ce qui est chargé : la page d'avant se
+                // demande au serveur (le fil s'ouvre sur sa dernière page, pas sur 500 messages).
+                onLoadEarlier = chatViewModel::loadEarlier,
                 onConsumeSlash = chatViewModel::consumeSlash,
                 onStop = chatViewModel::stop,
                 onRetry = chatViewModel::retry,

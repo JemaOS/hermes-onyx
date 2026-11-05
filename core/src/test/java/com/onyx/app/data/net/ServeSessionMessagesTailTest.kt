@@ -80,6 +80,25 @@ class ServeSessionMessagesTailTest {
         assertTrue("ni order : $path", !path.contains("order="))
     }
 
+
+    @Test
+    fun `la page precedente se demande par offset, depuis la fin`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"data":[]}"""))
+        ServeSessionMessages(config()).rows("abc", "coder", limit = ServeSessionMessages.THREAD_PAGE, offset = 60)
+        val path = server.takeRequest().path.orEmpty()
+        assertTrue("la fenêtre : $path", path.contains("limit=${ServeSessionMessages.THREAD_PAGE}"))
+        assertTrue("la page d'avant : $path", path.contains("offset=60"))
+        assertTrue("toujours depuis la fin : $path", path.contains("order=latest"))
+    }
+
+    @Test
+    fun `la premiere page ne porte pas d offset`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"data":[]}"""))
+        ServeSessionMessages(config()).rows("abc", "coder", limit = ServeSessionMessages.THREAD_PAGE)
+        val path = server.takeRequest().path.orEmpty()
+        assertTrue("aucun offset : $path", !path.contains("offset="))
+    }
+
     @Test
     fun `le veilleur de notifications garde la lecture complete`() {
         // Garde de source : borner cette lecture figerait son compte et `isNewReply`

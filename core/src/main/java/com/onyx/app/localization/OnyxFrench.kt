@@ -133,6 +133,9 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "Clear the message" to "Effacer le message",
     "1 character" to "1 caractère",
     "1 earlier message" to "1 message précédent",
+    // La page d'avant du fil, quand elle n'est pas encore en mémoire (elle se demande au serveur).
+    "Load earlier messages" to "Charger les messages précédents",
+    "Loading earlier messages" to "Chargement des messages précédents",
     "Flip camera" to "Changer de caméra",
     "Turn off the light" to "Éteindre la lampe",
     "Turn on the light" to "Allumer la lampe",

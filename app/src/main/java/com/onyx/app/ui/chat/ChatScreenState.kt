@@ -67,6 +67,17 @@ data class ChatScreenState(
     val queuedSize: Int,
     /** L'identifiant du premier message : la page de reprise se réinitialise quand il change. */
     val firstMessageId: String?,
+    /**
+     * Le serveur garde-t-il des messages **plus anciens** que ceux chargés ici ?
+     *
+     * Le fil s'ouvre sur sa dernière page ([com.onyx.app.data.net.ServeSessionMessages.THREAD_PAGE])
+     * au lieu du fil entier : 500 messages pesaient 1,17 Mo à chaque ouverture, dans une base qui
+     * n'arrête pas de grossir. « Messages précédents » remonte donc par pages, et cette valeur dit
+     * s'il reste quelque chose à demander.
+     */
+    val earlierAvailable: Boolean = false,
+    /** Une page plus ancienne est en train d'arriver (la ligne du haut le dit, sans mentir). */
+    val loadingEarlier: Boolean = false,
     /** Le tour a-t-il annoncé une phase ? (`ChatUiState.live` non nul) */
     val hasLivePhase: Boolean,
     /**
@@ -144,6 +155,8 @@ data class ChatScreenState(
                 messagesSize = messages.size,
                 queuedSize = ui.queued.size,
                 firstMessageId = messages.firstOrNull()?.id,
+                earlierAvailable = ui.earlierAvailable,
+                loadingEarlier = ui.loadingEarlier,
                 hasLivePhase = ui.live != null,
                 liveStreaming = ui.live?.isStreaming == true,
                 liveStep = ui.live?.step,

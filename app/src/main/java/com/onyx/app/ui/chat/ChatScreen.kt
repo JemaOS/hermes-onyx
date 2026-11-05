@@ -178,6 +178,14 @@ fun ChatScreen(
     onSend: () -> Unit,
     /** Une note de pilotage écrite pendant une réponse : elle rejoint le tour en cours. */
     onSteer: (String) -> Unit = { _ -> },
+    /**
+     * **Remonter dans le fil, au-delà de ce qui est chargé.**
+     *
+     * Le fil s'ouvre sur sa dernière page (60 messages, 145 Ko mesurés) au lieu du fil entier
+     * (500 messages, 1,17 Mo). « Messages précédents » demande donc la page d'avant au serveur —
+     * `null` pour un écran sans serveur, où la ligne ne paraît pas.
+     */
+    onLoadEarlier: (() -> Unit)? = null,
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onClearError: () -> Unit,
@@ -378,7 +386,14 @@ fun ChatScreen(
     val projectDirectory = rememberChatProjectDirectory(state.server, state.serverSessionId)
     val scope = rememberCoroutineScope()
     // Une longue conversation ne rend que la dernière page ; « N earlier messages » remonte.
-    var visibleFrom by remember(state.firstMessageId) { mutableIntStateOf(0) }
+    //
+    // **`-1` = aucune page dépliée**, et c'est cette sentinelle qui manquait : le calcul était
+    // `maxOf(visibleFrom, messagesSize - PAGE)`, donc `visibleFrom`, toujours plus petit, ne
+    // changeait jamais rien — le bouton « N earlier messages » paraissait et chaque appui ne
+    // dépliait rien. La page se clé sur la **conversation**, pas sur son premier message : quand
+    // on pose une page plus ancienne en tête, l'identifiant du premier message change et la page
+    // se refermait sous le doigt.
+    var visibleFrom by remember(state.conversationId) { mutableIntStateOf(-1) }
     var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
     // La hauteur du composeur (pièces jointes, bandeau « N messages en attente », champ) : le
     // « Jump to latest » s'y accroche pour rester **au-dessus** de lui, jamais dessus.
@@ -524,7 +539,8 @@ fun ChatScreen(
     }
 
     val pageStart = remember(state.messagesSize, visibleFrom) {
-        maxOf(visibleFrom, state.messagesSize - PAGE)
+        val tail = (state.messagesSize - PAGE).coerceAtLeast(0)
+        if (visibleFrom < 0) tail else visibleFrom.coerceIn(0, tail)
     }
     val hiddenCount = pageStart
     val latestItemIndex = (if (hiddenCount > 0) 1 else 0) +
@@ -1117,10 +1133,22 @@ fun ChatScreen(
                     // et qui ne se retrouvait nulle part ailleurs dans l'app.
                     verticalArrangement = Arrangement.spacedBy(OnyxSpace.ThreadGap),
                 ) {
-                    if (hiddenCount > 0) {
+                    // **Deux raisons de remonter, une seule ligne.** Ce qui est déjà en mémoire
+                    // (la page dépliée) se montre d'un tap ; ce qui n'est pas encore chargé se
+                    // demande au serveur. La ligne disparaît quand il n'y a plus ni l'un ni l'autre.
+                    if (hiddenCount > 0 || state.earlierAvailable) {
                         item(key = "earlier") {
-                            EarlierRow(count = hiddenCount) {
-                                visibleFrom = maxOf(0, pageStart - PAGE)
+                            val earlierLabel = when {
+                                state.loadingEarlier -> OnyxLocalization["Loading earlier messages"]
+                                hiddenCount > 0 -> OnyxLocalization.format("Show earlier messages (%1\$d)", hiddenCount)
+                                else -> OnyxLocalization["Load earlier messages"]
+                            }
+                            EarlierRow(label = earlierLabel, enabled = !state.loadingEarlier) {
+                                // D'abord ce qui est déjà là ; sinon (et seulement alors) la page
+                                // d'avant, chez le serveur. `visibleFrom = 0` ne fait que rendre
+                                // la place : la liste garde son ancre, l'écran ne saute pas.
+                                if (hiddenCount > 0) visibleFrom = maxOf(0, pageStart - PAGE) else visibleFrom = 0
+                                if (hiddenCount == 0) onLoadEarlier?.invoke()
                             }
                         }
                     }
@@ -2215,20 +2243,23 @@ private fun DaySeparator(label: String) {
     }
 }
 
-/** « 12 earlier messages » : la page précédente, d'un tap. */
+/**
+ * La page précédente, d'un tap : « Afficher les 30 messages précédents » quand la page est déjà
+ * en mémoire, « Charger les messages précédents » quand il faut la demander au serveur.
+ */
 @Composable
-private fun EarlierRow(count: Int, onClick: () -> Unit) {
+private fun EarlierRow(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     val theme = LocalOnyxTheme.current
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
-            text = if (count == 1) "1 earlier message" else "$count earlier messages",
-            style = theme.subheadline.copy(color = theme.accent),
+            text = label,
+            style = theme.subheadline.copy(color = if (enabled) theme.accent else theme.secondaryText),
             modifier = Modifier
                 .background(theme.fill, androidx.compose.foundation.shape.RoundedCornerShape(50))
-                .onyxClickable(onClick = onClick)
+                .onyxClickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 5.dp),
         )
     }

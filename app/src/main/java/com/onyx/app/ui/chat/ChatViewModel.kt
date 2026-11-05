@@ -28,6 +28,8 @@ import com.onyx.app.data.net.HermesServeChat
 import com.onyx.app.data.net.ServeRpc
 import com.onyx.app.data.net.ServeClient
 import com.onyx.app.data.net.ServeSessionsApi
+import com.onyx.app.data.net.ServeSessionMessages
+import com.onyx.app.data.net.ServeSessionMessages.Companion.THREAD_PAGE
 import com.onyx.app.data.net.ServeSkillsApi
 import com.onyx.app.data.net.ServerSessions
 import com.onyx.app.data.net.TransportError
@@ -151,6 +153,8 @@ class ChatViewModel(
     private var recoveryJob: Job? = null
     /** Le veilleur du silence : il relit la session quand le flux n'envoie plus rien. */
     private var rescueJob: Job? = null
+    /** La page plus ancienne du fil ouvert (voir [loadEarlier]) : un seul vol à la fois. */
+    private var earlierJob: Job? = null
     private var retryAttempt = 0
     private val retryDelaysMs = longArrayOf(2_000, 5_000, 15_000, 30_000, 60_000)
     /** Ancienneté initiale des tours sortis de la file, par bulle de réponse. */
@@ -1026,24 +1030,70 @@ class ChatViewModel(
         val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         viewModelScope.launch {
             val rows = runCatching {
-                com.onyx.app.data.net.ServeSessionMessages(server).rows(sessionId, conversation.botProfile)
+                com.onyx.app.data.net.ServeSessionMessages(server)
+                    .rows(sessionId, conversation.botProfile, limit = THREAD_PAGE)
             }.getOrElse { return@launch }
             if (rows.isEmpty()) return@launch
-            val loaded = rows.mapIndexed { index, row ->
-                com.onyx.app.data.model.ChatMessage(
-                    id = java.util.UUID.randomUUID().toString(),
-                    role = if (row.role == "user") com.onyx.app.data.model.Role.USER
-                    else com.onyx.app.data.model.Role.ASSISTANT,
-                    text = row.text,
-                    createdAt = conversation.createdAt + index,
-                )
-            }
             if (conversationId != conversation.id) return@launch
             _state.update { state ->
-                state.copy(messages = state.messages + loaded.map { it.copy(isStreaming = false) })
+                state.copy(
+                    messages = state.messages + rows.mapIndexed { index, row -> row.toMessage(conversation.createdAt, index) },
+                    // Une page pleine laisse penser qu'il y a plus ancien : on le dit, et le tap
+                    // suivant le vérifie auprès du serveur (une page vide éteint la ligne).
+                    earlierAvailable = rows.size >= THREAD_PAGE,
+                )
             }
         }
     }
+
+    /**
+     * **La page précédente du fil.**
+     *
+     * Le fil s'ouvre sur sa dernière page ([THREAD_PAGE]) : les messages plus anciens se demandent
+     * ici, par `offset`, et se **posent en tête** — l'ordre chronologique du fil ne bouge pas.
+     * Une page vide éteint `earlierAvailable` : la ligne disparaît au lieu d'inviter à un tap qui
+     * ne rendrait rien.
+     */
+    fun loadEarlier() {
+        val state = _state.value
+        if (state.loadingEarlier || !state.earlierAvailable) return
+        val conversation = conversations.find(state.conversationId ?: return) ?: return
+        val sessionId = state.serverSessionId?.takeIf { it.isNotBlank() } ?: return
+        val offset = state.messages.size
+        _state.update { it.copy(loadingEarlier = true) }
+        earlierJob?.cancel()
+        earlierJob = viewModelScope.launch {
+            val rows = runCatching {
+                com.onyx.app.data.net.ServeSessionMessages(state.server)
+                    .rows(sessionId, conversation.botProfile, limit = THREAD_PAGE, offset = offset)
+            }.getOrElse { null }
+            if (conversationId != conversation.id) return@launch
+            _state.update { current ->
+                when {
+                    rows == null -> current.copy(loadingEarlier = false)
+                    rows.isEmpty() -> current.copy(loadingEarlier = false, earlierAvailable = false)
+                    else -> current.copy(
+                        messages = rows.mapIndexed { index, row -> row.toMessage(conversation.createdAt, index) } +
+                            current.messages,
+                        loadingEarlier = false,
+                        earlierAvailable = rows.size >= THREAD_PAGE,
+                    )
+                }
+            }
+        }
+    }
+
+    /** Une ligne du serveur → un message du fil (le même mapping qu'à l'ouverture). */
+    private fun com.onyx.app.data.net.ServeSessionMessages.Row.toMessage(
+        conversationCreatedAt: Long,
+        index: Int,
+    ): com.onyx.app.data.model.ChatMessage = com.onyx.app.data.model.ChatMessage(
+        id = java.util.UUID.randomUUID().toString(),
+        role = if (role == "user") com.onyx.app.data.model.Role.USER
+        else com.onyx.app.data.model.Role.ASSISTANT,
+        text = text,
+        createdAt = conversationCreatedAt + index,
+    )
 
     /**
      * **Le tour que l'hôte a fini sans nous.**

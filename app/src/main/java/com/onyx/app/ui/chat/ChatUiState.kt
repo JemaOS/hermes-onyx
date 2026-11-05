@@ -24,6 +24,14 @@ data class ChatUiState(
      *  qu'aucun nom n'a été donné, auquel cas l'en-tête montre la première question. */
     val conversationName: String? = null,
     val messages: List<ChatMessage> = emptyList(),
+    /**
+     * Le fil ouvert ne portait que sa **dernière page** et le serveur en garde d'autres :
+     * « messages précédents » a quelque chose à demander. Voir
+     * [com.onyx.app.data.net.ServeSessionMessages.THREAD_PAGE].
+     */
+    val earlierAvailable: Boolean = false,
+    /** La page plus ancienne est en vol : la ligne du haut dit « chargement » au lieu de mentir. */
+    val loadingEarlier: Boolean = false,
     val input: String = "",
     val isStreaming: Boolean = false,
     /**
@@ -232,6 +240,10 @@ internal fun ChatUiState.switchToConversation(
     serverSessionId = serverSessionId,
     conversationName = conversationName,
     messages = messages,
+    // La pagination appartient au fil qu'on quitte : la nouvelle conversation repart de sa
+    // dernière page, et `loadRemoteThread` redira s'il reste des messages plus anciens.
+    earlierAvailable = false,
+    loadingEarlier = false,
     input = input,
     isStreaming = false,
     live = null,

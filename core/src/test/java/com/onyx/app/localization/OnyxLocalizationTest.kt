@@ -72,6 +72,9 @@ class OnyxLocalizationTest {
     fun `les compteurs et etats dynamiques sont localises sans toucher aux noms`() {
         val cases = linkedMapOf(
             "1 earlier message" to "1 message précédent",
+            // La page d'avant du fil : « déjà en mémoire » (une page dépliée) et « à demander ».
+            "Load earlier messages" to "Charger les messages précédents",
+            "Loading earlier messages" to "Chargement des messages précédents",
             "12 earlier messages" to "12 messages précédents",
             "1 message waiting" to "1 message en attente",
             "4 messages waiting" to "4 messages en attente",

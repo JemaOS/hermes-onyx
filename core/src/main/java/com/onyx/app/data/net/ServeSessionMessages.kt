@@ -41,8 +41,17 @@ class ServeSessionMessages(
      * cours : plusieurs dizaines de Mo par conversation sur un réseau mobile. Les chemins qui
      * n'ont besoin que de la **fin** du fil (le sondage d'une réponse) passent donc un [limit] ;
      * ceux qui peignent le fil entier (ouverture d'une conversation) n'en passent pas.
+     *
+     * [offset] remonte dans le fil, toujours avec [limit] : le serveur pagine **depuis la fin**
+     * (`order=latest`), donc `offset=60&limit=60` rend les 60 messages juste avant les 60 derniers,
+     * en ordre chronologique. C'est la mécanique de « messages précédents ».
      */
-    suspend fun rows(sessionId: String, profile: String? = null, limit: Int? = null): List<Row> = withContext(Dispatchers.IO) {
+    suspend fun rows(
+        sessionId: String,
+        profile: String? = null,
+        limit: Int? = null,
+        offset: Int = 0,
+    ): List<Row> = withContext(Dispatchers.IO) {
         val base = config.apiBaseUrl.trim().trimEnd('/')
         if (base.isEmpty() || sessionId.isBlank()) return@withContext emptyList()
         // Le profil de la **conversation** d'abord : une session rangée dans `profiles/coder`
@@ -59,6 +68,7 @@ class ServeSessionMessages(
                 if (limit != null && limit > 0) {
                     addQueryParameter("limit", limit.toString())
                     addQueryParameter("order", "latest")
+                    if (offset > 0) addQueryParameter("offset", offset.toString())
                 }
             }
             ?.build()
@@ -110,6 +120,16 @@ class ServeSessionMessages(
          * ne bouge pas — elle rate seulement le rattrapage.
          */
         const val REPLY_TAIL = 40
+
+        /**
+         * La page du fil ouvert : 60 messages au lieu des 500 que la route rend par défaut.
+         *
+         * 500 messages = **1 166 980 octets** mesurés sur une conversation réelle, à chaque
+         * ouverture, alors que l'écran n'affiche que la fin. 60 messages pèsent **101 à 135 Ko**
+         * sur la même conversation (mesuré page par page), et « messages précédents » remonte de
+         * page en page ([rows] avec `offset`).
+         */
+        const val THREAD_PAGE = 60
 
         /** La réponse à afficher : le texte du premier assistant non vide **après** le dernier mot de l'utilisateur. */
         fun trailingReply(rows: List<Row>): String? {
