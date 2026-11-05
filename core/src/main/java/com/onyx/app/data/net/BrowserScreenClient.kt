@@ -89,6 +89,9 @@ class BrowserScreenClient(
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val base: String = server.serveBaseUrl.ifBlank { server.baseUrl }
+    // La clé du profil effectif, retenue à la construction : `server` n'est pas une propriété,
+    // et c'est elle que le relais attend sur la poignée de main.
+    private val cle: String = server.effectiveApiKey
     private val http: OkHttpClient = OkHttpClient.Builder()
         // Un flux d'images ne doit pas être coupé pour inactivité : le silence est normal quand
         // personne ne regarde (le serveur passe alors à une trame toutes les 1,5 s).
@@ -113,7 +116,7 @@ class BrowserScreenClient(
         val request = Request.Builder()
             .url(url)
             .apply {
-                server.effectiveApiKey.takeIf { it.isNotBlank() }?.let {
+                cle.takeIf { it.isNotBlank() }?.let {
                     addHeader("Authorization", "Bearer $it")
                 }
             }

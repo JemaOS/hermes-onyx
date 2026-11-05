@@ -139,6 +139,7 @@ class BrowserScreenTest {
             client.contains("addHeader(\"Authorization\", \"Bearer \$it\")"),
         )
         assertTrue("la clé est celle du profil effectif", client.contains("server.effectiveApiKey"))
+        assertTrue("retenue à la construction", client.contains("private val cle: String = server.effectiveApiKey"))
         // Le ticket reste dans l'URL : il est à usage unique et propre à la connexion.
         assertTrue("le ticket reste dans l'adresse", client.contains("webSocketUrl(base, BrowserScreenApi.WS_PATH, ticket)"))
     }
