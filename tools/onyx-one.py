@@ -50,6 +50,10 @@ BROWSER_PREFIXE = "/onyx-browser/"
 BROWSER_PEERS = os.environ.get(
     "ONYX_ONE_BROWSER_PEERS", os.path.join(os.path.expanduser("~/.hermes"), "onyx-browser", "peers"))
 BROWSER_PEER_TTL = 20.0
+# Ticket du plugin → port qui l'a émis. `observe` et le WebSocket sont deux requêtes séparées :
+# sans cette épingle, un tour qui se termine entre les deux ferait présenter le ticket au mauvais
+# processus, et la poignée de main finirait en 401 sans que rien ne l'explique.
+_TICKETS: dict[str, tuple[float, int]] = {}
 
 RACINE = os.path.expanduser("~/.hermes")
 PROFILS = os.path.join(RACINE, "profiles")
@@ -65,25 +69,84 @@ SAUT = {"host", "connection", "content-length", "transfer-encoding", "keep-alive
         "proxy-authenticate", "proxy-authorization", "te", "trailers", "upgrade"}
 
 
+def _sante(port: int) -> dict:
+    """Ce que ce processus dit de lui-même, ou `{}` s'il ne répond pas.
+
+    Une fiche de pair est une **déclaration** : elle dit ce que le processus croyait au moment où
+    il l'a écrite. Un processus lancé avant l'installation du registre n'en écrit aucune — il
+    tient pourtant le navigateur et la demande en attente. On lui demande donc directement, ce
+    qui ne dépend ni de sa version, ni de la fraîcheur d'un fichier.
+    """
+    try:
+        cx = http.client.HTTPConnection(BROWSER_HOTE, port, timeout=0.4)
+        try:
+            cx.request("GET", BROWSER_PREFIXE + "health")
+            reponse = cx.getresponse()
+            if reponse.status != 200:
+                return {}
+            charge = reponse.read()
+        finally:
+            cx.close()
+    except OSError:
+        return {}
+    try:
+        sante = json.loads(charge or b"{}")
+    except ValueError:
+        return {}
+    return sante if isinstance(sante, dict) else {}
+
+
+def _retenir_ticket(charge: bytes, port: int) -> None:
+    """Épingle le ticket sur le processus qui l'a émis.
+
+    `observe` et le WebSocket sont deux requêtes distinctes : si la sélection change entre les
+    deux — un tour qui se termine, un autre qui s'ouvre — le ticket serait présenté au mauvais
+    processus et la poignée de main finirait en 401. Le ticket ne vaut que sur son émetteur.
+    """
+    try:
+        ticket = (json.loads(charge or b"{}") or {}).get("ticket")
+    except ValueError:
+        return
+    if not ticket:
+        return
+    maintenant = time.time()
+    for cle in [k for k, (quand, _) in _TICKETS.items() if maintenant - quand > 40]:
+        _TICKETS.pop(cle, None)
+    _TICKETS[str(ticket)] = (maintenant, port)
+
+
+def _ticket_de(chemin: str) -> int:
+    """Le port épinglé pour le ticket de cette URL, ou 0."""
+    from urllib.parse import parse_qs
+
+    ticket = (parse_qs(urlsplit(chemin).query).get("ticket") or [""])[0]
+    quand_port = _TICKETS.get(ticket)
+    if not quand_port or time.time() - quand_port[0] > 40:
+        return 0
+    return quand_port[1]
+
+
 def _navigateur_a_joindre() -> tuple[str, int]:
     """Quel processus tient le navigateur de l'agent ?
 
-    Chaque copie du plugin dépose `~/.hermes/onyx-browser/peers/<pid>.json`. On écarte les fiches
-    périmées (processus mort, ou battement trop vieux), puis on préfère, dans l'ordre :
+    Deux sources, et la seconde tranche : les fiches déposées par chaque copie du plugin
+    (`~/.hermes/onyx-browser/peers/<pid>.json`), puis une **question directe** à chaque candidat
+    (`/onyx-browser/health`). On préfère, dans l'ordre :
 
-      1. celle qui porte une **prise en main en attente** — c'est là que l'écran doit arriver ;
-      2. celle qui a un **navigateur ouvert** dans son tour ;
+      1. celui qui a une **prise en main en attente** — c'est là que l'écran doit arriver ;
+      2. celui qui a un **navigateur ouvert** dans son tour ;
       3. le port historique 8788 ;
-      4. la plus récente.
+      4. le plus récent.
 
     Tomber sur le mauvais processus n'est pas une erreur visible : l'app verrait un écran qui
-    attend indéfiniment. C'est précisément le défaut qu'on corrige ici.
+    attend indéfiniment. C'est précisément le défaut qu'on corrige ici — une fiche absente ne doit
+    pas rendre un processus invisible.
     """
     fiches: list[dict] = []
     try:
         noms = os.listdir(BROWSER_PEERS)
     except OSError:
-        return BROWSER_HOTE, BROWSER_PORT
+        noms = []
     maintenant = time.time()
     for nom in noms:
         if not nom.endswith(".json"):
@@ -104,18 +167,42 @@ def _navigateur_a_joindre() -> tuple[str, int]:
             except OSError:
                 continue
         fiches.append(fiche)
-    if not fiches:
+
+    # **La question directe, et 8788 toujours candidate.** Un processus qui tient le navigateur
+    # mais n'écrit pas de fiche (lancé avant l'installation du registre) doit rester joignable :
+    # c'est exactement le cas qui a laissé l'écran du téléphone sur un processus vide.
+    candidats: list[int] = []
+    for port in [int(f.get("port") or 0) for f in fiches] + [BROWSER_PORT]:
+        if port and port not in candidats:
+            candidats.append(port)
+    if not candidats:
         return BROWSER_HOTE, BROWSER_PORT
 
+    meilleur: tuple[int, int, float] | None = None  # (score, préférence 8788, fraîcheur)
+    gagnant = BROWSER_PORT
+    for port in candidats:
+        sante = _sante(port)
+        if not sante.get("ok"):
+            continue
+        score = 3 if sante.get("pending") else (2 if sante.get("browser") else 1)
+        fraicheur = max([float(f.get("ts") or 0) for f in fiches if int(f.get("port") or 0) == port]
+                        or [0.0])
+        cle = (score, 1 if port == BROWSER_PORT else 0, fraicheur)
+        if meilleur is None or cle > meilleur:
+            meilleur = cle
+            gagnant = port
+    if meilleur is not None:
+        return BROWSER_HOTE, gagnant
+
+    # Aucun candidat ne répond : on garde l'ancienne heuristique sur les fiches seules.
+    if not fiches:
+        return BROWSER_HOTE, BROWSER_PORT
     en_attente = [f for f in fiches if f.get("pending")]
     if en_attente:
         return BROWSER_HOTE, int(max(en_attente, key=lambda f: float(f.get("ts") or 0))["port"])
     ouverts = [f for f in fiches if f.get("browser")]
     if ouverts:
         return BROWSER_HOTE, int(max(ouverts, key=lambda f: float(f.get("ts") or 0))["port"])
-    officiels = [f for f in fiches if int(f.get("port") or 0) == BROWSER_PORT]
-    if officiels:
-        return BROWSER_HOTE, BROWSER_PORT
     return BROWSER_HOTE, int(max(fiches, key=lambda f: float(f.get("ts") or 0))["port"])
 
 
@@ -395,6 +482,12 @@ class Relais(BaseHTTPRequestHandler):
         vers_navigateur = chemin.startswith(BROWSER_PREFIXE)
         if self.command in ("GET", "POST") and (self.headers.get("Upgrade") or "").lower() == "websocket":
             if vers_navigateur:
+                # **Le ticket désigne son processus.** S'il a été épinglé par l'`observe` qui
+                # l'a précédé, on y va directement : la sélection n'a pas le droit de changer
+                # entre les deux requêtes.
+                epingle = _ticket_de(self.path)
+                if epingle:
+                    return self._relayer_websocket(chemin, BROWSER_HOTE, epingle)
                 hote_nav, port_nav = _navigateur_a_joindre()
                 return self._relayer_websocket(chemin, hote_nav, port_nav)
             return self._relayer_websocket(chemin)
@@ -410,6 +503,8 @@ class Relais(BaseHTTPRequestHandler):
             try:
                 hote_nav, port_nav = _navigateur_a_joindre()
                 statut, entetes, charge = self._vers_amont(hote_nav, port_nav, {}, corps)
+                if statut == 200 and chemin.rstrip("/").endswith("/observe"):
+                    _retenir_ticket(charge, port_nav)
             except OSError:
                 return self._repondre(503, {"error": "browser_unavailable",
                                             "detail": "no onyx-browser plugin is listening"})
