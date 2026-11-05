@@ -21,8 +21,22 @@ from typing import Any
 
 TICKET_TTL_S = 30.0
 TAKEOVER_TIMEOUT_S = 15 * 60
-#: Au-delà de ce retard, une saisie est refusée : la page a pu bouger (§7, règle 3).
+#: **La marge de fraîcheur d'une saisie, en secondes.**
+#:
+#: La règle 3 du §7 refuse un geste calculé sur une image qui n'est plus la dernière. Prise à la
+#: lettre — « plus vieux que la dernière trame émise » — elle rend l'écran inutilisable : le
+#: serveur diffuse à 8 img/s pendant que l'humain conduit, donc le `seq` de la trame affichée est
+#: déjà dépassé au moment où le doigt se pose. Chaque tap était refusé `stale`, et l'app ne
+#: pouvait plus rien faire sur la page.
+#:
+#: Ce que la règle cherche vraiment à empêcher, c'est le clic **au mauvais endroit** parce que la
+#: page a bougé entre l'image et le geste. Une image qui a moins de deux secondes est encore
+#: celle que l'humain voit : on laisse passer. Au-delà, la page a pu défiler, et le refus est la
+#: bonne réponse.
 STALE_SEQ_SLACK = 0
+#: Fenêtre de fraîcheur, en secondes. Assez large pour un geste humain (regarder, viser,
+#: poser le doigt), assez étroite pour que le clic ne parte pas sur une page qui a bougé.
+STALE_AFTER_S = 2.0
 
 
 @dataclass
@@ -57,6 +71,12 @@ class Session:
         self.tickets: dict[str, Ticket] = {}
         self.waiting: Waiting | None = None
         self._lock = threading.RLock()
+        #: L'instant de la dernière trame émise, et celui du dernier `seq` qu'on a laissé passer.
+        #: C'est ce qui permet de dire « cette image a encore moins de deux secondes » sans
+        #: dépendre du débit d'images.
+        self._last_frame_at: float = 0.0
+        self._last_seen_seq: int = 0
+        self._last_seen_at: float = 0.0
 
     # -- bail ---------------------------------------------------------------------------------
 
@@ -78,6 +98,18 @@ class Session:
             if waiting is not None:
                 waiting.note = note.strip()
                 waiting.done.set()
+            return {"holder": "agent", "epoch": self.epoch}
+
+    def abandon(self) -> dict[str, Any]:
+        """Le conducteur a disparu (écran fermé, page morte) : on repasse au agent, sans finir.
+
+        **Ce n'est pas `release()`** : `release()` réveille l'outil de l'agent comme si l'humain
+        avait rendu la main. Ici, personne n'a rien rendu — l'écran s'est éteint. L'agent doit
+        continuer d'attendre, et l'humain pouvoir reprendre la main quand il rouvre l'écran.
+        """
+        with self._lock:
+            self.holder = "agent"
+            self.epoch += 1
             return {"holder": "agent", "epoch": self.epoch}
 
     # -- tickets ------------------------------------------------------------------------------
@@ -109,15 +141,34 @@ class Session:
         with self._lock:
             self.seq += 1
             self.frames += 1
+            self._last_frame_at = self._clock()
             return self.seq
 
     def refusal(self, seq: int) -> str | None:
-        """Pourquoi cette saisie est refusée, ou `None` si elle passe."""
+        """Pourquoi cette saisie est refusée, ou `None` si elle passe.
+
+        **La fraîcheur se mesure en secondes, pas en images.** Le garde-fou du §7 veut empêcher
+        le clic au mauvais endroit parce que la page a bougé entre l'image et le geste. Comparer
+        des `seq` ne le fait pas : le serveur diffuse à 8 img/s pendant que l'humain conduit, si
+        bien que le `seq` de l'image affichée est *toujours* dépassé au moment du geste — et
+        chaque tap était refusé, sans exception. Une image de moins de `STALE_AFTER_S` seconde
+        est encore celle que l'humain regarde : elle passe. Au-delà, la page a pu défiler, et le
+        refus est la bonne réponse.
+
+        Le `seq` reste néanmoins monotone et vérifié : un `seq` inconnu, nul, ou postérieur à
+        la dernière trame émise, est refusé — il ne vient pas de cette page.
+        """
         with self._lock:
             if self.holder != "human":
                 return "no_lease"
-            if seq <= 0 or seq + STALE_SEQ_SLACK < self.seq:
+            if seq <= 0 or seq > self.seq:
+                # Zéro, ou un `seq` que le serveur n'a jamais émis.
                 return "stale"
+            if self._clock() - self._last_frame_at > STALE_AFTER_S:
+                # Aucune image récente : l'humain agit sur un écran qui n'est plus à jour.
+                return "stale"
+            self._last_seen_seq = seq
+            self._last_seen_at = self._clock()
             return None
 
 

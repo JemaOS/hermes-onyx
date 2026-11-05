@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import uuid
 from typing import Any
 
@@ -52,10 +53,34 @@ def request_takeover(reason: str) -> str:
             width, height = cdp_controller().use_phone_viewport()
             server.SESSION.viewport = (width, height)
     except Exception:
-        # Pas de navigateur : l'outil le dira, sans bloquer quinze minutes pour rien.
+        # **Pas de page, pas de prise en main.** Hermes récolte un navigateur resté deux minutes
+        # sans outil et en rouvre un, vide, au tour suivant : `page_state()` distingue ce cas
+        # (`blank`) de l'absence de navigateur (`gone`), et le modèle reçoit le geste à faire au
+        # lieu d'attendre quinze minutes devant un écran blanc.
         server.SESSION.waiting = None
+        try:
+            etat = server.page_snapshot()["state"]
+        except Exception:
+            etat = "gone"
+        if etat == "blank":
+            return json.dumps(
+                {
+                    "status": "unavailable",
+                    "reason": "blank_page",
+                    "message": (
+                        "Your browser is open on an empty tab, so there is nothing to hand over. "
+                        "Navigate to the page first (browser_navigate), confirm it loaded, then "
+                        "call this tool in the same turn."
+                    ),
+                },
+                ensure_ascii=False,
+            )
         return json.dumps(
-            {"status": "unavailable", "message": "No browser page is open in this turn."},
+            {
+                "status": "unavailable",
+                "reason": "no_browser",
+                "message": "No browser page is open in this turn.",
+            },
             ensure_ascii=False,
         )
     if not server.notify_pending(waiting.takeover_id, waiting.reason):
@@ -73,8 +98,68 @@ def request_takeover(reason: str) -> str:
             ensure_ascii=False,
         )
     try:
-        if not waiting.done.wait(TAKEOVER_TIMEOUT_S):
+        # **On ne dort pas quinze minutes d'un bloc : on surveille la page.**
+        #
+        # Le navigateur de Hermes meurt après deux minutes sans appel d'outil. Quand ça arrive
+        # pendant une prise en main, l'humain voit un écran noir et l'agent attend un rendez-vous
+        # qui n'aura jamais lieu. La sonde (un simple aller-retour CDP, sans capture) rend la main
+        # en quelques secondes, avec une raison exacte que le modèle peut expliquer.
+        limite = time.monotonic() + TAKEOVER_TIMEOUT_S
+        page_perdue = False
+        while True:
+            reste = limite - time.monotonic()
+            if reste <= 0:
+                break
+            if waiting.done.wait(min(server.SONDE_S, reste)):
+                break
+            if not server.page_alive():
+                page_perdue = True
+                break
+        if page_perdue:
+            server.SESSION.abandon()
             server.clear_pending()
+            try:
+                etat = server.page_snapshot()["state"]
+            except Exception:
+                etat = "gone"
+            server.announce(
+                {
+                    "type": "takeover_done",
+                    "id": waiting.takeover_id,
+                    "facts": {},
+                    "lost": True,
+                    "reason": "page_closed" if etat == "gone" else "page_blank",
+                }
+            )
+            if etat == "gone":
+                explication = (
+                    "The page closed while the owner was taking over (Hermes closes an idle "
+                    "browser after about two minutes). Reopen the page and call this tool again."
+                )
+            else:
+                explication = (
+                    "Your browser now shows an empty tab, so the owner had nothing to type into. "
+                    "Navigate to the page again, then call this tool."
+                )
+            return json.dumps(
+                {
+                    "status": "lost",
+                    "reason": "page_closed" if etat == "gone" else "page_blank",
+                    "message": explication,
+                },
+                ensure_ascii=False,
+            )
+        if not waiting.done.is_set():
+            server.clear_pending()
+            server.announce(
+                {
+                    "type": "takeover_done",
+                    "id": waiting.takeover_id,
+                    "facts": {},
+                    "lost": True,
+                    "reason": "timeout",
+                }
+            )
             return json.dumps(
                 {
                     "status": "timeout",

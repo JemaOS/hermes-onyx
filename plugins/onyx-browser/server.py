@@ -99,28 +99,54 @@ def _peer_file(pid: int | None = None) -> Path:
     return PEERS_DIR / f"{pid or os.getpid()}.json"
 
 
+# **Une seule écriture de fiche à la fois, et un nom de temporaire par écriture.**
+#
+# Le battement (toutes les 2 s) et `notify_pending` écrivent la même fiche depuis deux fils
+# différents. Tous deux passaient par le **même** temporaire `<pid>.tmp` : l'un tronquait pendant
+# que l'autre écrivait, et `os.replace` publiait un JSON hybride. Observé en vrai :
+#
+#     {"…", "ts": 1793846556.4075263}.4075465}
+#
+# Un relais qui n'arrive pas à lire la fiche ignore le processus — donc l'écran du téléphone part
+# sur le port 8788, c'est-à-dire sur un autre processus, et attend une page qui n'y est pas. Le
+# défaut ne ressemble pas à une erreur : il ressemble à un écran vide.
+_ECRITURE = threading.Lock()
+
+
 def write_peer(**extra: Any) -> None:
     """Dépose (ou rafraîchit) la fiche de ce processus. Sans serveur, il n'y a rien à déposer."""
     if HUB.port is None:
         return
-    approach = {
-        "pid": os.getpid(),
-        "port": HUB.port,
-        "pending": HUB.pending,
-        "browser": bool(STATE.get("task_id")),
-        "frames": SESSION.frames,
-        "viewport": list(SESSION.viewport),
-        "ts": time.time(),
-    }
-    approach.update(extra)
+    # La sonde CDP est lente et mise en cache : elle se fait **hors** du verrou.
+    page = page_snapshot()
     chemin = _peer_file()
-    try:
-        PEERS_DIR.mkdir(parents=True, exist_ok=True)
-        temporaire = chemin.with_suffix(".tmp")
-        temporaire.write_text(json.dumps(approach), encoding="utf-8")
-        os.replace(temporaire, chemin)
-    except OSError as erreur:
-        log.debug("onyx-browser: fiche de pair non écrite (%s)", erreur)
+    with _ECRITURE:
+        approach = {
+            "pid": os.getpid(),
+            "port": HUB.port,
+            # Lu sous le verrou : une demande posée par `notify_pending` ne peut plus être
+            # écrasée par un battement parti juste avant.
+            "pending": HUB.pending,
+            "browser": bool(STATE.get("task_id")),
+            # **Ce que ce processus peut réellement montrer.** Deux processus Hermes tiennent chacun
+            # leur navigateur : la fiche dit lequel a une vraie page, pour que le relais n'envoie pas
+            # l'écran du téléphone sur un onglet vide.
+            "page": page["url"],
+            "state": page["state"],
+            "frames": SESSION.frames,
+            "viewport": list(SESSION.viewport),
+            "ts": time.time(),
+        }
+        approach.update(extra)
+        try:
+            PEERS_DIR.mkdir(parents=True, exist_ok=True)
+            temporaire = chemin.with_name(
+                "%s.%d.%d.tmp" % (chemin.stem, os.getpid(), threading.get_ident())
+            )
+            temporaire.write_text(json.dumps(approach), encoding="utf-8")
+            os.replace(temporaire, chemin)
+        except OSError as erreur:
+            log.debug("onyx-browser: fiche de pair non écrite (%s)", erreur)
 
 
 def drop_peer() -> None:
@@ -149,19 +175,35 @@ def clear_pending() -> None:
 # minutes **sans appeler d'outil** : la page était donc fermée au bout de deux minutes, et
 # l'écran du téléphone affichait `about:blank` — un formulaire de connexion qui disparaît pendant
 # qu'on le remplit. On demande explicitement à Hermes de compter ce temps comme de l'activité.
-KEEPALIVE_S = 30.0
+KEEPALIVE_S = 20.0
 
 
 def _touch() -> None:
+    """Compte le temps de la prise en main comme de l'activité pour le balayeur de Hermes.
+
+    **Le nom de la session n'est pas toujours nu.** Le balayeur indexe `_session_last_activity`
+    tantôt sous `api-xxx`, tantôt sous `api-xxx@/home/john/.hermes` selon le processus qui a ouvert
+    le navigateur. Ne rafraîchir que la forme reçue par le crochet laissait l'autre expirer : la
+    page se fermait au bout de 120 s, en plein formulaire, et l'écran du téléphone passait à
+    `about:blank`. On rafraîchit donc **toutes** les clés qui désignent cette session.
+    """
     task_id = STATE.get("task_id")
     if not task_id:
         return
     try:
-        from tools.browser_tool_lifecycle import _update_session_activity
-
-        _update_session_activity(str(task_id))
+        from tools import browser_tool_lifecycle as cycle
     except Exception:  # version de Hermes sans ce crochet : la prise en main reste possible
-        pass
+        return
+    marques = [str(task_id)]
+    registre = getattr(getattr(cycle, "_bt", None), "_session_last_activity", None)
+    if isinstance(registre, dict):
+        prefixe = str(task_id) + "@"
+        marques += [cle for cle in list(registre) if str(cle).startswith(prefixe)]
+    for marque in marques:
+        try:
+            cycle._update_session_activity(marque)
+        except Exception:
+            pass
 
 
 def _keepalive() -> None:
@@ -200,17 +242,72 @@ def _refused(reason: str, status: int = 401) -> web.Response:
     return web.json_response({"ok": False, "error": reason}, status=status)
 
 
+# -- la page est-elle encore là ? ---------------------------------------------------------------
+
+#: Une sonde CDP coûte quelques millisecondes, et `health` est appelé par le relais à chaque
+#: ouverture d'écran. On garde la réponse deux secondes : assez frais pour ne pas router l'écran
+#: vers une page morte, assez rare pour ne pas harceler Chromium.
+ALIVE_CACHE_S = 2.0
+#: Combien de temps l'outil de prise en main dort avant de redemander si la page vit encore.
+SONDE_S = 2.0
+#: `state` : `ok`, `blank` (navigateur neuf, rien dedans) ou `gone` (aucun navigateur du tout).
+#: `url` : ce que montre la page, pour que l'app puisse l'afficher au lieu de deviner.
+_PAGE: dict[str, Any] = {"at": 0.0, "state": "gone", "url": ""}
+
+
+def page_snapshot() -> dict[str, str]:
+    """L'état de la page du tour, avec deux secondes de mémoire."""
+    now = time.time()
+    if now - float(_PAGE["at"]) < ALIVE_CACHE_S:
+        return {"state": str(_PAGE["state"]), "url": str(_PAGE["url"])}
+    task_id = STATE.get("task_id")
+    etat, url = "gone", ""
+    if task_id:
+        try:
+            controleur = Controller(str(task_id))
+            etat = controleur.page_state()
+            url = controleur.current_url() if etat == "ok" else ""
+        except Exception:
+            etat, url = "gone", ""
+    _PAGE.update(at=now, state=etat, url=url)
+    return {"state": etat, "url": url}
+
+
+def page_alive() -> bool:
+    """La page du tour montre-t-elle vraiment quelque chose ?
+
+    **`blank` compte comme mort.** Sinon l'outil attendait quinze minutes devant un onglet vide,
+    et le modèle annonçait à l'humain une prise en main qui n'avait aucune page à montrer.
+    """
+    return page_snapshot()["state"] == "ok"
+
+
 # -- routes -----------------------------------------------------------------------------------
 
 async def health(request: web.Request) -> web.Response:
     if not _authorised(request):
         return _refused("token")
     waiting = SESSION.waiting
+    # **Une demande sans page n'est pas une demande.** Le navigateur de Hermes meurt après deux
+    # minutes sans outil : une prise en main restée en attente devient un fantôme que le relais
+    # continue de préférer — l'écran du téléphone aboutissait alors sur un processus qui ne pouvait
+    # rien lui montrer. On la déclare morte ici, et on retire le drapeau pour ne plus y router
+    # personne. L'outil, lui, la voit par sa propre sonde et rend la main sans attendre 15 minutes.
+    alive = page_alive()
+    page = page_snapshot()
+    if waiting is not None and not alive:
+        clear_pending()
+        waiting = None
     return web.json_response(
         {
             "ok": True,
             "plugin": "onyx-browser",
             "browser": bool(STATE.get("task_id")),
+            "alive": alive,
+            # **L'écran a besoin de savoir ce qu'il y a à montrer.** `blank` n'est pas une panne :
+            # c'est un navigateur neuf, et l'app peut le dire (« rouvre la page ») au lieu
+            # d'afficher du blanc sans explication.
+            "page": page,
             "lease": {"holder": SESSION.holder, "epoch": SESSION.epoch},
             "watching": len(STATE["clients"]),
             "frames": SESSION.frames,
@@ -283,7 +380,27 @@ async def websocket(request: web.Request) -> web.WebSocketResponse:
             await _on_frame(payload, ws)
     finally:
         STATE["clients"].discard(ws)
+        # **Un écran fermé ne garde pas le volant.** Le bail se prenait depuis le téléphone : si
+        # l'app se ferme, perd le réseau ou change de conversation, personne ne le rend. Le bail
+        # restait humain pour toujours, et la prise en main suivante était refusée en `409` — un
+        # « quelqu'un conduit déjà » fantôme, impossible à lever sans redémarrer Hermes.
+        if not STATE["clients"]:
+            asyncio.ensure_future(_release_when_abandoned())
     return ws
+
+
+#: Le temps qu'un écran revienne avant qu'on considère qu'il est parti. Un ticket neuf et une
+#: reconnexion prennent moins d'une seconde ; vingt laissent la place à un changement de réseau.
+RELEASE_GRACE_S = 20.0
+
+
+async def _release_when_abandoned() -> None:
+    await asyncio.sleep(RELEASE_GRACE_S)
+    if STATE["clients"] or SESSION.holder != "human":
+        return
+    state = SESSION.abandon()
+    await _broadcast({"type": "lease", **state})
+    log.info("onyx-browser: écran parti, le bail revient à l'agent")
 
 
 async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
@@ -300,8 +417,18 @@ async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
         action = str(payload.get("action") or "")
         try:
             controller = _controller()
-            raw_css = payload.get("css") or list(SESSION.viewport)
-            css = (int(raw_css[0]), int(raw_css[1]))
+            raw_css = payload.get("css") or []
+            css = (int(raw_css[0]), int(raw_css[1])) if len(raw_css) >= 2 else (0, 0)
+            if css[0] <= 0 or css[1] <= 0:
+                # **La mesure du serveur vaut mieux que celle de l'app.** L'app envoie la taille
+                # CSS qu'elle a lue sur la dernière trame ; si elle ne l'a pas lue (trame
+                # reçue avant la correction, ou version de l'app plus ancienne), elle envoie
+                # zéro — et le geste était rejoué sur un viewport de zéro pixel, c'est-à-dire
+                # au coin de l'écran. On retombe alors sur ce que le serveur a mesuré lui-même.
+                css = tuple(SESSION.viewport)
+            if css[0] <= 0 or css[1] <= 0:
+                await _send(ws, {"type": "refused", "seq": payload.get("seq"), "reason": "no_page"})
+                return
             ok = await asyncio.to_thread(controller.input, action, payload, css)
         except BrowserUnavailable:
             await _send(ws, {"type": "refused", "seq": payload.get("seq"), "reason": "no_page"})
@@ -319,9 +446,13 @@ async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
         except Exception:
             facts = {}
         facts["origin_refused"] = False
+        # **Les faits avant le réveil.** `release()` débloque l'outil de l'agent : les faits
+        # doivent déjà être rangés quand il se réveille, sinon il lit un dictionnaire vide et
+        # annonce au modèle « pas de formulaire » alors que la page en avait un.
+        waiting = SESSION.waiting
+        if waiting is not None:
+            waiting.facts.update(facts)
         SESSION.release(note)
-        if SESSION.waiting is not None:
-            SESSION.waiting.facts.update(facts)
         clear_pending()
         await _broadcast({"type": "takeover_done", "id": payload.get("id"), "facts": facts})
         return
@@ -337,22 +468,39 @@ async def _pump() -> None:
     """Une trame à la fois, tant qu'un client regarde. Personne ne regarde : rien ne tourne."""
     idle_sent = False
     while STATE["clients"]:
-        try:
-            controller = _controller()
-            frame = await asyncio.to_thread(controller.frame, SCALE)
-        except Exception:
-            frame = None
-        if frame:
+        trame = await _une_trame()
+        if trame:
             idle_sent = False
-            seq = SESSION.next_seq()
-            SESSION.viewport = tuple(frame.pop("css"))
-            await _broadcast({"type": "frame", "seq": seq, "live": True, **frame})
+            await _broadcast(trame)
             await asyncio.sleep(DRIVE_DELAY_S if SESSION.holder == "human" else WATCH_DELAY_S)
         else:
             if not idle_sent:
-                await _broadcast({"type": "idle"})
+                # **Dire pourquoi**, pas seulement « rien » : `blank` (navigateur neuf, onglet
+                # vide) et `gone` (aucun navigateur) demandent deux gestes différents à l'humain.
+                await _broadcast({"type": "idle", "state": page_snapshot()["state"]})
                 idle_sent = True
             await asyncio.sleep(IDLE_DELAY_S)
+
+
+async def _une_trame() -> dict[str, Any] | None:
+    """Capture la page, et rend la trame à diffuser — `None` s'il n'y a rien à montrer.
+
+    **La taille CSS part avec la trame.** Elle en était retirée juste avant la diffusion
+    (`frame.pop("css")`), et l'app recevait donc `cssWidth = 0` : ses gestes étaient calculés sur
+    un viewport de zéro pixel, et le serveur les rejouait au coin de l'écran. Le serveur garde la
+    mesure pour lui, mais il la diffuse aussi : c'est elle qui dit à l'app où poser le doigt.
+    """
+    try:
+        controller = _controller()
+        frame = await asyncio.to_thread(controller.frame, SCALE)
+    except Exception:
+        return None
+    if not frame:
+        return None
+    seq = SESSION.next_seq()
+    css = frame.get("css") or [0, 0]
+    SESSION.viewport = (int(css[0]), int(css[1]))
+    return {"type": "frame", "seq": seq, "live": True, **frame}
 
 
 async def _send(ws: web.WebSocketResponse, payload: dict[str, Any]) -> None:
@@ -446,6 +594,18 @@ def ensure_started() -> None:
         threading.Thread(target=run, name="onyx-browser", daemon=True).start()
         threading.Thread(target=_keepalive, name="onyx-browser-keepalive", daemon=True).start()
     STARTED.wait(timeout=5)
+
+
+def announce(payload: dict[str, Any]) -> bool:
+    """Prévient les écrans ouverts, depuis un fil qui n'est pas celui de la boucle."""
+    boucle = HUB.loop
+    if boucle is None or boucle.is_closed():
+        return False
+    try:
+        asyncio.run_coroutine_threadsafe(_broadcast(payload), boucle)
+        return True
+    except RuntimeError:
+        return False
 
 
 def notify_pending(takeover_id: str, reason: str) -> bool:
