@@ -33,12 +33,19 @@ class ServeSessionMessages(
 ) {
 
     /** Les messages de la session, du plus ancien au plus récent ; vide si le serveur ne les donne pas. */
-    suspend fun rows(sessionId: String): List<Row> = withContext(Dispatchers.IO) {
+    suspend fun rows(sessionId: String, profile: String? = null): List<Row> = withContext(Dispatchers.IO) {
         val base = config.apiBaseUrl.trim().trimEnd('/')
         if (base.isEmpty() || sessionId.isBlank()) return@withContext emptyList()
+        // Le profil de la **conversation** d'abord : une session rangée dans `profiles/coder`
+        // n'existe pas dans le profil par défaut, et le serveur répondait
+        // `404 session_not_found` à chaque sondage (journal du 2026-11-05, une fois par 5 s).
+        // L'en-tête suffisait en théorie ; il est ici **dans l'URL** en plus, parce qu'un relais
+        // peut le laisser tomber — la query, elle, traverse tout.
+        val effective = profile?.trim()?.takeIf { it.isNotEmpty() } ?: config.effectiveProfile
         val url = (base + "/api/sessions/").toHttpUrlOrNull()?.newBuilder()
             ?.addPathSegment(sessionId.trim())
             ?.addPathSegment("messages")
+            ?.apply { if (effective != null) addQueryParameter("profile", effective) }
             ?.build()
             ?: return@withContext emptyList()
         val request = Request.Builder()
@@ -63,7 +70,8 @@ class ServeSessionMessages(
     }
 
     /** La dernière réponse de l'hôte pour cette session, ou `null` si le tour n'a rien écrit encore. */
-    suspend fun reply(sessionId: String): String? = trailingReply(rows(sessionId))
+    suspend fun reply(sessionId: String, profile: String? = null): String? =
+        trailingReply(rows(sessionId, profile))
 
     /** Un message tel que la session de l'hôte le tient : son rôle et son texte visible. */
     data class Row(val role: String, val text: String)

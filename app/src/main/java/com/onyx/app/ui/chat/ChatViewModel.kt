@@ -1026,7 +1026,7 @@ class ChatViewModel(
         val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         viewModelScope.launch {
             val rows = runCatching {
-                com.onyx.app.data.net.ServeSessionMessages(server).rows(sessionId)
+                com.onyx.app.data.net.ServeSessionMessages(server).rows(sessionId, conversation.botProfile)
             }.getOrElse { return@launch }
             if (rows.isEmpty()) return@launch
             val loaded = rows.mapIndexed { index, row ->
@@ -1077,7 +1077,7 @@ class ChatViewModel(
         recoveryJob = viewModelScope.launch {
             val client = com.onyx.app.data.net.ServeSessionMessages(server)
             repeat(RECOVERY_ATTEMPTS) { attempt ->
-                val fromHost = runCatching { client.reply(sessionId) }.getOrNull()
+                val fromHost = runCatching { client.reply(sessionId, conversation.botProfile) }.getOrNull()
                 val merged = com.onyx.app.data.net.ServeSessionMessages.merge(pending.text, fromHost)
                 if (merged != null) {
                     updateMessage(pending.id) { message -> message.copy(text = merged, isStreaming = false) }

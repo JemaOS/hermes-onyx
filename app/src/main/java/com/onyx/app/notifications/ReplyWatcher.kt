@@ -74,7 +74,7 @@ class ReplyWatcher(
         for (conversation in conversations) {
             val sessionId = conversation.serverSessionId?.trim().orEmpty()
             if (sessionId.isEmpty()) continue
-            val rows = sessions.rows(sessionId)
+            val rows = sessions.rows(sessionId, conversation.botProfile)
             // Journal vide : rien n'a été lu (réseau, refus du serveur, session vide). On ne touche
             // pas à la mesure — sinon un passage hors ligne ferait croire, au suivant, que tout est
             // neuf, et la conversation sonnerait pour des réponses déjà lues.
