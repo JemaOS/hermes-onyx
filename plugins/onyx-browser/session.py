@@ -80,6 +80,18 @@ class Session:
                 waiting.done.set()
             return {"holder": "agent", "epoch": self.epoch}
 
+    def abandon(self) -> dict[str, Any]:
+        """Le conducteur a disparu (écran fermé, page morte) : on repasse au agent, sans finir.
+
+        **Ce n'est pas `release()`** : `release()` réveille l'outil de l'agent comme si l'humain
+        avait rendu la main. Ici, personne n'a rien rendu — l'écran s'est éteint. L'agent doit
+        continuer d'attendre, et l'humain pouvoir reprendre la main quand il rouvre l'écran.
+        """
+        with self._lock:
+            self.holder = "agent"
+            self.epoch += 1
+            return {"holder": "agent", "epoch": self.epoch}
+
     # -- tickets ------------------------------------------------------------------------------
 
     def mint(self) -> Ticket:

@@ -103,11 +103,17 @@ def write_peer(**extra: Any) -> None:
     """Dépose (ou rafraîchit) la fiche de ce processus. Sans serveur, il n'y a rien à déposer."""
     if HUB.port is None:
         return
+    page = page_snapshot()
     approach = {
         "pid": os.getpid(),
         "port": HUB.port,
         "pending": HUB.pending,
         "browser": bool(STATE.get("task_id")),
+        # **Ce que ce processus peut réellement montrer.** Deux processus Hermes tiennent chacun
+        # leur navigateur : la fiche dit lequel a une vraie page, pour que le relais n'envoie pas
+        # l'écran du téléphone sur un onglet vide.
+        "page": page["url"],
+        "state": page["state"],
         "frames": SESSION.frames,
         "viewport": list(SESSION.viewport),
         "ts": time.time(),
@@ -200,17 +206,72 @@ def _refused(reason: str, status: int = 401) -> web.Response:
     return web.json_response({"ok": False, "error": reason}, status=status)
 
 
+# -- la page est-elle encore là ? ---------------------------------------------------------------
+
+#: Une sonde CDP coûte quelques millisecondes, et `health` est appelé par le relais à chaque
+#: ouverture d'écran. On garde la réponse deux secondes : assez frais pour ne pas router l'écran
+#: vers une page morte, assez rare pour ne pas harceler Chromium.
+ALIVE_CACHE_S = 2.0
+#: Combien de temps l'outil de prise en main dort avant de redemander si la page vit encore.
+SONDE_S = 2.0
+#: `state` : `ok`, `blank` (navigateur neuf, rien dedans) ou `gone` (aucun navigateur du tout).
+#: `url` : ce que montre la page, pour que l'app puisse l'afficher au lieu de deviner.
+_PAGE: dict[str, Any] = {"at": 0.0, "state": "gone", "url": ""}
+
+
+def page_snapshot() -> dict[str, str]:
+    """L'état de la page du tour, avec deux secondes de mémoire."""
+    now = time.time()
+    if now - float(_PAGE["at"]) < ALIVE_CACHE_S:
+        return {"state": str(_PAGE["state"]), "url": str(_PAGE["url"])}
+    task_id = STATE.get("task_id")
+    etat, url = "gone", ""
+    if task_id:
+        try:
+            controleur = Controller(str(task_id))
+            etat = controleur.page_state()
+            url = controleur.current_url() if etat == "ok" else ""
+        except Exception:
+            etat, url = "gone", ""
+    _PAGE.update(at=now, state=etat, url=url)
+    return {"state": etat, "url": url}
+
+
+def page_alive() -> bool:
+    """La page du tour montre-t-elle vraiment quelque chose ?
+
+    **`blank` compte comme mort.** Sinon l'outil attendait quinze minutes devant un onglet vide,
+    et le modèle annonçait à l'humain une prise en main qui n'avait aucune page à montrer.
+    """
+    return page_snapshot()["state"] == "ok"
+
+
 # -- routes -----------------------------------------------------------------------------------
 
 async def health(request: web.Request) -> web.Response:
     if not _authorised(request):
         return _refused("token")
     waiting = SESSION.waiting
+    # **Une demande sans page n'est pas une demande.** Le navigateur de Hermes meurt après deux
+    # minutes sans outil : une prise en main restée en attente devient un fantôme que le relais
+    # continue de préférer — l'écran du téléphone aboutissait alors sur un processus qui ne pouvait
+    # rien lui montrer. On la déclare morte ici, et on retire le drapeau pour ne plus y router
+    # personne. L'outil, lui, la voit par sa propre sonde et rend la main sans attendre 15 minutes.
+    alive = page_alive()
+    page = page_snapshot()
+    if waiting is not None and not alive:
+        clear_pending()
+        waiting = None
     return web.json_response(
         {
             "ok": True,
             "plugin": "onyx-browser",
             "browser": bool(STATE.get("task_id")),
+            "alive": alive,
+            # **L'écran a besoin de savoir ce qu'il y a à montrer.** `blank` n'est pas une panne :
+            # c'est un navigateur neuf, et l'app peut le dire (« rouvre la page ») au lieu
+            # d'afficher du blanc sans explication.
+            "page": page,
             "lease": {"holder": SESSION.holder, "epoch": SESSION.epoch},
             "watching": len(STATE["clients"]),
             "frames": SESSION.frames,
@@ -283,7 +344,27 @@ async def websocket(request: web.Request) -> web.WebSocketResponse:
             await _on_frame(payload, ws)
     finally:
         STATE["clients"].discard(ws)
+        # **Un écran fermé ne garde pas le volant.** Le bail se prenait depuis le téléphone : si
+        # l'app se ferme, perd le réseau ou change de conversation, personne ne le rend. Le bail
+        # restait humain pour toujours, et la prise en main suivante était refusée en `409` — un
+        # « quelqu'un conduit déjà » fantôme, impossible à lever sans redémarrer Hermes.
+        if not STATE["clients"]:
+            asyncio.ensure_future(_release_when_abandoned())
     return ws
+
+
+#: Le temps qu'un écran revienne avant qu'on considère qu'il est parti. Un ticket neuf et une
+#: reconnexion prennent moins d'une seconde ; vingt laissent la place à un changement de réseau.
+RELEASE_GRACE_S = 20.0
+
+
+async def _release_when_abandoned() -> None:
+    await asyncio.sleep(RELEASE_GRACE_S)
+    if STATE["clients"] or SESSION.holder != "human":
+        return
+    state = SESSION.abandon()
+    await _broadcast({"type": "lease", **state})
+    log.info("onyx-browser: écran parti, le bail revient à l'agent")
 
 
 async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
@@ -319,9 +400,13 @@ async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
         except Exception:
             facts = {}
         facts["origin_refused"] = False
+        # **Les faits avant le réveil.** `release()` débloque l'outil de l'agent : les faits
+        # doivent déjà être rangés quand il se réveille, sinon il lit un dictionnaire vide et
+        # annonce au modèle « pas de formulaire » alors que la page en avait un.
+        waiting = SESSION.waiting
+        if waiting is not None:
+            waiting.facts.update(facts)
         SESSION.release(note)
-        if SESSION.waiting is not None:
-            SESSION.waiting.facts.update(facts)
         clear_pending()
         await _broadcast({"type": "takeover_done", "id": payload.get("id"), "facts": facts})
         return
@@ -350,7 +435,9 @@ async def _pump() -> None:
             await asyncio.sleep(DRIVE_DELAY_S if SESSION.holder == "human" else WATCH_DELAY_S)
         else:
             if not idle_sent:
-                await _broadcast({"type": "idle"})
+                # **Dire pourquoi**, pas seulement « rien » : `blank` (navigateur neuf, onglet
+                # vide) et `gone` (aucun navigateur) demandent deux gestes différents à l'humain.
+                await _broadcast({"type": "idle", "state": page_snapshot()["state"]})
                 idle_sent = True
             await asyncio.sleep(IDLE_DELAY_S)
 
@@ -446,6 +533,18 @@ def ensure_started() -> None:
         threading.Thread(target=run, name="onyx-browser", daemon=True).start()
         threading.Thread(target=_keepalive, name="onyx-browser-keepalive", daemon=True).start()
     STARTED.wait(timeout=5)
+
+
+def announce(payload: dict[str, Any]) -> bool:
+    """Prévient les écrans ouverts, depuis un fil qui n'est pas celui de la boucle."""
+    boucle = HUB.loop
+    if boucle is None or boucle.is_closed():
+        return False
+    try:
+        asyncio.run_coroutine_threadsafe(_broadcast(payload), boucle)
+        return True
+    except RuntimeError:
+        return False
 
 
 def notify_pending(takeover_id: str, reason: str) -> bool:

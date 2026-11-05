@@ -57,6 +57,16 @@ async def main() -> int:
     check("rendre la main remet l'agent", s.holder == "agent" and s.epoch == 2)
     check("et une saisie est alors refusée", s.refusal(s.seq) == "no_lease")
 
+    # `abandon()` : le conducteur a disparu, personne n'a rien rendu.
+    attente = session_mod.Waiting(takeover_id="x1", reason="test")
+    s.waiting = attente
+    s.acquire()
+    state = s.abandon()
+    check("un écran parti rend le bail à l'agent", state["holder"] == "agent")
+    check("mais ne réveille pas l'outil de l'agent", not attente.done.is_set())
+    s.waiting = None
+    s.abandon()
+
     # --- 2. le ticket ------------------------------------------------------------------------
     ticket = s.mint()
     check("un ticket se consomme une fois", s.redeem(ticket.value) is ticket)
@@ -65,6 +75,98 @@ async def main() -> int:
     clock[0] += 31
     check("un ticket périmé ne passe pas", s.redeem(short.value) is None)
 
+    # --- 2 bis. quel onglet montrer ---------------------------------------------------------
+    # Le défaut qui a produit un écran blanc : quand aucun onglet réel n'existe, l'ancien code
+    # rendait silencieusement la session du superviseur — c'est-à-dire l'onglet vide. Les cas
+    # ci-dessous sont les listes d'onglets réellement relevées sur la machine.
+    cdp_mod = sys.modules["onyx_browser.cdp"]
+
+    check("une page web est réelle", cdp_mod.is_real_page("https://github.com/login"))
+    check("un onglet vide ne l'est pas", not cdp_mod.is_real_page("about:blank"))
+    check("une page interne non plus", not cdp_mod.is_real_page("chrome://newtab/"))
+    check("une adresse vide non plus", not cdp_mod.is_real_page(""))
+
+    class FauxCDP:
+        """Le seam CDP, avec la liste d'onglets qu'on veut éprouver."""
+
+        def __init__(self, cibles, urls):
+            self.page_session_id = "S0"
+            self.cibles = cibles
+            self.urls = urls
+
+        def is_valid(self):
+            return True
+
+        def call(self, method, params=None, *, session_id=None, timeout=None):
+            if method == "Target.getTargets":
+                return {"result": {"targetInfos": self.cibles}}
+            if method == "Page.getNavigationHistory":
+                url = self.urls.get(session_id, "")
+                return {"result": {"entries": [{"url": url}], "currentIndex": 0}}
+            if method == "Target.attachToTarget":
+                cible = (params or {})["targetId"]
+                return {"result": {"sessionId": "S-" + cible}}
+            raise AssertionError("appel inattendu: " + method)
+
+    def controleur(cibles, urls):
+        faux = FauxCDP(cibles, urls)
+        c = cdp_mod.Controller("tache")
+        c._cdp = faux
+        return c
+
+    # Le cas réel : github ouvert dans le navigateur qui exécute le tour.
+    reel = controleur(
+        [
+            {"type": "page", "targetId": "t1", "url": "https://github.com/login"},
+            {"type": "page", "targetId": "t2", "url": "chrome://newtab/"},
+        ],
+        {"S0": "https://github.com/login"},
+    )
+    check("la session du superviseur est préférée", reel.page() == "S0")
+    check("l'état de la page est ok", reel.page_state() == "ok")
+    check("l'adresse est celle de la page", reel.current_url() == "https://github.com/login")
+
+    # Un navigateur neuf : about:blank + nouvel onglet. C'est ce que voyait le téléphone.
+    vide = controleur(
+        [
+            {"type": "page", "targetId": "t1", "url": "about:blank"},
+            {"type": "page", "targetId": "t2", "url": "chrome://newtab/"},
+        ],
+        {"S0": "about:blank"},
+    )
+    check("un onglet vide est déclaré vide", vide.page_state() == "blank")
+    try:
+        vide.page()
+        check("on ne capture pas un onglet vide", False)
+    except cdp_mod.BrowserUnavailable:
+        check("on ne capture pas un onglet vide", True)
+    check("et il n'y a pas d'adresse à montrer", vide.current_url() == "")
+
+    # Un vrai onglet ouvert ailleurs que dans la session du superviseur (une popup).
+    popup = controleur(
+        [
+            {"type": "page", "targetId": "t1", "url": "about:blank"},
+            {"type": "page", "targetId": "t9", "url": "https://github.com/login"},
+        ],
+        {"S0": "about:blank", "S-t9": "https://github.com/login"},
+    )
+    check("un onglet réel ailleurs est trouvé", popup.page() == "S-t9")
+
+    aucun = controleur([], {})
+    check("sans navigateur, la page est absente", aucun.page_state() == "gone")
+
+    # --- 2 ter. le serveur ne présente pas un onglet vide comme une page --------------------
+    vrai_controleur = server.Controller
+    server.STATE["task_id"] = "tache-vide"
+    setattr(server, "Controller", lambda task: vide)
+    server._PAGE.update(at=0.0, state="gone", url="")
+    etat = server.page_snapshot()
+    check("health annonce un onglet vide", etat["state"] == "blank")
+    check("et ne le croit pas vivant", server.page_alive() is False)
+    server.Controller = vrai_controleur
+    server.STATE["task_id"] = None
+    server._PAGE.update(at=0.0, state="gone", url="")
+
     # --- 3. le serveur -----------------------------------------------------------------------
     app = server.build_app()
     async with TestClient(TestServer(app)) as client:
@@ -72,6 +174,28 @@ async def main() -> int:
             body = await resp.json()
             check("health répond", resp.status == 200 and body.get("plugin") == "onyx-browser")
             check("il ne ment pas sur le navigateur", body.get("browser") is False)
+            check("il dit que la page est morte", body.get("alive") is False)
+
+        # --- une demande sans page n'est pas une demande ------------------------------------
+        # Hermes ferme un navigateur inactif au bout de deux minutes. La prise en main restait
+        # alors « en attente » pour toujours, et le relais y routait l'écran du téléphone.
+        attente = session_mod.Waiting(takeover_id="zombie", reason="fantôme")
+        server.SESSION.waiting = attente
+        server.STATE["task_id"] = "tache-disparue"
+        server.HUB.pending = "zombie"
+        async with client.get("/onyx-browser/health") as resp:
+            body = await resp.json()
+            check("une demande sans page n'est pas annoncée", body.get("pending") is None)
+            check("et le relais ne peut plus y router l'écran", server.HUB.pending is None)
+        server.SESSION.waiting = None
+        server.STATE["task_id"] = None
+
+        # --- un écran fermé ne garde pas le volant ------------------------------------------
+        server.RELEASE_GRACE_S = 0
+        server.SESSION.acquire()
+        await server._release_when_abandoned()
+        check("écran parti : le bail revient à l'agent", server.SESSION.holder == "agent")
+        server.SESSION.release("")
 
         async with client.post("/onyx-browser/observe") as resp:
             body = await resp.json()

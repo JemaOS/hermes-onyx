@@ -178,16 +178,21 @@ def _navigateur_a_joindre() -> tuple[str, int]:
     if not candidats:
         return BROWSER_HOTE, BROWSER_PORT
 
-    meilleur: tuple[int, int, float] | None = None  # (score, préférence 8788, fraîcheur)
+    meilleur: tuple[int, int, int, float] | None = None  # (score, page réelle, 8788, fraîcheur)
     gagnant = BROWSER_PORT
     for port in candidats:
         sante = _sante(port)
         if not sante.get("ok"):
             continue
         score = 3 if sante.get("pending") else (2 if sante.get("browser") else 1)
+        # **Une vraie page bat un onglet vide, à demande égale.** Deux processus Hermes tiennent
+        # chacun leur navigateur ; sans ce départage, l'écran pouvait atterrir sur un onglet blanc
+        # alors que la page demandée vivait dans l'autre processus.
+        page = sante.get("page") or {}
+        page_reelle = 1 if str(page.get("state") or "") == "ok" else 0
         fraicheur = max([float(f.get("ts") or 0) for f in fiches if int(f.get("port") or 0) == port]
                         or [0.0])
-        cle = (score, 1 if port == BROWSER_PORT else 0, fraicheur)
+        cle = (score, page_reelle, 1 if port == BROWSER_PORT else 0, fraicheur)
         if meilleur is None or cle > meilleur:
             meilleur = cle
             gagnant = port
