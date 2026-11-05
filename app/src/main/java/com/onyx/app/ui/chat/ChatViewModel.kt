@@ -354,7 +354,9 @@ class ChatViewModel(
         // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
         // Mais elle se **dit** : c'est le silence de ce cas qui a coûté quatre versions.
         if (tagged.isEmpty()) {
-            _importNote.value = OnyxLocalization.format("%1\$d sessions read, %2\$d imported", 0, 0)
+            // Provisoire : dit *ce que le serveur a répondu* à la requête de l'import.
+            val brut = runCatching { api.rawPage(profiles.firstOrNull()) }.getOrElse { "erreur: ${it.message}" }
+            _importNote.value = "0 lue · ${server.serveBase} · $brut"
             return true
         }
         val summaries = tagged.map { (_, summary) -> summary }

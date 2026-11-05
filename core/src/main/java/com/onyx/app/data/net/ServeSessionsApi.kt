@@ -247,6 +247,20 @@ class ServeSessionsApi(private val client: ServeClient) {
         return rows.mapNotNull { element -> element.asObject()?.let(::sessionSummaryFromRow) }
     }
 
+    /**
+     * **La réponse brute**, pour le diagnostic à distance. Provisoire.
+     *
+     * Deux lectures du même serveur donnaient l'une quinze lignes, l'autre zéro : impossible de
+     * trancher depuis le code, la différence est dans ce que le serveur répond à *cette* requête.
+     */
+    suspend fun rawPage(profile: String? = null): String {
+        val payload = client.request(
+            path = "api/sessions",
+            query = pageQuery(limit = 3, offset = 0, order = "created", profile = profile),
+        )
+        return payload.toString().take(300)
+    }
+
     /** Une session par son identifiant, dans [profile] (ou le profil du serveur quand il est vide). */
     suspend fun summary(id: String, profile: String? = null): SessionSummary? =
         allSummaries(profile = profile).firstOrNull { it.id == id }
