@@ -1293,6 +1293,20 @@ fun ChatScreen(
                             ),
                         )
                     }
+                        // **La carte du navigateur vit dans le fil, pas dans le champ.**
+                        //
+                        // Posée dans le bloc du compositeur, elle se superposait au champ : la
+                        // première ligne du prompt (« Guider la réponse… ») passait dessous et se
+                        // lisait à moitié. Une invitation à prendre la main est un **contenu de la
+                        // conversation** — elle se place après le dernier message, défile avec lui
+                        // et disparaît quand on remonte. Le compositeur, lui, ne porte que le champ.
+                        item(key = "browser-invite") {
+                            BrowserInvite(
+                                server = stateFlow.value.server,
+                                onOpen = onOpenBrowser,
+                                modifier = Modifier.padding(horizontal = OnyxSpace.Base),
+                            )
+                        }
                     } // ferme le contenu de la LazyColumn
                 } // ferme GlassScrollFreeze (le gel du verre)
                 } // ferme la CompositionLocalProvider du thème
@@ -1594,7 +1608,6 @@ fun ChatScreen(
             Column(
                 modifier = Modifier.onSizeChanged { composerHeightPx = it.height },
             ) {
-                BrowserInvite(server = state.server, onOpen = onOpenBrowser)
                 Box(
                     modifier = Modifier
                         .onGloballyPositioned { composerWeldRect = it.boundsInParent() },
