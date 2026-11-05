@@ -49,6 +49,28 @@ class ServerImportRetryTest {
     }
 
     @Test
+    fun `l import interroge toujours au moins le profil par defaut`() {
+        // Le vrai « toujours vide » : `effectiveProfile` rend `null` pour « default », donc
+        // `listOfNotNull(server.effectiveProfile)` était **vide** quand le roster gardé l'était
+        // aussi — c'est-à-dire après une réinstallation. Aucune lecture n'était lancée, et
+        // l'import se disait réussi.
+        assertTrue(
+            "le profil du serveur est toujours dans la liste (chaîne vide = profil par défaut)",
+            code.contains("val profiles = (listOf(server.hermesProfile) + cached?.bots.orEmpty().map { it.name })"),
+        )
+        assertFalse(
+            "plus de liste qui peut être vide",
+            code.contains("listOfNotNull(server.effectiveProfile)"),
+        )
+        // Et la route retire « default » et le vide : la lecture porte bien sur le profil du serveur.
+        val api = File("../core/src/main/java/com/onyx/app/data/net/ServeSessionsApi.kt").readText()
+        assertTrue(
+            "« default » et le vide veulent dire « le profil du serveur »",
+            api.contains("profile?.trim()?.takeIf { it.isNotEmpty() && !it.equals(\"default\", ignoreCase = true) }"),
+        )
+    }
+
+    @Test
     fun `un import reussi seulement marque le serveur comme importe`() {
         assertTrue(
             "la marque est posée dans la branche de succès",

@@ -316,9 +316,18 @@ class ChatViewModel(
         // serveur. C'est ce qui donne à chaque session le profil qui la porte — sans lui, une
         // conversation réimportée après une réinstallation perd son bot et prend le visage d'Onyx.
         val cached = runCatching { roster.load(server.rosterScope) }.getOrNull()
-        val profiles = (cached?.bots.orEmpty().map { it.name } + listOfNotNull(server.effectiveProfile))
+        // **Au moins une lecture, celle du profil par défaut.**
+        //
+        // `effectiveProfile` rend `null` quand le serveur est en « default » : la liste des profils
+        // à interroger devenait donc **vide** dès que le roster gardé l'était aussi — c'est-à-dire
+        // exactement après une réinstallation. `summariesByProfile` bouclait sur rien, ne lisait
+        // rien, et l'import se disait réussi : la liste restait vide, l'import marqué fait, et
+        // aucune nouvelle tentative. C'est le « toujours vide » constaté.
+        //
+        // Le profil par défaut n'a pas de nom sur cette route (`named()` retire « default » et le
+        // vide) : on interroge donc **avec la chaîne vide**, qui veut dire « le profil du serveur ».
+        val profiles = (listOf(server.hermesProfile) + cached?.bots.orEmpty().map { it.name })
             .map { it.trim() }
-            .filter { it.isNotEmpty() }
             .distinct()
         val api = ServeSessionsApi(ServeClient(server))
         val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { return false }
