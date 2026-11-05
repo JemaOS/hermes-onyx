@@ -32,8 +32,17 @@ class ServeSessionMessages(
     private val httpClient: OkHttpClient = OnyxHttp.clientFor(config),
 ) {
 
-    /** Les messages de la session, du plus ancien au plus récent ; vide si le serveur ne les donne pas. */
-    suspend fun rows(sessionId: String, profile: String? = null): List<Row> = withContext(Dispatchers.IO) {
+    /**
+     * Les messages de la session, du plus ancien au plus récent ; vide si le serveur ne les donne pas.
+     *
+     * [limit] borne la lecture aux **derniers** [limit] messages (`order=latest`, que le serveur
+     * rend en ordre chronologique). Sans lui, la route répond sa page par défaut — 500 messages,
+     * 1,17 Mo mesurés sur une conversation réelle, relus toutes les 5 s tant qu'un tour est en
+     * cours : plusieurs dizaines de Mo par conversation sur un réseau mobile. Les chemins qui
+     * n'ont besoin que de la **fin** du fil (le sondage d'une réponse) passent donc un [limit] ;
+     * ceux qui peignent le fil entier (ouverture d'une conversation) n'en passent pas.
+     */
+    suspend fun rows(sessionId: String, profile: String? = null, limit: Int? = null): List<Row> = withContext(Dispatchers.IO) {
         val base = config.apiBaseUrl.trim().trimEnd('/')
         if (base.isEmpty() || sessionId.isBlank()) return@withContext emptyList()
         // Le profil de la **conversation** d'abord : une session rangée dans `profiles/coder`
@@ -46,6 +55,12 @@ class ServeSessionMessages(
             ?.addPathSegment(sessionId.trim())
             ?.addPathSegment("messages")
             ?.apply { if (effective != null) addQueryParameter("profile", effective) }
+            ?.apply {
+                if (limit != null && limit > 0) {
+                    addQueryParameter("limit", limit.toString())
+                    addQueryParameter("order", "latest")
+                }
+            }
             ?.build()
             ?: return@withContext emptyList()
         val request = Request.Builder()
@@ -69,14 +84,32 @@ class ServeSessionMessages(
         }
     }
 
-    /** La dernière réponse de l'hôte pour cette session, ou `null` si le tour n'a rien écrit encore. */
+    /**
+     * La dernière réponse de l'hôte pour cette session, ou `null` si le tour n'a rien écrit encore.
+     *
+     * Ne lit que la **fin** du fil ([REPLY_TAIL] lignes) : c'est tout ce que [trailingReply] peut
+     * consommer, et c'est le seul appel répété — toutes les cinq secondes pendant qu'un tour se
+     * tait, puis à chaque tentative de rattrapage. Lire le fil entier à chaque fois coûtait
+     * 1,17 Mo par sondage sur une conversation réelle.
+     */
     suspend fun reply(sessionId: String, profile: String? = null): String? =
-        trailingReply(rows(sessionId, profile))
+        trailingReply(rows(sessionId, profile, limit = REPLY_TAIL))
 
     /** Un message tel que la session de l'hôte le tient : son rôle et son texte visible. */
     data class Row(val role: String, val text: String)
 
     companion object {
+
+        /**
+         * La fenêtre du sondage : les derniers messages qu'un tour d'agent peut occuper.
+         *
+         * Mesuré sur une vraie conversation (`20261105_195844_06443a`) : 40 lignes = 97 Ko, contre
+         * 1,17 Mo pour la page de 500 que la route rend par défaut. Assez large pour qu'un tour
+         * bavard (raisonnement, appels d'outil, réponse) tienne derrière son message d'utilisateur ;
+         * une fenêtre trop courte ne fait **rien de faux** — `trailingReply` rend `null` et la bulle
+         * ne bouge pas — elle rate seulement le rattrapage.
+         */
+        const val REPLY_TAIL = 40
 
         /** La réponse à afficher : le texte du premier assistant non vide **après** le dernier mot de l'utilisateur. */
         fun trailingReply(rows: List<Row>): String? {
