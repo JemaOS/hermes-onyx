@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,6 +64,8 @@ import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.localization.BasicText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -126,6 +130,34 @@ class BrowserScreenViewModel(
      * survient qu'une fois le client construit, et il lit le champ à ce moment-là.
      */
     private val client: BrowserScreenClient = buildClient()
+
+    /** La zone où l'app dessine la page, en **dp** (donc en px CSS) et sa densité. */
+    private var zone: Triple<Int, Int, Float>? = null
+    private var viewportJob: Job? = null
+
+    /**
+     * **La page prend la forme de la zone qui l'affiche.**
+     *
+     * Un gabarit fixe (390×844) rendait la page minuscule au milieu d'une grande dalle : sur un
+     * pliable déplié, elle occupait une bande cernée de noir. Et plier ou déplier change la
+     * largeur sans changer de page — d'où le renvoi de la forme quand elle bouge, avec un court
+     * délai : une bascule envoie plusieurs mesures d'affilée.
+     */
+    fun screenSized(widthPx: Int, heightPx: Int, density: Float) {
+        if (density <= 0f) return
+        val largeur = (widthPx / density).toInt()
+        val hauteur = (heightPx / density).toInt()
+        if (largeur < 200 || hauteur < 200) return
+        val avant = zone
+        zone = Triple(largeur, hauteur, density)
+        if (avant == null || (avant.first == largeur && avant.second == hauteur)) return
+        if (_state.value.phase != Phase.DRIVING) return
+        viewportJob?.cancel()
+        viewportJob = viewModelScope.launch {
+            delay(250)
+            BrowserScreenApi.viewport(server, largeur, hauteur, density)
+        }
+    }
 
     private fun buildClient() = BrowserScreenClient(
         server = server,
@@ -358,7 +390,10 @@ class BrowserScreenViewModel(
     fun takeOver() {
         wantDriving = true
         viewModelScope.launch {
-            val lease = runCatching { BrowserScreenApi.acquire(server) }.getOrNull()
+            val forme = zone
+            val lease = runCatching {
+                BrowserScreenApi.acquire(server, forme?.first, forme?.second, forme?.third)
+            }.getOrNull()
             if (lease == null) {
                 _state.value = _state.value.copy(
                     problem = OnyxLocalization["Another screen is driving this browser."],
@@ -520,6 +555,12 @@ fun BrowserScreen(
         modifier = modifier
             .fillMaxSize()
             .background(night)
+            // **Les barres du système, comme partout ailleurs.** Sans elles, le bandeau de l'écran
+            // se dessinait **sous** la barre d'état : « Bouygues », l'heure et les icônes passaient
+            // par-dessus le titre et la pastille « VOUS CONDUISEZ », et les deux se lisaient
+            // ensemble. Aucun autre écran pleine page ne fait cette faute : celle-ci en manquait.
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = OnyxSpace.Base, vertical = OnyxSpace.Half),
         verticalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
@@ -547,6 +588,7 @@ fun BrowserScreen(
                     color = ink,
                     size = 16,
                     weight = FontWeight.SemiBold,
+                    maxLines = 1,
                 )
                 val sous = state.title.ifBlank { BrowserScreenViewModel.hostOf(state.url) }
                 if (sous.isNotBlank()) {
@@ -584,8 +626,14 @@ fun BrowserScreen(
         }
 
         // -- la page, centrée : le noir autour est le letterbox, pas un vide ----------------
+        val densite = LocalDensity.current.density
         Box(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                // La mesure de la zone part vers le serveur : c'est elle qui donne sa forme à la
+                // page, et qui la redonne quand un pliable s'ouvre ou se ferme.
+                .onSizeChanged { taille -> viewModel.screenSized(taille.width, taille.height, densite) },
             contentAlignment = Alignment.Center,
         ) {
             val image = state.image

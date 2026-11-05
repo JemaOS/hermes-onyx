@@ -64,13 +64,58 @@ object BrowserScreenApi {
         ticketOf(client.request("$ROOT/observe", method = "POST", body = buildJsonObject { }))
     }.getOrNull()
 
-    /** `POST onyx-browser/lease` avec `acquire` — lève si un autre conduit déjà. */
+    /**
+     * `POST onyx-browser/lease` avec `acquire` — lève si un autre conduit déjà.
+     *
+     * **La taille part avec la prise en main.** La page prend la forme de la zone où l'app la
+     * dessine : un gabarit fixe la rendait minuscule au milieu d'une grande dalle (pliable déplié).
+     */
     suspend fun acquire(
         server: ServerConfig,
+        width: Int? = null,
+        height: Int? = null,
+        dpr: Float? = null,
         client: ServeClient = ServeClient(server),
     ): Lease? = runCatching {
-        leaseOf(client.request("$ROOT/lease", method = "POST", body = leaseBody("acquire")))
+        leaseOf(
+            client.request(
+                "$ROOT/lease",
+                method = "POST",
+                body = leaseBody("acquire", size = screenSize(width, height, dpr)),
+            ),
+        )
     }.getOrNull()
+
+    /**
+     * `POST onyx-browser/lease` avec `viewport` — la forme de l'écran a changé.
+     *
+     * Plier ou déplier change la largeur sans changer de page. Sans ce message, la page gardait
+     * la forme d'avant : elle flottait dans un cadre qui n'était plus le sien.
+     */
+    suspend fun viewport(
+        server: ServerConfig,
+        width: Int,
+        height: Int,
+        dpr: Float? = null,
+        client: ServeClient = ServeClient(server),
+    ): Boolean = runCatching {
+        client.request(
+            "$ROOT/lease",
+            method = "POST",
+            body = leaseBody("viewport", size = screenSize(width, height, dpr)),
+        )
+        true
+    }.getOrDefault(false)
+
+    /** La taille annoncée au serveur, bornée : jamais zéro, jamais une valeur d'écran absurde. */
+    fun screenSize(width: Int?, height: Int?, dpr: Float?): JsonObject? {
+        if (width == null || height == null || width < 200 || height < 200) return null
+        return buildJsonObject {
+            put("width", width.coerceIn(200, 4000))
+            put("height", height.coerceIn(200, 4000))
+            if (dpr != null && dpr >= 0.5f && dpr <= 6f) put("dpr", dpr)
+        }
+    }
 
     /** `POST onyx-browser/lease` avec `release` — rend la main à l'agent. */
     suspend fun release(
@@ -101,11 +146,13 @@ object BrowserScreenApi {
         return Lease(holder = holder, epoch = rows.int("epoch") ?: 0)
     }
 
-    /** Le corps d'un `acquire` / `release`. */
-    fun leaseBody(action: String, note: String? = null): JsonObject = buildJsonObject {
-        put("action", action)
-        if (!note.isNullOrBlank()) put("note", note)
-    }
+    /** Le corps d'un `acquire` / `release` / `viewport`. */
+    fun leaseBody(action: String, note: String? = null, size: JsonObject? = null): JsonObject =
+        buildJsonObject {
+            put("action", action)
+            if (!note.isNullOrBlank()) put("note", note)
+            size?.forEach { (cle, valeur) -> put(cle, valeur) }
+        }
 
 }
 

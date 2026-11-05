@@ -266,10 +266,13 @@ async def main() -> int:
             # le viewport mobile de son côté ; l'app peut prendre la main sans lui, et la page
             # restait alors en 1280 px écrasés dans la largeur du téléphone.
             self.vues: list[str] = []
+            # La **forme** demandée : l'écran de l'app, pas une constante.
+            self.formes: list[tuple] = []
 
-        def use_phone_viewport(self):
+        def use_phone_viewport(self, width=None, height=None, dpr=None):
             self.vues.append("phone")
-            return (390, 844)
+            self.formes.append((width, height))
+            return (width or 390, height or 844)
 
         def clear_viewport(self):
             self.vues.append("desktop")
@@ -334,6 +337,17 @@ async def main() -> int:
         await server._pose_viewport(True)
         await server._pose_viewport(False)
         check("prendre la main pose un viewport de téléphone", faux.vues == ["phone", "desktop"])
+        # **La forme de l'écran, pas un gabarit.** Un pliable déplié fait bien plus de 390 points
+        # de large : avec une constante, la page flottait dans un cadre trop grand, cernée de noir.
+        await server._pose_viewport(True, {"width": 1112, "height": 1666, "dpr": 2.75})
+        check("la forme annoncée par l'app est posée", faux.formes[-1] == (1112, 1666))
+        check("une largeur de 10 est refusée", server._taille({"width": 10}) == {})
+        check("une largeur de 9999 est refusée", server._taille({"width": 9999}) == {})
+        check(
+            "une taille plausible est gardée",
+            server._taille({"width": 1112, "height": 1666, "dpr": 2.75})
+            == {"width": 1112, "height": 1666, "dpr": 2.75},
+        )
     finally:
         server._controller = ancien_controleur
         server.STATE["task_id"] = ancien_task

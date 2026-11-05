@@ -31,6 +31,9 @@ MOBILE_UA = (
     "Chrome/131.0.0.0 Mobile Safari/537.36"
 )
 MOBILE_WIDTH, MOBILE_HEIGHT, MOBILE_DPR = 390, 844, 2
+# **Un plancher, pas un gabarit.** En dessous, la page cesse d'être utilisable au doigt (cibles de
+# quelques pixels) et certains sites refusent de se rendre. Au-dessus, c'est la taille de l'écran.
+MOBILE_MIN_WIDTH, MOBILE_MIN_HEIGHT = 320, 480
 
 _KEYS = {
     "Enter": ("Enter", "Enter", 13, "\r"),
@@ -410,16 +413,31 @@ class Controller:
 
     # -- viewport -----------------------------------------------------------------------------
 
-    def use_phone_viewport(self) -> tuple[int, int]:
-        """Pose un viewport de téléphone et rend la taille CSS obtenue."""
+    def use_phone_viewport(
+        self,
+        width: int | None = None,
+        height: int | None = None,
+        dpr: float | None = None,
+    ) -> tuple[int, int]:
+        """Pose un viewport de téléphone et rend la taille CSS obtenue.
+
+        **La forme vient de l'appareil, pas d'une constante.** Un gabarit fixe de 390×844 rend
+        une page minuscule au milieu d'une grande dalle : sur un pliable déplié — Honor Magic V3,
+        2224 px de large — la page occupait une bande étroite cernée de noir, illisible et
+        intouchable. L'app annonce donc la taille de la zone où elle dessine, et la page prend
+        cette forme-là. Les valeurs par défaut restent pour l'outil, qui n'a pas d'écran.
+        """
+        largeur = max(MOBILE_MIN_WIDTH, int(width or MOBILE_WIDTH))
+        hauteur = max(MOBILE_MIN_HEIGHT, int(height or MOBILE_HEIGHT))
+        rapport = float(dpr or MOBILE_DPR)
         cdp = self._client()
         session = self.page()
         cdp.call(
             "Emulation.setDeviceMetricsOverride",
             {
-                "width": MOBILE_WIDTH,
-                "height": MOBILE_HEIGHT,
-                "deviceScaleFactor": MOBILE_DPR,
+                "width": largeur,
+                "height": hauteur,
+                "deviceScaleFactor": rapport,
                 "mobile": True,
             },
             session_id=session,
@@ -431,7 +449,7 @@ class Controller:
             session_id=session,
             timeout=4,
         )
-        return MOBILE_WIDTH, MOBILE_HEIGHT
+        return largeur, hauteur
 
     def clear_viewport(self) -> None:
         cdp = self._client()

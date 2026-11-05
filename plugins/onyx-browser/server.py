@@ -224,7 +224,33 @@ def _controller() -> Controller:
     return Controller(str(task_id))
 
 
-async def _pose_viewport(phone: bool) -> None:
+def _taille(body: Any) -> dict:
+    """La taille CSS que l'app demande, quand elle la dit. Bornée, jamais de valeur absurde."""
+    if not isinstance(body, dict):
+        return {}
+    taille: dict[str, Any] = {}
+    try:
+        largeur = int(body.get("width") or 0)
+        if 200 <= largeur <= 4000:
+            taille["width"] = largeur
+    except (TypeError, ValueError):
+        pass
+    try:
+        hauteur = int(body.get("height") or 0)
+        if 200 <= hauteur <= 4000:
+            taille["height"] = hauteur
+    except (TypeError, ValueError):
+        pass
+    try:
+        rapport = float(body.get("dpr") or 0)
+        if 0.5 <= rapport <= 6:
+            taille["dpr"] = rapport
+    except (TypeError, ValueError):
+        pass
+    return taille
+
+
+async def _pose_viewport(phone: bool, size: dict | None = None) -> None:
     """Donne à la page la forme du pouce, ou la lui retire.
 
     **Le viewport suit le volant, pas l'outil.** L'outil posait le viewport mobile avant de
@@ -237,9 +263,18 @@ async def _pose_viewport(phone: bool) -> None:
     except Exception:
         return  # pas de page : rien à mettre en forme
     try:
-        await asyncio.to_thread(
-            controleur.use_phone_viewport if phone else controleur.clear_viewport
-        )
+        if phone:
+            largeur = int((size or {}).get("width") or 0)
+            hauteur = int((size or {}).get("height") or 0)
+            rapport = float((size or {}).get("dpr") or 0)
+            await asyncio.to_thread(
+                controleur.use_phone_viewport,
+                largeur or None,
+                hauteur or None,
+                rapport or None,
+            )
+        else:
+            await asyncio.to_thread(controleur.clear_viewport)
     except Exception:
         # Un viewport refusé ne doit pas faire échouer la prise en main : on préfère un écran
         # en desktop à un bouton « Prendre la main » qui ne répond pas.
@@ -380,8 +415,15 @@ async def lease(request: web.Request) -> web.Response:
         # de sonner, mais l'app peut aussi prendre la main seule (bouton « Prendre la main ») :
         # elle héritait alors d'un viewport de 1280 px réduit à la largeur de l'écran — texte
         # minuscule, cibles de trois pixels, et un tap qui tombe à côté.
-        await _pose_viewport(True)
+        await _pose_viewport(True, _taille(body))
         await _broadcast({"type": "lease", **state})
+        return web.json_response({"ok": True, **state})
+    if action == "viewport":
+        # **La page suit l'écran quand il change de forme.** Plier ou déplier un appareil change
+        # la largeur sans changer de page : sans ce message, la page gardait la forme d'avant et
+        # flottait dans un cadre qui n'était plus le sien.
+        if state.get("holder") == "human":
+            await _pose_viewport(True, _taille(body))
         return web.json_response({"ok": True, **state})
     if action == "release":
         state = SESSION.release(str((body or {}).get("note") or ""))
