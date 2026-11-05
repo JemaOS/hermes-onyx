@@ -52,6 +52,12 @@ async def main() -> int:
     seq = s.next_seq()
     check("avec la dernière trame, elle passe", s.refusal(seq) is None)
     s.next_seq()
+    # **La fraîcheur se mesure en secondes, pas en numéros de trame.** À 8 img/s pendant la
+    # conduite, le `seq` de l'image affichée est toujours dépassé : comparer les `seq` refusait
+    # chaque tap, et l'écran ne servait à rien. Ce qui compte, c'est que l'image soit récente.
+    check("une trame encore fraîche passe, même dépassée", s.refusal(seq) is None)
+    check("un seq inconnu est refusé", s.refusal(seq + 500) == "stale")
+    clock[0] += session_mod.STALE_AFTER_S + 1
     check("une trame périmée est refusée", s.refusal(seq) == "stale")
     s.release("fini")
     check("rendre la main remet l'agent", s.holder == "agent" and s.epoch == 2)
