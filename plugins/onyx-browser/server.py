@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import threading
 from typing import Any
 
@@ -33,10 +34,34 @@ WATCH_DELAY_S = 0.3      # §2 : 3 img/s quand l'app regarde
 DRIVE_DELAY_S = 0.12     # §2 : 8 img/s quand l'humain conduit
 IDLE_DELAY_S = 1.5
 
-SESSION = Session()
-STATE: dict[str, Any] = {"task_id": None, "clients": set(), "pump": None}
-STARTED = threading.Event()
-_LOOP: asyncio.AbstractEventLoop | None = None
+# **Hermes charge le même plugin plusieurs fois dans un seul processus** : une fois en portée
+# « lancement », une fois par profil. Chaque import créait sa propre `Session`, sa propre boucle et
+# son propre serveur — la première copie prenait le port, la seconde mourait en `EADDRINUSE` en
+# gardant une boucle **déjà fermée** dans `_LOOP`. L'outil de prise en main tournait alors dans la
+# copie morte : `RuntimeError: Event loop is closed`, et la demande n'atteignait jamais l'écran.
+#
+# Le hub est rangé dans `sys.modules` : c'est le seul endroit que toutes les copies d'un même
+# processus partagent. Une session, un état, une boucle, un port.
+def _hub() -> Any:
+    import types
+
+    module = sys.modules.get("onyx_browser_hub")
+    if module is None:
+        module = types.ModuleType("onyx_browser_hub")
+        module.SESSION = Session()
+        module.STATE: dict[str, Any] = {"task_id": None, "clients": set(), "pump": None}
+        module.STARTED = threading.Event()
+        module.loop = None
+        module.lance = threading.Lock()
+        module.tente = False
+        sys.modules["onyx_browser_hub"] = module
+    return module
+
+
+HUB = _hub()
+SESSION = HUB.SESSION
+STATE = HUB.STATE
+STARTED = HUB.STARTED
 
 
 def _bind(value: str) -> tuple[str, int]:
@@ -254,8 +279,6 @@ def build_app() -> web.Application:
 
 
 async def _serve() -> None:
-    global _LOOP
-    _LOOP = asyncio.get_running_loop()
     runner = web.AppRunner(build_app(), access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, HOST, PORT)
@@ -271,6 +294,10 @@ async def _serve() -> None:
             STARTED.set()
             return
         raise
+    # **La boucle n'est retenue qu'une fois le port réellement pris.** Avant, elle était posée en
+    # entrée : si le `site.start()` échouait, `asyncio.run` fermait la boucle et `_LOOP` restait
+    # pointé sur un cadavre — `notify_pending` levait alors un `RuntimeError` en pleine prise en main.
+    HUB.loop = asyncio.get_running_loop()
     STARTED.set()
     log.info("onyx-browser: en écoute sur %s:%s/onyx-browser/health", HOST, PORT)
     # **Le serveur vit aussi longtemps que la boucle.** `_serve()` rendait la main juste après le
@@ -280,10 +307,6 @@ async def _serve() -> None:
     await asyncio.Event().wait()
 
 
-_LANCE = threading.Lock()
-_TENTE = False
-
-
 def ensure_started() -> None:
     """Démarre le serveur une fois, dans son propre fil : `register()` est synchrone.
 
@@ -291,13 +314,12 @@ def ensure_started() -> None:
     chaque profil), et deux appels rapprochés voyaient tous deux `STARTED` vide — deux `TCPSite`
     sur le même port, un `EADDRINUSE`, et le plugin passait pour mort.
     """
-    global _TENTE
     if STARTED.is_set():
         return
-    with _LANCE:
-        if STARTED.is_set() or _TENTE:
+    with HUB.lance:
+        if STARTED.is_set() or HUB.tente:
             return
-        _TENTE = True
+        HUB.tente = True
 
         def run() -> None:
             asyncio.run(_serve())
@@ -306,10 +328,21 @@ def ensure_started() -> None:
     STARTED.wait(timeout=5)
 
 
-def notify_pending(takeover_id: str, reason: str) -> None:
-    """Prévient les clients déjà à l'écran qu'une demande vient d'arriver."""
-    if _LOOP is None:
-        return
-    asyncio.run_coroutine_threadsafe(
-        _broadcast({"type": "takeover", "id": takeover_id, "reason": reason}), _LOOP
-    )
+def notify_pending(takeover_id: str, reason: str) -> bool:
+    """Prévient les clients déjà à l'écran qu'une demande vient d'arriver.
+
+    Rend `False` — sans lever — quand aucun serveur ne vit dans ce processus : c'est une
+    information utile à l'outil, pas une panne de l'appelant.
+    """
+    boucle = HUB.loop
+    if boucle is None or boucle.is_closed():
+        log.warning("onyx-browser: aucune boucle vivante, la prise en main reste locale")
+        return False
+    try:
+        asyncio.run_coroutine_threadsafe(
+            _broadcast({"type": "takeover", "id": takeover_id, "reason": reason}), boucle
+        )
+        return True
+    except RuntimeError:  # boucle fermée entre-temps
+        log.warning("onyx-browser: boucle fermée pendant la notification")
+        return False

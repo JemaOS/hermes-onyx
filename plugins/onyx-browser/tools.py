@@ -58,7 +58,20 @@ def request_takeover(reason: str) -> str:
             {"status": "unavailable", "message": "No browser page is open in this turn."},
             ensure_ascii=False,
         )
-    server.notify_pending(waiting.takeover_id, waiting.reason)
+    if not server.notify_pending(waiting.takeover_id, waiting.reason):
+        # Aucun serveur vivant dans ce processus : l'écran du téléphone ne verra jamais cette
+        # demande. Le dire tout de suite vaut mieux que bloquer quinze minutes sur un écran vide.
+        server.SESSION.waiting = None
+        return json.dumps(
+            {
+                "status": "unavailable",
+                "message": (
+                    "The browser screen server is not running in this process, so the phone cannot "
+                    "reach this page. Another Hermes process owns the screen port."
+                ),
+            },
+            ensure_ascii=False,
+        )
     try:
         if not waiting.done.wait(TAKEOVER_TIMEOUT_S):
             return json.dumps(
