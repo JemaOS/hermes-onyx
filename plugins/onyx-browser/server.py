@@ -15,11 +15,15 @@ unique. Deux verrous, et le port reste en boucle locale.
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
 import logging
 import os
+import socket
 import sys
 import threading
+import time
+from pathlib import Path
 from typing import Any
 
 from aiohttp import WSMsgType, web
@@ -52,6 +56,8 @@ def _hub() -> Any:
         module.STATE: dict[str, Any] = {"task_id": None, "clients": set(), "pump": None}
         module.STARTED = threading.Event()
         module.loop = None
+        module.port = None
+        module.pending: str | None = None
         module.lance = threading.Lock()
         module.tente = False
         sys.modules["onyx_browser_hub"] = module
@@ -71,6 +77,69 @@ def _bind(value: str) -> tuple[str, int]:
 
 HOST, PORT = _bind(os.environ.get("BROWSER_BIND", "127.0.0.1:8788"))
 TOKEN = os.environ.get("BROWSER_TOKEN", "").strip()
+
+# **Un port par processus, et un registre pour les trouver.**
+#
+# Hermes fait tourner plusieurs processus qui chargent tous ce plugin : `gateway run` (le chat de
+# l'app, l'api_server) et `serve --port 9119` (le dashboard). Le navigateur de l'agent vit dans
+# **le** processus qui exécute le tour — et c'est rarement celui qui a pris 8788 en premier.
+#
+# Avant ce registre, la deuxième copie mourait en `EADDRINUSE` : elle marquait « démarré » sans
+# écouter nulle part, et l'outil de prise en main levait `RuntimeError: Event loop is closed`.
+#
+# Maintenant chaque processus écoute — 8788 s'il est libre, un port éphémère sinon — et dépose sa
+# fiche ici. `onyx-one` choisit la fiche de celui qui a une demande en attente, donc l'écran du
+# téléphone arrive toujours sur le processus qui tient le navigateur.
+PEERS_DIR = Path(os.environ.get("BROWSER_PEERS") or (Path.home() / ".hermes" / "onyx-browser" / "peers"))
+PEER_TTL_S = 20.0        # au-delà, la fiche est un fantôme : `onyx-one` l'ignore
+PEER_BEAT_S = 2.0        # rafraîchissement de la fiche
+
+
+def _peer_file(pid: int | None = None) -> Path:
+    return PEERS_DIR / f"{pid or os.getpid()}.json"
+
+
+def write_peer(**extra: Any) -> None:
+    """Dépose (ou rafraîchit) la fiche de ce processus. Sans serveur, il n'y a rien à déposer."""
+    if HUB.port is None:
+        return
+    approach = {
+        "pid": os.getpid(),
+        "port": HUB.port,
+        "pending": HUB.pending,
+        "browser": bool(STATE.get("task_id")),
+        "frames": SESSION.frames,
+        "viewport": list(SESSION.viewport),
+        "ts": time.time(),
+    }
+    approach.update(extra)
+    chemin = _peer_file()
+    try:
+        PEERS_DIR.mkdir(parents=True, exist_ok=True)
+        temporaire = chemin.with_suffix(".tmp")
+        temporaire.write_text(json.dumps(approach), encoding="utf-8")
+        os.replace(temporaire, chemin)
+    except OSError as erreur:
+        log.debug("onyx-browser: fiche de pair non écrite (%s)", erreur)
+
+
+def drop_peer() -> None:
+    try:
+        _peer_file().unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+async def _heartbeat() -> None:
+    """Une fiche périmée est une fiche morte : on la garde fraîche tant que la boucle vit."""
+    while True:
+        write_peer()
+        await asyncio.sleep(PEER_BEAT_S)
+
+
+def clear_pending() -> None:
+    HUB.pending = None
+    write_peer()
 
 
 def _controller() -> Controller:
@@ -220,6 +289,7 @@ async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
         SESSION.release(note)
         if SESSION.waiting is not None:
             SESSION.waiting.facts.update(facts)
+        clear_pending()
         await _broadcast({"type": "takeover_done", "id": payload.get("id"), "facts": facts})
         return
 
@@ -281,27 +351,43 @@ def build_app() -> web.Application:
 async def _serve() -> None:
     runner = web.AppRunner(build_app(), access_log=None)
     await runner.setup()
-    site = web.TCPSite(runner, HOST, PORT)
+
+    # **Le port préféré, sinon un port libre** : jamais l'exception qui tue la boucle.
+    #
+    # `TCPSite` lève `EADDRINUSE` quand un autre processus Hermes tient déjà 8788 — et
+    # `asyncio.run` fermait alors la boucle, laissant `HUB.loop` pointer sur un cadavre. On prend
+    # la socket nous-mêmes : on sait alors sur quel port on a atterri, et on le publie.
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        await site.start()
+        sock.bind((HOST, PORT))
     except OSError as erreur:
-        # Hermes charge un plugin **une fois par portée** (lancement puis chaque profil) : le
-        # deuxième `register()` trouve le port déjà pris par le premier. Ce n'est pas une panne —
-        # c'est le même serveur, une fois. On le dit et on s'arrête là, au lieu de laisser
-        # remonter un OSError qui fait passer le plugin pour cassé.
-        if getattr(erreur, "errno", None) in (98, 48):  # EADDRINUSE : Linux, macOS
-            log.info("onyx-browser: déjà en écoute sur %s:%s — instance ignorée", HOST, PORT)
-            STARTED.set()
-            return
-        raise
-    # **La boucle n'est retenue qu'une fois le port réellement pris.** Avant, elle était posée en
-    # entrée : si le `site.start()` échouait, `asyncio.run` fermait la boucle et `_LOOP` restait
-    # pointé sur un cadavre — `notify_pending` levait alors un `RuntimeError` en pleine prise en main.
+        if getattr(erreur, "errno", None) not in (98, 48):  # EADDRINUSE : Linux, macOS
+            raise
+        sock.close()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, 0))
+        log.info(
+            "onyx-browser: %s:%s est pris par un autre processus Hermes — ce processus écoute sur un "
+            "port éphémère, et son navigateur reste joignable par le registre de pairs",
+            HOST,
+            PORT,
+        )
+    sock.listen(128)
+
+    HUB.port = sock.getsockname()[1]
+    site = web.SockSite(runner, sock)
+    await site.start()
+    # **La boucle n'est retenue qu'une fois la socket réellement en écoute.**
     HUB.loop = asyncio.get_running_loop()
+    write_peer()
+    atexit.register(drop_peer)
     STARTED.set()
-    log.info("onyx-browser: en écoute sur %s:%s/onyx-browser/health", HOST, PORT)
+    log.info("onyx-browser: en écoute sur %s:%s/onyx-browser/health", HOST, HUB.port)
+    asyncio.ensure_future(_heartbeat())
     # **Le serveur vit aussi longtemps que la boucle.** `_serve()` rendait la main juste après le
-    # `site.start()` : `asyncio.run()` fermait alors la boucle et le runner tombait avec elle — le
+    # démarrage : `asyncio.run()` fermait alors la boucle et le runner tombait avec elle — le
     # port se refermait une poignée de millisecondes après s'être ouvert (connexion réinitialisée,
     # jamais un 500). On attend ici, pour toujours.
     await asyncio.Event().wait()
@@ -335,9 +421,13 @@ def notify_pending(takeover_id: str, reason: str) -> bool:
     information utile à l'outil, pas une panne de l'appelant.
     """
     boucle = HUB.loop
-    if boucle is None or boucle.is_closed():
+    if boucle is None or boucle.is_closed() or HUB.port is None:
         log.warning("onyx-browser: aucune boucle vivante, la prise en main reste locale")
         return False
+    # **La fiche dit « demande en attente »** : c'est ce drapeau qu'`onyx-one` lit pour envoyer
+    # l'écran du téléphone à CE processus plutôt qu'à celui qui tient le port 8788.
+    HUB.pending = takeover_id
+    write_peer()
     try:
         asyncio.run_coroutine_threadsafe(
             _broadcast({"type": "takeover", "id": takeover_id, "reason": reason}), boucle
@@ -345,4 +435,5 @@ def notify_pending(takeover_id: str, reason: str) -> bool:
         return True
     except RuntimeError:  # boucle fermée entre-temps
         log.warning("onyx-browser: boucle fermée pendant la notification")
+        clear_pending()
         return False

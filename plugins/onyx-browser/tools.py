@@ -74,6 +74,7 @@ def request_takeover(reason: str) -> str:
         )
     try:
         if not waiting.done.wait(TAKEOVER_TIMEOUT_S):
+            server.clear_pending()
             return json.dumps(
                 {
                     "status": "timeout",
@@ -100,6 +101,7 @@ def request_takeover(reason: str) -> str:
         return json.dumps(payload, ensure_ascii=False)
     finally:
         server.SESSION.waiting = None
+        server.clear_pending()
 
 
 def cdp_controller() -> cdp.Controller:

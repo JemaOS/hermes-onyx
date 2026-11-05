@@ -42,6 +42,14 @@ DASH_HOTE, DASH_PORT = "127.0.0.1", 9119        # hermes serve : les routes /api
 # derrière l'adresse et la clé que l'app connaît déjà — aucun tunnel de plus, aucun port ouvert.
 BROWSER_HOTE, BROWSER_PORT = "127.0.0.1", 8788
 BROWSER_PREFIXE = "/onyx-browser/"
+# **Le navigateur n'est pas toujours sur 8788.** Hermes fait tourner plusieurs processus qui
+# chargent le plugin, et le navigateur de l'agent vit dans celui qui exécute le tour — souvent
+# `hermes serve --port 9119`, pas celui qui a pris 8788 en premier. Chacun dépose une fiche
+# (`{pid, port, pending, browser, ts}`) et le relais envoie l'écran au bon : d'abord celui qui a
+# une demande de prise en main en attente, sinon celui qui a un navigateur ouvert, sinon 8788.
+BROWSER_PEERS = os.environ.get(
+    "ONYX_ONE_BROWSER_PEERS", os.path.join(os.path.expanduser("~/.hermes"), "onyx-browser", "peers"))
+BROWSER_PEER_TTL = 20.0
 
 RACINE = os.path.expanduser("~/.hermes")
 PROFILS = os.path.join(RACINE, "profiles")
@@ -55,6 +63,60 @@ MODELE = os.environ.get("ONYX_ONE_MODEL", "hermes-agent")
 # En-têtes qu'on ne recopie jamais dans les deux sens : ils appartiennent au saut en cours.
 SAUT = {"host", "connection", "content-length", "transfer-encoding", "keep-alive",
         "proxy-authenticate", "proxy-authorization", "te", "trailers", "upgrade"}
+
+
+def _navigateur_a_joindre() -> tuple[str, int]:
+    """Quel processus tient le navigateur de l'agent ?
+
+    Chaque copie du plugin dépose `~/.hermes/onyx-browser/peers/<pid>.json`. On écarte les fiches
+    périmées (processus mort, ou battement trop vieux), puis on préfère, dans l'ordre :
+
+      1. celle qui porte une **prise en main en attente** — c'est là que l'écran doit arriver ;
+      2. celle qui a un **navigateur ouvert** dans son tour ;
+      3. le port historique 8788 ;
+      4. la plus récente.
+
+    Tomber sur le mauvais processus n'est pas une erreur visible : l'app verrait un écran qui
+    attend indéfiniment. C'est précisément le défaut qu'on corrige ici.
+    """
+    fiches: list[dict] = []
+    try:
+        noms = os.listdir(BROWSER_PEERS)
+    except OSError:
+        return BROWSER_HOTE, BROWSER_PORT
+    maintenant = time.time()
+    for nom in noms:
+        if not nom.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(BROWSER_PEERS, nom), encoding="utf-8") as flux:
+                fiche = json.load(flux)
+            port = int(fiche.get("port") or 0)
+            pid = int(fiche.get("pid") or 0)
+            age = maintenant - float(fiche.get("ts") or 0)
+        except (OSError, ValueError, TypeError):
+            continue
+        if not port or age > BROWSER_PEER_TTL:
+            continue
+        if pid:
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                continue
+        fiches.append(fiche)
+    if not fiches:
+        return BROWSER_HOTE, BROWSER_PORT
+
+    en_attente = [f for f in fiches if f.get("pending")]
+    if en_attente:
+        return BROWSER_HOTE, int(max(en_attente, key=lambda f: float(f.get("ts") or 0))["port"])
+    ouverts = [f for f in fiches if f.get("browser")]
+    if ouverts:
+        return BROWSER_HOTE, int(max(ouverts, key=lambda f: float(f.get("ts") or 0))["port"])
+    officiels = [f for f in fiches if int(f.get("port") or 0) == BROWSER_PORT]
+    if officiels:
+        return BROWSER_HOTE, BROWSER_PORT
+    return BROWSER_HOTE, int(max(fiches, key=lambda f: float(f.get("ts") or 0))["port"])
 
 
 def _cle() -> str:
@@ -333,13 +395,24 @@ class Relais(BaseHTTPRequestHandler):
         vers_navigateur = chemin.startswith(BROWSER_PREFIXE)
         if self.command in ("GET", "POST") and (self.headers.get("Upgrade") or "").lower() == "websocket":
             if vers_navigateur:
-                return self._relayer_websocket(chemin, BROWSER_HOTE, BROWSER_PORT)
+                hote_nav, port_nav = _navigateur_a_joindre()
+                return self._relayer_websocket(chemin, hote_nav, port_nav)
             return self._relayer_websocket(chemin)
 
         if vers_navigateur:
             # Le ticket du plugin n'est pas une identité pour lui : c'est celui de l'app. Le plugin
             # accepte la boucle locale, et son port n'écoute que là — il n'a rien à vérifier de plus.
-            statut, entetes, charge = self._vers_amont(BROWSER_HOTE, BROWSER_PORT, {}, corps)
+            #
+            # **Un amont muet ne tue pas la requête.** Le plugin n'écoute qu'une fois la passerelle
+            # démarrée ; avant ça, `http.client` lève, et sans ce garde la connexion se fermait sans
+            # réponse (l'app voyait « rien », pas « absent »). On répond 503, ce que la sonde de
+            # capacité comprend : la ligne n'apparaît pas, et rien ne ment.
+            try:
+                hote_nav, port_nav = _navigateur_a_joindre()
+                statut, entetes, charge = self._vers_amont(hote_nav, port_nav, {}, corps)
+            except OSError:
+                return self._repondre(503, {"error": "browser_unavailable",
+                                            "detail": "no onyx-browser plugin is listening"})
         elif vers_api:
             statut, entetes, charge = self._vers_amont(
                 API_HOTE, API_PORT, {"Authorization": "Bearer " + CLE_API}, corps)
