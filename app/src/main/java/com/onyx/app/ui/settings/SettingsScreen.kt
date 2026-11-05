@@ -131,6 +131,13 @@ fun SettingsScreen(
      * conditionnelle de la maison, le même que celui de « Lock ».
      */
     onOpenVault: (() -> Unit)? = null,
+    /**
+     * **Le navigateur de l'agent**, en direct, avec sa prise en main.
+     *
+     * Sa ligne n'existe que si le plugin `onyx-browser` répond : même motif d'entrée
+     * conditionnelle que le Coffre — pas de ligne grisée, pas de tap mort.
+     */
+    onOpenBrowser: (() -> Unit)? = null,
     onOpenBots: (() -> Unit)? = null,
     onOpenServers: (() -> Unit)? = null,
     onOpenProfile: (() -> Unit)? = null,
@@ -188,8 +195,12 @@ fun SettingsScreen(
     // sonde est refaite quand la signature de la connexion change — autre serveur, autres capacités.
     val vaultProbe = remember(activeServer?.configSignature) { activeServer?.let { ServerProbe(it) } }
     var vaultReady by remember(activeServer?.id) { mutableStateOf(false) }
+    // La même sonde sert aux deux : un serveur qui porte le plugin navigateur répond sur sa route
+    // de santé, et c'est tout ce qu'on lui demande.
+    var browserReady by remember(activeServer?.id) { mutableStateOf(false) }
     LaunchedEffect(vaultProbe) {
         val ready = vaultProbe?.allows(ServerCapability.VAULT) == true
+        browserReady = vaultProbe?.allows(ServerCapability.BROWSER) == true
         vaultReady = ready
         VaultShortcut.sync(context, ready)
     }
@@ -531,6 +542,25 @@ fun SettingsScreen(
                         value = "",
                         symbol = Symbols.LockOutline,
                         onClick = onOpenVault,
+                    )
+                }
+            }
+
+            // **Le navigateur de l'agent.** Sa ligne n'existe que si le plugin répond ; sinon rien
+            // n'est dessiné. Le navigateur lui-même ne s'ouvre qu'à la demande de l'agent — cet
+            // écran est la porte quand la demande est déjà passée (ou pour aller voir).
+            if (onOpenBrowser != null && browserReady) {
+                OnyxFormSection(
+                    header = "Browser",
+                    footer = "The agent's own browser, live. Take over to sign in, solve a captcha " +
+                        "or answer 2FA, then hand it back: what you type goes to the page, never " +
+                        "to the conversation.",
+                ) {
+                    OnyxValueRow(
+                        label = "Agent's browser",
+                        value = "",
+                        symbol = Symbols.Globe,
+                        onClick = onOpenBrowser,
                     )
                 }
             }

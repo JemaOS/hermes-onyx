@@ -406,6 +406,9 @@ class OnyxBaseLockTest {
          * imprime.
          */
         val ROUTES: Map<String, List<String>> = mapOf(
+            "Navigateur de l'agent" to listOf(
+                "app/src/main/java/com/onyx/app/ui/browser/BrowserScreen.kt",
+            ),
             "Appels" to listOf(
                 "app/src/main/java/com/onyx/app/ui/calls/IncomingCallScreen.kt",
             ),
@@ -713,6 +716,9 @@ class OnyxBaseLockTest {
  */
 private val NOT_SCREENS: Set<String> = setOf(
     "ui/setup/QrCodeDecoder.kt",
+    // Le texte qui s'écrit dans une bulle : un composant du fil, pas une page — il n'a ni en-tête
+    // ni fond à lui (le fil les porte), et il est déjà couvert par les verrous du fil.
+    "ui/chat/components/StreamingProse.kt",
     "ui/chat/components/SlashMenu.kt",
 )
 

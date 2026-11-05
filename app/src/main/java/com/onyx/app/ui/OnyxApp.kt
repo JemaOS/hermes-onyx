@@ -81,6 +81,8 @@ import com.onyx.app.notifications.QuestionNotifier
 import com.onyx.app.notifications.TurnService
 import com.onyx.app.notifications.pendingQuestionsOf
 import com.onyx.app.ui.chat.ComposerEditorScreen
+import com.onyx.app.ui.browser.BrowserScreen
+import com.onyx.app.ui.browser.BrowserScreenViewModel
 import com.onyx.app.ui.chat.ChatScreen
 import com.onyx.app.ui.chat.ChatViewModel
 import com.onyx.app.ui.chat.components.StartCard
@@ -261,6 +263,8 @@ private enum class Route {
     // route n'est ouverte que par la ligne « Secrets › » de « Capacités », elle-même dessinée
     // seulement quand la sonde a prouvé que le serveur sert le greffon `onyx-vault`.
     VAULT,
+    /** Le navigateur de l'agent, en direct, et sa prise en main. */
+    BROWSER_SCREEN,
     // **« Archives »** — la destination de la tuile *Archived* de la référence, celle qui
     // manquait : les conversations rangées de cet appareil (leur état existait déjà). Le volet la
     // porte comme ses autres tuiles (voir `SidebarDestinations.referenceTiles`).
@@ -2918,6 +2922,7 @@ fun OnyxApp() {
                     // Le **Coffre** : sa page est empilée dans le volet, comme les autres tuiles
                     // portées ici ; sa ligne n'existe que si la sonde prouve la capacité.
                     onOpenVault = { panePush(Route.VAULT.name) },
+                    onOpenBrowser = { paneLeave(Route.BROWSER_SCREEN.name) },
                     onDone = paneBack,
                     // Les pages que le volet porte aussi (Modèles, Fichiers, Planifiés, Kanban,
                     // Compétences, Outils, Aperçus) s'ouvrent **dans** le volet ; les autres sont
@@ -3492,6 +3497,7 @@ fun OnyxApp() {
             Route.SETTINGS -> SettingsScreen(
                 viewModel = settingsViewModel,
                 onOpenVault = { navTo(Route.VAULT.name) },
+                onOpenBrowser = { navTo(Route.BROWSER_SCREEN.name) },
                 // « Terminé » referme la feuille : on revient **d'où l'on est venu** (le fil, la
                 // liste, ou une tuile de bot), et non systématiquement sur le fil — ouvrir les
                 // Réglages depuis la liste des conversations et se retrouver dans le fil était
@@ -4671,6 +4677,18 @@ fun OnyxApp() {
             // s'ouvre par sa ligne des Réglages (section « Secrets ») et par le raccourci de
             // l'icône ; les deux n'existent que si la sonde a prouvé la capacité. Son retour rend
             // la page quittée, et les Réglages à défaut.
+            // **Le navigateur de l'agent** — son écran, en pleine page. Il s'ouvre par sa ligne des
+            // Réglages (section « Navigateur »), qui n'existe que si le plugin répond.
+            Route.BROWSER_SCREEN -> BrowserScreen(
+                viewModel = viewModel(
+                    key = "browser-screen-" + state.server.id + state.server.configSignature,
+                    factory = viewModelFactory {
+                        initializer { BrowserScreenViewModel(context.applicationContext as android.app.Application, state.server) }
+                    },
+                ),
+                onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
+            )
+
             Route.VAULT -> VaultScreen(
                 server = state.server,
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },

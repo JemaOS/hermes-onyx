@@ -59,6 +59,13 @@ enum class ServerCapability(val route: String) {
     VAULT("api/plugins/onyx-vault/health"),
 
     /**
+     * **Le navigateur de l'agent** — le plugin `onyx-browser`, qui n'est pas un plugin de Dashboard :
+     * il tient son propre serveur, relayé par `onyx-one` sous `/onyx-browser/`. Sa route de santé
+     * répond sur la **même origine** que le reste, donc la sonde n'a rien de nouveau à savoir.
+     */
+    BROWSER("onyx-browser/health"),
+
+    /**
      * L'enregistrement d'une démonstration — second plugin (`onyx-record`), décision des specs du
      * lot 3 : un journal relisible n'entre pas dans le coffre.
      */

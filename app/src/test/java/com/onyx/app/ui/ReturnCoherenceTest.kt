@@ -297,8 +297,8 @@ class ReturnCoherenceTest {
         val rangees = app.substringAfter("Route.SETTINGS.name -> SettingsScreen(")
             .substringBefore("// Une tuile sans écran ici")
         assertEquals(
-            "les vingt rangées qui quittent le volet passent par `paneLeave`",
-            20,
+            "les vingt-et-une rangées qui quittent le volet passent par `paneLeave`",
+            21,
             rangees.lines().count { it.contains("paneLeave(Route.") },
         )
         assertEquals(

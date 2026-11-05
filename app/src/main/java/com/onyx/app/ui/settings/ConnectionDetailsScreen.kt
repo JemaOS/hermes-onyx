@@ -312,6 +312,7 @@ fun capabilityLabel(capability: ServerCapability): String = when (capability) {
     ServerCapability.VAULT -> "Secrets vault"
     ServerCapability.RECORD -> "Teach a task"
     ServerCapability.HANDOFF -> "Room handoff"
+    ServerCapability.BROWSER -> "Agent's browser"
 }
 
 /**

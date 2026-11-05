@@ -38,6 +38,10 @@ HOTE = os.environ.get("ONYX_ONE_HOST", "127.0.0.1")
 CLE_FICHIER = os.environ.get("ONYX_ONE_KEY_FILE", "/home/john/.onyx-one-key")
 API_HOTE, API_PORT = "127.0.0.1", 8642          # hermes gateway api_server (/v1, /api/sessions)
 DASH_HOTE, DASH_PORT = "127.0.0.1", 9119        # hermes serve : les routes /api du dashboard
+# Le plugin `onyx-browser` : son propre serveur, jamais exposé. C'est **ce relais** qui le met
+# derrière l'adresse et la clé que l'app connaît déjà — aucun tunnel de plus, aucun port ouvert.
+BROWSER_HOTE, BROWSER_PORT = "127.0.0.1", 8788
+BROWSER_PREFIXE = "/onyx-browser/"
 
 RACINE = os.path.expanduser("~/.hermes")
 PROFILS = os.path.join(RACINE, "profiles")
@@ -326,10 +330,17 @@ class Relais(BaseHTTPRequestHandler):
         # clé de l'app et présente à chacun l'identité qu'il attend (Bearer d'un côté, jeton de
         # session de l'autre). L'app, elle, ne connaît qu'une adresse et qu'une clé.
         vers_api = chemin.startswith("/v1/") or chemin.startswith("/api/sessions")
+        vers_navigateur = chemin.startswith(BROWSER_PREFIXE)
         if self.command in ("GET", "POST") and (self.headers.get("Upgrade") or "").lower() == "websocket":
+            if vers_navigateur:
+                return self._relayer_websocket(chemin, BROWSER_HOTE, BROWSER_PORT)
             return self._relayer_websocket(chemin)
 
-        if vers_api:
+        if vers_navigateur:
+            # Le ticket du plugin n'est pas une identité pour lui : c'est celui de l'app. Le plugin
+            # accepte la boucle locale, et son port n'écoute que là — il n'a rien à vérifier de plus.
+            statut, entetes, charge = self._vers_amont(BROWSER_HOTE, BROWSER_PORT, {}, corps)
+        elif vers_api:
             statut, entetes, charge = self._vers_amont(
                 API_HOTE, API_PORT, {"Authorization": "Bearer " + CLE_API}, corps)
         elif JETON_DASHBOARD:
@@ -354,7 +365,8 @@ class Relais(BaseHTTPRequestHandler):
     do_GET = do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = _servir
 
 
-    def _relayer_websocket(self, chemin: str) -> None:
+    def _relayer_websocket(self, chemin: str, hote: str = DASH_HOTE,
+                           port: int = DASH_PORT) -> None:
         """Une connexion WebSocket, relayée **octet pour octet**.
 
         `http.server` ne sait pas négocier une mise à niveau ; on prend donc la socket telle
@@ -364,7 +376,7 @@ class Relais(BaseHTTPRequestHandler):
         import select
         import socket
 
-        amont = socket.create_connection((DASH_HOTE, DASH_PORT), timeout=10)
+        amont = socket.create_connection((hote, port), timeout=10)
         try:
             # Le ticket de l'app ne veut rien dire pour le dashboard (il est faux — voir
             # `api/auth/ws-ticket`) : en boucle locale, c'est `?token=` qui ouvre le socket. On
@@ -374,8 +386,13 @@ class Relais(BaseHTTPRequestHandler):
             parametres = [(k, v) for k, v in _up.parse_qsl(morceaux.query, keep_blank_values=True)
                           if k != "ticket"]
             parametres.append(("token", JETON_DASHBOARD))
-            chemin_amont = morceaux.path + "?" + _up.urlencode(parametres)
-            lignes = [f"GET {chemin_amont} HTTP/1.1", f"Host: {DASH_HOTE}:{DASH_PORT}"]
+            if (hote, port) == (DASH_HOTE, DASH_PORT):
+                chemin_amont = morceaux.path + "?" + _up.urlencode(parametres)
+            else:
+                # Le plugin du navigateur ne connaît pas le jeton du dashboard : le ticket, lui,
+                # reste tel quel — c'est le sien.
+                chemin_amont = self.path
+            lignes = [f"GET {chemin_amont} HTTP/1.1", f"Host: {hote}:{port}"]
             # **On garde la mise à niveau.** `SAUT` sert au relais HTTP ordinaire ; ici, retirer
             # `Upgrade`/`Connection` transformerait la poignée de main en GET simple, et le
             # dashboard répondrait 401 au lieu de 101.
@@ -388,7 +405,7 @@ class Relais(BaseHTTPRequestHandler):
                     continue
                 lignes.append(f"{nom}: {valeur}")
             amont.sendall(("\r\n".join(lignes) + "\r\n\r\n").encode())
-            print(f"WS -> {chemin_amont} (jeton {len(JETON_DASHBOARD)}c)", flush=True)
+            print(f"WS -> {hote}:{port}{chemin_amont}", flush=True)
 
             client = self.connection
             client.setblocking(False)

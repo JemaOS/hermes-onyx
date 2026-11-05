@@ -4,7 +4,9 @@
 le contrat filaire complet, les fichiers touchés des deux côtés, les règles de sécurité et les
 critères qui disent « c'est fini ». Ce qui n'y est pas écrit n'est pas dans le périmètre.
 
-État : `main` = `0d349bc` (release 1.3.47). Rien de ce plan n'est encore écrit.
+État : **M1 → M3 écrits** sur la branche `lot/browser-screen` (plugin, relais `onyx-one`, écran
+Onyx, verrous). Reste de la v1 : `fill` (le coffre côté serveur), la carte dans le fil, et l'essai
+réel sur github.com. Voir §9 pour le détail de ce qui est fait.
 
 ---
 
@@ -98,17 +100,20 @@ Précautions, dans l'ordre :
 
 ## 3. Le contrat filaire
 
-### Méthodes (JSON-RPC, sur `ServeRpc`)
+### Routes HTTP (sur le plugin, relayées par `onyx-one`)
 
-| Méthode | Params | Résultat |
+**Corrigé à l'implémentation** : le plugin n'est pas le Dashboard, donc ses routes ne passent pas par
+`ServeRpc` (JSON-RPC du Dashboard). Elles sont du REST, sur sa propre origine, et `onyx-one` les
+relaie sous `/onyx-browser/` avec la clé de l'app.
+
+| Route | Corps | Résultat |
 |---|---|---|
-| `browser.observe` | `profile?` | `{ticket, path: "/api/browser/ws", viewer_id, expires_in: 30}` |
-| `browser.lease.acquire` | `profile?` | `{holder: "human", viewer_hash, epoch}` |
-| `browser.lease.release` | `profile?` | `{holder: "agent", epoch}` |
-| `browser.status` | `profile?` | `{available: bool, browser_open: bool, lease, epoch}` |
+| `GET  /onyx-browser/health` | — | `{ok, browser, lease, watching, frames, pending}` |
+| `POST /onyx-browser/observe` | — | `{ok, ticket, path: "/onyx-browser/ws", viewer_id, expires_in: 30}` |
+| `POST /onyx-browser/lease` | `{action: "acquire"\|"release", note?}` | `{ok, holder, epoch}` — `409 lease_held` si un autre conduit |
 
-Erreurs : `5301 BROWSER_UNAVAILABLE` (aucun navigateur d'agent ouvert), `5302 LEASE_HELD` (un autre
-conduit déjà), `5303 STALE_FRAME` (voir §7).
+Erreurs : `401 token` (boucle locale ou jeton), `409 lease_held` (un autre conduit déjà), et sur le
+socket `refused {reason}` ∈ `stale`, `no_lease`, `no_page`, `action`.
 
 ### Trames du WebSocket
 
@@ -356,6 +361,10 @@ Aucun test ne mesure de fps réel : pas d'appareil sur la machine de build. Le p
 | **M2 — la main** | `input` (click, scroll, type, key) + bail + refus `no_lease` / `stale` | on se connecte à un site de test depuis l'écran, et une saisie sans bail est refusée |
 | **M3 — Onyx** | l'écran Compose, le ViewModel, la sonde `BROWSER`, la carte `takeover` dans le fil | tout M2 est faisable depuis le téléphone, sans recomposer le fil |
 | **M4 — le coffre** | `fill` + `capture` (enregistrer au login) + liaison d'origine + empreinte | le mot de passe ne quitte jamais le serveur ; un `fill` sur une autre origine est refusé ; aucune écriture sans geste |
+
+**Brûlé à l'écriture (2026-11-05)** : le `capture` est fait côté app (`VaultApi.put`, origine liée,
+geste explicite, champ masqué) ; le `fill` **reste à faire** — il demande que le plugin lise le
+coffre, donc une route serveur privilégiée qui n'existe pas encore.
 
 Chaque lot se termine par un commit + notes de version + les trois APK, comme d'habitude.
 

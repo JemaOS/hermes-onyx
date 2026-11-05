@@ -322,6 +322,15 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "Les clés que l’agent peut utiliser sans les lire : elles restent sur le serveur, et " +
         "l’app n’en garde aucune.",
 
+    // **Le navigateur de l'agent** (`SettingsScreen`, section « Browser »).
+    "Browser" to "Navigateur",
+    "Agent's browser" to "Navigateur de l'agent",
+    "The agent's own browser, live. Take over to sign in, solve a captcha or answer 2FA, then " +
+        "hand it back: what you type goes to the page, never to the conversation." to
+        "Le navigateur de l'agent, en direct. Prenez la main pour vous connecter, passer un " +
+        "captcha ou répondre à une 2FA, puis rendez-la : ce que vous tapez va à la page, jamais " +
+        "à la conversation.",
+
     // « Erase everything » (`ResetSettings`).
     "Erase everything…" to "Tout effacer…",
     "Erase everything" to "Tout effacer",
