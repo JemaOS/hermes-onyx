@@ -36,7 +36,7 @@ class ReplyWatchTest {
         val before = ReplyWatch.snapshotOf(listOf(user("q1"), assistant("r1")))
         // L'utilisateur a écrit : le journal grandit, la dernière réponse ne change pas.
         val after = ReplyWatch.snapshotOf(listOf(user("q1"), assistant("r1"), user("q2")))
-        assertTrue(after.count > before.count)
+        assertTrue("la fenêtre a bougé", after.trailing != before.trailing)
         assertFalse(ReplyWatch.isNewReply(before, after))
     }
 
@@ -62,16 +62,19 @@ class ReplyWatchTest {
 
     @Test
     fun `le journal qui retrecit n'annonce rien`() {
-        // Une session reprise ou nettoyée côté hôte : ce n'est pas une nouvelle réponse.
-        val previous = ReplyWatch.Snapshot(count = 8, fingerprint = "5:1a2b")
-        val current = ReplyWatch.Snapshot(count = 2, fingerprint = "9:ffff")
+        // Une session reprise ou nettoyée côté hôte : la fenêtre a bougé, mais aucune réponse
+        // nouvelle n'est apparue. C'est l'empreinte de la réponse qui tranche, pas la taille.
+        val previous = ReplyWatch.Snapshot(trailing = "8:1a2b", fingerprint = "5:1a2b")
+        val current = ReplyWatch.Snapshot(trailing = "2:ffff", fingerprint = "5:1a2b")
         assertFalse(ReplyWatch.isNewReply(previous, current))
     }
 
     @Test
     fun `une reponse vide n'est pas une reponse`() {
-        val previous = ReplyWatch.Snapshot(count = 2, fingerprint = "5:1a2b")
-        assertFalse(ReplyWatch.isNewReply(previous, ReplyWatch.Snapshot(count = 4, fingerprint = "")))
+        val previous = ReplyWatch.Snapshot(trailing = "2:1a2b", fingerprint = "5:1a2b")
+        assertFalse(
+            ReplyWatch.isNewReply(previous, ReplyWatch.Snapshot(trailing = "4:ffff", fingerprint = "")),
+        )
         assertEquals("", ReplyWatch.fingerprintOf("   \n  "))
     }
 
@@ -87,7 +90,7 @@ class ReplyWatchTest {
             assistant(""),
         )
         assertEquals("r2", ReplyWatch.lastAnswer(rows))
-        assertEquals(rows.size, ReplyWatch.snapshotOf(rows).count)
+        assertTrue("la fin est mesurée", ReplyWatch.snapshotOf(rows).trailing.isNotEmpty())
     }
 
     @Test
@@ -102,15 +105,43 @@ class ReplyWatchTest {
 
     @Test
     fun `la mesure fait l'aller-retour sur le disque`() {
-        val snapshot = ReplyWatch.Snapshot(count = 12, fingerprint = "160:deadbeef")
+        val snapshot = ReplyWatch.Snapshot(trailing = "12:1a2b", fingerprint = "160:deadbeef")
         assertEquals(snapshot, ReplyWatch.decode(ReplyWatch.encode(snapshot)))
-        assertEquals(ReplyWatch.encode(snapshot), "12|160:deadbeef")
+        assertEquals(ReplyWatch.encode(snapshot), "v2:12:1a2b|160:deadbeef")
         // Une ligne absente ou abîmée vaut « jamais mesuré » : le prochain passage reprend la mesure.
         assertNull(ReplyWatch.decode(null))
         assertNull(ReplyWatch.decode(""))
         assertNull(ReplyWatch.decode("pas une mesure"))
-        assertNull(ReplyWatch.decode("x|3"))
-        assertNull(ReplyWatch.decode("-1|3"))
+        assertNull(ReplyWatch.decode("v2:sans separateur"))
+    }
+
+    @Test
+    fun `une mesure de l ancienne version vaut jamais mesure, donc rien n est annonce`() {
+        // `« 12|160:deadbeef »` : l'ancien format (un compte, pas une empreinte de fin). Le relire
+        // comme un nouveau serait lu comme « la fenêtre a bougé » et ferait sonner le téléphone pour
+        // une réponse déjà lue, au premier passage après la mise à jour.
+        assertNull(ReplyWatch.decode("12|160:deadbeef"))
+    }
+
+    @Test
+    fun `une reponse de texte identique est vue quand la fenetre glisse`() {
+        // Le compte ne savait pas le dire : même texte, même empreinte de réponse, mais une ligne de
+        // plus — la fenêtre s'est décalée, une nouvelle réponse est bien arrivée.
+        val before = ReplyWatch.snapshotOf(listOf(user("q1"), assistant("OK")))
+        val after = ReplyWatch.snapshotOf(listOf(user("q1"), assistant("OK"), user("q2"), assistant("OK")))
+        assertEquals("la réponse est identique", before.fingerprint, after.fingerprint)
+        assertTrue("et pourtant quelque chose est arrivé", after.trailing != before.trailing)
+    }
+
+    @Test
+    fun `la mesure ne lit que la fin du journal`() {
+        // Le surveillant demande `WATCH_TAIL` lignes : la règle ne doit donc rien attendre du début.
+        val long = (0 until 400).map { index -> if (index % 2 == 0) user("q$index") else assistant("r$index") }
+        val tail = long.takeLast(ReplyWatch.WATCH_TAIL)
+        val fromTail = ReplyWatch.snapshotOf(tail)
+        val fromWhole = ReplyWatch.snapshotOf(long)
+        assertEquals("la dernière réponse est la même", fromWhole.fingerprint, fromTail.fingerprint)
+        assertTrue("et la fin est mesurée", fromTail.trailing.isNotEmpty())
     }
 
     @Test

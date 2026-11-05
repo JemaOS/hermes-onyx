@@ -74,7 +74,16 @@ class ReplyWatcher(
         for (conversation in conversations) {
             val sessionId = conversation.serverSessionId?.trim().orEmpty()
             if (sessionId.isEmpty()) continue
-            val rows = sessions.rows(sessionId, conversation.botProfile)
+            // **Une fenêtre, pas le journal entier.** Mesuré sur cette machine : le veilleur tirait
+            // 7,8 Mo toutes les seize minutes (3,4 + 4,4 Mo pour deux sessions) sur un téléphone en
+            // 4G, parce qu'il demandait la page par défaut de 500 messages. La règle ne consomme que
+            // la fin du journal (`ReplyWatch.trailingOf` + la dernière réponse) : vingt lignes
+            // suffisent, et la mesure reste la même.
+            val rows = sessions.rows(
+                sessionId,
+                conversation.botProfile,
+                limit = com.onyx.app.data.net.ReplyWatch.WATCH_TAIL,
+            )
             // Journal vide : rien n'a été lu (réseau, refus du serveur, session vide). On ne touche
             // pas à la mesure — sinon un passage hors ligne ferait croire, au suivant, que tout est
             // neuf, et la conversation sonnerait pour des réponses déjà lues.

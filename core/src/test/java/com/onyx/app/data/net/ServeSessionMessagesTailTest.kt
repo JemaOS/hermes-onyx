@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -100,19 +101,26 @@ class ServeSessionMessagesTailTest {
     }
 
     @Test
-    fun `le veilleur de notifications garde la lecture complete`() {
-        // Garde de source : borner cette lecture figerait son compte et `isNewReply`
-        // (`current.count <= previous.count` -> false) n'annoncerait plus aucune réponse.
-        // Ce test vit dans `:core`, le veilleur dans `:app` : chemins relatifs au module.
-        val source = File("../app/src/main/java/com/onyx/app/notifications/ReplyWatcher.kt").readText()
+    fun `le veilleur lit une fenetre, et sa regle ne depend pas d un compte`() {
+        // **Le contrat a changé, et pour une raison mesurée.** Borner cette lecture était interdit
+        // tant que `isNewReply` comparait des **comptes** de lignes : une fenêtre les figeait et les
+        // alertes cessaient en silence. Le veilleur tirait donc 7,8 Mo toutes les seize minutes
+        // (3,4 + 4,4 Mo, mesuré sur cette machine). La mesure est devenue une empreinte de la fin du
+        // journal (`ReplyWatch.trailingOf`) : la fenêtre suffit, et une réponse de texte identique
+        // est même mieux détectée qu'avant.
+        val watcher = File("../app/src/main/java/com/onyx/app/notifications/ReplyWatcher.kt").readText()
         assertTrue(
-            "ReplyWatcher lit le fil complet (son instantané compte les messages)",
-            source.contains("sessions.rows(sessionId, conversation.botProfile)"),
+            "le veilleur demande une fenêtre, pas la page par défaut de 500 messages",
+            watcher.contains("limit = com.onyx.app.data.net.ReplyWatch.WATCH_TAIL"),
+        )
+        val rule = File("src/main/java/com/onyx/app/data/net/ReplyWatch.kt").readText()
+        assertFalse(
+            "et la règle ne compare plus un compte de lignes (ce qui interdisait de borner)",
+            rule.contains("current.count <= previous.count"),
         )
         assertTrue(
-            "et la règle du compte est bien celle qui interdit de borner",
-            File("src/main/java/com/onyx/app/data/net/ReplyWatch.kt").readText()
-                .contains("current.count <= previous.count"),
+            "elle compare l'empreinte de la fin du journal",
+            rule.contains("current.trailing == previous.trailing"),
         )
     }
 }

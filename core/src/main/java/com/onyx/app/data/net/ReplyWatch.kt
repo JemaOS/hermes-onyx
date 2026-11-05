@@ -27,17 +27,49 @@ object ReplyWatch {
     /**
      * Ce que le surveillant retient d'une session entre deux passages.
      *
-     * [count] est le nombre de messages du journal, [fingerprint] l'empreinte de la dernière
-     * réponse de l'hôte (voir [fingerprintOf]) — vide quand la session n'en a pas encore.
+     * [trailing] est l'empreinte des **dernières lignes** du journal (voir [trailingOf]),
+     * [fingerprint] celle de la dernière réponse de l'hôte — vide quand la session n'en a pas.
+     *
+     * **Pourquoi une empreinte et non un compte.** Le compte obligeait à lire le journal **entier**
+     * pour savoir s'il avait grandi : mesuré sur cette machine, le veilleur tirait **7,8 Mo toutes
+     * les seize minutes** en arrière-plan (deux sessions à 3,4 et 4,4 Mo), sur un téléphone en 4G.
+     * Une empreinte des dernières lignes répond à la même question — « quelque chose est-il arrivé ?
+     * » — sur une fenêtre bornée, et détecte même une réponse **de texte identique** à la précédente
+     * (la fenêtre s'est décalée), ce que le compte ne faisait pas.
      */
-    data class Snapshot(val count: Int, val fingerprint: String) {
+    data class Snapshot(val trailing: String, val fingerprint: String) {
         /** Aucune réponse à annoncer : le tour n'a rien écrit, ou rien de visible. */
         val hasAnswer: Boolean get() = fingerprint.isNotEmpty()
     }
 
-    /** La mesure d'un journal : sa taille et l'empreinte de sa dernière réponse. */
+    /**
+     * La fenêtre lue par le surveillant : les derniers messages seulement.
+     *
+     * Vingt lignes contiennent toujours la dernière réponse, le message d'utilisateur qui l'a
+     * demandée et les messages d'outil du tour — ce que la règle consomme, et rien de plus.
+     */
+    const val WATCH_TAIL = 20
+
+    /** La mesure d'un journal : l'empreinte de sa fin et celle de sa dernière réponse. */
     fun snapshotOf(rows: List<ServeSessionMessages.Row>): Snapshot =
-        Snapshot(count = rows.size, fingerprint = fingerprintOf(lastAnswer(rows)))
+        Snapshot(trailing = trailingOf(rows), fingerprint = fingerprintOf(lastAnswer(rows)))
+
+    /**
+     * L'empreinte des dernières lignes : rôle et texte, sans garder aucun contenu.
+     *
+     * Elle **change** dès qu'une ligne s'ajoute, qu'une réponse s'écrit ou que la fenêtre glisse —
+     * c'est exactement « le journal a bougé », la seule chose que le compte savait dire, et sans
+     * lire tout le journal.
+     */
+    fun trailingOf(rows: List<ServeSessionMessages.Row>, window: Int = TRAILING_WINDOW): String {
+        if (rows.isEmpty()) return ""
+        var hash = 7
+        for (row in rows.takeLast(window)) {
+            hash = hash * 31 + row.role.hashCode()
+            hash = hash * 31 + row.text.trim().hashCode()
+        }
+        return rows.size.toString() + ":" + hash.toUInt().toString(16)
+    }
 
     /**
      * Le texte de la **dernière** réponse de l'hôte, ou `""`.
@@ -78,24 +110,37 @@ object ReplyWatch {
     fun isNewReply(previous: Snapshot?, current: Snapshot, alreadyHere: String? = null): Boolean {
         if (previous == null) return false
         if (!current.hasAnswer) return false
-        if (current.count <= previous.count) return false
+        // Rien n'a bougé dans la fenêtre : ni nouvelle ligne, ni réponse réécrite.
+        if (current.trailing == previous.trailing) return false
         if (current.fingerprint == previous.fingerprint) return false
         return alreadyHere != current.fingerprint
     }
 
-    /** La mesure telle qu'elle est gardée sur le disque : `« 12|<longueur>:<hachage> »`. */
-    fun encode(snapshot: Snapshot): String = snapshot.count.toString() + SEPARATOR + snapshot.fingerprint
+    /**
+     * La mesure telle qu'elle est gardée sur le disque : `« v2:<fin>|<réponse> »`.
+     *
+     * Le préfixe de version est ce qui protège la mise à jour : une mesure écrite par la version
+     * précédente (`« 12|<empreinte> »`) n'est **pas** relue comme si elle venait de ce format — elle
+     * vaut « jamais mesuré », donc le premier passage après l'installation prend la mesure sans rien
+     * annoncer. Le contraire ferait sonner le téléphone pour une réponse déjà lue.
+     */
+    fun encode(snapshot: Snapshot): String =
+        FORMAT + snapshot.trailing + SEPARATOR + snapshot.fingerprint
 
-    /** Relit une mesure écrite par [encode] ; `null` quand la ligne est illisible (ou absente). */
+    /** Relit une mesure écrite par [encode] ; `null` quand la ligne est d'un autre format (ou absente). */
     fun decode(raw: String?): Snapshot? {
         val text = raw?.trim().orEmpty()
-        if (text.isEmpty()) return null
-        val cut = text.indexOf(SEPARATOR)
-        if (cut <= 0) return null
-        val count = text.substring(0, cut).toIntOrNull() ?: return null
-        if (count < 0) return null
-        return Snapshot(count = count, fingerprint = text.substring(cut + 1))
+        if (!text.startsWith(FORMAT)) return null
+        val body = text.removePrefix(FORMAT)
+        val cut = body.indexOf(SEPARATOR)
+        if (cut < 0) return null
+        return Snapshot(trailing = body.substring(0, cut), fingerprint = body.substring(cut + 1))
     }
+
+    /** Les lignes dont l'empreinte décrit « la fin du journal ». */
+    private const val TRAILING_WINDOW = 3
+    /** Le préfixe de format, versionné (voir [decode]). */
+    private const val FORMAT = "v2:"
 
     /**
      * L'aperçu d'une réponse dans la notification : les espaces ramenés à un seul, coupé court.
