@@ -119,6 +119,19 @@ class ChatViewModel(
     /** La liste affichée par l'écran des conversations, la plus récente d'abord. */
     val history: StateFlow<List<Conversation>> = conversations.conversations
 
+    /**
+     * **Ce que l'import des conversations du serveur a donné, dit à l'écran.**
+     *
+     * Trois correctifs successifs n'ont pas suffi parce que cet import échouait **en silence** :
+     * une lecture qui lève, un serveur qui répond 401, un profil qui n'existe pas — tout finissait
+     * dans un `runCatching` et l'écran restait vide sans un mot. On ne diagnostique pas ça depuis
+     * une capture d'écran, et le propriétaire n'a pas à jouer au devin.
+     *
+     * `null` = tout va bien. Sinon : la raison, en clair, affichée au-dessus de la liste.
+     */
+    private val _importNote = MutableStateFlow<String?>(null)
+    val importNote: StateFlow<String?> = _importNote.asStateFlow()
+
     private var lastRequest: ChatRequest? = null
     private val runControls = RunChatControlsStore(application)
 
@@ -330,7 +343,14 @@ class ChatViewModel(
             .map { it.trim() }
             .distinct()
         val api = ServeSessionsApi(ServeClient(server))
-        val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { return false }
+        val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { error ->
+            // **Dit, pas avalé.** C'est cette raison qui manquait sur les trois captures.
+            _importNote.value = OnyxLocalization.format(
+                "The server's conversations did not load: %1\$s",
+                humanFailure(error),
+            )
+            return false
+        }
         // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
         if (tagged.isEmpty()) return true
         val summaries = tagged.map { (_, summary) -> summary }
@@ -373,6 +393,8 @@ class ChatViewModel(
             profileOf = { summary -> profileById[summary.id] },
         )
         imported.forEach { conversation -> conversations.save(conversation) }
+        // Une lecture qui a abouti efface la note : plus rien à expliquer.
+        _importNote.value = null
         // Vrai dès que la lecture a abouti — même sans rien de neuf à écrire : c'est la **lecture**
         // qui doit être marquée comme faite, pas l'écriture.
         return true

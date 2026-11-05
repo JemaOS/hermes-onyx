@@ -586,6 +586,8 @@ fun OnyxApp() {
         val chatState = chatViewModel.state.collectAsStateWithLifecycle()
         val state by remember { derivedStateOf { ShellState.of(chatState.value) } }
         val history by chatViewModel.history.collectAsStateWithLifecycle()
+        // La raison d'un import de conversations qui n'a pas abouti, quand il y en a une.
+        val serverImportNote by chatViewModel.importNote.collectAsStateWithLifecycle()
         // Les serveurs enregistrés, relus pour la liste unifiée (« All Servers »).
         val serverList by servers.servers.collectAsStateWithLifecycle()
 
@@ -3020,6 +3022,7 @@ fun OnyxApp() {
                 faceResolver::codeOf
             }
             ChatSidebarHost(
+                serverNote = serverImportNote,
                 serverName = state.server.displayName,
                 serverAddress = state.server.serveBaseUrl.ifBlank { state.server.baseUrl },
                 // Joignable : le Dashboard répond. Non joignable : la dernière lecture a échoué.

@@ -49,6 +49,8 @@ internal fun ChatSidebarHost(
     serverAddress: String,
     /** `true` joignable, `false` non, `null` pas encore su. */
     reachable: Boolean?,
+    /** La raison d'un import de conversations qui n'a pas abouti, `null` quand tout va bien. */
+    serverNote: String? = null,
     agentName: String,
     /**
      * **L'identité d'une conversation**, reçue **par conversation** : le **nom de profil de son
@@ -359,6 +361,7 @@ internal fun ChatSidebarHost(
         // rond du profil) restait peint **par-dessus** leur bas de page. Il ne se dessine donc
         // que quand la liste est réellement l'écran.
         footerVisible = !sidebarState.isNavigating,
+        serverNote = serverNote,
         gatewayName = serverName,
         gatewayAddress = serverAddress,
         reachable = reachable,

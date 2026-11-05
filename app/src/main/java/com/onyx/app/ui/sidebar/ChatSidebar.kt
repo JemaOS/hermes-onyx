@@ -179,6 +179,14 @@ import com.onyx.app.ui.design.tapLabel
 internal fun ChatSidebar(
     /** Le pied est-il dessiné ? Faux quand un écran de détail est posé sur le volet. */
     footerVisible: Boolean = true,
+    /**
+     * Ce que l'import des conversations du serveur a donné, quand il n'a pas abouti — `null`
+     * quand tout va bien.
+     *
+     * Le volet le dit **au-dessus de la liste** : une liste vide sans explication se lit comme
+     * « mes conversations sont perdues », et c'est exactement ce que le propriétaire a conclu.
+     */
+    serverNote: String? = null,
     /** Le nom de la passerelle : celui du serveur où l'app est signée. */
     gatewayName: String,
     /** Son adresse, montrée telle quelle sous le nom. */
@@ -506,6 +514,11 @@ internal fun ChatSidebar(
                             // du titre de la section, le geste qui porte sur cette section. Le rond
                             // de la tête du volet la proposait aussi, mais il ne se lisait pas comme
                             // « cette liste » — le crayon de la section, si.
+                            if (serverNote != null) {
+                                item(key = "server-note") {
+                                    ServerImportNote(serverNote)
+                                }
+                            }
                             item(key = "section") {
                                 Row(
                                     modifier = Modifier
@@ -2998,4 +3011,28 @@ internal val TileIconSquare: Dp = 32.dp
  */
 internal class RowBounds {
     var rect: Rect? = null
+}
+
+/**
+ * **La raison, en clair, quand les conversations du serveur ne sont pas revenues.**
+ *
+ * Une ligne, au ton d'avertissement, juste au-dessus de la liste : elle ne remplace rien et ne
+ * bloque rien — elle explique pourquoi la liste est plus courte que la mémoire qu'on en a.
+ */
+@Composable
+private fun ServerImportNote(text: String) {
+    val theme = LocalOnyxTheme.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxSpace.Hair),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
+    ) {
+        OnyxIcon(symbol = Symbols.ExclamationCircle, tint = theme.warning, size = 16.dp)
+        BasicText(
+            text = text,
+            style = theme.footnote.copy(color = theme.warning),
+        )
+    }
 }

@@ -43,8 +43,22 @@ class ServerImportRetryTest {
             code.contains("private suspend fun importServerSessions(server: ServerConfig): Boolean"),
         )
         assertTrue(
-            "et rendre faux quand la lecture échoue",
-            code.contains("runCatching { api.summariesByProfile(profiles) }.getOrElse { return false }"),
+            "un échec de lecture rend faux",
+            code.contains("return false"),
+        )
+        assertTrue(
+            "la lecture qui échoue est bien celle des sessions",
+            code.contains("runCatching { api.summariesByProfile(profiles) }"),
+        )
+        // **Et la raison se dit.** Un import qui échoue en silence, c'est ce qui a coûté trois
+        // versions : le volet reste vide et rien n'explique pourquoi.
+        assertTrue(
+            "l'échec pose une note lisible",
+            code.contains("_importNote.value = OnyxLocalization.format("),
+        )
+        assertTrue(
+            "avec le message que le volet affiche",
+            code.contains("The server's conversations did not load"),
         )
     }
 
