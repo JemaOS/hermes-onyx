@@ -343,7 +343,7 @@ class ChatViewModel(
             .map { it.trim() }
             .distinct()
         val api = ServeSessionsApi(ServeClient(server))
-        val tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { error ->
+        var tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { error ->
             // **Dit, pas avalé.** C'est cette raison qui manquait sur les trois captures.
             _importNote.value = OnyxLocalization.format(
                 "The server's conversations did not load: %1\$s",
@@ -351,14 +351,35 @@ class ChatViewModel(
             )
             return false
         }
+        // Sonde : les deux lectures, côte à côte. Provisoire.
+        run {
+            val simple = runCatching { api.allSummaries().size }.getOrElse { -1 }
+            _importNote.value = "diag: profiles=$profiles · tagged=${tagged.size} · simple=$simple"
+        }
+        // **Le repli qui a déjà fait ses preuves.**
+        //
+        // La lecture profil par profil a rendu zéro ligne alors que le serveur répondait quinze
+        // lignes au même instant (sonde brute : `{"object":"list","data":[{"id":"api-9ff07d…`).
+        // L'écran Home, lui, les affiche toutes — il lit par `allSummaries()`, sans liste de
+        // profils. Une lecture qui échoue **ne doit pas laisser la liste vide** : on refait la
+        // lecture simple, celle qui marche, quitte à perdre l'étiquette du profil (le visage se
+        // rétablit ensuite par le registre des bots).
+        var lues = tagged
+        if (lues.isEmpty()) {
+            val simple = runCatching { api.allSummaries() }.getOrDefault(emptyList())
+            if (simple.isNotEmpty()) {
+                val etiquette = server.hermesProfile.trim()
+                lues = simple.map { summary -> etiquette to summary }
+            }
+        }
         // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
         // Mais elle se **dit** : c'est le silence de ce cas qui a coûté quatre versions.
-        if (tagged.isEmpty()) {
-            // Provisoire : dit *ce que le serveur a répondu* à la requête de l'import.
+        if (lues.isEmpty()) {
             val brut = runCatching { api.rawPage(profiles.firstOrNull()) }.getOrElse { "erreur: ${it.message}" }
             _importNote.value = "0 lue · ${server.serveBase} · $brut"
             return true
         }
+        tagged = lues
         val summaries = tagged.map { (_, summary) -> summary }
         val profileById = tagged.associate { (profile, summary) -> summary.id to profile }
         val known = conversations.conversations.value
