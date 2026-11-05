@@ -106,7 +106,18 @@ class BrowserScreenClient(
             onClosed("address")
             return false
         }
-        val request = Request.Builder().url(url).build()
+        // **La clé voyage aussi sur le WebSocket.** Le relais de l'app (`onyx-one`) authentifie
+        // *toutes* les routes qu'il sert, y compris la poignée de main ; sans cet en-tête il
+        // répondait 401 et OkHttp levait « Expected HTTP 101 response but was '401 Unauthorized' ».
+        // Le ticket, lui, reste dans l'URL : il est à usage unique et propre à cette connexion.
+        val request = Request.Builder()
+            .url(url)
+            .apply {
+                server.effectiveApiKey.takeIf { it.isNotBlank() }?.let {
+                    addHeader("Authorization", "Bearer $it")
+                }
+            }
+            .build()
         val opened = http.newWebSocket(request, Listener())
         socket = opened
         return true

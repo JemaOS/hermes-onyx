@@ -322,6 +322,26 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
         "Les clés que l’agent peut utiliser sans les lire : elles restent sur le serveur, et " +
         "l’app n’en garde aucune.",
 
+    // **Le navigateur de l'agent** (`BrowserScreen`) — l'écran, pas seulement la ligne de Réglages.
+    "The agent's browser" to "Le navigateur de l'agent",
+    "Waiting for the agent's browser…" to "En attente du navigateur de l'agent…",
+    "Connecting…" to "Connexion…",
+    "Show the browser" to "Afficher le navigateur",
+    "Take over" to "Prendre la main",
+    "Hand back" to "Rendre la main",
+    "You're driving" to "C'est vous qui conduisez",
+    "Tab" to "Tabulation",
+    "Take over first, then act on the page." to
+        "Prenez d'abord la main, puis agissez sur la page.",
+    "Another screen is driving this browser." to
+        "Un autre écran conduit ce navigateur.",
+    "The browser plugin isn't answering on this server." to
+        "Le plugin du navigateur ne répond pas sur ce serveur.",
+    "Save" to "Enregistrer",
+    "Not now" to "Pas maintenant",
+    "Saved to the vault." to "Enregistré dans le coffre.",
+    "The vault refused the write." to "Le coffre a refusé l'écriture.",
+
     // **Le navigateur de l'agent** (`SettingsScreen`, section « Browser »).
     "Browser" to "Navigateur",
     "Agent's browser" to "Navigateur de l'agent",

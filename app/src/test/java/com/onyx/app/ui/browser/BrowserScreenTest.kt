@@ -130,4 +130,27 @@ class BrowserScreenTest {
         assertFalse("aucun modèle ne porte de mot de passe", api.contains("val password:"))
         assertTrue("le corps d'un bail ne contient que l'action", api.contains("fun leaseBody(action: String"))
     }
+
+    @Test
+    fun `la cle voyage sur la poignee de main, sinon le relais repond 401`() {
+        val client = File("../core/src/main/java/com/onyx/app/data/net/BrowserScreenClient.kt").readText()
+        assertTrue(
+            "le WebSocket porte l'en-tête Authorization",
+            client.contains("addHeader(\"Authorization\", \"Bearer \$it\")"),
+        )
+        assertTrue("la clé est celle du profil effectif", client.contains("server.effectiveApiKey"))
+        // Le ticket reste dans l'URL : il est à usage unique et propre à la connexion.
+        assertTrue("le ticket reste dans l'adresse", client.contains("webSocketUrl(base, BrowserScreenApi.WS_PATH, ticket)"))
+    }
+
+    @Test
+    fun `les libelles de l ecran existent en francais`() {
+        val fr = File("../core/src/main/java/com/onyx/app/localization/OnyxFrenchSettings.kt").readText()
+        listOf(
+            "The agent's browser", "Waiting for the agent's browser…", "Take over", "Hand back",
+            "You're driving", "Tab", "Show the browser", "Connecting…",
+        ).forEach { cle ->
+            assertTrue("manque : $cle", fr.contains("\"$cle\" to "))
+        }
+    }
 }
