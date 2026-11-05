@@ -275,20 +275,8 @@ class ChatViewModel(
             // serveur change, pas quand un réglage d'affichage bouge.
             var importedFor: String? = null
             servers.activeServer.collect { server ->
-                // **Marqueurs de diagnostic — à retirer une fois la cause trouvée.**
-                //
-                // Deux correctifs sont restés sans effet visible sans qu'on puisse dire pourquoi :
-                // l'import ne publiait rien du tout. Ces trois lignes lèvent l'ambiguïté à distance.
-                _importNote.value = "DIAG import: task started"
-                if (!server.hasServeCredentials) {
-                    _importNote.value = "DIAG import: server has no Dashboard address"
-                    return@collect
-                }
-                if (importedFor == server.configSignature) {
-                    _importNote.value = "DIAG import: already done for this server"
-                    return@collect
-                }
-                _importNote.value = "DIAG import: reading ${server.serveBase}"
+                if (!server.hasServeCredentials) return@collect
+                if (importedFor == server.configSignature) return@collect
                 // **Un import qui échoue ne se marque pas comme fait.**
                 //
                 // C'était le défaut de la réinstallation : la marque était posée même quand la
@@ -364,7 +352,11 @@ class ChatViewModel(
             return false
         }
         // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
-        if (tagged.isEmpty()) return true
+        // Mais elle se **dit** : c'est le silence de ce cas qui a coûté quatre versions.
+        if (tagged.isEmpty()) {
+            _importNote.value = OnyxLocalization.format("%1\$d sessions read, %2\$d imported", 0, 0)
+            return true
+        }
         val summaries = tagged.map { (_, summary) -> summary }
         val profileById = tagged.associate { (profile, summary) -> summary.id to profile }
         val known = conversations.conversations.value
@@ -410,11 +402,14 @@ class ChatViewModel(
         // Une lecture muette ne se distingue pas d'une lecture vide : le volet est pareil. Cette
         // ligne coupe court au diagnostic à distance — « 15 lues, 15 importées » sur une liste
         // vide n'accuse plus le réseau mais l'affichage, et « 0 lue » accuse la route.
-        _importNote.value = OnyxLocalization.format(
-            "%1\$d sessions read, %2\$d imported",
-            summaries.size,
-            imported.size,
-        )
+        // **Silencieux seulement quand tout est normal.** Des sessions lues et importées : rien à
+        // dire. Zéro ligne lue, ou des lignes lues et rien d'importé : c'est une anomalie, et elle
+        // se dit — c'est ce silence-là qui a coûté quatre versions.
+        _importNote.value = if (imported.isEmpty()) {
+            OnyxLocalization.format("%1\$d sessions read, %2\$d imported", summaries.size, imported.size)
+        } else {
+            null
+        }
         // Vrai dès que la lecture a abouti — même sans rien de neuf à écrire : c'est la **lecture**
         // qui doit être marquée comme faite, pas l'écriture.
         return true

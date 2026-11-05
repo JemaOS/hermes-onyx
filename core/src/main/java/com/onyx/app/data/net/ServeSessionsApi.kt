@@ -174,6 +174,25 @@ class ServeSessionsApi(private val client: ServeClient) {
     }
 
     /**
+     * **Les profils à lire, avec le profil du serveur pour défaut.**
+     *
+     * Le profil par défaut n'a **pas de nom** : `named()` traduit `""` et `"default"` en « pas de
+     * paramètre », c'est-à-dire « le profil du serveur ». Mais la boucle qui appelle `named()`
+     * filtrait les chaînes vides **avant** lui — `.filter { it.isNotEmpty() }` — donc une liste
+     * qui ne contenait que le profil par défaut devenait **vide**, la boucle ne tournait pas, et
+     * la lecture rendait zéro session alors que le serveur venait de répondre `200` avec quinze
+     * lignes. C'est le dernier étage du « toujours vide » : la lecture avait lieu, elle ne lisait
+     * rien.
+     *
+     * Une liste vide demande donc explicitement le profil du serveur. Le filtre vivait ici, pas
+     * dans `named()` : c'est ici qu'il faut le retirer.
+     */
+    internal fun profilsLus(profiles: List<String>): List<String> {
+        val noms = profiles.map { it.trim() }.distinct()
+        return noms.ifEmpty { listOf("") }
+    }
+
+    /**
      * **Toutes** les sessions de plusieurs profils, fusionnées par identifiant.
      *
      * Une session est écrite dans la base **de son profil** : `/home/john/.hermes/state.db` pour
@@ -187,7 +206,7 @@ class ServeSessionsApi(private val client: ServeClient) {
      */
     suspend fun summariesIn(profiles: List<String>, pageSize: Int = 100, maxPages: Int = 20): List<SessionSummary> {
         val all = LinkedHashMap<String, SessionSummary>()
-        for (profile in profiles.map { it.trim() }.filter { it.isNotEmpty() }.distinct()) {
+        for (profile in profilsLus(profiles)) {
             allSummaries(pageSize, maxPages, profile).forEach { summary -> all[summary.id] = summary }
         }
         return all.values.toList()
@@ -209,7 +228,7 @@ class ServeSessionsApi(private val client: ServeClient) {
         maxPages: Int = 20,
     ): List<Pair<String, SessionSummary>> {
         val found = LinkedHashMap<String, Pair<String, SessionSummary>>()
-        for (profile in profiles.map { it.trim() }.filter { it.isNotEmpty() }.distinct()) {
+        for (profile in profilsLus(profiles)) {
             allSummaries(pageSize, maxPages, profile).forEach { summary ->
                 if (summary.id !in found) found[summary.id] = profile to summary
             }
