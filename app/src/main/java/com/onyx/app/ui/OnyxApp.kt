@@ -3714,17 +3714,26 @@ fun OnyxApp() {
                         // **Un renommage se propage.** Le titre d'une conversation de bot est le
                         // nom du bot : sans ce report, la liste gardait « coder » et la
                         // conversation se détachait de son bot (elle perdait son visage).
-                        val ancienLibelle = bot?.label(state.server.displayName)
                         bot?.let { botsViewModel.saveEdit(it, title, about, model, shown) }
                         val nouveauLibelle = title.trim()
                         // Sans condition de changement : `retitleBot` ne touche que les
                         // conversations dont le titre n'est pas déjà le nouveau.
+                        //
+                        // **Et seulement celles de CE bot.** La session canonique est ce que le
+                        // serveur donne au profil : sans elle, l'ancienne règle renommait aussi
+                        // les fils d'autres bots qui portaient le même libellé, et renommer un
+                        // bot changeait le nom des autres.
                         if (bot != null && nouveauLibelle.isNotBlank()) {
                             scope.launch {
                                 conversationRepo.retitleBot(
-                                    bot.name,
-                                    ancienLibelle.orEmpty(),
-                                    nouveauLibelle,
+                                    profile = bot.name,
+                                    // L'ancien libellé, celui que la liste montrait avant ce geste :
+                                    // il ne sert plus à reconnaître le bot (c'est la session qui le
+                                    // dit), mais à savoir quels titres n'étaient **que** son nom —
+                                    // ceux-là suivent le renommage, les autres non.
+                                    fromLabel = bot.label(state.server.displayName),
+                                    toLabel = nouveauLibelle,
+                                    canonicalSessionId = bot.chatId,
                                 )
                             }
                         }

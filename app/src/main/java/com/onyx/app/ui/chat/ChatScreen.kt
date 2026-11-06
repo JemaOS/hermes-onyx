@@ -1310,6 +1310,10 @@ fun ChatScreen(
                                 conversationId = state.conversationId
                                     ?: state.serverSessionId
                                     ?: "main",
+                                // **La session du serveur, telle que le fil la connaît.** C'est
+                                // elle que la demande publie : la comparer suffit à savoir si
+                                // la carte appartient à ce fil, sans deviner.
+                                sessionId = state.serverSessionId,
                                 // La conversation dont le tour tourne est celle qui a demandé la
                                 // main : elle passe devant les autres pour rattacher la demande.
                                 live = state.isStreaming,

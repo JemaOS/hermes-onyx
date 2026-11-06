@@ -51,8 +51,14 @@ object BrowserScreenApi {
         val pending: PendingRequest?,
     )
 
-    /** Une demande de prise en main en attente, telle que le serveur la publie. */
-    data class PendingRequest(val id: String, val reason: String)
+    /**
+     * Une demande de prise en main en attente, telle que le serveur la publie.
+     *
+     * [session] est la conversation qui a demandé la main (`HERMES_SESSION_ID` du tour), quand le
+     * plugin la connaît. C'est elle qui pose la carte dans le bon fil — et dans aucun autre.
+     * Vide sur un serveur plus ancien : l'app retombe alors sur son propre rattachement.
+     */
+    data class PendingRequest(val id: String, val reason: String, val session: String = "")
 
     fun pathFor(vararg parts: String): String = parts.joinToString("/")
 
@@ -167,6 +173,9 @@ object BrowserScreenApi {
                     // Le plugin publie `reason` ; `note` est la même chose dite autrement selon
                     // la version. Une demande sans texte reste une demande : elle s'affiche.
                     reason = it.strOrNull("reason") ?: it.strOrNull("note").orEmpty(),
+                    // La conversation qui a demandé. Absente d'un plugin plus ancien : l'app
+                    // décide alors seule du fil (voir `BrowserInvite`).
+                    session = it.strOrNull("session").orEmpty(),
                 )
             },
         )

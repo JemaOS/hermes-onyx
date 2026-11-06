@@ -171,18 +171,44 @@ class ConversationRepository(
      * bot sans retitrer ses fils les laissait porter l'ancien nom dans la liste et, pire, les
      * **détachait** du bot — qui perdait alors son visage et son sous-titre.
      *
-     * [profile] est le nom du profil (l'identité, immuable) ; [fromLabel] l'ancien titre, pour les
-     * conversations écrites avant que `botProfile` existe. Une seule écriture, comme les autres
-     * actions de masse.
+     * [profile] est le nom du profil (l'identité, immuable) ; [fromLabel] l'ancien libellé, tel que
+     * la liste le montrait ; [canonicalSessionId] la session que le serveur donne à ce bot — la
+     * seule chose qui rattache une conversation écrite avant que `botProfile` existe.
+     *
+     * **Le titre seul ne suffit pas à reconnaître un bot.** L'ancienne règle renommait toute
+     * conversation sans `botProfile` dont le titre valait l'ancien nom : deux bots appelés de la
+     * même façon — ou un bot et les fils d'un autre, créés sous le même libellé — se
+     * renommaient ensemble. Renommer un bot changeait le nom des autres, ce qui n'est pas
+     * cohérent : on ne touche ici qu'au bot visé et à ce qui lui appartient vraiment.
+     *
+     * **Et seulement aux titres qui n'étaient que son nom.** Un fil que le propriétaire a nommé
+     * lui-même (« Refonte du parser ») garde son nom : le renommage du bot ne réécrit pas ce qu'il
+     * a écrit. Ne suivent que les fils muets ou encore à l'ancien libellé — ceux dont le titre
+     * n'était rien d'autre que le nom du bot.
+     *
+     * Une seule écriture, comme les autres actions de masse.
      */
-    suspend fun retitleBot(profile: String, fromLabel: String, toLabel: String) {
+    suspend fun retitleBot(
+        profile: String,
+        fromLabel: String,
+        toLabel: String,
+        canonicalSessionId: String? = null,
+    ) {
         if (toLabel.isBlank() || profile.isBlank()) return
         val old = fromLabel.trim()
         val touched = _conversations.value.map { conversation ->
             val mine = conversation.botProfile == profile ||
-                (conversation.botProfile == null && old.isNotEmpty() && conversation.title.trim() == old)
+                (
+                    conversation.botProfile == null &&
+                        !canonicalSessionId.isNullOrBlank() &&
+                        conversation.serverSessionId == canonicalSessionId
+                    )
+            val namedByOwner = conversation.title.isNotBlank() &&
+                conversation.title.trim() != old &&
+                conversation.title.trim() != toLabel
             when {
                 !mine -> conversation
+                namedByOwner -> conversation
                 conversation.title == toLabel -> conversation
                 else -> conversation.copy(title = toLabel)
             }

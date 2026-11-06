@@ -1,6 +1,7 @@
 package com.onyx.app.ui.chat.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.net.BrowserScreenApi
 import com.onyx.app.localization.OnyxLocalization
+import com.onyx.app.ui.design.OnyxEdge
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ReferencePalette
@@ -28,19 +30,55 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
+ * **Les demandes qu'on a refusées, pour de bon.**
+ *
+ * Refuser était un geste sans suite : la carte tombait, puis le sondage suivant — ou le tour
+ * d'après, quand on réécrivait un prompt — la faisait revenir, avec un identifiant neuf que rien
+ * ne reliait au refus. La personne disait non, et l'app lui reposait la question.
+ *
+ * Ce registre est **de l'application, pas d'une conversation** : une demande refusée dans un fil
+ * ne réapparaît ni dans celui-là ni dans les autres. Il vit en mémoire (une demande ne survit pas
+ * à un redémarrage du serveur, donc un refus non plus) et s'oublie au bout d'une demi-heure.
+ *
+ * Le refus est aussi **retenu par le serveur** (`lease` → `decline`) : lui seul sait à quelle
+ * conversation et à quelle page il s'applique, et c'est lui qui empêche l'agent de reposer la
+ * même question au tour suivant. Ce registre-ci est le filet de l'écran : il empêche la carte de
+ * clignoter entre l'appui et la réponse du serveur.
+ */
+internal object TakeoverDeclines {
+    /** Une demi-heure : au-delà, la page a changé de camp et une demande redevient légitime. */
+    private const val TTL_MS = 30 * 60 * 1000L
+
+    private val declined = HashMap<String, Long>()
+
+    private fun key(serverId: String, id: String): String = "$serverId|$id"
+
+    @Synchronized
+    fun refuse(serverId: String, id: String) {
+        declined[key(serverId, id)] = System.currentTimeMillis()
+    }
+
+    @Synchronized
+    fun isRefused(serverId: String, id: String): Boolean {
+        val at = declined[key(serverId, id)] ?: return false
+        if (System.currentTimeMillis() - at > TTL_MS) {
+            declined.remove(key(serverId, id))
+            return false
+        }
+        return true
+    }
+}
+
+/**
  * **À quelle conversation appartient une demande de prise en main.**
  *
- * La demande, elle, appartient au *serveur* : `onyx-browser/health` la publie tant qu'un humain ne
- * l'a ni prise ni refusée. L'app la lisait comme un état global, donc **chaque conversation ouverte
- * affichait la même bande** — on quittait le fil où l'agent avait demandé de l'aide, et l'invitation
- * suivait dans les autres fils alors qu'on n'avait rien fait. C'était le défaut signalé.
+ * La demande appartient au *serveur* : `onyx-browser/health` la publie tant qu'un humain ne l'a
+ * ni prise ni refusée. Le serveur dit maintenant **quelle conversation l'a demandée** (le champ
+ * `session`), et c'est cette réponse-là qui décide — plus une devinette.
  *
- * Ici la demande est rattachée à **une** conversation, et à elle seule : les autres fils ne
- * l'affichent plus. La conversation **vivante** (celle dont le tour tourne, donc celle qui a demandé)
- * passe devant ; à défaut, la première à la voir. Une fois refusée, la demande est oubliée.
- *
- * Le registre vit en mémoire et se vide des demandes disparues : une carte en cours, jamais un
- * historique.
+ * Ce registre ne sert donc qu'aux serveurs plus anciens, qui ne publient pas la conversation : la
+ * demande est alors rattachée à **une** conversation, et à elle seule. La vivante passe devant une
+ * fois ; ensuite elle ne se fait plus dépouiller.
  */
 internal object TakeoverClaim {
     /** Propriétaire d'une demande, et s'il conduisait un tour au moment du rattachement. */
@@ -92,16 +130,21 @@ internal object TakeoverClaim {
  * terminal, une autre session — et le serveur, lui, sait quand même qu'une prise en main attend.
  *
  * Cette bande interroge donc `onyx-browser/health` : tant qu'une demande est en attente et qu'un
- * navigateur vit, elle la montre **dans la seule conversation à qui elle appartient** (voir
- * [TakeoverClaim]), avec les deux gestes utiles : prendre la main, ou **refuser**.
+ * navigateur vit, elle la montre **dans la seule conversation à qui elle appartient**, avec les
+ * deux gestes utiles : prendre la main, ou **refuser**.
  *
  * Refuser n'est pas ignorer. Ignorer laissait l'agent attendre un quart d'heure et la carte
  * s'incruster ; refuser le lui dit tout de suite, et il reprend son tour en sachant à quoi s'en
- * tenir. La carte tombe dans la seconde, sans attendre le prochain sondage.
+ * tenir. Un refus ne se repose pas : le serveur le retient pour cette conversation et cette page,
+ * et l'écran garde le sien (voir [TakeoverDeclines]).
  *
  * Le rythme est **lent par construction** : 20 s quand il n'y a rien (une requête d'état toutes les
  * vingt secondes ne coûte rien à personne), 8 s quand une demande existe — c'est le moment où l'on
  * veut que la disparition soit rapide.
+ *
+ * @param sessionId la session serveur de cette conversation (`state.serverSessionId`) : c'est elle
+ *        qui dit si la demande est bien la nôtre. `null` quand le fil n'est pas encore rattaché à
+ *        une session — on retombe alors sur le rattachement par conversation vivante.
  */
 @Composable
 fun BrowserInvite(
@@ -110,6 +153,7 @@ fun BrowserInvite(
     live: Boolean,
     onOpen: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    sessionId: String? = null,
 ) {
     if (onOpen == null || !server.isUsable) return
     val theme = LocalOnyxTheme.current
@@ -127,6 +171,7 @@ fun BrowserInvite(
         server.serveBaseUrl,
         server.apiKey,
         conversationId,
+        sessionId,
         live,
     ) {
         while (true) {
@@ -134,15 +179,29 @@ fun BrowserInvite(
             val demande = sante?.pending
             // Un navigateur mort ne peut rien montrer : afficher la bande enverrait la personne
             // vers un panneau vide, ce qui se lit comme une panne de l'app.
-            val valide = demande != null && sante?.browser == true && demande.id != refusee
-            if (valide) {
-                TakeoverClaim.retainOnly(setOf(demande.id))
-                val proprietaire = TakeoverClaim.claim(demande.id, conversationId, live)
-                attente = demande.takeIf { proprietaire == conversationId }
+            val vivant = sante?.browser == true
+            val dejaRefusee = demande != null && TakeoverDeclines.isRefused(server.id, demande.id)
+            // **La demande dit sa conversation.** Quand le serveur la publie, on la compare à
+            // celle de ce fil — et c'est tout : aucune autre conversation ne l'affiche, et celle
+            // où l'on a dit non ne la revoit pas. Sans ce champ (serveur plus ancien), on garde
+            // l'ancien rattachement, qui ne montre la demande que dans un fil.
+            val pourMoi = demande != null && when {
+                demande.session.isNotBlank() && !sessionId.isNullOrBlank() -> demande.session == sessionId
+                else -> TakeoverClaim.claim(demande.id, conversationId, live) == conversationId
+            }
+            val valide = demande != null && vivant && !dejaRefusee && pourMoi && demande.id != refusee
+            if (valide && demande != null) {
+                if (demande.session.isBlank()) TakeoverClaim.retainOnly(setOf(demande.id))
+                attente = demande
             } else {
-                TakeoverClaim.retainOnly(emptySet())
                 attente = null
-                if (demande == null) refusee = null
+                if (demande == null) {
+                    // Plus rien en attente : le registre se vide, et le refus local s'efface pour
+                    // la demande suivante — celle-ci aura un identifiant neuf, et le serveur dira
+                    // s'il faut la montrer.
+                    TakeoverClaim.retainOnly(emptySet())
+                    refusee = null
+                }
             }
             delay(if (attente == null) 20_000L else 8_000L)
         }
@@ -168,23 +227,41 @@ fun BrowserInvite(
                 // **Refuser est un geste de premier rang, pas une croix discrète.** C'est la
                 // réponse honnête quand on ne veut pas saisir son mot de passe sur un écran
                 // d'agent : elle doit être aussi facile à atteindre que « Prendre la main ».
+                //
+                // Et elle doit **se voir**. Le texte était peint avec la couleur par défaut du
+                // style, qui sur cette carte se confondait avec le fond : on lisait « Refuser »
+                // comme une salissure à côté du bouton d'accent, sans comprendre que c'était un
+                // bouton. Un contour et l'encre du texte disent qu'on peut appuyer — le contour
+                // est **le filet de la maison** (`OnyxEdge.fil`), jamais une encre de texte prise
+                // pour une bordure : c'est le verrou du trait, et il a raison.
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
+                        .border(
+                            width = 1.dp,
+                            color = OnyxEdge.fil(theme),
+                            shape = RoundedCornerShape(50),
+                        )
                         .clickable {
                             val id = demande.id
                             refusee = id
                             attente = null
+                            // Le refus tient pour toute l'application, et pour de bon : ni ce
+                            // fil ni un autre ne repose la question.
+                            TakeoverDeclines.refuse(server.id, id)
                             TakeoverClaim.forget(id)
                             scope.launch { BrowserScreenApi.decline(server) }
                         }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     BasicText(
                         text = OnyxLocalization["Decline"],
                         localize = false,
-                        style = theme.caption.copy(fontWeight = FontWeight.Medium),
+                        style = theme.caption.copy(
+                            color = theme.textColor,
+                            fontWeight = FontWeight.Medium,
+                        ),
                     )
                 }
                 Row(
