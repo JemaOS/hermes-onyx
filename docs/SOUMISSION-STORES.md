@@ -69,11 +69,14 @@ conséquences à connaître :
   il faut désinstaller puis réinstaller (l'utilisateur doit choisir **une** source et s'y tenir) ;
 - ton `applicationId` et ton `versionCode` doivent rester stables, ce qui est le cas.
 
-La demande se fait sur le dépôt des requêtes :
+La demande se fait sur le dépôt des requêtes. Il faut un compte GitLab (gratuit) : c'est le seul
+prérequis, et il ne peut être créé qu'à la main.
 
-1. https://gitlab.com/fdroid/rfp/-/issues/new
-2. Titre : `Hermes Onyx (com.onyx.app) — self-hosted agent client`
-3. Corps :
+1. https://gitlab.com/fdroid/rfp/-/issues/new — le texte ci-dessous est prêt à coller.
+2. Le mainteneur ouvrira ensuite une merge request sur `fdroiddata` avec la fiche
+   `fastlane/fdroiddata-draft/com.onyx.app.yml` (à copier sous `metadata/com.onyx.app.yml`).
+
+Texte de la demande :
 
 ```
 App: Hermes Onyx
@@ -81,18 +84,32 @@ Package: com.onyx.app
 Source: https://github.com/JemaOS/hermes-onyx
 License: MIT
 Category: Internet
-Build: gradle, `assembleRelease` from the repository root (`subdir: .`), no NDK, no submodules.
-Min SDK 26, target SDK 36. No Firebase, no Play Services.
 
-Every dependency is free software; there is no billing library and no proprietary component.
+Build: gradle, `assembleRelease` from the repository root (`subdir: .`).
+No NDK, no submodules, no prebuilt binaries except gradle/wrapper/gradle-wrapper.jar.
+minSdk 26, targetSdk 36, compileSdk 37. No Firebase, no Play Services, no analytics.
 
+Toolchain, in case the buildserver needs pinning:
+  AGP 9.1.0, Kotlin 2.4.20, Gradle 9.8.2 (wrapper), JDK 21.
+
+Dependencies: all free software (AndroidX, OkHttp, kotlinx, Markwon, sshj, ZXing).
+No billing library, no proprietary component, no advertising SDK.
+
+Version numbers live in gradle.properties (`onyx.versionCode`), not in build.gradle.kts, and are
+declared explicitly per release; nothing is derived from git at build time.
 Release notes: https://github.com/JemaOS/hermes-onyx/releases
 ```
 
-Le mainteneur ouvre ensuite une merge request sur `fdroiddata` : `fastlane/fdroiddata-draft/com.onyx.app.yml`
-est déjà la fiche, à copier sous `metadata/com.onyx.app.yml` dans ce dépôt-là. Elle déclare
-`UpdateCheckData` pour lire `onyx.versionCode` dans `gradle.properties` — c'est là que vit le numéro
-de version dans ce projet, pas dans `build.gradle.kts`.
+### Les deux risques, à dire d'emblée au mainteneur
+
+1. **Le toolchain est très récent** — AGP 9.1.0, Gradle 9.8.2, `compileSdk 37`. Si le buildserver
+   n'a pas ces versions, le premier build échouera et il faudra épingler plus bas ; c'est mécanique,
+   pas un refus de principe. Mieux vaut le signaler dans la demande que le découvrir au bout de
+   trois semaines.
+2. **Le rythme de publication.** F-Droid gèle une version à la fois et sa file d'attente se compte
+   en semaines. Avec plusieurs versions par jour, la fiche sera toujours en retard. D'où l'intérêt
+   du dépôt auto-hébergé : il absorbe le rythme, F-Droid apporte la notoriété.
+
 
 ### Ce qui bloquait F-Droid, et qui est réglé
 
