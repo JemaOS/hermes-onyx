@@ -36,7 +36,10 @@ APK to use: onyx-app-<version>-release.apk (signed with the project's release ke
 SHA-256 of the certificate: 1a1f8225f509167b4e01d4606b5ffa6eb17c07868d9b8190efc9f47c459a4402)
 
 Fastlane metadata is already in the repository (fastlane/metadata/android/en-US and fr-FR:
-title, short and full description, changelogs, six phone screenshots, feature graphic).
+title, short and full description, changelogs, six phone screenshots, feature graphic, 512×512
+icon). The screenshots were captured at 1080×2400 (2.22:1) and are delivered as 1080×1920
+(16:9): each capture is centred on a background sampled from its own edge, because Play refuses
+anything beyond 2:1 and cropping the frame cut the composer in half.
 
 What it is: the Android client for a self-hosted Hermes agent. No account, no telemetry,
 no Firebase, no Play Services. It talks to one host only: the Hermes Dashboard the user
