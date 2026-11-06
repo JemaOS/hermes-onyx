@@ -142,7 +142,6 @@ fun SettingsScreen(
     onOpenServers: (() -> Unit)? = null,
     onOpenProfile: (() -> Unit)? = null,
     onOpenWhatsNew: (() -> Unit)? = null,
-    onOpenTipJar: (() -> Unit)? = null,
     onOpenLock: (() -> Unit)? = null,
     onOpenConnect: (() -> Unit)? = null,
     onOpenTerminal: (() -> Unit)? = null,
@@ -581,10 +580,6 @@ fun SettingsScreen(
                 }
                 onOpenWhatsNew?.let {
                     OnyxValueRow(label = "What's New", value = "", symbol = Lucide.Sparkles, onClick = it)
-                    OnyxAnatomyDivider()
-                }
-                onOpenTipJar?.let {
-                    OnyxValueRow(label = "Support Onyx", value = "", symbol = Symbols.Heart, onClick = it)
                     OnyxAnatomyDivider()
                 }
                 onOpenServers?.let {

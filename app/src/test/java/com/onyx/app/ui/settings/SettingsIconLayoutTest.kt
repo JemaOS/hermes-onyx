@@ -14,7 +14,6 @@ class SettingsIconLayoutTest {
             "Symbols.WrenchAndScrewdriver",
             "Symbols.RectangleSplit",
             "Symbols.QrCode",
-            "Symbols.Heart",
         ).forEach { assertTrue("$it absent", source.contains(it)) }
         listOf(
             "ic_sym_paintbrush.xml",

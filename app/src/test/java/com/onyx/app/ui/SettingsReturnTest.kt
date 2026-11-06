@@ -32,7 +32,7 @@ class SettingsReturnTest {
      */
     private val settingsChildren = listOf(
         "APPEARANCE", "MODELS", "VOICE_SETTINGS", "GATEWAY", "LOGS", "FILES", "CRON", "KANBAN",
-        "PHONE_TOOLS", "BOTS", "SERVERS", "PROFILES", "TOOLS", "WHATS_NEW", "TIP_JAR",
+        "PHONE_TOOLS", "BOTS", "SERVERS", "PROFILES", "TOOLS", "WHATS_NEW",
         "LOCK", "CONNECT", "TERMINAL_SETTINGS", "ACKNOWLEDGEMENTS", "CONTEXT", "MEMORY",
         "NOTIFICATIONS", "CONNECTION_DETAILS",
     )

@@ -466,14 +466,6 @@ object TableDesRetours {
             support = SUPPORT_BRANCHE,
         ),
         RetourRoute(
-            route = "TIP_JAR",
-            ecran = "Soutenir Onyx",
-            nature = NatureRetour.PILE,
-            declaration = "onBack = { if (!navBack()) navTo(Route.SETTINGS.name) }",
-            repli = "SETTINGS",
-            support = SUPPORT_BRANCHE,
-        ),
-        RetourRoute(
             route = "SUBAGENT",
             ecran = "le fil d'un sous-agent",
             nature = NatureRetour.PILE,

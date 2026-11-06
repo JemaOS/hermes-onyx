@@ -101,7 +101,7 @@ class SettingsReferenceStructureTest {
         listOf(
             "AppIconSettings(embedded = true)", "VoiceOrbSettingsRows(", "ChatTextSizeRow(",
             "BlurbToggleRow(", "Connection details", "Context window", "Terminal",
-            "Lock", "Set up another device", "What's New", "Support Onyx", "Erase everything…",
+            "Lock", "Set up another device", "What's New", "Erase everything…",
         ).forEach { assertTrue("$it doit rester", screen.contains(it)) }
     }
 

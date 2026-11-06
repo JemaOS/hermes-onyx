@@ -268,7 +268,6 @@ class SettingsGlyphFamilyTest {
             "Set up another device" to "Symbols.QrCode",
             "Acknowledgements" to "Symbols.Doc",
             "What's New" to "Lucide.Sparkles",
-            "Support Onyx" to "Symbols.Heart",
             "Servers" to "Symbols.ServerRack",
         ).forEach { (label, symbol) ->
             assertTrue("$label : $symbol", screen.contains(symbol))

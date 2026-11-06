@@ -171,7 +171,6 @@ import com.onyx.app.security.AppLock
 import com.onyx.app.ui.lock.LockScreen
 import com.onyx.app.ui.settings.ConnectQrScreen
 import com.onyx.app.ui.common.AcknowledgementsScreen
-import com.onyx.app.ui.common.TipJarScreen
 import com.onyx.app.ui.settings.voice.ReplyLanguageScreen
 import com.onyx.app.ui.settings.voice.KokoroVoicesView
 import com.onyx.app.ui.settings.voice.SpokenPrefixesScreen
@@ -244,7 +243,7 @@ private enum class Route {
     GATEWAY, LOGS, FILES, FILE_EDITOR, CONTEXT, MEMORY, CONTEXT_EDITOR, VOICE_SETTINGS, NOTIFICATIONS, KOKORO_VOICES, CRON, KANBAN, CODE,
     COMPOSER_EDITOR, PHONE_TOOLS, CALLS, LOCK, CONNECT, BOTS, BOT_EDITOR, BOT_FACE, BOT_SCHEDULES, BOT_VOICE, GROUP_CHAT, GROUP_VOICE, ACKNOWLEDGEMENTS, SPEECH_LANGUAGE, REPLY_LANGUAGE,
     COMPUTER,
-    STOP_PHRASES, SERVERS, SETUP, SPOKEN_PREFIXES, SPOKEN_PREFIX_EDITOR, PROFILES, WHATS_NEW, PATCH, SELECT_TEXT, PHOTO, PDF, VIDEO, SKILL_EDITOR, TOOLS, API_BOT, CAMERA, TIP_JAR, SUBAGENT, SUBAGENTS, TERMINAL, TERMINAL_SETTINGS,
+    STOP_PHRASES, SERVERS, SETUP, SPOKEN_PREFIXES, SPOKEN_PREFIX_EDITOR, PROFILES, WHATS_NEW, PATCH, SELECT_TEXT, PHOTO, PDF, VIDEO, SKILL_EDITOR, TOOLS, API_BOT, CAMERA, SUBAGENT, SUBAGENTS, TERMINAL, TERMINAL_SETTINGS,
     // Les destinations de l'onglet **Fichiers** qui n'avaient pas de lecteur : un son (le lecteur
     // de la maison), un document texte, et le contenu d'une archive.
     AUDIO, DOCUMENT, ARCHIVE,
@@ -2953,7 +2952,6 @@ fun OnyxApp() {
                     onOpenProfile = { paneLeave(Route.PROFILES.name) },
                     onOpenCapabilities = { paneLeave(Route.CAPABILITIES.name) },
                     onOpenWhatsNew = { paneLeave(Route.WHATS_NEW.name) },
-                    onOpenTipJar = { paneLeave(Route.TIP_JAR.name) },
                     onOpenLock = { paneLeave(Route.LOCK.name) },
                     onOpenConnect = { paneLeave(Route.CONNECT.name) },
                     onOpenTerminal = { paneLeave(Route.TERMINAL_SETTINGS.name) },
@@ -3532,7 +3530,6 @@ fun OnyxApp() {
                 onOpenCapabilities = { navTo(Route.CAPABILITIES.name) },
                 onOpenInsights = { navTo(Route.INSIGHTS.name) },
                 onOpenWhatsNew = { navTo(Route.WHATS_NEW.name) },
-                onOpenTipJar = { navTo(Route.TIP_JAR.name) },
                 onOpenLock = { navTo(Route.LOCK.name) },
                 onOpenConnect = { navTo(Route.CONNECT.name) },
                 onOpenTerminal = { navTo(Route.TERMINAL_SETTINGS.name) },
@@ -4371,8 +4368,6 @@ fun OnyxApp() {
             Route.LOCK -> LockSettingsScreen(onBack = { if (!navBack()) navTo(Route.SETTINGS.name) })
 
             Route.ACKNOWLEDGEMENTS -> AcknowledgementsScreen(onBack = { if (!navBack()) navTo(Route.SETTINGS.name) })
-
-            Route.TIP_JAR -> TipJarScreen(onBack = { if (!navBack()) navTo(Route.SETTINGS.name) })
 
             Route.CONNECT -> ConnectQrScreen(
                 code = com.onyx.app.data.model.SetupCode(

@@ -76,16 +76,6 @@ internal val onyxCommonFrench: Map<String, String> = linkedMapOf(
     "Switch between gateways, each with its own addresses, keys, profile and model." to "Passez d’un gateway à l’autre, chacun avec ses propres adresses, clés, profil et modèle.",
     "What's New in Onyx" to "Nouveautés de Onyx",
 
-    // Soutien et pourboires.
-    "A coffee" to "Un café",
-    "A lunch" to "Un déjeuner",
-    "A dinner" to "Un dîner",
-    "A one-time tip through the store. It doesn't unlock anything: every feature is already yours." to "Un pourboire unique via la boutique. Il ne débloque rien : toutes les fonctionnalités sont déjà à vous.",
-    "It really does help." to "Cela aide vraiment.",
-    "Onyx is made by one small company, with no ads, no accounts and no tracking. If it's useful to you, a tip helps keep it going." to "Onyx est développé par une petite entreprise, sans publicité, sans compte et sans suivi. Si l’app vous est utile, un pourboire l’aide à continuer.",
-    "Tips aren't available right now. Nothing's wrong on your side; every feature is already yours." to "Les pourboires ne sont pas disponibles pour le moment. Tout va bien de votre côté ; toutes les fonctionnalités sont déjà à vous.",
-    "Thank you!" to "Merci !",
-
     // Divers transverse.
     "Its profile's SOUL.md." to "Le fichier SOUL.md de son profil.",
     "Opens your most recent conversation" to "Ouvre votre conversation la plus récente",

@@ -180,7 +180,6 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.billing.ktx)
     implementation(libs.sshj)
     implementation(libs.eddsa)
     implementation(libs.zxing.embedded)

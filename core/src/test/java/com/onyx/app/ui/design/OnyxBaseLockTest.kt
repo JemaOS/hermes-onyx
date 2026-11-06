@@ -468,7 +468,6 @@ class OnyxBaseLockTest {
                 "app/src/main/java/com/onyx/app/ui/common/ConnectionProblemCard.kt",
                 "app/src/main/java/com/onyx/app/ui/common/LazyCard.kt",
                 "app/src/main/java/com/onyx/app/ui/common/PageStates.kt",
-                "app/src/main/java/com/onyx/app/ui/common/TipJarScreen.kt",
                 "app/src/main/java/com/onyx/app/ui/common/Toast.kt",
                 "app/src/main/java/com/onyx/app/ui/common/TypedTitle.kt",
                 "app/src/main/java/com/onyx/app/ui/common/WhatsNewScreen.kt",

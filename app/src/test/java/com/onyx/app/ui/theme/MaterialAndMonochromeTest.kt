@@ -63,7 +63,6 @@ class MaterialAndMonochromeTest {
             "ui/files/FilesScreen.kt" to "OnyxIcon(Symbols.Brain, tint = theme.textColor",
             "ui/servers/ServersScreen.kt" to "OnyxIcon(Symbols.Globe, tint = theme.textColor",
             "ui/common/ConnectionProblemCard.kt" to "OnyxIcon(symbol = Symbols.ServerRack, tint = theme.textColor",
-            "ui/common/TipJarScreen.kt" to "OnyxIcon(Symbols.HeartFill, tint = theme.textColor",
             "ui/common/WhatsNewScreen.kt" to "OnyxIcon(symbol = item.symbol, tint = theme.textColor",
             "ui/chat/components/StartScreen.kt" to "OnyxIcon(symbol = card.symbol, tint = theme.textColor",
             "ui/chat/components/LinkPreviewCard.kt" to "OnyxIcon(Symbols.Link, tint = theme.textColor",
