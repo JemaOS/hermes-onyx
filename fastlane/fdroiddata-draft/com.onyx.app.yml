@@ -1,0 +1,27 @@
+Categories:
+  - Internet
+License: MIT
+AuthorName: JemaOS
+WebSite: https://github.com/JemaOS/hermes-onyx
+SourceCode: https://github.com/JemaOS/hermes-onyx
+IssueTracker: https://github.com/JemaOS/hermes-onyx/issues
+Changelog: https://github.com/JemaOS/hermes-onyx/releases
+
+AutoName: Hermes Onyx
+
+RepoType: git
+Repo: https://github.com/JemaOS/hermes-onyx.git
+
+Builds:
+  - versionName: 1.3.97
+    versionCode: 1229
+    commit: v1.3.97
+    subdir: .
+    gradle:
+      - assembleRelease
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+UpdateCheckData: gradle.properties|onyx\.versionCode=(\d+)|.|onyx\.versionBase=(\d+)
+CurrentVersion: 1.3.97
+CurrentVersionCode: 1229

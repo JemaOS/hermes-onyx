@@ -1,0 +1,29 @@
+Hermes Onyx is the Android client for a Hermes agent you run yourself. There is no account to create, no key baked into the APK and no telemetry: you point the app at the Hermes Dashboard already running on your machine, and it becomes the remote control for your own agents.
+
+WHY IT EXISTS
+Most assistants are somebody else's cloud. Onyx is not. Every prompt, every file and every voice recording goes to the server you named, and nowhere else. The API key is stored in the Android Keystore; conversations stay in the app's own storage on the phone.
+
+CHAT, FIVE TABS DEEP
+Text that streams over SSE, with the reasoning folded away, tool calls shown as they run, approval cards, follow-up questions one tap away and an error banner that repeats what the server actually said.
+Rich Markdown: tables, code with copy, maths, diagrams, link previews, image and video viewers, and text selection across messages.
+Every conversation carries five tabs: Chat, Feed, Files, Ideas and Goals. The Feed keeps the bot's answers as dated cards you can rate or turn into a goal; Files lists everything the bot delivered and everything you attached, with type filters, five sorts and a real state per row.
+A model selector built for long lists, with search across models and providers, favourites, and a choice remembered per bot.
+
+BOTS AND ROOMS
+Every profile on your server gets a face of its own, with its prompt, toolset, schedules and voice. Put several of them in a room and watch them answer each other while you approve, interrupt or join.
+
+VOICE, HANDS-FREE
+Real turn-taking: barge-in, back-channel words, spoken stop phrases, and a face that follows the level of your voice. Each bot speaks with its own installed voice, and speech language and reply language are chosen separately.
+
+YOUR COMPUTER IN YOUR POCKET
+See your machine's screen and drive it by touch, with an approval gate before any command runs, live numbers for round-trip, jitter and frames, and adaptive quality that steps down instead of freezing.
+
+THE REST OF YOUR SERVER
+Kanban, cron, files, terminal over SSH, skills, toolsets and MCP servers on one screen, usage and cost over 7, 30 or 90 days, sub-agents as a live task list, background processes, restore points and exports as Markdown.
+
+WHAT YOU NEED
+A Hermes Dashboard you can reach — on your local network or through a tunnel — and Android 8.0 or newer. The app talks to one host only: the one you typed.
+
+Interface in English or French, light and dark themes with several palettes, a widget, notification channels and a lock screen.
+
+Free software, MIT licence, no ads, no tracking, no paid tier. The source is on GitHub and the release APKs are signed with a published certificate.
