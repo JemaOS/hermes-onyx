@@ -173,4 +173,25 @@ class BotRenamePropagationTest {
 
         assertEquals("coder", repo.conversations.value.single().title)
     }
+
+    @Test
+    fun `une conversation qui porte la session d'un autre bot ne suit jamais le titre`() = runBlocking {
+        // Le cas signalé : « j'ai changé le nom de ce bot, ça change tous les autres bots coder ».
+        // Ces fils portaient le profil « coder » **et** le titre « coder », mais leur session est
+        // celle d'un autre bot : c'est elle qui tranche. Sans cette borne, ils partaient tous.
+        val repo = ConversationRepository(Store())
+        repo.save(conversation("autre", "coder", profile = "coder", session = "sess-autre-bot"))
+        repo.save(conversation("sien", "coder", profile = "coder", session = "sess-coder"))
+
+        repo.retitleBot(
+            profile = "coder",
+            fromLabel = "coder",
+            toLabel = "coderr",
+            canonicalSessionId = "sess-coder",
+        )
+
+        val titres = repo.conversations.value.associate { it.id to it.title }
+        assertEquals("la session d'un autre bot garde son titre", "coder", titres["autre"])
+        assertEquals("le fil de ce bot suit", "coderr", titres["sien"])
+    }
 }

@@ -180,9 +180,13 @@ internal fun sidebarRowOf(
     identity: String = agentName,
     /** Le visage enregistré de ce profil, quand il y en a un. */
     identityFace: String? = null,
+    /** Le libellé vivant d'un profil de bot, lu sur le roster (`botLabelOf(identity)`). */
+    botLabelOf: ((String) -> String)? = null,
+    /** Tous les libellés de bots connus : un titre qui en porte un n'est pas un titre choisi. */
+    knownBotLabels: Set<String> = emptySet(),
 ): SidebarRow = SidebarRow(
     id = conversation.id,
-    title = conversation.title,
+    title = sidebarTitle(conversation, identity, botLabelOf, knownBotLabels),
     subtitle = sidebarSubtitle(conversation, kind, agentName),
     age = max(0.0, now - conversation.updatedAt / 1000.0),
     tone = sidebarToneOf(conversation, kind, seenMark),
@@ -204,6 +208,41 @@ internal fun sidebarPresenceOf(tone: SidebarRowTone): IdentityMark.Presence? = w
     SidebarRowTone.WAITING -> IdentityMark.Presence.WAITING
     SidebarRowTone.UNREAD -> IdentityMark.Presence.UNREAD
     SidebarRowTone.IDLE -> null
+}
+
+/**
+ * **Le titre d'une ligne, remis d'aplomb.**
+ *
+ * Le titre d'une conversation de bot est une **copie** du nom de ce bot, et cette copie a déjà
+ * fuité : la règle de renommage d'avant reconnaissait le bot par son libellé, si bien que renommer
+ * « coder » en « coderr » a réécrit le titre des fils d'**autres** bots. La règle est corrigée
+ * (`ConversationRepository.retitleBot`), mais ce qui est écrit sur le téléphone y reste : sans ce
+ * calcul, les fils salis garderaient l'ancien nom pour toujours.
+ *
+ * La règle est étroite, exprès :
+ *
+ * - un titre qui est le libellé du bot de la conversation est **le** nom de ce bot — on affiche
+ *   celui du roster, qui est vivant ;
+ * - un titre qui est le libellé d'un **autre** bot est un dégât collatéral — on remet celui de son
+ *   propre bot ;
+ * - tout le reste est un titre choisi par le propriétaire (« Refonte du parser ») et n'est **pas**
+ *   touché. Le renommage d'un bot ne réécrit pas ce qu'il a écrit.
+ *
+ * Rien n'est écrit sur le disque : c'est un calcul d'affichage, donc rien n'est perdu si la règle
+ * se trompe.
+ */
+internal fun sidebarTitle(
+    conversation: Conversation,
+    identity: String,
+    botLabelOf: ((String) -> String)?,
+    knownBotLabels: Set<String>,
+): String {
+    val own = botLabelOf?.invoke(identity)?.takeIf { it.isNotBlank() } ?: return conversation.title
+    val title = conversation.title.trim()
+    if (title.isEmpty()) return own
+    if (title.equals(own, ignoreCase = true)) return own
+    val portaitLeNomDUnBot = knownBotLabels.any { it.equals(title, ignoreCase = true) }
+    return if (portaitLeNomDUnBot) own else conversation.title
 }
 
 /**
@@ -237,6 +276,10 @@ internal fun sidebarRows(
     identityOf: (Conversation) -> String = { agentName },
     /** Le visage enregistré d'un profil, quand il y en a un. */
     faceCodeOf: (String) -> String? = { null },
+    /** Le libellé vivant d'un profil de bot, lu sur le roster. */
+    botLabelOf: ((String) -> String)? = null,
+    /** Tous les libellés de bots connus — voir [sidebarTitle]. */
+    knownBotLabels: Set<String> = emptySet(),
 ): List<SidebarRow> = conversations
     .filter { sidebarMatches(it, query, includeMessages) }
     .map { conversation ->
@@ -253,6 +296,8 @@ internal fun sidebarRows(
             // conversation ne touche que cette ligne ([Conversation.faceCode]) ; les autres fils du
             // même bot — et la tuile du bot dans l'onglet « Bots » — gardent le leur.
             identityFace = conversation.faceCode ?: faceCodeOf(identity),
+            botLabelOf = botLabelOf,
+            knownBotLabels = knownBotLabels,
         )
     }
     .filter { sidebarFilterKeeps(filter, it.tone) }

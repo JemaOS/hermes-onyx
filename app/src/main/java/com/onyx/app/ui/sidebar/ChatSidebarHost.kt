@@ -273,7 +273,18 @@ internal fun ChatSidebarHost(
     // La recherche regarde les messages aussi : c'est ce que fait la liste de l'app, et ce qu'on
     // attend d'un champ « Search chats ». C'est **exactement** ce que l'état vide annonce
     // (`SearchScopeSentence`) : les titres, et le texte des messages.
-    val rows = remember(conversations, liveKinds, seenMarks, activeQuery, filter, now, identityOf, faceCodeOf) {
+    // **Les libellés vivants du roster.** Le titre d'une conversation de bot est une copie du nom
+    // de ce bot ; le roster, lui, dit le nom d'aujourd'hui. `sidebarTitle` s'en sert pour remettre
+    // d'aplomb les fils salis par l'ancienne règle de renommage (voir sa note).
+    val botLabelsByProfile = remember(bots, mainName) { bots.associate { it.name to it.label(mainName) } }
+    val knownBotLabels = remember(bots, mainName) {
+        (bots.map { it.label(mainName) } + bots.map { it.name }).filter { it.isNotBlank() }.toSet()
+    }
+
+    val rows = remember(
+        conversations, liveKinds, seenMarks, activeQuery, filter, now, identityOf, faceCodeOf,
+        botLabelsByProfile, knownBotLabels,
+    ) {
         sidebarRows(
             conversations = conversations,
             liveKinds = liveKinds,
@@ -287,6 +298,8 @@ internal fun ChatSidebarHost(
             // même clé que la liste des bots, la fiche, l'en-tête et le volet (`BotLook`).
             identityOf = identityOf,
             faceCodeOf = faceCodeOf,
+            botLabelOf = { profile -> botLabelsByProfile[profile].orEmpty() },
+            knownBotLabels = knownBotLabels,
         )
     }
     val allTones = remember(conversations, liveKinds, seenMarks) {

@@ -196,21 +196,35 @@ class ConversationRepository(
     ) {
         if (toLabel.isBlank() || profile.isBlank()) return
         val old = fromLabel.trim()
+        val canonique = canonicalSessionId?.takeIf { it.isNotBlank() }
         val touched = _conversations.value.map { conversation ->
-            val mine = conversation.botProfile == profile ||
-                (
-                    conversation.botProfile == null &&
-                        !canonicalSessionId.isNullOrBlank() &&
-                        conversation.serverSessionId == canonicalSessionId
-                    )
-            val namedByOwner = conversation.title.isNotBlank() &&
-                conversation.title.trim() != old &&
-                conversation.title.trim() != toLabel
+            // **Le fil d'un bot se reconnaît à deux choses, et à rien d'autre.**
+            //
+            // 1. sa session canonique — ce que le serveur donne au profil, et qui ne se confond
+            //    avec aucun autre bot ;
+            // 2. son profil **et** un titre qui n'était que son nom.
+            //
+            // Le profil seul ne suffit pas : deux bots peuvent le partager (même libellé par
+            // défaut, profil recopié à l'import), et renommer l'un renommait alors les fils de
+            // l'autre — « j'ai changé le nom de ce bot, ça change tous les bots ». Et un titre
+            // écrit par quelqu'un ne suit jamais un renommage : il n'appartient plus au bot.
+            val parSession = canonique != null && conversation.serverSessionId == canonique
+            // **Une session étrangère tranche : ce fil n'est pas à ce bot.**
+            // Un fil qui porte la session d'un autre bot ne se renomme jamais par son titre,
+            // même si son profil dit « coder » — c'est ainsi que renommer un bot renommait les
+            // fils des autres.
+            val sessionEtrangere = !conversation.serverSessionId.isNullOrBlank() && !parSession
+            val parNom = !sessionEtrangere &&
+                conversation.botProfile == profile &&
+                conversation.title.trim() == old
+            val mine = parSession || parNom
             when {
                 !mine -> conversation
-                namedByOwner -> conversation
-                conversation.title == toLabel -> conversation
-                else -> conversation.copy(title = toLabel)
+                conversation.title.trim().isEmpty() -> conversation.copy(title = toLabel)
+                conversation.title.trim() == toLabel -> conversation
+                // Un titre qui n'était **que** l'ancien nom suit le bot ; tout autre est gardé.
+                parNom || conversation.title.trim() == old -> conversation.copy(title = toLabel)
+                else -> conversation
             }
         }
         if (touched == _conversations.value) return

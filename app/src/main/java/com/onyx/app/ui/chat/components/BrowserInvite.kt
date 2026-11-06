@@ -1,10 +1,11 @@
 package com.onyx.app.ui.chat.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -22,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.net.BrowserScreenApi
 import com.onyx.app.localization.OnyxLocalization
-import com.onyx.app.ui.design.OnyxEdge
 import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ReferencePalette
@@ -51,21 +51,50 @@ internal object TakeoverDeclines {
 
     private val declined = HashMap<String, Long>()
 
-    private fun key(serverId: String, id: String): String = "$serverId|$id"
+    /**
+     * **La clé est la conversation, pas la demande.**
+     *
+     * Refuser une demande précise ne servait à rien : le tour suivant en publiait une **neuve**,
+     * avec un identifiant que rien ne reliait au refus, et la carte revenait dans le fil où l'on
+     * venait de dire non. Le serveur retient maintenant le refus (par conversation et par page) ;
+     * ce registre-ci fait de même, pour que l'écran n'ait pas à croire le serveur sur parole.
+     *
+     * Les deux clés sont gardées : celle de la conversation (le refus vaut pour la suite), et
+     * celle de la demande (l'identifiant exact qu'on vient de refuser, avant même que le serveur
+     * ait répondu). La première est celle qui règle le défaut signalé.
+     */
+    private fun bySession(serverId: String, session: String): String = "$serverId|session|$session"
+
+    private fun byRequest(serverId: String, id: String): String = "$serverId|id|$id"
 
     @Synchronized
-    fun refuse(serverId: String, id: String) {
-        declined[key(serverId, id)] = System.currentTimeMillis()
+    fun refuse(serverId: String, session: String, id: String = "") {
+        val now = System.currentTimeMillis()
+        if (session.isNotBlank()) declined[bySession(serverId, session)] = now
+        if (id.isNotBlank()) declined[byRequest(serverId, id)] = now
     }
 
     @Synchronized
-    fun isRefused(serverId: String, id: String): Boolean {
-        val at = declined[key(serverId, id)] ?: return false
+    fun isRefused(serverId: String, session: String, id: String = ""): Boolean {
+        val sessionKey = session.takeIf { it.isNotBlank() }?.let { bySession(serverId, it) }
+        val requestKey = id.takeIf { it.isNotBlank() }?.let { byRequest(serverId, it) }
+        return fresh(sessionKey) || fresh(requestKey)
+    }
+
+    private fun fresh(key: String?): Boolean {
+        if (key == null) return false
+        val at = declined[key] ?: return false
         if (System.currentTimeMillis() - at > TTL_MS) {
-            declined.remove(key(serverId, id))
+            declined.remove(key)
             return false
         }
         return true
+    }
+
+    /** Un fil qui change de session serveur n'hérite pas du refus d'un autre. */
+    @Synchronized
+    fun forgetSession(serverId: String, session: String) {
+        if (session.isNotBlank()) declined.remove(bySession(serverId, session))
     }
 }
 
@@ -180,7 +209,11 @@ fun BrowserInvite(
             // Un navigateur mort ne peut rien montrer : afficher la bande enverrait la personne
             // vers un panneau vide, ce qui se lit comme une panne de l'app.
             val vivant = sante?.browser == true
-            val dejaRefusee = demande != null && TakeoverDeclines.isRefused(server.id, demande.id)
+            // **Le refus se retient par conversation.** Une demande neuve — identifiant neuf,
+            // même fil — ne doit pas rouvrir la question à laquelle on a déjà répondu non.
+            val cleDeRefus = demande?.session.orEmpty().ifBlank { sessionId.orEmpty() }
+            val dejaRefusee = demande != null &&
+                TakeoverDeclines.isRefused(server.id, cleDeRefus, demande.id)
             // **La demande dit sa conversation.** Quand le serveur la publie, on la compare à
             // celle de ce fil — et c'est tout : aucune autre conversation ne l'affiche, et celle
             // où l'on a dit non ne la revoit pas. Sans ce champ (serveur plus ancien), on garde
@@ -190,9 +223,10 @@ fun BrowserInvite(
                 else -> TakeoverClaim.claim(demande.id, conversationId, live) == conversationId
             }
             val valide = demande != null && vivant && !dejaRefusee && pourMoi && demande.id != refusee
-            if (valide && demande != null) {
-                if (demande.session.isBlank()) TakeoverClaim.retainOnly(setOf(demande.id))
-                attente = demande
+            if (valide) {
+                val retenue = demande!!
+                if (retenue.session.isBlank()) TakeoverClaim.retainOnly(setOf(retenue.id))
+                attente = retenue
             } else {
                 attente = null
                 if (demande == null) {
@@ -219,70 +253,86 @@ fun BrowserInvite(
             ]
         },
         onClick = onOpen,
-        action = {
+    ) {
+        // **Deux boutons ne tiennent pas dans l'en-tête d'une carte.**
+        //
+        // L'action d'une carte est une place **à droite du titre** (`ContextCard`, règle 4). Deux
+        // pastilles y prenaient toute la largeur : le titre tombait à quelques pixels, la carte
+        // devenait illisible, et « Refuser » se lisait comme un reste de texte collé au bouton
+        // d'accent — « on voit rien ». Une carte qui offre **deux** gestes les pose sous son texte,
+        // sur toute la largeur : c'est déjà ce que fait la carte d'approbation (`ApprovalCard`),
+        // et c'est exactement la même situation.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // **Refuser est un geste de premier rang, pas une croix discrète.** C'est la réponse
+            // honnête quand on ne veut pas saisir son mot de passe sur un écran d'agent : elle
+            // doit être aussi facile à atteindre que « Prendre la main ».
+            //
+            // **Et elle doit se voir.** Le libellé était peint avec la couleur par défaut du
+            // style, qui sur cette carte se confondait avec le fond : on ne lisait « Refuser »
+            // que comme une salissure, sans comprendre que c'était un bouton. Un fond d'encre à
+            // quatorze pour cent et l'encre pleine — l'idiome du bouton bordé des cartes
+            // d'approbation (`BorderedChoiceButton`) — disent qu'on peut appuyer, sans disputer
+            // l'accent, qui reste le geste premier.
+            //
+            // La cible fait 48 dp, comme tous les contrôles de la maison : à 8 dp de marge pour
+            // un texte de 13, le bouton tombait sous la cible minimale et le système l'élargissait
+            // de lui-même, jusqu'à recouvrir son voisin.
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // **Refuser est un geste de premier rang, pas une croix discrète.** C'est la
-                // réponse honnête quand on ne veut pas saisir son mot de passe sur un écran
-                // d'agent : elle doit être aussi facile à atteindre que « Prendre la main ».
-                //
-                // Et elle doit **se voir**. Le texte était peint avec la couleur par défaut du
-                // style, qui sur cette carte se confondait avec le fond : on lisait « Refuser »
-                // comme une salissure à côté du bouton d'accent, sans comprendre que c'était un
-                // bouton. Un contour et l'encre du texte disent qu'on peut appuyer — le contour
-                // est **le filet de la maison** (`OnyxEdge.fil`), jamais une encre de texte prise
-                // pour une bordure : c'est le verrou du trait, et il a raison.
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .border(
-                            width = 1.dp,
-                            color = OnyxEdge.fil(theme),
-                            shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(theme.textColor.copy(alpha = 0.14f))
+                    .clickable {
+                        val id = demande.id
+                        refusee = id
+                        attente = null
+                        // Le refus tient pour toute l'application, et pour de bon : ni ce fil ni
+                        // un autre ne repose la question. La clé est la conversation, pas la
+                        // demande — le tour suivant en publiera une neuve, et c'est celle-là
+                        // qu'il faut déjà savoir refusée.
+                        TakeoverDeclines.refuse(
+                            serverId = server.id,
+                            session = demande.session.ifBlank { sessionId.orEmpty() },
+                            id = id,
                         )
-                        .clickable {
-                            val id = demande.id
-                            refusee = id
-                            attente = null
-                            // Le refus tient pour toute l'application, et pour de bon : ni ce
-                            // fil ni un autre ne repose la question.
-                            TakeoverDeclines.refuse(server.id, id)
-                            TakeoverClaim.forget(id)
-                            scope.launch { BrowserScreenApi.decline(server) }
-                        }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    BasicText(
-                        text = OnyxLocalization["Decline"],
-                        localize = false,
-                        style = theme.caption.copy(
-                            color = theme.textColor,
-                            fontWeight = FontWeight.Medium,
-                        ),
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(theme.accent)
-                        .clickable(onClick = onOpen)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    BasicText(
-                        text = OnyxLocalization["Take over"],
-                        localize = false,
-                        style = theme.caption.copy(
-                            color = ReferencePalette.OnAccent,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                    )
-                }
+                        TakeoverClaim.forget(id)
+                        scope.launch { BrowserScreenApi.decline(server) }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicText(
+                    text = OnyxLocalization["Decline"],
+                    localize = false,
+                    style = theme.caption.copy(
+                        color = theme.textColor,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                )
             }
-        },
-    )
+            Row(
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(theme.accent)
+                    .clickable(onClick = onOpen)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                BasicText(
+                    text = OnyxLocalization["Take over"],
+                    localize = false,
+                    style = theme.caption.copy(
+                        color = ReferencePalette.OnAccent,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+            }
+        }
+    }
 }
