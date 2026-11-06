@@ -112,17 +112,7 @@ class ServeRpc(
      * Un client par ouverture serait une **fuite** : chaque reprise ajouterait un client et ses
      * fils, jamais rendus. Le client est donc unique, et la reprise rouvre le canal dessus.
      */
-    private val webSocketClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .followRedirects(true)
-            .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
-            .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.SECONDS))
-            .build()
-    }
+    private val webSocketClient: OkHttpClient by lazy { dashboardTransportClient() }
 
     /**
      * Le fil de la reprise. Il vit dans la classe : la reconnexion doit survivre au tour qui
@@ -279,7 +269,9 @@ class ServeRpc(
             var attempt = 0
             while (attempt < RECONNECT_ATTEMPTS && !isReady) {
                 attempt++
-                delay(RECONNECT_DELAY_MS * attempt)
+                // 1 s, 2 s, 4 s, 8 s, 8 s : une coupure brève se répare au premier essai, une
+                // bascule Wi-Fi→4G au troisième, et un serveur down n'est pas martelé.
+                delay(reconnectDelayMs(attempt))
                 val recovered = runCatching {
                     connectMutex.withLock {
                         if (isReady) return@withLock true
@@ -384,7 +376,7 @@ class ServeRpc(
 
     private fun String.toRequestBody() = this.toRequestBody(JSON_MEDIA_TYPE)
 
-    private companion object {
+    internal companion object {
         /** Les méthodes du gateway qui prennent un profil ; les autres rejettent la clé. */
         val PROFILE_SCOPED = setOf(
             "chat.send", "session.create", "session.list", "session.resume",
@@ -395,18 +387,83 @@ class ServeRpc(
         /**
          * Combien de fois on tente de rouvrir le canal après une coupure.
          *
-         * Trois suffisent : une coupure réseau se répare en quelques secondes, et une reprise
-         * qui échoue trois fois veut dire que le **serveur** est down — mieux vaut une coupure
-         * franche que l'app qui réessaie sans fin.
+         * **Cinq, pas trois.** Trois essais (1 + 2 + 3 s = 6 s) laissaient le canal mourir pour
+         * de bon après six secondes de réseau capricieux — le temps qu'un téléphone passe de la
+         * Wi-Fi à la 4G, ou qu'un écran qui vient de s'éteindre rallume sa radio. Au-delà de cinq
+         * essais étalés (1 + 2 + 4 + 8 + 8 s ≈ 23 s), c'est le serveur qui est down : mieux vaut
+         * une coupure franche qu'une reprise sans fin.
          */
-        const val RECONNECT_ATTEMPTS = 3
+        const val RECONNECT_ATTEMPTS = 5
 
-        /** Le délai entre deux tentatives ; il croît à chaque essai (1 s, 2 s, 3 s). */
+        /**
+         * Le premier délai entre deux tentatives. Il **double** à chaque essai, plafonné à
+         * [RECONNECT_DELAY_CEILING_MS] : 1 s, 2 s, 4 s, 8 s, 8 s. Une coupure brève se répare
+         * sur le premier essai ; une longue n'est pas martelée.
+         */
         const val RECONNECT_DELAY_MS = 1_000L
+
+        /** Le plafond du délai de reprise : au-delà, attendre plus n'aide plus. */
+        const val RECONNECT_DELAY_CEILING_MS = 8_000L
+
+        /**
+         * Le délai avant la tentative numéro [attempt] (1-based).
+         *
+         * Il **double** jusqu'au plafond : 1 s, 2 s, 4 s, 8 s, puis 8 s. L'ancienne formule
+         * (`RECONNECT_DELAY_MS * attempt`) donnait 1 s, 2 s, 3 s — plate, et surtout suivie d'un
+         * abandon : six secondes de patience au total, moins qu'une bascule de réseau.
+         */
+        fun reconnectDelayMs(attempt: Int): Long {
+            var delay = RECONNECT_DELAY_MS
+            repeat((attempt - 1).coerceAtLeast(0)) { delay = (delay * 2).coerceAtMost(RECONNECT_DELAY_CEILING_MS) }
+            return delay
+        }
     }
 }
 
+/**
+ * Le client du WebSocket du Dashboard, **construit à part** du client REST.
+ *
+ * Séparé pour une raison mesurée : le pool du REST porte déjà une connexion h2 (ALPN) vers la
+ * même origine, et un upgrade WebSocket ne passe pas sur h2 — la requête partait sans jamais
+ * atteindre l'origine. Il ne négocie donc que HTTP/1.1, sur son propre pool.
+ *
+ * **Le battement de cœur est le correctif de la lenteur.** Le canal vivait avec
+ * `readTimeout(0)` — aucune échéance de lecture, ce qui est juste pour un flux qui peut rester
+ * muet longtemps (un agent réfléchit) — mais **sans `pingInterval`**, personne ne vérifiait que
+ * la liaison était encore là. Un WebSocket ouvert sur un téléphone traverse un NAT, un tunnel,
+ * une bascule Wi-Fi→4G : le NAT jette l'état de la connexion au bout de quelques minutes
+ * d'inactivité, et le socket meurt alors **en silence**. Côté app, rien ne le voyait — le tour
+ * restait suspendu, ou l'écriture suivante échouait et le tour était déclaré perdu. Côté journal
+ * du gateway, ces coupures s'inscrivent en `1006` : fermeture sans trame de close, la signature
+ * exacte d'un lien mort dont personne ne s'est aperçu.
+ *
+ * À 20 s, OkHttp envoie une trame `ping` ; sans `pong` la liaison est déclarée morte en moins de
+ * 40 s, `onFailure` part, le canal se rouvre tout seul et le tour se rattache (`session.resume`)
+ * au lieu d'attendre indéfiniment. C'est la différence entre « ça rame et ça bug » et une
+ * reconnexion invisible.
+ */
+internal fun dashboardTransportClient(): OkHttpClient = OkHttpClient.Builder()
+    .connectTimeout(20, TimeUnit.SECONDS)
+    .readTimeout(0, TimeUnit.SECONDS)
+    .writeTimeout(30, TimeUnit.SECONDS)
+    .pingInterval(PING_INTERVAL_MS, TimeUnit.MILLISECONDS)
+    .retryOnConnectionFailure(true)
+    .followRedirects(true)
+    .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+    .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.SECONDS))
+    .build()
+
 private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
+/**
+ * Le battement de cœur du canal du Dashboard, en millisecondes.
+ *
+ * **Vingt secondes : c'est la valeur qui rend une coupure invisible.** Plus long, un lien mort
+ * reste cru vivant assez de temps pour qu'un tour paraisse figé ; plus court, on paie une trame
+ * par vingtaine de secondes sur un téléphone en veille pour rien. Sans pong sous deux intervalles,
+ * OkHttp déclare la liaison morte et la reprise se déclenche.
+ */
+internal const val PING_INTERVAL_MS = 20_000L
 
 /**
  * Une notification du Dashboard (`method == "event"`).
