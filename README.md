@@ -18,11 +18,11 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 [![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app/badge.json)](https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app)
 --> 
 
+<img src="docs/promo/onyx-hero.jpg" width="100%" alt="Onyx — an AI team, crafted for you" />
+
 <p>
-  <img src="docs/screenshots/01-chat-room-light.png" width="19%" alt="A room, in the Chat tab" />
-  <img src="docs/screenshots/02-stream-light.png" width="19%" alt="A room, in the Feed tab" />
-  <img src="docs/screenshots/04-list-conversations-light.png" width="19%" alt="The conversation list" />
-  <img src="docs/screenshots/05-settings-notifications-light.png" width="19%" alt="Notification channels" />
+  <img src="docs/promo/onyx-bots.jpg" width="49%" alt="Choose your expert — specialized bots for every task" />
+  <img src="docs/promo/onyx-hands-free.jpg" width="49%" alt="Hands-free control — just speak to your AI" />
 </p>
 
 </div>
