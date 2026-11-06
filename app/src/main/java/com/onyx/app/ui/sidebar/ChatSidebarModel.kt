@@ -320,8 +320,32 @@ internal fun sidebarSubtitle(conversation: Conversation, kind: ActivityKind?, ag
 /** La dernière phrase d'une conversation, sur une ligne — `null` si elle n'en a pas encore. */
 internal fun conversationPreview(conversation: Conversation): String? {
     val last = conversation.messages.lastOrNull { it.text.isNotBlank() } ?: return null
-    val line = last.text.replace(WhitespaceRun, " ").trim()
-    return line.take(PreviewMaxChars).ifBlank { null }
+    val key = PreviewCacheKey(
+        conversationId = conversation.id,
+        messageId = last.id,
+        length = last.text.length,
+        hash = last.text.hashCode(),
+    )
+    PreviewCache[key]?.let { return it.ifEmpty { null } }
+    // On ne nettoie que le début du message (les 512 premiers caractères suffisent largement pour
+    // produire un aperçu de 140 caractères) au lieu de passer un regex sur 30 000 caractères.
+    val raw = if (last.text.length > 512) last.text.substring(0, 512) else last.text
+    val line = raw.replace(WhitespaceRun, " ").trim()
+    val result = line.take(PreviewMaxChars).ifBlank { "" }
+    PreviewCache[key] = result
+    return result.ifEmpty { null }
+}
+
+private data class PreviewCacheKey(
+    val conversationId: String,
+    val messageId: String,
+    val length: Int,
+    val hash: Int,
+)
+
+private val PreviewCache = object : LinkedHashMap<PreviewCacheKey, String>(128, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<PreviewCacheKey, String>?): Boolean =
+        size > 256
 }
 
 /** Ce que la liste montre d'un message : un blanc, jamais un saut de ligne dans la rangée. */

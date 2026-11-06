@@ -254,9 +254,9 @@ internal fun ChatSidebarHost(
     // un geste qui ne se voit pas serait un geste avalé.
     BackHandler(enabled = searching && sidebarState.isOpen) { exitSearch() }
 
-    // L'horloge n'est relue que quand les données changent : les âges du volet ne font pas
-    // recomposer la liste chaque seconde pour un « 12m » qui passe à « 13m ».
-    val now = remember(conversations, bots, groups) { System.currentTimeMillis() / 1000.0 }
+    // L'horloge n'est relue qu'une fois par minute ou quand le nombre de conversations/bots change :
+    // une écriture en cours dans une conversation ne doit pas invalider `now` toutes les 2,5 s.
+    val now = remember(conversations.size, bots.size, groups.size) { System.currentTimeMillis() / 1000.0 }
 
     // **La copie enregistrée.** Hors ligne, le volet dit depuis quand il l'a : la date de **dernière
     // écriture du fichier** des conversations, relue quand la joignabilité change (une seule lecture

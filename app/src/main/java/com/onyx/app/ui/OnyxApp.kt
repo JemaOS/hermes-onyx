@@ -897,8 +897,10 @@ fun OnyxApp() {
         var renameText by remember { mutableStateOf("") }
 
         // Les cartes de départ suivent l'historique sans le relire à chaque recomposition.
-        LaunchedEffect(history, state.messagesSize) {
-            startCards = chatViewModel.startCards()
+        LaunchedEffect(history.size, state.messagesSize) {
+            if (state.messagesSize == 0) {
+                startCards = chatViewModel.startCards()
+            }
         }
 
         val scope = rememberCoroutineScope()
@@ -1803,7 +1805,7 @@ fun OnyxApp() {
         // Unread » écrit 0, « Mark as Read » l'heure courante, et la rangée les lit.
         val conversationMarks = remember { BotActivityStore(context) }
         var unreadMarks by remember { mutableStateOf(emptyMap<String, Double?>()) }
-        LaunchedEffect(history, state.server.configSignature) {
+        LaunchedEffect(history.size, state.conversationId, state.server.configSignature) {
             unreadMarks = history.associate { conversation ->
                 conversation.id to conversationMarks.seen(state.server.configSignature, "conversation:" + conversation.id)
             }
@@ -1857,10 +1859,12 @@ fun OnyxApp() {
         // l'ancien nom : la migration les reporte sur le nom courant, **une seule fois** — le
         // journal des renommages la rend idempotente (la relancer ne rejoue ni n'écrase rien).
         val profileMigration = remember(context) { profileStateMigration(context) }
-        LaunchedEffect(botsState.bots, botsState.hidden, history, botsState.problem) {
+        LaunchedEffect(botsState.bots, botsState.hidden, history.size, state.server.configSignature) {
             val roster = (botsState.bots + botsState.hidden).distinctBy { it.name }
             if (roster.isEmpty()) return@LaunchedEffect
-            val outcome = profileMigration.migrate(roster, state.server.configSignature, history)
+            val outcome = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                profileMigration.migrate(roster, state.server.configSignature, history)
+            }
             outcome.conversations.forEach { updated ->
                 val before = history.firstOrNull { it.id == updated.id }
                 if (before != null && before.title != updated.title) conversationRepo.save(updated)
