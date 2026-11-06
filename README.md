@@ -220,7 +220,7 @@ here that cannot be shown. The full detail is in
 - **The back navigation fixed** — the page you left is no longer lost on the way out of the
   sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`, `AUDIT-FEEDBACK.md`).
 
-**3674 tests, 0 failures.** The three packages — phone, Android Auto and Wear OS — ship in this
+**4345 tests, 0 failures.** The three packages — phone, Android Auto and Wear OS — ship in this
 release.
 
 ## What 1.0.0+547 brought
@@ -494,7 +494,7 @@ copy of the integration tree, so its git history cannot carry the number.
 ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-**3674 tests, 0 failures** — 1703 in `:core`, 1971 in `:app`. Plain JUnit 4, no
+**4345 tests, 0 failures** — 2008 in `:core`, 2337 in `:app`. Plain JUnit 4, no
 emulator: networking runs against an in-memory MockWebServer, so the recipe works offline and takes about
 two minutes. CI runs the same command on every push.
 
