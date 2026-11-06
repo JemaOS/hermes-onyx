@@ -98,6 +98,20 @@ de version dans ce projet, pas dans `build.gradle.kts`.
 
 Google Play reste le seul passage payant (25 $ une fois), et il n'est pas nécessaire pour exister.
 
+## À chaque version
+
+Les deux dépôts lisent la fiche **depuis ce dépôt**, pas depuis une console web. Une version nouvelle
+demande donc un fichier de plus, et rien d'autre :
+
+1. `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` — et le jumeau `fr-FR`, **500
+   caractères au plus** chacun (au-delà, F-Droid tronque) ;
+2. les captures, seulement si l'interface a changé de façon visible ;
+3. une fois F-Droid accepté, `CurrentVersion` et `CurrentVersionCode` se mettent à jour tout seuls
+   (`UpdateCheckMode: Tags`), rien à pousser ailleurs.
+
+IzzyOnDroid de son côté suit la page des versions : un APK publié par `release.sh` est repris à la
+prochaine passe de leur robot.
+
 ## À vérifier avant chaque envoi
 
 ```bash
