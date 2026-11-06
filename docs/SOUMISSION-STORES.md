@@ -43,13 +43,11 @@ no Firebase, no Play Services. It talks to one host only: the Hermes Dashboard t
 runs themselves. Chat with streaming, bots and rooms, hands-free voice, and a live view
 of the user's computer.
 
-One dependency to declare: the optional tip jar screen uses Google's Play Billing library
-(com.android.billingclient 7.1.1). It is the only proprietary component, it is confined to
-that screen, and the app is fully usable without it. Say the word and I will ship a
-billing-free build flavour — it is the same code with that screen replaced by a stub.
+No proprietary dependency: every library is free software (AndroidX, OkHttp, kotlinx,
+Markwon, sshj, ZXing). There is no billing library, no advertising SDK, no crash reporter.
 
-Anti-features: none beyond that. The app requires a self-hosted server to be useful,
-which I mention in the description.
+Anti-features: none. The app requires a self-hosted server to be useful, which I mention
+in the description.
 ```
 
 Izzy vérifie ensuite l'APK, la signature et les métadonnées, puis ajoute l'application à son dépôt.
@@ -83,11 +81,7 @@ Category: Internet
 Build: gradle, `assembleRelease` from the repository root (`subdir: .`), no NDK, no submodules.
 Min SDK 26, target SDK 36. No Firebase, no Play Services.
 
-One thing to fix before inclusion: `com.android.billingclient` (Play Billing) is a dependency of
-the optional tip jar screen (`ui/common/TipJarScreen.kt`). Every other dependency is FOSS. The
-clean fix is a build flavour without it — I can prepare that pull request, with the tip jar
-replaced by a stub in that flavour, if you prefer to wait for it rather than list the app with
-a non-free dependency.
+Every dependency is free software; there is no billing library and no proprietary component.
 
 Release notes: https://github.com/JemaOS/hermes-onyx/releases
 ```
@@ -97,18 +91,21 @@ est déjà la fiche, à copier sous `metadata/com.onyx.app.yml` dans ce dépôt-
 `UpdateCheckData` pour lire `onyx.versionCode` dans `gradle.properties` — c'est là que vit le numéro
 de version dans ce projet, pas dans `build.gradle.kts`.
 
-### Ce qui bloque F-Droid aujourd'hui
+### Ce qui bloquait F-Droid, et qui est réglé
 
-Vérifié sur l'APK publié (1.3.97), pas supposé : `com.android.billingclient` 7.1.1 est une dépendance
-de l'écran de pourboire (`ui/common/TipJarScreen.kt`). C'est la seule bibliothèque non libre du
-projet, et F-Droid refuse une application qui en dépend, même si l'écran est facultatif.
+`com.android.billingclient` 7.1.1 (Play Billing) était la dépendance de l'écran de pourboire
+(`ui/common/TipJarScreen.kt`) : la seule bibliothèque non libre du projet, et F-Droid refuse une
+application qui en dépend, même si l'écran est facultatif.
 
-Deux issues :
+**Réglé en 1.3.98** : le pourboire et la bibliothèque sont retirés, pas contournés. Aucune variante
+de build n'est nécessaire — l'APK publié ne contient plus une seule classe de facturation, et la
+permission `com.android.vending.BILLING` que la bibliothèque injectait au manifeste a disparu avec
+elle. Vérification :
 
-- soit on attend : IzzyOnDroid accepte, F-Droid non, et on reste là ;
-- soit on ajoute une variante de build `foss` sans la bibliothèque — l'écran de pourboire remplacé par
-  un texte, `implementation(libs.billing.ktx)` seulement dans l'autre variante. C'est la voie propre,
-  et le seul travail de code que cette publication demande.
+```bash
+unzip -l app/build/outputs/apk/release/app-release.apk | grep -c billing   # 0
+aapt2 dump permissions app/build/outputs/apk/release/app-release.apk | grep -c BILLING   # 0
+```
 
 Les permissions `READ_CALENDAR`, `WRITE_CALENDAR` et `READ_CONTACTS` déclarées au manifeste viennent
 de l'écran « outils du téléphone » (`ui/settings/PhoneToolsScreen.kt`) : à justifier dans la demande,
