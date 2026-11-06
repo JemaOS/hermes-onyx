@@ -755,8 +755,10 @@ private fun ThinkingFold(message: ChatMessage, isLive: Boolean) {
     // texte qui peut faire des milliers de caractères, refaits à chaque composition du bloc — donc
     // à chaque image pendant qu'on fait défiler. Le résultat ne dépend que de ces deux valeurs.
     val appIsFrench = OnyxLocalization.isFrench()
-    val foreign = remember(message.reasoning, appIsFrench) {
-        reasoningLooksForeign(message.reasoning, appIsFrench)
+    // On n'inspecte que le début du raisonnement : la langue se décide dès la première phrase,
+    // et figer la clé à 320 caractères évite de re-découper tout le texte à chaque jeton.
+    val foreign = remember(message.id, message.reasoning.length.coerceAtMost(320), appIsFrench) {
+        reasoningLooksForeign(message.reasoning.take(320), appIsFrench)
     }
     // **L'annonce en petites capitales** : 11 sp SemiBold, interlettrage +0,08 em — la métrique du
     // libellé de section de la maison —, à l'encre mesurée ([reasoningInk]).
@@ -886,6 +888,7 @@ private fun ReasoningDetail(message: ChatMessage, isLive: Boolean) {
     var expanded by remember(message.id) { mutableStateOf(false) }
     val full = if (isLive) tail(message.reasoning, 360) else message.reasoning
     val long = reasoningIsLong(full)
+    val displayed = if (long && !expanded) head(full, ReasoningBlock.CollapsedLines + 1) else full
     // **Le corps secondaire** : la méta de l'échelle, à l'interligne confortable — c'est une page
     // à lire, pas un compteur.
     val body = theme.footnote.copy(
@@ -917,14 +920,24 @@ private fun ReasoningDetail(message: ChatMessage, isLive: Boolean) {
                 }
                 .padding(start = ReasoningBlock.RailWidth + ReasoningBlock.TextIndent),
         ) {
-            SelectableText(
-                text = full,
-                localize = false,
-                style = body,
-                maxLines =
-                    if (long && !expanded) ReasoningBlock.CollapsedLines else Int.MAX_VALUE,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (isLive || (long && !expanded)) {
+                BasicText(
+                    text = displayed,
+                    localize = false,
+                    style = body,
+                    maxLines =
+                        if (long && !expanded) ReasoningBlock.CollapsedLines else Int.MAX_VALUE,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                SelectableText(
+                    text = displayed,
+                    localize = false,
+                    style = body,
+                    maxLines = Int.MAX_VALUE,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (long) {
                 ReasoningLengthControl(expanded = expanded, onToggle = { expanded = !expanded })
             }

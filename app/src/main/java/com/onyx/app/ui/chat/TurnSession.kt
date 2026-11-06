@@ -163,6 +163,15 @@ class TurnSession(
     private var lastTextPublishAt: Long = 0L
     private var pendingText: Boolean = false
 
+    /**
+     * Le raisonnement du modèle, accumulé de la même façon dans un tampon pour éviter de recopier
+     * `message.reasoning + event.text` (O(n²)) et de réveiller l'écran à chaque fragment de pensée.
+     */
+    private val reasoningBuffer = StringBuilder()
+    private var lastReasoningPublishAt: Long = 0L
+    private var pendingReasoning: Boolean = false
+    private var firstReasoningAt: Long? = null
+
     /** La raison de l'échec, quand le tour a échoué. */
     var failure: TransportError? = null
         private set
@@ -229,15 +238,7 @@ class TurnSession(
                 if (StreamLeak.looksLikeLeak(event.text)) {
                     touch(now)
                 } else {
-                    val message = _live.value.message
-                    update(
-                        message.copy(
-                            reasoning = message.reasoning + event.text,
-                            reasoningStartedAt = message.reasoningStartedAt ?: now,
-                            metrics = message.metrics?.withFirstToken(now),
-                        ),
-                    )
-                    step(TurnStep.THINKING, now)
+                    reasoning(event.text, now)
                 }
             }
 
@@ -365,10 +366,40 @@ class TurnSession(
     }
 
     /**
+     * Un fragment de raisonnement, accumulé dans [reasoningBuffer] et publié à la cadence de
+     * l'écran ([TEXT_PUBLISH_MS]).
+     */
+    private fun reasoning(incoming: String, now: Long) {
+        val message = _live.value.message
+        if (reasoningBuffer.isEmpty() && message.reasoning.isNotEmpty()) {
+            reasoningBuffer.append(message.reasoning)
+        }
+        reasoningBuffer.append(incoming)
+        val started = firstReasoningAt ?: message.reasoningStartedAt ?: now
+        firstReasoningAt = started
+        if (lastReasoningPublishAt != 0L && now - lastReasoningPublishAt < TEXT_PUBLISH_MS) {
+            pendingReasoning = true
+            step(TurnStep.THINKING, now)
+            return
+        }
+        lastReasoningPublishAt = now
+        pendingReasoning = false
+        update(
+            message.copy(
+                reasoning = reasoningBuffer.toString(),
+                reasoningStartedAt = started,
+                metrics = message.metrics?.withFirstToken(now),
+            ),
+        )
+        step(TurnStep.THINKING, now)
+    }
+
+    /**
      * Un fragment de réponse. Un fragment qui **répète le message de l'utilisateur** n'est pas une
      * réponse : c'est un écho du tour, et il est jeté au lieu d'être peint comme la réponse du bot.
      */
     private fun text(incoming: String, now: Long, replaces: Boolean = false) {
+        if (pendingReasoning) flushText(now)
         if (isPromptEcho(incoming)) {
             _live.update {
                 it.copy(
@@ -421,14 +452,29 @@ class TurnSession(
     }
 
     /**
-     * Publie le texte accumulé, s'il en reste. Appelée sur les événements structurels (fin
-     * d'outil, fin de tour) : l'écran ne doit jamais finir sur un tampon non peint.
+     * Publie le texte et le raisonnement accumulés, s'il en reste. Appelée sur les événements
+     * structurels (fin d'outil, fin de tour) : l'écran ne doit jamais finir sur un tampon non peint.
      */
     fun flushText(now: Long = System.currentTimeMillis()) {
-        if (!pendingText) return
+        if (!pendingText && !pendingReasoning) return
+        val writeText = pendingText
+        val writeReasoning = pendingReasoning
         pendingText = false
-        lastTextPublishAt = now
-        update(_live.value.message.copy(text = body.toString()))
+        pendingReasoning = false
+        if (writeText) lastTextPublishAt = now
+        if (writeReasoning) lastReasoningPublishAt = now
+        val current = _live.value.message
+        update(
+            current.copy(
+                text = if (writeText) body.toString() else current.text,
+                reasoning = if (writeReasoning) reasoningBuffer.toString() else current.reasoning,
+                reasoningStartedAt = if (writeReasoning) {
+                    current.reasoningStartedAt ?: firstReasoningAt ?: now
+                } else {
+                    current.reasoningStartedAt
+                },
+            ),
+        )
     }
 
     /**
@@ -548,10 +594,10 @@ class TurnSession(
 
         /**
          * L'épaisseur d'un palier d'écriture : le texte en cours n'est réécrit sur disque que tous
-         * ces caractères. 256 tient une phrase courte, et garde la réécriture complète du fichier
-         * loin du rythme des jetons.
+         * ces caractères. 1024 garde la réécriture complète du fichier loin du rythme des jetons,
+         * et la fin du tour écrit de toute façon le texte complet.
          */
-        const val PERSIST_STEP = 256
+        const val PERSIST_STEP = 1024
 
         /**
          * L'intervalle minimal entre deux publications du texte à l'écran (millisecondes).
