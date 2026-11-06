@@ -61,8 +61,16 @@ class ConversationRepository(
             // **L'écrivain unique.** Chaque demande est suivie d'une courte fenêtre qui laisse la
             // rafale se tasser ; le canal étant fusionné, tout ce qui arrive pendant ce temps ne
             // fait qu'une entrée — et l'écriture prend l'état **courant**, pas celui de la demande.
+            // **La fenêtre suit le prix de l'écriture.** Le magasin tient toutes les conversations
+            // dans un seul JSON : une sauvegarde resérialise et réécrit **tout**. Mesuré
+            // (`ConversationWriteCostTest`) : une conversation de 60 outils pèse 256 Kio et coûte
+            // 7 ms ; vingt-cinq de ces conversations pèsent 6,4 Mio et coûtent 33 ms. À fenêtre fixe
+            // (250 ms), un tour qui lance 60 outils en déclenchait quatre par seconde — 130 ms de CPU
+            // et 26 Mio de disque par seconde, pendant que la personne lit. La fenêtre s'allonge donc
+            // avec le nombre de messages à écrire : on sauvegarde moins souvent quand sauvegarder
+            // coûte plus cher.
             for (request in writeRequests) {
-                delay(WRITE_SETTLE_MILLIS)
+                delay(writeSettleMillis(_conversations.value.sumOf { it.messages.size }))
                 writeLock.withLock { writeFile() }
             }
         }
@@ -399,6 +407,25 @@ class ConversationRepository(
  * longue pour qu'une rafale de publications (un tour, dix étapes d'outil) ne coûte qu'une écriture.
  */
 internal const val WRITE_SETTLE_MILLIS = 250L
+
+/**
+ * **Combien de temps les demandes d'écriture se fondent, selon ce qu'il y a à écrire.**
+ *
+ * Le magasin n'a qu'un fichier : une sauvegarde resérialise et réécrit **toutes** les
+ * conversations. Son prix suit donc le nombre de messages, pas la taille du changement. À fenêtre
+ * fixe, une grosse installation payait le même rythme qu'une petite — quatre écritures par seconde
+ * pendant un tour qui lance soixante outils.
+ *
+ * La fenêtre part de [WRITE_SETTLE_MILLIS] et s'allonge de 4 ms par message, plafonnée à
+ * [WRITE_SETTLE_CEILING_MILLIS] : sur un fichier de 300 messages (6,4 Mio, 33 ms d'écriture), deux
+ * écritures par seconde au plus. Le tour finit par `flush()`, et la mise en arrière-plan aussi —
+ * rien de ce qui doit être sur le disque n'attend cette fenêtre.
+ */
+internal fun writeSettleMillis(messageCount: Int): Long =
+    (WRITE_SETTLE_MILLIS + messageCount.coerceAtLeast(0) * 4L).coerceAtMost(WRITE_SETTLE_CEILING_MILLIS)
+
+/** Le plafond de la fenêtre : au-delà, on n'attend plus, on écrit. */
+internal const val WRITE_SETTLE_CEILING_MILLIS = 1_200L
 
 /** Le titre d'une branche : celui de son originale plus « (fork) », comme la référence. */
 internal fun forkTitle(title: String): String = "$title${Conversation.ForkSuffix}"
