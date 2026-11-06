@@ -2710,7 +2710,16 @@ private fun SidebarFooter(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+            // **Le pied respire.** Il était collé au geste Android : 12 dp sous la pastille, et le
+            // geste (dont l'encart peut être nul sur certains appareils) passait juste dessous.
+            // Le pied prend donc une marche franche sous le bouton, et un peu plus d'air au-dessus
+            // de la liste — le bouton « Nouvelle conversation » ne touche plus le bord.
+            .padding(
+                start = OnyxSpace.Snug,
+                end = OnyxSpace.Snug,
+                top = OnyxSpace.Snug,
+                bottom = OnyxSpace.Loose,
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(OnyxBase.Tight),
     ) {
