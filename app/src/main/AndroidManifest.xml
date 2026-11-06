@@ -57,6 +57,13 @@
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Onyx">
 
+        <!-- **Profilable, sans être débuggable.** `profileable` laisse `simpleperf` échantillonner
+             une **release minifiée** (ce que `debuggable="true"` ne permet pas sans changer le code
+             exécuté) : c'est la seule façon de nommer les fonctions qui chauffent sur l'appareil, au
+             lieu de deviner d'après des compteurs de trames. Aucun coût à l'exécution, aucune
+             surface ouverte : l'échantillonnage reste soumis à l'autorisation `adb shell`. -->
+        <profileable android:shell="true" />
+
         <!-- `smallestScreenSize` **doit** être déclaré : c'est la dimension que le pliage change (le
              pliable replié fait ~411 dp de large, déplié ~862), et un changement de configuration
              non déclaré fait **relancer** l'activité — l'app revenait donc au fil, la page ouverte
