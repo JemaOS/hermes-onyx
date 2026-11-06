@@ -1,70 +1,58 @@
 # Hermes Onyx 1.3.85
 
-Trois défauts signalés sur la carte de prise en main, et un sur le renommage d'un bot. Les quatre
-sont corrigés ici, et le refus est maintenant une décision qui **tient**.
+Renommer un bot ne doit renommer que lui. C'est le contraire qui se passait.
 
-## « Refuser » ne se voyait pas
+## Le défaut
 
-Le bouton existait, peint avec la couleur par défaut du style : sur le fond de la carte, elle se
-confondait avec le noir. On lisait « Refuser » comme une salissure à côté du bouton d'accent.
+« J'ai changé le nom de ce bot, ça change tous les bots coders le nom aussi. »
 
-Il porte maintenant **le filet de la maison** (`OnyxEdge.fil`, 12 %) et l'encre du texte — un
-contour, une couleur lisible, la même cible tactile que « Prendre la main ». Le verrou du trait
-(`OnyxEdgeLockTest`) garde la règle : aucun contour au-dessus du jeton, aucune encre de texte
-prise pour une bordure.
+Le titre d'une conversation de bot **est** une copie du nom de ce bot — c'est ce qui la rattache à
+lui quand le serveur ne donne pas de session canonique. La règle de renommage s'appuyait sur cette
+copie : *toute* conversation dont le titre valait l'ancien nom suivait. Deux bots au même libellé,
+ou les fils d'un bot écrits sous le nom d'un autre, partaient donc ensemble.
 
-## Un refus, ça se retient
+## Ce qui change
 
-Refuser ne servait à rien. La carte tombait, puis :
+**Le bot se reconnaît par son identité, plus par son libellé.**
 
-- le sondage suivant la faisait revenir (l'app oubliait le refus dès que le serveur vidait
-  `pending`) ;
-- et au tour d'après — un prompt réécrit suffisait — l'agent **rappelait l'outil**, qui publiait
-  une demande neuve avec un identifiant neuf. Rien ne reliait cette demande au refus.
-
-Le refus est maintenant retenu **aux deux bouts** :
-
-| Où | Ce qui est retenu | Portée |
+| Ce qui désigne le bot | Avant | Maintenant |
 |---|---|---|
-| Plugin (`lease` → `decline`) | la conversation + la page où l'on a dit non | 30 min ; l'outil répond `declined` sans publier de carte |
-| App (`TakeoverDeclines`) | la demande refusée | toute l'application, pas un fil |
+| son profil (`botProfile`) | oui | oui |
+| la session que le serveur lui donne | non | oui — c'est la seule preuve pour les fils écrits avant `botProfile` |
+| son ancien titre | **oui** | non |
 
-Conséquence : refuser une fois suffit. La question ne revient ni dans ce fil, ni dans un autre, ni
-au prompt suivant. Un autre site, ou une autre conversation, reste une demande légitime.
+Un fil qui ne peut pas être prouvé comme appartenant à ce bot n'est pas touché.
 
-## La carte ne suit plus dans les autres conversations
+**Et un fil que vous avez nommé vous-même garde son nom.** « Refonte du parser » reste « Refonte du
+parser » : le renommage d'un bot ne réécrit que les titres qui n'étaient rien d'autre que son nom.
 
-L'app devinait à quel fil la demande appartenait (la conversation vivante passait devant). Le
-serveur, lui, **savait** : le tour qui appelle l'outil a une session (`HERMES_SESSION_ID`).
+## Ce qui était déjà écrit
 
-`onyx-browser/health` publie désormais `pending.session`, la conversation qui a demandé la main.
-L'app compare ce champ à la session du fil et n'affiche la carte que là. Le rattachement par
-conversation vivante ne sert plus qu'aux serveurs qui ne publient pas ce champ.
+Corriger la règle ne nettoie pas les dégâts : sur le téléphone, les fils salis portaient déjà le
+nouveau nom. La liste les remet d'aplomb à l'affichage, sans rien réécrire sur le disque :
 
-## Renommer un bot ne renomme plus les autres
+- le titre est le libellé **vivant** du bot de la conversation, lu sur le roster ;
+- un titre qui est le libellé d'un **autre** bot est un dégât collatéral → il reprend le nom de son
+  propre bot ;
+- tout autre titre est un choix du propriétaire → il n'est pas touché.
 
-Le titre d'une conversation de bot **est** le nom du bot, et c'est par lui qu'elle se rattache à
-lui. Mais la règle de report retombait sur le **titre** pour les conversations écrites avant
-`botProfile` : deux bots portant le même libellé — ou les fils d'un bot créés sous le nom d'un
-autre — partaient ensemble. Renommer un bot changeait le nom des autres.
+Rien n'est deviné quand le roster est absent : la ligne garde alors son titre enregistré.
 
-Désormais :
+## Au passage
 
-- seules les conversations **de ce bot** suivent — par son profil, ou par la session que le
-  serveur lui donne ;
-- un fil que la personne a nommé elle-même garde son nom : le renommage ne réécrit pas ce qu'elle
-  a écrit.
+Le bouton **Refuser** de la carte de prise en main dessinait son contour à 30 % d'encre —
+au-dessus du plafond de 12 % que la maison tient pour tous les traits (`OnyxEdgeLockTest` le
+refusait). Il porte maintenant le jeton.
 
 ## Vérifié
 
-- `:core:testDebugUnitTest` + `:app:testDebugUnitTest` : **4303 tests, 0 échec** (1 ignoré).
-- `BotRenamePropagationTest` : 6 cas, dont « une conversation d'un autre bot qui portait le même
-  titre ne bouge pas » et « un fil nommé par le propriétaire garde son nom ».
-- `selftest.py` du plugin : **tout est vert**, y compris les quatre nouveaux cas du refus retenu
-  (retenu, borné à sa page, borné à sa conversation, l'ancre ne crée pas une seconde page) — et
-  les trois cas de trame/viewport qui ne suivaient plus le passage au viewport annoncé par l'app.
-- `py_compile` sur `server.py`, `tools.py`, `session.py`.
+- `BotRenamePropagationTest` : **6 tests**, dont 4 nouveaux — deux bots au même libellé, un fil d'un
+  autre profil, un fil nommé par le propriétaire.
+- `SidebarTitleTest` : **6 tests** sur le calcul de titre (dégât réparé, titre choisi intact, profil
+  inconnu, roster absent).
+- `:app:testDebugUnitTest` : **2317 tests, 0 échec** ; `:core:testDebugUnitTest`, `OnyxEdgeLockTest`
+  verts.
+- `:app:assembleRelease`, `:wear:assembleRelease`, `:auto:assembleRelease` : trois APK signés
+  (`apksigner verify` OK, même clé debug que les versions précédentes).
 
-**Non vérifié** : rien de tout cela n'a été exercé sur un appareil. Une prise en main réelle, un
-refus réel, et un renommage réel depuis le téléphone restent à faire — c'est prouvé par les tests
-JVM et par l'exécution du code du plugin, pas par un geste sur l'écran.
+**Non vérifié** : rien de tout cela n'a été exercé sur un téléphone.
