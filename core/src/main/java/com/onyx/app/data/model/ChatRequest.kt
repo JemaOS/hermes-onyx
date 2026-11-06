@@ -26,4 +26,6 @@ data class ChatRequest(
     val returnProgress: Boolean = false,
     /** API Hermes : demande le tier rapide pour ce tour de cette conversation. */
     val fast: Boolean = false,
+    /** Session côté gateway (`HERMES_SESSIONS`), pour reprendre la session existante sans renvoyer tout le fil. */
+    val sessionId: String? = null,
 )

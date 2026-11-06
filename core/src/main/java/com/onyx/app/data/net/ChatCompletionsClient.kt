@@ -84,6 +84,10 @@ class ChatCompletionsClient(
                         scope.close(TransportError.Http(response.code, body))
                         return@use
                     }
+                    response.header(SESSION_HEADER)
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { scope.send(TurnEvent.SessionId(it)) }
                     StreamPump(json, scope).pump(response)
                 }
             } catch (error: IOException) {
@@ -197,6 +201,7 @@ class ChatCompletionsClient(
             request.history.forEach { add(it.toWireMessage()) }
         }
 
+        val sessionId = request.sessionId?.trim()?.takeIf { it.isNotEmpty() }
         val payload = ChatRequestBody(
             model = request.model ?: config.effectiveModel ?: "",
             messages = messages,
@@ -205,6 +210,7 @@ class ChatCompletionsClient(
             returnProgress = if (request.returnProgress) true else null,
             reasoningEffort = request.reasoningEffort,
             modelOptions = chatModelOptions(request),
+            sessionId = sessionId,
             chatTemplateKwargs = if (request.reasoningEffort == null || request.reasoningEffort == "none") {
                 null
             } else {
@@ -228,6 +234,16 @@ class ChatCompletionsClient(
             .apply {
                 val key = config.effectiveApiKey.trim()
                 if (key.isNotEmpty()) header("Authorization", "Bearer $key")
+                // La reprise de session n'existe que sur un serveur qui **authentifie** : sans clé,
+                // l'API refuse l'en-tête (`403 Session continuation requires API key
+                // authentication`) et un tour qui partait se casserait là. Pas de clé, pas
+                // d'en-tête — le fil part complet, comme avant.
+                //
+                // Le profil, lui, n'est pas posé ici : l'intercepteur de `OnyxHttp.clientFor`
+                // s'en charge et se **souvient** d'un serveur qui refuse l'en-tête (401), alors
+                // qu'un en-tête écrit ici survivait à ce repli — le serveur le refusait à chaque
+                // requête, indéfiniment.
+                if (sessionId != null && key.isNotEmpty()) header(SESSION_HEADER, sessionId)
             }
             .build()
     }
@@ -563,6 +579,9 @@ class ChatCompletionsClient(
         } catch (error: Exception) {
             return
         }
+        status.sessionId?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            scope.send(TurnEvent.SessionId(it))
+        }
         val text = status.text?.trim().orEmpty()
         if (text.isEmpty()) return
         val error = status.kind?.lowercase()?.contains("error") == true
@@ -678,6 +697,7 @@ class ChatCompletionsClient(
     private data class HermesStatus(
         val kind: String? = null,
         val text: String? = null,
+        @SerialName("session_id") val sessionId: String? = null,
     )
 
     @Serializable
@@ -701,6 +721,7 @@ class ChatCompletionsClient(
          * reste un ordre explicite (`POST /v1/runs/{id}/stop`).
          */
         const val KEEP_RUNNING_HEADER = "X-Hermes-Keep-Running"
+        const val SESSION_HEADER = "X-Hermes-Session-Id"
 
         private const val DONE_SENTINEL = "[DONE]"
         private const val HERMES_TOOL_PROGRESS_EVENT = "hermes.tool.progress"

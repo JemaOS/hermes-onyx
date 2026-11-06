@@ -567,19 +567,27 @@ class TurnSession(
 }
 
 /**
- * Ce que le fil dit d'un tour en cours — toujours une ligne, jamais une onde muette.
+ * Ce que le fil dit d'un tour en cours.
  *
- * Le temps écoulé vient du tour lui-même ; l'étape est la dernière que le serveur a fait
- * connaître. Sans nouvelle depuis un délai anormal, la ligne le dit.
+ * Au départ, l'envoi est instantané : seuls les points de pulsation battent, sans afficher
+ * « En attente du serveur » dès la première milliseconde. Si le serveur met plus de
+ * [STARTING_SILENCE_MS] à envoyer son premier signe de vie, ou dès qu'une étape commence
+ * (réflexion, outil, rédaction), la ligne le dit avec le temps écoulé.
  */
 object TurnStatusCopy {
+    /**
+     * Délai pendant lequel un tour qui vient d'être envoyé reste discret (seuls les points
+     * d'activité pulsent, sans afficher « En attente du serveur »).
+     */
+    const val STARTING_SILENCE_MS = 10_000L
+
     /**
      * L'état est un avertissement : le serveur se tait depuis un délai anormal, ou il a renvoyé
      * le message de l'utilisateur au lieu d'y répondre.
      */
     fun isWarning(phase: TurnPhase, now: Long): Boolean = phase.isStreaming && (phase.stalled(now) || phase.echoedPrompt)
 
-    /** La ligne d'état, ou `null` quand le tour n'a plus rien à dire (fini). */
+    /** La ligne d'état, ou `null` quand le tour n'a rien à ajouter (départ instantané ou tour fini). */
     fun line(phase: TurnPhase, now: Long): String? {
         if (!phase.isStreaming) return null
         val elapsed = TurnMetrics.format(phase.elapsedSeconds(now))
@@ -599,6 +607,8 @@ object TurnStatusCopy {
             phase.step == TurnStep.THINKING -> OnyxLocalization["Thinking"]
 
             phase.step == TurnStep.WRITING -> OnyxLocalization["Writing the reply"]
+
+            phase.step == TurnStep.STARTING && now - phase.startedAt < STARTING_SILENCE_MS -> return null
 
             else -> OnyxLocalization["Waiting for the server"]
         }

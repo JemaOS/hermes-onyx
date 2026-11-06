@@ -30,12 +30,16 @@ class TurnSessionTest {
         )
 
     @Test
-    fun `un tour qui n'a rien recu dit qu'il attend le serveur, avec le temps ecoule`() {
+    fun `un tour qui n'a rien recu reste discret au depart puis dit qu'il attend le serveur si cela dure`() {
         val session = session()
         val phase = session.phase
 
         assertEquals(TurnStep.STARTING, phase.step)
         assertTrue(phase.isStreaming)
+        assertNull(
+            "l'envoi d'un prompt est instantané : pas de mention 'En attente du serveur' au départ",
+            TurnStatusCopy.line(phase, 3_000L),
+        )
         assertEquals(22.0, phase.elapsedSeconds(23_000L), 0.001)
         assertEquals(
             "En attente du serveur · 22,0 s",

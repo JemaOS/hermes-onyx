@@ -64,6 +64,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -164,6 +166,38 @@ class ChatViewModel(
     private var rpc: com.onyx.app.data.net.ServeRpc? = null
 
     /**
+     * Le verrou d'un envoi : les pièces jointes s'encodent hors du fil principal, donc deux
+     * envois rapprochés peuvent se croiser — sans lui, une grosse photo pourrait faire partir
+     * le second message avant le premier.
+     */
+    private val sendGate = Mutex()
+
+    /**
+     * Le canal du Dashboard, **préchauffé**.
+     *
+     * `ServeRpc.connect()` fait le login puis demande un ticket WebSocket : deux allers-retours
+     * qui, payés au moment du premier envoi, faisaient attendre chaque premier message. On les
+     * paie ici, dès que le serveur (ou le profil du bot) est connu ; `connect()` ne fait rien si
+     * le canal est déjà ouvert, et le tour le trouve prêt.
+     */
+    private fun preheatServe(server: ServerConfig) {
+        if (server.transport != Transport.HERMES_SERVE) return
+        val channel = rpc ?: ServeRpc(server).also { rpc = it }
+        viewModelScope.launch { runCatching { channel.connect() } }
+    }
+
+    /**
+     * Lâche le canal : il portait la configuration d'un autre serveur ou d'un autre profil.
+     *
+     * Sans cela, le canal d'un bot servait le tour du bot suivant — même adresse, autre profil —
+     * et la session partait sous le mauvais nom.
+     */
+    private fun dropServeChannel() {
+        rpc?.close()
+        rpc = null
+    }
+
+    /**
      * L'identifiant **runtime** de la session ouverte sur le Dashboard, celui sous lequel le
      * gateway l'enregistre. `subagent.list` / `.tail` / `.steer` / `.interrupt` le cherchent ;
      * l'identifiant conservé côté app (`serverSessionId`) n'est qu'une clé de reprise.
@@ -208,6 +242,9 @@ class ChatViewModel(
                     // Les tours de l'ancien serveur n'ont plus personne à qui répondre : ils sont
                     // arrêtés (l'hôte est prévenu), pas abandonnés.
                     turns.stopAll()
+                    // Le canal du Dashboard appartenait à l'ancien serveur : il ne peut pas
+                    // servir le nouveau.
+                    dropServeChannel()
                     settledTurns.clear()
                     queued.clear()
                     retryJob?.cancel()
@@ -243,6 +280,9 @@ class ChatViewModel(
                 // Les compétences vivent dans le profil : un autre serveur, un autre profil ou
                 // d'autres identifiants changent la liste des commandes « / ».
                 refreshSlashCommands()
+                // Le canal du Dashboard se préchauffe pour **ce** serveur (sans effet sur les
+                // autres transports) : le premier envoi ne paie plus le login ni le ticket.
+                preheatServe(server)
             }
         }
         // La conversation la plus récente pour ce serveur, une seule fois, s'il y en a une.
@@ -1004,7 +1044,12 @@ class ChatViewModel(
                 serverSessionId = conversation.serverSessionId,
                 // Les cartes d'une réponse relue sont retrouvées depuis ses appels d'outil quand
                 // elles n'ont pas été enregistrées (`ReplyCards.resolve`, comme référence).
-                messages = ReplyCards.resolve(conversation.messages).map { message -> message.copy(isStreaming = false) },
+                messages = ReplyCards.resolve(conversation.messages)
+                    // La copie ne se fait que pour le message qui portait le drapeau : sur un fil
+                    // de cinq cents messages, `map { it.copy(...) }` allouait cinq cents objets à
+                    // chaque ouverture, et la liste neuve ne pouvait plus être reconnue
+                    // « inchangée » par le dépôt — le fichier repartait pour rien.
+                    .map { message -> if (message.isStreaming) message.copy(isStreaming = false) else message },
                 input = drafts.get(conversation.id),
                 queued = queued.items,
                 conversationName = conversationName,
@@ -1220,7 +1265,13 @@ class ChatViewModel(
         _state.update { if (it.botProfile == clean) it else it.copy(botProfile = clean) }
         // Les compétences sont celles **du profil** : changer de bot change la liste des
         // commandes « / » (celles d'un profil ne sont pas celles d'un autre).
-        if (changed) refreshSlashCommands()
+        if (changed) {
+            // Le canal portait le profil du bot précédent : le tour suivant serait parti sous
+            // **ce** nom-là. On le lâche, et on préchauffe celui du profil qui vient d'être choisi.
+            dropServeChannel()
+            preheatServe(com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, clean))
+            refreshSlashCommands()
+        }
         // **Le bot se retient avec la conversation.** Sans cette ligne, l'app ne sait plus, au
         // redémarrage, que cette conversation est celle de « coder » : le roster arrive après
         // l'écran, et l'en-tête montrait Onyx — visage bleu, « @default » — le temps de deux
@@ -1869,23 +1920,36 @@ class ChatViewModel(
 
         // Les images partent en data URL ; un texte joint est ajouté au message, comme la note
         // que l'app de référence écrit pour un fichier.
-        val images = attachments.filter { it.isImage }.mapNotNull { encodeImage(it.uri) }
-        val fileNotes = attachments.filterNot { it.isImage }.mapNotNull { readTextAttachment(it.uri, it.name) }
-        val fullText = if (fileNotes.isEmpty()) text else text + "\n\n" + fileNotes.joinToString("\n\n")
-
         if (outgoing == null) _state.update { it.copy(attachments = emptyList()) }
 
-        val request = ChatRequest(
-            history = history + ChatTurn(role = Role.USER, text = fullText, images = images),
-            instructions = SettingsRepository.replyInstruction(settings.replyLanguage.value),
-            model = modelOverride ?: state.modelInForce,
-            provider = server.effectiveProvider,
-            reasoningEffort = settings.reasoningEffort.value.takeIf { it.isNotEmpty() },
-            fast = server.transport == Transport.HERMES_SESSIONS &&
-                serverSessionId?.let { runControls.isFast(server.configSignature, it) } == true,
-        )
-        lastRequest = request
-        startStream(server, request, assistantId, prompt = fullText)
+        // **Le disque ne fait pas attendre l'écran.** Réduire une photo et l'encoder en data URL,
+        // ou lire un fichier joint, c'est du disque et du CPU (jusqu'à [MAX_INLINE_IMAGE] avant
+        // réduction) : fait ici, ce travail retardait le départ du tour d'autant, alors que la
+        // bulle est déjà à l'écran et que la personne a vu son message partir. Le tour part donc
+        // d'une coroutine ; le verrou garde l'ordre de deux envois rapprochés.
+        viewModelScope.launch {
+            sendGate.withLock {
+                val parts = withContext(Dispatchers.IO) {
+                    attachments.filter { it.isImage }.mapNotNull { encodeImage(it.uri) } to
+                        attachments.filterNot { it.isImage }.mapNotNull { readTextAttachment(it.uri, it.name) }
+                }
+                val images = parts.first
+                val fileNotes = parts.second
+                val fullText = if (fileNotes.isEmpty()) text else text + "\n\n" + fileNotes.joinToString("\n\n")
+
+                val request = ChatRequest(
+                    history = history + ChatTurn(role = Role.USER, text = fullText, images = images),
+                    instructions = SettingsRepository.replyInstruction(settings.replyLanguage.value),
+                    model = modelOverride ?: state.modelInForce,
+                    provider = server.effectiveProvider,
+                    reasoningEffort = settings.reasoningEffort.value.takeIf { it.isNotEmpty() },
+                    fast = server.transport == Transport.HERMES_SESSIONS &&
+                        serverSessionId?.let { runControls.isFast(server.configSignature, it) } == true,
+                )
+                lastRequest = request
+                startStream(server, request, assistantId, prompt = fullText)
+            }
+        }
     }
 
     /**

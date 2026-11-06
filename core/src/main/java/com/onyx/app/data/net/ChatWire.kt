@@ -33,6 +33,15 @@ internal data class ChatRequestBody(
     /** Options de l'API Hermes, notamment `fast` pour le tier prioritaire. */
     @SerialName("model_options") val modelOptions: JsonObject? = null,
     /**
+     * La session reprise (`HERMES_SESSIONS`), **en plus** de l'en-tête `X-Hermes-Session-Id`.
+     *
+     * L'en-tête est le contrat de l'API ; le corps est la ceinture : un relais qui ne recopie
+     * pas les en-têtes personnalisés laisse au moins celui-ci. Ce champ ne part **que** quand une
+     * session est connue, donc jamais vers un serveur OpenAI-compatible ordinaire, et le gateway
+     * ignore les champs du corps qu'il ne lit pas.
+     */
+    @SerialName("session_id") val sessionId: String? = null,
+    /**
      * Le gabarit de conversation : les endpoints auto-hébergés (vLLM, llama.cpp) s'en servent
      * pour activer le raisonnement, comme le fait l'app de référence.
      */
