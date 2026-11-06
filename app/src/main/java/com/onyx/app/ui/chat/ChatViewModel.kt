@@ -94,6 +94,15 @@ private const val SlashWaitTimeoutMs = 10 * 60 * 1000L
 private const val IMPORT_RETRY_FIRST_MS = 3_000L
 private const val IMPORT_RETRY_CEILING_MS = 60_000L
 
+/**
+ * Combien de canaux du Dashboard restent ouverts, un par profil de bot.
+ *
+ * Trois : le bot qu'on quitte, celui qu'on ouvre et le suivant se croisent souvent (aller-retour
+ * entre deux bots, un troisième dans la conversation). Au-delà, le plus ancien se referme — un
+ * socket oublié coûte autant qu'un handshake raté.
+ */
+private const val ServeChannelLimit = 3
+
 class ChatViewModel(
     application: Application,
     private val servers: ServerRepository,
@@ -162,8 +171,49 @@ class ChatViewModel(
     /** Ancienneté initiale des tours sortis de la file, par bulle de réponse. */
     private val heldSince = mutableMapOf<String, Long>()
 
-    /** Le canal JSON-RPC du Dashboard : c'est lui qui porte les commandes « / ». */
-    private var rpc: com.onyx.app.data.net.ServeRpc? = null
+    /**
+     * **Les canaux du Dashboard, gardés ouverts — un par (serveur, profil).**
+     *
+     * Un `ServeRpc` fige son profil ; c'est pourquoi un seul champ ne suffisait pas. Jeter le canal
+     * à chaque changement de bot repayait un login, un ticket et une montée de WebSocket **à chaque
+     * passage** — et l'aller-retour de retour coûtait autant que l'aller. Un canal par profil tient
+     * donc la conversation de chaque bot prête : changer de bot, c'est prendre un socket déjà
+     * ouvert, et y revenir ne repaie rien.
+     *
+     * Trois canaux au plus ([ServeChannelLimit]) : au-delà, le plus ancien se referme. La clé est
+     * [serveChannelKey] — l'adresse et les identifiants y entrent, le modèle non.
+     */
+    private val serveChannels =
+        object : LinkedHashMap<String, com.onyx.app.data.net.ServeRpc>(4, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<String, com.onyx.app.data.net.ServeRpc>,
+            ): Boolean {
+                if (size <= ServeChannelLimit) return false
+                // Le canal évincé n'a plus personne : on le referme plutôt que de laisser un
+                // socket sans propriétaire (c'est ce que `close()` protège déjà ailleurs).
+                runCatching { eldest.value.close() }
+                return true
+            }
+        }
+
+    /** Le canal du Dashboard de **ce** serveur et de **ce** profil, ouvert ou à ouvrir. */
+    private fun serveChannel(server: ServerConfig): com.onyx.app.data.net.ServeRpc {
+        val key = com.onyx.app.data.net.serveChannelKey(server)
+        serveChannels[key]?.let { return it }
+        return com.onyx.app.data.net.ServeRpc(server).also { serveChannels[key] = it }
+    }
+
+    /**
+     * Ne garde que les canaux d'un serveur : les autres parlent à une adresse ou avec des
+     * identifiants qui ne sont plus ceux de l'app.
+     */
+    private fun retainServeChannels(key: String?) {
+        val doomed = serveChannels.entries.filter { it.key != key }
+        doomed.forEach { (k, channel) ->
+            serveChannels.remove(k)
+            runCatching { channel.close() }
+        }
+    }
 
     /**
      * Le verrou d'un envoi : les pièces jointes s'encodent hors du fil principal, donc deux
@@ -182,19 +232,8 @@ class ChatViewModel(
      */
     private fun preheatServe(server: ServerConfig) {
         if (server.transport != Transport.HERMES_SERVE) return
-        val channel = rpc ?: ServeRpc(server).also { rpc = it }
+        val channel = serveChannel(server)
         viewModelScope.launch { runCatching { channel.connect() } }
-    }
-
-    /**
-     * Lâche le canal : il portait la configuration d'un autre serveur ou d'un autre profil.
-     *
-     * Sans cela, le canal d'un bot servait le tour du bot suivant — même adresse, autre profil —
-     * et la session partait sous le mauvais nom.
-     */
-    private fun dropServeChannel() {
-        rpc?.close()
-        rpc = null
     }
 
     /**
@@ -265,9 +304,10 @@ class ChatViewModel(
                     // Les tours de l'ancien serveur n'ont plus personne à qui répondre : ils sont
                     // arrêtés (l'hôte est prévenu), pas abandonnés.
                     turns.stopAll()
-                    // Le canal du Dashboard appartenait à l'ancien serveur : il ne peut pas
-                    // servir le nouveau.
-                    dropServeChannel()
+                    // Les canaux de l'ancien serveur parlent à une adresse (ou avec des
+                    // identifiants) qui ne sont plus ceux de l'app : eux seuls s'en vont. Ceux du
+                    // nouveau serveur restent, y compris ceux des autres profils de bot.
+                    retainServeChannels(com.onyx.app.data.net.serveChannelKey(server))
                     settledTurns.clear()
                     queued.clear()
                     retryJob?.cancel()
@@ -726,18 +766,20 @@ class ChatViewModel(
         val request = message.clarify ?: return
         updateMessage(messageId) { it.copy(clarify = null) }
 
-        val server = _state.value.server
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return
         viewModelScope.launch {
             runCatching {
-                val rpc = com.onyx.app.data.net.ServeRpc(server)
+                // Le canal du bot est déjà monté (ou se monte en fond) : répondre à une question ne
+                // paie plus un login et un ticket. Il n'est pas refermé ici — il appartient au
+                // cache, qui le garde pour le tour suivant.
+                val rpc = serveChannel(server)
                 val client = com.onyx.app.data.net.ServeInterruptRpc(rpc)
                 if (!request.isBatch) {
                     client.clarify(request.id, null, answers.values.firstOrNull().orEmpty())
                 } else {
                     answers.forEach { (questionId, answer) -> client.clarify(request.id, questionId, answer) }
                 }
-                rpc.close()
             }.onFailure { error ->
                 _state.update { it.copy(error = humanFailure(error)) }
             }
@@ -750,13 +792,14 @@ class ChatViewModel(
         val requestId = message.sudoRequestId ?: return
         updateMessage(messageId) { it.copy(sudoRequestId = null) }
 
-        val server = _state.value.server
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return
         viewModelScope.launch {
             runCatching {
-                val rpc = com.onyx.app.data.net.ServeRpc(server)
-                com.onyx.app.data.net.ServeInterruptRpc(rpc).sudo(serverSessionId.orEmpty(), requestId, password)
-                rpc.close()
+                // Même canal que le tour : rien à remonter pour donner un mot de passe sudo.
+                serveChannel(server)
+                    .let { com.onyx.app.data.net.ServeInterruptRpc(it) }
+                    .sudo(serverSessionId.orEmpty(), requestId, password)
             }.onFailure { error ->
                 _state.update { it.copy(error = humanFailure(error)) }
             }
@@ -769,13 +812,14 @@ class ChatViewModel(
         val request = message.secret ?: return
         updateMessage(messageId) { it.copy(secret = null) }
 
-        val server = _state.value.server
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return
         viewModelScope.launch {
             runCatching {
-                val rpc = com.onyx.app.data.net.ServeRpc(server)
-                com.onyx.app.data.net.ServeInterruptRpc(rpc).secret(serverSessionId.orEmpty(), request.id, value)
-                rpc.close()
+                // Même canal que le tour, pour la même raison : le secret part sans handshake.
+                serveChannel(server)
+                    .let { com.onyx.app.data.net.ServeInterruptRpc(it) }
+                    .secret(serverSessionId.orEmpty(), request.id, value)
             }.onFailure { error ->
                 _state.update { it.copy(error = humanFailure(error)) }
             }
@@ -792,20 +836,22 @@ class ChatViewModel(
      * avec le bon identifiant.
      */
     suspend fun steerSubagent(id: String, text: String): Boolean {
-        val server = _state.value.server
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return false
         return runCatching {
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            // Le canal de la conversation — celui du bot, pas un socket neuf : le gateway n'accorde
+            // le pilotage qu'au transport attaché à la session.
+            val channel = serveChannel(server)
             com.onyx.app.data.net.ServeSubagentRpc(channel).steer(parentSessionId(), id, text)
         }.getOrDefault(false)
     }
 
     /** Arrête un sous-agent en cours (`subagent.interrupt`) ; `false` s'il avait déjà fini. */
     suspend fun stopSubagent(id: String): Boolean {
-        val server = _state.value.server
+        val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return false
         return runCatching {
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val channel = serveChannel(server)
             com.onyx.app.data.net.ServeSubagentRpc(channel).interrupt(parentSessionId(), id)
         }.getOrDefault(false)
     }
@@ -822,7 +868,7 @@ class ChatViewModel(
         if (server.transport != com.onyx.app.data.model.Transport.HERMES_SERVE) return
         if (!server.hasServeCredentials) return
         runCatching {
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val channel = serveChannel(server)
             com.onyx.app.data.net.ServeSubagentRpc(channel).list(parentSessionId())
         }.getOrNull()?.let { rows ->
             // Lu, même vide : c'est ce qui autorise l'écran à clore les tâches que le serveur ne
@@ -841,7 +887,7 @@ class ChatViewModel(
         if (server.transport != com.onyx.app.data.model.Transport.HERMES_SERVE) return null
         if (!server.hasServeCredentials) return null
         val result = runCatching {
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val channel = serveChannel(server)
             com.onyx.app.data.net.ServeSubagentRpc(channel).tail(parentSessionId(), agent.id)
         }.getOrNull() ?: return null
         return SubagentTailView(
@@ -963,7 +1009,7 @@ class ChatViewModel(
             // sensation (le menu apparaît quand le doigt s'arrête) et supprime la rafale.
             delay(SlashCompleteDebounceMs)
             val server = _state.value.server
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val channel = serveChannel(server)
             val result = runCatching {
                 channel.call(
                     method = "complete.slash",
@@ -1313,9 +1359,10 @@ class ChatViewModel(
         // Les compétences sont celles **du profil** : changer de bot change la liste des
         // commandes « / » (celles d'un profil ne sont pas celles d'un autre).
         if (changed) {
-            // Le canal portait le profil du bot précédent : le tour suivant serait parti sous
-            // **ce** nom-là. On le lâche, et on préchauffe celui du profil qui vient d'être choisi.
-            dropServeChannel()
+            // **Le canal du bot précédent reste ouvert.** Il ne peut pas servir ce tour-ci — un
+            // `ServeRpc` fige son profil —, mais il servira le suivant : revenir sur un bot qu'on
+            // vient de quitter prend un socket déjà monté au lieu de repayer le login, le ticket et
+            // l'upgrade. On préchauffe donc celui du profil choisi, sans fermer les autres.
             preheatServe(com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, clean))
             refreshSlashCommands()
         }
@@ -1439,7 +1486,7 @@ class ChatViewModel(
                     state.first { !it.isStreaming }
                 }
             }
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val channel = serveChannel(server)
             val result = runCatching {
                 channel.call(
                     method = "command.dispatch",
@@ -1531,7 +1578,7 @@ class ChatViewModel(
         }
         val command = text.trim().removePrefix("/").trim()
         viewModelScope.launch {
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+            val channel = serveChannel(server)
             val result = runCatching {
                 channel.call(
                     method = "slash.exec",
@@ -1656,7 +1703,7 @@ class ChatViewModel(
             return
         }
         viewModelScope.launch {
-            val channel = rpc ?: com.onyx.app.data.net.ServeRpc(state.server).also { rpc = it }
+            val channel = serveChannel(state.server)
             val result = runCatching {
                 channel.call(
                     method = "session.steer",
@@ -1823,7 +1870,7 @@ class ChatViewModel(
      * les tours sont passés, `false` dès qu'un appel échoue ou que le serveur en refuse un.
      */
     private suspend fun rewindGateway(session: String, turns: Int): Boolean {
-        val channel = rpc ?: com.onyx.app.data.net.ServeRpc(_state.value.server).also { rpc = it }
+        val channel = serveChannel(_state.value.server)
         repeat(turns) {
             val result = runCatching {
                 channel.call(
@@ -2109,7 +2156,7 @@ class ChatViewModel(
                 // par le **même socket** que les commandes de sous-agent : le gateway n'accorde
                 // le pilotage qu'au transport attaché à la session.
                 Transport.HERMES_SERVE -> {
-                    val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }
+                    val channel = serveChannel(server)
                     HermesServeChat(server, channel.asChatChannel(), ownsLink = false)
                         .stream(effectiveRequest, serverSessionId, departure) { runtimeSessionId = it }
                 }

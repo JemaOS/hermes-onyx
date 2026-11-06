@@ -148,8 +148,12 @@ class NotificationActionsWiringTest {
         assertTrue(viewModel.contains("suspend fun stopSubagent("))
         assertTrue(viewModel.contains("ServeSubagentRpc(channel).steer(parentSessionId(), id, text)"))
         assertTrue(viewModel.contains("ServeSubagentRpc(channel).interrupt(parentSessionId(), id)"))
-        // Le canal est celui de la conversation : un socket neuf n'a pas l'autorité de pilotage.
-        assertTrue(viewModel.contains("val channel = rpc ?: com.onyx.app.data.net.ServeRpc(server).also { rpc = it }"))
+        // Le canal est celui de la conversation : un socket neuf n'a pas l'autorité de pilotage —
+        // et c'est désormais **le même socket que le tour**, celui du profil du bot.
+        assertTrue(
+            viewModel.contains("val channel = serveChannel(server)") &&
+                !viewModel.contains("val channel = com.onyx.app.data.net.ServeRpc(server)"),
+        )
         assertTrue(viewModel.contains("private fun parentSessionId(): String = runtimeSessionId ?: serverSessionId.orEmpty()"))
 
         val screen = read("src/main/java/com/onyx/app/ui/chat/SubagentTranscriptScreen.kt")
