@@ -221,6 +221,29 @@ class ChatViewModel(
     private var skillsLoadedAt = 0L
 
     /**
+     * Les compétences lues, **par profil**, avec l'heure de la lecture.
+     *
+     * Changer de bot change de profil, donc de liste : sans ce cache, revenir sur un bot qu'on
+     * vient de quitter redemandait `api/skills` — un aller-retour par passage. La fenêtre est
+     * celle de [SKILLS_TTL_MS], et le cache se vide quand le serveur change.
+     */
+    private val skillsByProfile = mutableMapOf<String, Pair<Long, List<SlashCommand>>>()
+
+    /**
+     * Les cartes déjà résolues d'un fil, par conversation : la liste source et son résultat.
+     *
+     * Résoudre les cartes relit les sorties d'outil de **chaque** message, JSON compris : sur un
+     * fil long, c'était une passe complète à chaque ouverture, sur le fil principal — et un
+     * changement de bot ouvre un fil. Le cache retient la liste **source** (celle du dépôt,
+     * immuable) : revenir sur un fil qu'on n'a pas touché ne relit plus rien.
+     */
+    private val cardsCache =
+        object : LinkedHashMap<String, Pair<List<ChatMessage>, List<ChatMessage>>>(8, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<List<ChatMessage>, List<ChatMessage>>>) =
+                size > 4
+        }
+
+    /**
      * Vrai une fois la conversation la plus récente rétablie (ou une nouvelle commencée).
      *
      * Sans ce verrou, le fil vide d'une nouvelle conversation ressemblerait au démarrage de
@@ -278,8 +301,10 @@ class ChatViewModel(
                     _state.update { it.copy(server = server, modelInUse = if (modelChanged) null else it.modelInUse) }
                 }
                 // Les compétences vivent dans le profil : un autre serveur, un autre profil ou
-                // d'autres identifiants changent la liste des commandes « / ».
-                refreshSlashCommands()
+                // d'autres identifiants changent la liste des commandes « / » — et rien de ce
+                // qu'on a lu sur l'autre serveur ne vaut ici.
+                skillsByProfile.clear()
+                refreshSlashCommands(force = true)
                 // Le canal du Dashboard se préchauffe pour **ce** serveur (sans effet sur les
                 // autres transports) : le premier envoi ne paie plus le login ni le ticket.
                 preheatServe(server)
@@ -1044,12 +1069,7 @@ class ChatViewModel(
                 serverSessionId = conversation.serverSessionId,
                 // Les cartes d'une réponse relue sont retrouvées depuis ses appels d'outil quand
                 // elles n'ont pas été enregistrées (`ReplyCards.resolve`, comme référence).
-                messages = ReplyCards.resolve(conversation.messages)
-                    // La copie ne se fait que pour le message qui portait le drapeau : sur un fil
-                    // de cinq cents messages, `map { it.copy(...) }` allouait cinq cents objets à
-                    // chaque ouverture, et la liste neuve ne pouvait plus être reconnue
-                    // « inchangée » par le dépôt — le fichier repartait pour rien.
-                    .map { message -> if (message.isStreaming) message.copy(isStreaming = false) else message },
+                messages = cardsFor(conversation),
                 input = drafts.get(conversation.id),
                 queued = queued.items,
                 conversationName = conversationName,
@@ -1058,6 +1078,28 @@ class ChatViewModel(
         scheduleRetry()
         resumeDetachedTurn(conversation)
         loadRemoteThread(conversation)
+    }
+
+    /**
+     * Les messages d'un fil prêts pour l'écran : cartes d'outils résolues, et plus aucune bulle
+     * marquée « en train d'écrire ».
+     *
+     * Deux passes autrefois, à **chaque** ouverture : `ReplyCards.resolve` relisait les sorties
+     * d'outil de tous les messages (JSON compris), puis un `map { copy }` recopiait la liste
+     * entière. Un changement de bot ouvre un fil, donc c'était le coût d'un changement de bot.
+     * Ici la résolution est gardée par la **liste source** (celle du dépôt, immuable) : rouvrir
+     * un fil qu'on n'a pas touché ne relit rien, et la copie ne touche que la bulle qui portait
+     * le drapeau — une liste neuve ne serait plus reconnue « inchangée » par le dépôt.
+     */
+    private fun cardsFor(conversation: Conversation): List<ChatMessage> {
+        val source = conversation.messages
+        cardsCache[conversation.id]?.let { (cachedSource, resolved) ->
+            if (cachedSource === source) return resolved
+        }
+        val resolved = ReplyCards.resolve(source)
+            .map { message -> if (message.isStreaming) message.copy(isStreaming = false) else message }
+        cardsCache[conversation.id] = source to resolved
+        return resolved
     }
 
     /**
@@ -1431,21 +1473,35 @@ class ChatViewModel(
      * fixes. Une lecture qui échoue ne casse rien non plus — un profil sans compétence donne
      * exactement la liste d'avant.
      */
-    private fun refreshSlashCommands() {
+    private fun refreshSlashCommands(force: Boolean = false) {
         skillsJob?.cancel()
-        skillsLoadedAt = now()
         val server = _state.value.server
+        // Les compétences sont celles du profil du bot quand la conversation en porte un ; sinon
+        // celles du profil du serveur (`ServeClient` s'en charge quand on ne nomme personne).
+        val profile = _state.value.botProfile?.takeIf { it.isNotBlank() }
+        val key = profile.orEmpty()
+        val stamp = now()
+        // **La liste d'un profil ne change pas d'une seconde à l'autre.** Sans ce cache, chaque
+        // retour sur un bot relançait `api/skills` — un aller-retour par passage, alors que la
+        // réponse est la même. Le cache est par profil, et il périme comme la lecture courante.
+        if (!force) {
+            skillsByProfile[key]?.takeIf { stamp - it.first <= SKILLS_TTL_MS }?.let { (at, cached) ->
+                skillsLoadedAt = at
+                slashCommands = cached
+                return
+            }
+        }
+        skillsLoadedAt = stamp
         if (!server.hasServeCredentials) {
             slashCommands = SlashCommands.commands()
             return
         }
-        // Les compétences sont celles du profil du bot quand la conversation en porte un ; sinon
-        // celles du profil du serveur (`ServeClient` s'en charge quand on ne nomme personne).
-        val profile = _state.value.botProfile?.takeIf { it.isNotBlank() }
         skillsJob = viewModelScope.launch {
             val skills = runCatching { ServeSkillsApi(ServeClient(server)).skills(profile) }
                 .getOrDefault(emptyList())
-            slashCommands = SlashCommands.commands(skills)
+            val commands = SlashCommands.commands(skills)
+            skillsByProfile[key] = now() to commands
+            slashCommands = commands
             // Le menu déjà ouvert se relit avec la liste fraîche : les compétences y entrent.
             val draft = _state.value.input
             if (draft.startsWith("/")) updateSlashMenu(draft)
