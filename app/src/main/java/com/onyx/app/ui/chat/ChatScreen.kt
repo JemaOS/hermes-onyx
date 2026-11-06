@@ -1303,6 +1303,16 @@ fun ChatScreen(
                         item(key = "browser-invite") {
                             BrowserInvite(
                                 server = stateFlow.value.server,
+                                // **La demande appartient à cette conversation-là.** Sans cet
+                                // identifiant, la même carte s'affichait dans tous les fils
+                                // ouverts : on quittait celui où l'agent demandait de l'aide et
+                                // l'invitation suivait, alors qu'on n'avait rien fait.
+                                conversationId = state.conversationId
+                                    ?: state.serverSessionId
+                                    ?: "main",
+                                // La conversation dont le tour tourne est celle qui a demandé la
+                                // main : elle passe devant les autres pour rattacher la demande.
+                                live = state.isStreaming,
                                 onOpen = onOpenBrowser,
                                 modifier = Modifier.padding(horizontal = OnyxSpace.Base),
                             )

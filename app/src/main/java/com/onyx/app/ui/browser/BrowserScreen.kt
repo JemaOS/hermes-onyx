@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -642,6 +643,14 @@ fun BrowserScreen(
                     bitmap = image,
                     contentDescription = OnyxLocalization["The agent's browser"],
                     contentScale = ContentScale.Fit,
+                    // **Une capture nette peut être rendue molle par l'affichage.** Le filtre par
+                    // défaut de Compose (`FilterQuality.Low`) fait un lissage bilinéaire simple :
+                    // sur une trame de navigateur — du texte fin, des traits de 1 px — il étale
+                    // les glyphes et le formulaire devient flou, surtout si la capture est un peu
+                    // plus petite que l'écran. `Medium` garde le contour net sans créneler, et
+                    // c'est la dernière marche du chemin : capture à la définition de l'écran,
+                    // décodage pleine taille, affichage sans élargissement.
+                    filterQuality = FilterQuality.Medium,
                     modifier = Modifier
                         .fillMaxSize()
                         .then(

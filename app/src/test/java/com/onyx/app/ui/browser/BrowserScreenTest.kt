@@ -214,6 +214,9 @@ class BrowserScreenTest {
         ).readText()
         listOf(
             "The agent's browser", "Waiting for the agent's browser…", "Take over", "Hand back",
+            // Le refus est un geste de premier rang de la carte : il doit être dit en français
+            // comme les autres, sinon la bande affiche « Decline » au milieu d'une phrase française.
+            "Decline",
             "You're driving", "Tab", "Show the browser", "Connecting…",
             "The page closed during the takeover. Ask the agent to open it again.",
             "No page is open. Ask the agent to open one.",

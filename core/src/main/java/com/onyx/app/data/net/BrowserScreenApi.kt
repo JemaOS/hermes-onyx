@@ -118,6 +118,27 @@ object BrowserScreenApi {
     }
 
     /**
+     * `POST onyx-browser/lease` avec `decline` — **refuser la prise en main**.
+     *
+     * Sans ce message, la seule façon de dire non était de ne rien faire : l'agent attendait
+     * jusqu'à quinze minutes, la carte restait affichée et suivait la personne dans toutes les
+     * conversations. Ici le refus est dit au serveur, qui rend son tour à l'agent avec la raison :
+     * « refuse, débrouille-toi autrement » est une réponse, pas un silence.
+     */
+    suspend fun decline(
+        server: ServerConfig,
+        note: String? = null,
+        client: ServeClient = ServeClient(server),
+    ): Boolean = runCatching {
+        client.request(
+            "$ROOT/lease",
+            method = "POST",
+            body = leaseBody("decline", note = note),
+        )
+        true
+    }.getOrDefault(false)
+
+    /**
      * `GET onyx-browser/health` — l'état du plugin, et **surtout la demande en attente**.
      *
      * C'est ce qui permet à l'app de savoir qu'on lui demande la main **sans dépendre du fil** :

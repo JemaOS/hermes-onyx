@@ -345,6 +345,8 @@ internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
     "Connecting…" to "Connexion…",
     "Show the browser" to "Afficher le navigateur",
     "Take over" to "Prendre la main",
+    "Decline" to "Refuser",
+    "The agent's browser asks you to take the hand" to "Le navigateur de l'agent vous demande la main",
     "Hand back" to "Rendre la main",
     "You're driving" to "C'est vous qui conduisez",
     // **Les libellés de la forme de référence.** « You're in control » et l'étiquette de conduite

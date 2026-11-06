@@ -705,6 +705,8 @@ internal val onyxAdditionalFrench: Map<String, String> = linkedMapOf(
     "You have the hand." to "Vous avez la main.",
     "The agent has the hand." to "L’agent a la main.",
     "Take over" to "Prendre la main",
+    "Decline" to "Refuser",
+    "The agent's browser asks you to take the hand" to "Le navigateur de l'agent vous demande la main",
     "Hand back" to "Rendre la main",
     "Hand back to the agent" to "Rendre la main à l’agent",
     // Les libellés **courts** de la barre du bas : un mot, jamais une phrase qui déborde.
