@@ -816,6 +816,10 @@ fun BlocConversationFace(
                 val progress = (now - started) / 1_000_000f / pulse.durationMillis
                 if (progress >= 1f) break
                 frame = botIdleFrame(pulse, progress, tilt)
+                // Les pouls de repos sont calibrés à 30 Hz (référence : `minimumInterval: 1.0 / 30`) :
+                // sur un écran à 120 Hz, dormir ~30 ms entre deux poses divise par quatre les
+                // invalidations de dessin des visages de la liste sans rien changer au mouvement.
+                delay(30L)
             }
             frame = null
             index += 1

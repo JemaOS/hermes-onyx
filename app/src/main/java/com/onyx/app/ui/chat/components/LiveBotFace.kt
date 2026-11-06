@@ -112,6 +112,7 @@ internal fun LiveBotFace(
                 val progress = (now - started) / 1_000_000f / pulse.durationMillis
                 if (progress >= 1f) break
                 idle = botIdleFrame(pulse, progress, tilt)
+                delay(30L)
             }
             idle = null
             index += 1

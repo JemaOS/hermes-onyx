@@ -834,7 +834,11 @@ fun Modifier.onyxHazeSource(state: HazeState): Modifier = composed {
         presence?.enter()
         onDispose { presence?.leave() }
     }
-    this.hazeSource(state)
+    if (OnyxLens.available && LocalOnyxLensPage.current != null) {
+        this
+    } else {
+        this.hazeSource(state)
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1918,15 +1922,23 @@ fun Modifier.liquidGlass(
     // **Le chemin de la lentille**, quand il existe : même forme, même corps teinté, même arête —
     // mais le fond est **courbé** au lieu d'être seulement flouté (voir `OnyxLensGlass.kt`).
     val lensPage = LocalOnyxLensPage.current
+    val isFloatingPlate = surface == GlassSurface.THREAD_TOP_BAR ||
+        surface == GlassSurface.TAB_BAR ||
+        surface == GlassSurface.COMPOSER ||
+        surface == GlassSurface.HEADER_CAPSULE ||
+        surface == GlassSurface.MENU
     val lensEligible = lens &&
         lensPage != null &&
         OnyxLens.available &&
         !LocalOnyxLensInside.current &&
         surface.sampling == GlassSampling.IN_SCREEN &&
-        // **Le panneau du volet est le fond, pas une plaque sur le fond** : sa forme longe les
-        // bords de l'écran, donc ni lentille ni arête — il garde la vitre de Haze, qui ne peint
-        // rien sur ce périmètre.
-        surface != GlassSurface.SIDEBAR_PANEL
+        // **Seules les surfaces réellement flottantes au-dessus du fil prennent la lentille.**
+        // Une carte de la liste (`CONVERSATION_CARD`), une tuile (`SIDEBAR_TILE`), une rangée
+        // (`LIST_ROW`) ou un bloc de réponse (`RESPONSE_BLOCK`) vit sur la page ou dans une
+        // `LazyColumn` : lui appliquer `onyxLensGlass` créait 10 à 15 shaders AGSL temps réel en
+        // parallèle (chacun ré-échantillonnant toute la fenêtre à 120 Hz) et faisait s'effondrer
+        // le framerate sur les grands écrans pliables.
+        isFloatingPlate
     if (lensPage != null && lensEligible) {
         val body = glassTintColour(surface, theme.dark)
         // L'opacité du corps est **calculée dans le dessin**, sur la taille réelle de la surface
@@ -2071,6 +2083,7 @@ fun Modifier.liquidGlass(
     // prennent maintenant le chemin du voile, et c'est la table qui le dit, pas l'appelant.
     val sampling = source != null &&
         surface.sampling == GlassSampling.IN_SCREEN &&
+        (isFloatingPlate || surface == GlassSurface.SIDEBAR_PANEL) &&
         (LocalGlassSourcePresence.current?.count ?: 0) > 0
     val tier = glassTierNow
     val page = theme.pageColor
@@ -2097,17 +2110,23 @@ fun Modifier.liquidGlass(
             scaleX = pressScale
             scaleY = pressScale
         }
-        .onGloballyPositioned { coords ->
-            val stepPx = 8f * density
-            if (stepPx <= 0f) return@onGloballyPositioned
-            val quantized = (coords.positionInRoot().y / stepPx).toInt() * stepPx
-            // Arrondi au pas : le reflet ne bouge que par paliers, donc il ne redemande pas une trame
-            // pour un pixel de déplacement.
-            if (quantized != hereY) {
-                hereY = quantized
-                parallaxDp = glassParallaxDp(quantized, density)
-            }
-        }
+        .then(
+            if (isFloatingPlate || surface.lit) {
+                Modifier.onGloballyPositioned { coords ->
+                    val stepPx = 8f * density
+                    if (stepPx <= 0f) return@onGloballyPositioned
+                    val quantized = (coords.positionInRoot().y / stepPx).toInt() * stepPx
+                    // Arrondi au pas : le reflet ne bouge que par paliers, donc il ne redemande pas une trame
+                    // pour un pixel de déplacement.
+                    if (quantized != hereY) {
+                        hereY = quantized
+                        parallaxDp = glassParallaxDp(quantized, density)
+                    }
+                }
+            } else {
+                Modifier
+            },
+        )
         .glassPress(pressState)
         .shadow(shadowDp.dp, shape, clip = false)
         .clip(shape)
@@ -2160,10 +2179,26 @@ fun Modifier.liquidGlass(
                     reduceMotion = reduceMotion,
                 )
             } else {
-                // Le repli : une surface légèrement opaque, jamais un trou.
-                Modifier.drawWithContent {
-                    drawRect(color = scrim)
-                    drawContent()
+                // **Une vitre de liste ne floute pas la fenêtre : elle pose sa teinte.**
+                //
+                // Une carte de conversation, une tuile ou une rangée est répétée dans une
+                // `LazyColumn` : dix à quinze de ces surfaces échantillonnaient chacune toute la
+                // fenêtre à chaque trame (Haze), ou lançaient chacune un shader AGSL (lentille).
+                // C'était le framerate effondré sur un pliant 120 Hz. Sans échantillonnage, elles
+                // gardent leur **teinte mesurée** (le plancher de lisibilité de la table), leur
+                // arête et leur forme — une plaque de verre posée, pas un aplat gris : le repli
+                // opaque ([scrim]) reste réservé aux surfaces qui n'ont vraiment rien à montrer.
+                if (surface.sampling == GlassSampling.IN_SCREEN) {
+                    Modifier.drawWithContent {
+                        drawRect(color = tint.copy(alpha = tintAlpha))
+                        drawContent()
+                    }
+                } else {
+                    // Le repli : une surface légèrement opaque, jamais un trou.
+                    Modifier.drawWithContent {
+                        drawRect(color = scrim)
+                        drawContent()
+                    }
                 }
             },
         )
