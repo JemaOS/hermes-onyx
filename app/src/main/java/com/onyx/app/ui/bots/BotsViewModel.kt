@@ -308,28 +308,33 @@ class BotsViewModel(
     private suspend fun reload() {
         _state.update { it.copy(loading = true, problem = null) }
         try {
-            // Les profils visibles du serveur ; les cachés arrivent par `readBotsByRpc`, qui les
-            // met de côté pour l'écran « Hidden Bots ».
-            val fromRest = if (config.hasServeCredentials) profiles.profiles() else emptyList()
-            // Le RPC de `BotDirectory` contient le `canonical_session` complet : aperçu et
-            // dernière activité. La route REST reste le repli des Dashboards plus anciens.
-            val rpcBots = readBotsByRpc()
-            val fromServer = when {
-                rpcBots == null -> fromRest
-                rpcBots.isEmpty() && fromRest.isNotEmpty() -> fromRest
-                else -> rpcBots
+            // Un seul WebSocket `ServeRpc` pour lire à la fois les profils, les salles et
+            // l'activité ; la route REST `profiles.profiles()` ne sert de repli que si le RPC
+            // des profils échoue ou revient vide.
+            val rpc = if (config.hasServeCredentials) ServeRpc(config) else null
+            val rpcBots: List<BotProfile>?
+            try {
+                rpcBots = readBotsByRpc(rpc)
+                val fromServer = if (!rpcBots.isNullOrEmpty()) {
+                    rpcBots
+                } else {
+                    val fromRest = if (config.hasServeCredentials) profiles.profiles() else emptyList()
+                    if (rpcBots == null || fromRest.isNotEmpty()) fromRest else rpcBots
+                }
+                val known = fromServer.map { it.name }.toSet()
+                // Ajoutés à la main (`Add Bot`): sans Dashboard pour lister le serveur, c'est ici
+                // qu'ils vivent — et c'est d'ici qu'ils se retirent (`Remove from Onyx` du menu).
+                val extra = faces.localBots()
+                    .filterNot { it in known }
+                    .map { BotProfile(name = it, title = faces.titleOf(it), isDefault = false, viaAPI = true) }
+                sourceBots = fromServer + extra
+                // Les salles et l'activité sont un supplément : si le Dashboard ne répond pas, le
+                // roster déjà lu doit rester affiché. Sans cette garde, un échec ici effaçait la
+                // liste des bots — l'app paraissait vide alors que le serveur répondait.
+                runCatching { readRoomsAndActivity(rpc) }
+            } finally {
+                rpc?.close()
             }
-            val known = fromServer.map { it.name }.toSet()
-            // Ajoutés à la main (`Add Bot`): sans Dashboard pour lister le serveur, c'est ici
-            // qu'ils vivent — et c'est d'ici qu'ils se retirent (`Remove from Onyx` du menu).
-            val extra = faces.localBots()
-                .filterNot { it in known }
-                .map { BotProfile(name = it, title = faces.titleOf(it), isDefault = false, viaAPI = true) }
-            sourceBots = fromServer + extra
-            // Les salles et l'activité sont un supplément : si le Dashboard ne répond pas, le
-            // roster déjà lu doit rester affiché. Sans cette garde, un échec ici effaçait la
-            // liste des bots — l'app paraissait vide alors que le serveur répondait.
-            runCatching { readRoomsAndActivity() }
             publish()
         } catch (error: CancellationException) {
             throw error
@@ -450,9 +455,9 @@ class BotsViewModel(
     }
 
     /** Le roster par le RPC (`profiles.list`), ou `null` si le Dashboard ne répond pas. */
-    private suspend fun readBotsByRpc(): List<BotProfile>? {
+    private suspend fun readBotsByRpc(sharedRpc: ServeRpc? = null): List<BotProfile>? {
         if (!config.hasServeCredentials) return null
-        val rpc = ServeRpc(config)
+        val rpc = sharedRpc ?: ServeRpc(config)
         return try {
             val all = ServeBotsRpc(rpc).profiles()
             // Les bots cachés d'Hermes Desktop : `BotRoster` les écarte de sa liste, mais la tuile
@@ -462,7 +467,7 @@ class BotsViewModel(
         } catch (error: TransportError) {
             null
         } finally {
-            rpc.close()
+            if (sharedRpc == null) rpc.close()
         }
     }
 
@@ -474,7 +479,7 @@ class BotsViewModel(
      * Les salles **gardées sur ce téléphone** (un « New Group Chat » fait sans Dashboard) se lisent
      * toujours, avec ou sans serveur : elles survivent ainsi à une relance, comme celles du serveur.
      */
-    private suspend fun readRoomsAndActivity() {
+    private suspend fun readRoomsAndActivity(sharedRpc: ServeRpc? = null) {
         val kept = keptRooms()
         if (!config.hasServeCredentials) {
             hiddenSource = emptyList()
@@ -482,7 +487,7 @@ class BotsViewModel(
             _state.update { it.copy(groupsSupported = false, groupsWritable = false, liveKinds = emptyMap(), roomKinds = emptyMap()) }
             return
         }
-        val rpc = ServeRpc(config)
+        val rpc = sharedRpc ?: ServeRpc(config)
         try {
             val groups = ServeGroupsRpc(rpc)
             val support = groups.support()
@@ -507,7 +512,7 @@ class BotsViewModel(
             sourceRooms = kept
             _state.update { it.copy(groupsSupported = false, groupsWritable = false, liveKinds = emptyMap(), roomKinds = emptyMap()) }
         } finally {
-            rpc.close()
+            if (sharedRpc == null) rpc.close()
         }
     }
 
@@ -613,19 +618,34 @@ class BotsViewModel(
      * bornes de la plateforme sont tenues dans [RosterShortcuts] ; ici, il n'y a que le
      * branchement sur la section.
      */
+    private var lastShortcutsSignature: Int = 0
+
     private fun republishShortcuts() {
         if (!com.onyx.app.di.AppContainer.isInstalled) return
         val state = _state.value
-        runCatching {
-            com.onyx.app.shortcuts.RosterShortcuts.publish(
-                context = com.onyx.app.di.AppContainer.appContext,
-                bots = state.bots,
-                order = state.order,
-                mainName = config.displayName,
-                pictures = _pictures.value,
-                // La table du roster : la tuile ne relit pas le magasin local pour dessiner.
-                faceResolver = BotFaceResolver.of(state.faces),
-            )
+        val pictures = _pictures.value
+        val mainName = config.displayName
+        val signature = java.util.Objects.hash(
+            state.bots.map { listOf(it.name, it.title, it.faceCode, it.chatId, it.pinned) },
+            state.order,
+            state.faces,
+            mainName,
+            pictures.keys,
+        )
+        if (signature == lastShortcutsSignature) return
+        lastShortcutsSignature = signature
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            runCatching {
+                com.onyx.app.shortcuts.RosterShortcuts.publish(
+                    context = com.onyx.app.di.AppContainer.appContext,
+                    bots = state.bots,
+                    order = state.order,
+                    mainName = mainName,
+                    pictures = pictures,
+                    // La table du roster : la tuile ne relit pas le magasin local pour dessiner.
+                    faceResolver = BotFaceResolver.of(state.faces),
+                )
+            }
         }
     }
 

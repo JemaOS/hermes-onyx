@@ -102,6 +102,12 @@ class TurnService : Service() {
         private const val EXTRA_PERCENT = "percent"
         private const val EXTRA_CONVERSATION_ID = "conversation_id"
 
+        @Volatile
+        private var activeConversationId: String = ""
+
+        @Volatile
+        private var activeTitle: String = NotificationCopy.ONYX
+
         /**
          * Démarre le service sur le tour d'une conversation.
          *
@@ -116,6 +122,8 @@ class TurnService : Service() {
             phase: String,
             percent: Int? = null,
         ): Boolean = runCatching {
+            activeConversationId = conversationId
+            activeTitle = title
             TurnNotification.ensureChannel(context)
             val intent = Intent(context, TurnService::class.java)
                 .setAction(ACTION_START)
@@ -134,19 +142,19 @@ class TurnService : Service() {
             false
         }
 
-        /** Change la phrase du tour déjà suivi. */
+        /** Change la phrase du tour déjà suivi, directement via NotificationManager sans repasser par startService. */
         fun phase(context: Context, text: String, percent: Int? = null) {
+            if (activeConversationId.isEmpty()) return
             runCatching {
-                context.startService(
-                    Intent(context, TurnService::class.java)
-                        .setAction(ACTION_PHASE)
-                        .putExtra(EXTRA_PHASE, text)
-                        .putExtra(EXTRA_PERCENT, percent ?: -1),
+                context.getSystemService(android.app.NotificationManager::class.java)?.notify(
+                    TurnNotification.PROGRESS_ID,
+                    TurnNotification.build(context, activeConversationId, activeTitle, text, percent),
                 )
             }.onFailure { Log.w(TAG, "la phrase du suivi n'a pas pu être transmise", it) }
         }
 
         fun stop(context: Context) {
+            activeConversationId = ""
             runCatching { context.stopService(Intent(context, TurnService::class.java)) }
         }
     }

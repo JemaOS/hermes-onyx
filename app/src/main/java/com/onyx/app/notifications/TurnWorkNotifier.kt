@@ -172,6 +172,7 @@ class TurnWorkNotifier(
 
     /** La conversation que le service tient à l'écran, pour ne pas le démarrer deux fois. */
     private var servedConversationId: String? = null
+    private var lastPublishedKeep: TurnNotice.Keep? = null
 
     /** Ce que l'écran a sous les yeux : le suivi ne notifie pas ce que l'utilisateur voit. */
     fun watching(conversationId: String?, foreground: Boolean) {
@@ -209,6 +210,10 @@ class TurnWorkNotifier(
         notices.forEach { notice ->
             when (notice) {
                 is TurnNotice.Keep -> {
+                    if (notice == lastPublishedKeep && notice.conversationId == servedConversationId) {
+                        return@forEach
+                    }
+                    lastPublishedKeep = notice
                     if (notice.conversationId == servedConversationId) {
                         TurnService.phase(context, notice.text, notice.percent)
                     } else {
@@ -246,10 +251,13 @@ class TurnWorkNotifier(
                 is TurnNotice.Drop -> TurnNotifier.clear(context, notice.conversationId)
 
                 TurnNotice.Idle -> {
-                    TurnService.stop(context)
-                    // Le repli a pu publier la notification sans service : on l'efface aussi.
-                    TurnNotifier.clearProgress(context)
-                    servedConversationId = null
+                    if (servedConversationId != null || lastPublishedKeep != null) {
+                        TurnService.stop(context)
+                        // Le repli a pu publier la notification sans service : on l'efface aussi.
+                        TurnNotifier.clearProgress(context)
+                        servedConversationId = null
+                        lastPublishedKeep = null
+                    }
                 }
             }
         }
