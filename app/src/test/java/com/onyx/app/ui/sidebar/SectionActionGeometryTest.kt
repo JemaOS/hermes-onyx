@@ -158,7 +158,7 @@ class SectionActionGeometryTest {
             "SectionActionButton doit citer GlassCircleButton et RoundButtonShape (le vrai cercle)",
             composant.contains("GlassCircleButton(") &&
                 source("core/src/main/java/com/onyx/app/ui/design/OnyxControls.kt")
-                    .contains("glassSurface(RoundButtonShape)"),
+                    .contains("glassSurface(RoundButtonShape"),
         )
     }
 

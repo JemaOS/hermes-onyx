@@ -113,6 +113,12 @@ fun Modifier.glassSurface(
     shape: Shape = RoundButtonShape,
     tint: Color? = null,
     intensity: Float = 1f,
+    /**
+     * **Le liseré d'arête.** Vrai par défaut — c'est l'habillage de la maison. Faux pour une
+     * commande posée sur un panneau déjà plat (les actions d'une section du volet) : le filet y
+     * lisait comme un **cadre** autour du rond, et le volet demandait des surfaces sans bordure.
+     */
+    hairline: Boolean = true,
 ): Modifier = composed {
     val theme = LocalOnyxTheme.current
     val base = tint ?: veilColour(theme.pageColor, 1f, theme.dark)
@@ -134,7 +140,13 @@ fun Modifier.glassSurface(
             ),
             shape = shape,
         )
-        .border(0.5.dp, Color.White.copy(alpha = borderAlpha), shape)
+        .then(
+            if (hairline) {
+                Modifier.border(0.5.dp, Color.White.copy(alpha = borderAlpha), shape)
+            } else {
+                Modifier
+            },
+        )
 }
 
 /**

@@ -1,7 +1,6 @@
 package com.onyx.app.ui.design
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -290,33 +289,27 @@ fun Modifier.flatPlate(
     .background(colour)
 
 /**
- * **La surface du volet** : le **grand verre de matière**, dans **les deux apparences**.
+ * **La surface du volet** : la vitre de la table en sombre, **la couleur du panneau** au clair.
  *
- * Le lot « volet clair propre » avait retiré la vitre au clair — et c'était mesuré : sur un panneau
- * neuf, quatre pièces de verre (teinte, liseré, filet interne, lumière et ombre) se lisaient comme
- * une surface **sale**. Ce lot-ci rouvre la question pour une raison précise, et la réponse change
- * parce que **le fond a changé** : la page porte maintenant une **matière** (les zones froides et
- * chaudes de [Matter]), le volet est un **grand panneau** qui la recouvre, et une grande vitre a
- * enfin quelque chose à montrer — la matière se teinte au travers. C'est la demande explicite du
- * propriétaire (« une grande carte de verre teintée par ce qu'il y a derrière, l'œil les voit tous
- * les jours »), et `SIDEBAR_PANEL` est déclarée [GlassSampling.IN_SCREEN] : en surimpression, du
- * contenu passe dessous, donc la vitre échantillonne **vraiment**.
- *
- * Un seul point de décision, donc le mode sombre du volet ne peut pas se dégrader en ré-habillant le
- * mode clair — le verre est appelé **exactement** comme avant, avec la même table ([GlassSurface]).
+ * Le volet clair est un panneau **uni** : la matière et le halo de la page passaient dessous (le
+ * volet les portait lui-même) et se lisaient comme un fond taché, « pas propre ». Le verre clair
+ * ré-échantillonnait cette matière à travers sa teinte, donc il ne faisait qu'ajouter du bruit à du
+ * bruit. Au clair, le panneau est désormais sa couleur pleine et rien d'autre ; en sombre, il garde
+ * exactement la vitre de la table, avec sa lumière et son liseré.
  */
 @Composable
-fun Modifier.sidebarPaneSurface(): Modifier = this.liquidGlass(GlassSurface.SIDEBAR_PANEL)
+fun Modifier.sidebarPaneSurface(): Modifier {
+    val theme = LocalOnyxTheme.current
+    return if (theme.dark) this.liquidGlass(GlassSurface.SIDEBAR_PANEL) else this
+}
 
 /**
- * La surface d'une **tuile** (volet) ou d'une **carte de bot** : la vitre de la table en sombre, le
- * **creux détaché et bordé** au clair.
+ * La surface d'une **tuile** (volet) ou d'une **carte de bot** : la vitre de la table en sombre, la
+ * **plaque détachée** au clair.
  *
- * Au clair, la tuile garde sa plaque — la décision du lot « volet clair propre » est conservée, une
- * tuile n'a rien à échantillonner dans un volet posé à côté du détail. Mais elle prend le **seuil des
- * tuiles** ([flatTileColor], 1,18:1 au lieu de 1,10) et un **liseré d'un demi-point** : c'est la
- * correction du défaut relevé sur la capture du propriétaire, « des rectangles gris sans bordure sur
- * une page du même ordre de teinte ».
+ * Au clair, la tuile garde sa plaque et le **seuil des tuiles** ([flatTileColor], 1,18:1), mais
+ * **plus de filet** : le propriétaire a refusé les bordures autour des tuiles (« il y a des bordures
+ * autour que je veux pas »). La plaque se détache par sa seule luminance, comme le panneau.
  */
 @Composable
 fun Modifier.sidebarTileSurface(surface: GlassSurface, shape: Shape): Modifier {
@@ -324,9 +317,7 @@ fun Modifier.sidebarTileSurface(surface: GlassSurface, shape: Shape): Modifier {
     return if (theme.dark) {
         this.liquidGlass(surface, shape)
     } else {
-        this
-            .flatPlate(flatTileColor(theme), shape)
-            .border(FlatHairlineDp, flatTileHairline(theme), shape)
+        this.flatPlate(flatTileColor(theme), shape)
     }
 }
 

@@ -121,13 +121,14 @@ fun GlassCircleButton(
     modifier: Modifier = Modifier,
     tint: Color? = null,
     iconSize: Dp = 18.dp,
+    hairline: Boolean = true,
     onClick: () -> Unit,
 ) {
     val theme = LocalOnyxTheme.current
     Box(
         modifier = modifier
             .size(size)
-            .glassSurface(RoundButtonShape)
+            .glassSurface(RoundButtonShape, hairline = hairline)
             .onyxClickable(onClick = onClick)
             .semanticsLabel(label),
         contentAlignment = Alignment.Center,

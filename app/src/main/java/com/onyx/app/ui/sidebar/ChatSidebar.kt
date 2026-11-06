@@ -111,14 +111,12 @@ import com.onyx.app.ui.design.flatActivePillColor
 import com.onyx.app.ui.design.flatActivePillInk
 import com.onyx.app.ui.design.FlatChipHeight
 import com.onyx.app.ui.design.OnyxBase
-import com.onyx.app.ui.design.FlatHairlineDp
 import com.onyx.app.ui.design.flatIconInk
+import com.onyx.app.ui.design.flatPlate
 import com.onyx.app.ui.design.flatWellColor
 import com.onyx.app.ui.design.sidebarPaneColor
 import com.onyx.app.ui.design.sidebarPaneSurface
 import com.onyx.app.ui.design.sidebarTileSurface
-import com.onyx.app.ui.design.haloBackdrop
-import com.onyx.app.ui.design.matiereBackdrop
 import com.onyx.app.ui.design.BlocConversation
 import com.onyx.app.ui.design.GalerieSectionLabel
 import com.onyx.app.ui.design.socleDisplayStyle
@@ -366,19 +364,10 @@ internal fun ChatSidebar(
                 // silhouette). La couleur vient d'**une** fonction ([sidebarPaneColor]), donc le
                 // panneau et la coquille ne peuvent pas diverger d'un cran.
                 .background(sidebarPaneColor(theme))
-                // **LA MATIÈRE.** La planche pose ses écrans sur un fond **travaillé** (dégradé
-                // multi-arrêts, formes floues, grain, vignettage) ; l'app posait le sien sur un
-                // aplat. C'est ce qui fait lire tout le reste — le verre ne se lit que s'il y a une
-                // matière derrière (voir [Material]).
-                .matiereBackdrop(theme)
-                // **Le halo de la maison** : le volet porte la matière comme les autres écrans,
-                // pour que sa vitre ait quelque chose à voir derrière elle (voir `onyxPage`).
-                .haloBackdrop(theme)
-                // Le volet est une **vitre** — en apparence **sombre**. En clair, la vitre opaque
-                // est retirée : sur un panneau quasi blanc elle n'apportait que son voile, son
-                // filet interne et son liseré, c'est-à-dire du bruit. Le choix est dans
-                // [sidebarPaneSurface], un seul point de décision, donc le sombre ne peut pas être
-                // dégradé en ré-habillant le clair.
+                // **Le volet est un panneau uni.** La matière et le halo de la page passaient
+                // dessous et se lisaient comme un fond taché — « l'arrière-plan n'est pas une
+                // couleur unie, ça n'est pas propre ». Le panneau ne porte donc plus ni dégradé,
+                // ni grain, ni vignettage : sa couleur, et rien d'autre.
                 .sidebarPaneSurface(),
         ) {
             if (showingScreen) {
@@ -1042,7 +1031,6 @@ private fun SidebarStatusLine(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .defaultMinSize(minHeight = 32.dp)
-                    .border(FlatHairlineDp, theme.separator, CircleShape)
                     .onyxTappable(onClick = onRetry)
                     .tapLabel(resolveOnyxText(SAVED_COPY_RETRY_LABEL))
                     .padding(horizontal = OnyxSpace.Snug),
@@ -1093,7 +1081,16 @@ private fun SidebarSearch(
             .defaultMinSize(minHeight = MinTarget)
             // L'anneau **avant** la vitre : le liseré se lit sur la page, pas sous le voile.
             .then(if (searching) Modifier.border(SearchFocusRing, theme.accent, shape) else Modifier)
-            .frostedBar(FrostSurface.SEARCH_FIELD, shape)
+            // **La capsule au clair est un creux uni, sans filet.** Le verre de Frost peignait son
+            // liseré interne et son arête blanche : sur le panneau plat, cela se lisait comme une
+            // bordure autour du champ. Le creux garde sa teinte et son ombre portée, rien de plus.
+            .then(
+                if (theme.dark) {
+                    Modifier.frostedBar(FrostSurface.SEARCH_FIELD, shape)
+                } else {
+                    Modifier.flatPlate(flatWellColor(theme), shape)
+                },
+            )
             // Le premier appui **entre** en recherche : c'est le geste de la référence. Il ne prend
             // pas la frappe au champ — Compose donne l'appui au plus profond, donc au `BasicTextField`
             // dès qu'il est touché ; celui-ci ne prend que le reste de la capsule (la loupe, les
@@ -1745,7 +1742,6 @@ private fun SidebarTileSmallButton(label: String, filled: Boolean, onClick: () -
             .defaultMinSize(minHeight = SectionAction.Size)
             .clip(shape)
             .background(ground)
-            .then(if (filled) Modifier else Modifier.border(FlatHairlineDp, theme.separator, shape))
             .onyxClickable(onClick = onClick)
             .semanticsLabel(label)
             .padding(horizontal = OnyxSpace.Base),
@@ -1944,12 +1940,7 @@ private fun SidebarTileCell(
                 modifier = Modifier
                     .size(TileIconSquare)
                     .clip(RoundedCornerShape(OnyxBase.RadiusField))
-                    .background(theme.formSurfaceColor)
-                    .border(
-                        FlatHairlineDp,
-                        theme.separator,
-                        RoundedCornerShape(OnyxBase.RadiusField),
-                    ),
+                    .background(theme.formSurfaceColor),
                 contentAlignment = Alignment.Center,
             ) {
                 OnyxIcon(
@@ -2056,8 +2047,7 @@ private fun TileCellStrip(
                 modifier = Modifier
                     .size(TileBadge + if (pressed) OnyxSpace.Hair else 0.dp)
                     .clip(shape)
-                    .background(fill)
-                    .border(FlatHairlineDp, if (active) fill else theme.separator, shape),
+                    .background(fill),
                 contentAlignment = Alignment.Center,
             ) {
                 OnyxIcon(
@@ -2866,11 +2856,9 @@ private fun SidebarChip(
                     when {
                         selected -> Modifier.background(chosenOnGround)
                         dark -> Modifier
-                        // **La pastille blanche porte son filet** — `.chip2` de la planche
-                        // (`hcss.py:96`), et c'est ce filet qui la détache du panneau clair.
-                        else -> Modifier
-                            .background(restingGround)
-                            .border(FlatHairlineDp, theme.separator, shape)
+                        // **La pastille repose sur son aplat**, sans filet : le volet ne porte
+                        // plus de bordure autour de ses surfaces.
+                        else -> Modifier.background(restingGround)
                     },
                 )
                 .padding(horizontal = 12.dp),

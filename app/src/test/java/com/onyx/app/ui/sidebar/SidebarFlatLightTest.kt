@@ -164,7 +164,7 @@ class SidebarFlatLightTest {
         assertTrue("la ligne d'état n'est pas conditionnée", sidebar.contains("if (reachable == false) {"))
         val line = sidebar.substringAfter("private fun SidebarStatusLine(").substringBefore("// ------")
         assertTrue("le réessai n'est plus porté par la ligne d'état", line.contains("SAVED_COPY_RETRY_LABEL"))
-        assertTrue("la ligne d'état n'a plus sa bordure fine", line.contains("border(FlatHairlineDp, theme.separator, CircleShape)"))
+        assertFalse("la ligne d'état porte encore une bordure", line.contains("border(FlatHairlineDp, theme.separator, CircleShape)"))
         // Et la **tête** ne porte plus de second chemin de réessai : un doublon d'action.
         val head = sidebar.substringAfter("private fun SidebarHeader(").substringBefore("private fun SidebarStatusLine(")
         assertFalse("la tête porte encore le rond de réessai", head.contains("Symbols.ArrowClockwise"))
