@@ -39,11 +39,16 @@ Fastlane metadata is already in the repository (fastlane/metadata/android/en-US 
 title, short and full description, changelogs, six phone screenshots, feature graphic).
 
 What it is: the Android client for a self-hosted Hermes agent. No account, no telemetry,
-no proprietary dependencies — no Firebase, no Play Services. It talks to one host only:
-the Hermes Dashboard the user runs themselves. Chat with streaming, bots and rooms,
-hands-free voice, and a live view of the user's computer.
+no Firebase, no Play Services. It talks to one host only: the Hermes Dashboard the user
+runs themselves. Chat with streaming, bots and rooms, hands-free voice, and a live view
+of the user's computer.
 
-Anti-features: none that I know of. The app requires a self-hosted server to be useful,
+One dependency to declare: the optional tip jar screen uses Google's Play Billing library
+(com.android.billingclient 7.1.1). It is the only proprietary component, it is confined to
+that screen, and the app is fully usable without it. Say the word and I will ship a
+billing-free build flavour — it is the same code with that screen replaced by a stub.
+
+Anti-features: none beyond that. The app requires a self-hosted server to be useful,
 which I mention in the description.
 ```
 
@@ -76,7 +81,14 @@ Source: https://github.com/JemaOS/hermes-onyx
 License: MIT
 Category: Internet
 Build: gradle, `assembleRelease` from the repository root (`subdir: .`), no NDK, no submodules.
-Min SDK 26, target SDK 36. No Firebase, no Play Services, no proprietary blobs.
+Min SDK 26, target SDK 36. No Firebase, no Play Services.
+
+One thing to fix before inclusion: `com.android.billingclient` (Play Billing) is a dependency of
+the optional tip jar screen (`ui/common/TipJarScreen.kt`). Every other dependency is FOSS. The
+clean fix is a build flavour without it — I can prepare that pull request, with the tip jar
+replaced by a stub in that flavour, if you prefer to wait for it rather than list the app with
+a non-free dependency.
+
 Release notes: https://github.com/JemaOS/hermes-onyx/releases
 ```
 
@@ -84,6 +96,23 @@ Le mainteneur ouvre ensuite une merge request sur `fdroiddata` : `fastlane/fdroi
 est déjà la fiche, à copier sous `metadata/com.onyx.app.yml` dans ce dépôt-là. Elle déclare
 `UpdateCheckData` pour lire `onyx.versionCode` dans `gradle.properties` — c'est là que vit le numéro
 de version dans ce projet, pas dans `build.gradle.kts`.
+
+### Ce qui bloque F-Droid aujourd'hui
+
+Vérifié sur l'APK publié (1.3.97), pas supposé : `com.android.billingclient` 7.1.1 est une dépendance
+de l'écran de pourboire (`ui/common/TipJarScreen.kt`). C'est la seule bibliothèque non libre du
+projet, et F-Droid refuse une application qui en dépend, même si l'écran est facultatif.
+
+Deux issues :
+
+- soit on attend : IzzyOnDroid accepte, F-Droid non, et on reste là ;
+- soit on ajoute une variante de build `foss` sans la bibliothèque — l'écran de pourboire remplacé par
+  un texte, `implementation(libs.billing.ktx)` seulement dans l'autre variante. C'est la voie propre,
+  et le seul travail de code que cette publication demande.
+
+Les permissions `READ_CALENDAR`, `WRITE_CALENDAR` et `READ_CONTACTS` déclarées au manifeste viennent
+de l'écran « outils du téléphone » (`ui/settings/PhoneToolsScreen.kt`) : à justifier dans la demande,
+F-Droid les accepte quand l'usage est réel.
 
 ## Étape 3 — les dépôts qui demandent un compte, mais pas d'argent
 
