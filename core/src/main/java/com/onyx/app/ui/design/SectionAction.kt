@@ -4,7 +4,6 @@ import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlin.math.max
 
 /**
@@ -74,16 +73,15 @@ fun SectionActionButton(
     label: String,
     onClick: () -> Unit,
 ) {
-    val theme = LocalOnyxTheme.current
     GlassCircleButton(
         symbol = symbol,
         label = label,
         size = SectionAction.Size,
         iconSize = SectionAction.Icon,
-        // **Au clair, pas de liseré.** Le volet a demandé des surfaces sans bordure : sur un panneau
-        // déjà plat, le filet blanc du rond se lisait comme un cadre autour du crayon et du « + ».
-        // En sombre, le liseré reste : c'est lui qui détache la pastille de la vitre.
-        hairline = theme.dark,
+        // **Pas de liseré, dans les deux apparences.** Le volet a demandé des surfaces sans
+        // bordure : sur un panneau déjà plat, le filet blanc du rond se lisait comme un cadre
+        // autour du crayon et du « + ». La pastille se détache par sa teinte et son ombre.
+        hairline = false,
         onClick = onClick,
     )
 }

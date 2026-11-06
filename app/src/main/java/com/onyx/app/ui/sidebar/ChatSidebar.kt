@@ -100,7 +100,6 @@ import com.onyx.app.ui.conversations.SelectionBar
 import com.onyx.app.ui.conversations.conversationActivitySubtitle
 import com.onyx.app.ui.conversations.conversationSheetRows
 import com.onyx.app.ui.design.OnyxConfirm
-import com.onyx.app.ui.design.FrostSurface
 import com.onyx.app.ui.design.MotionFamily
 import com.onyx.app.ui.design.GlassSurface
 import com.onyx.app.ui.design.OnyxSpace
@@ -121,7 +120,6 @@ import com.onyx.app.ui.design.BlocConversation
 import com.onyx.app.ui.design.GalerieSectionLabel
 import com.onyx.app.ui.design.socleDisplayStyle
 import com.onyx.app.ui.design.socleTitleInk
-import com.onyx.app.ui.design.liquidGlass
 import com.onyx.app.ui.design.GlassScrollFreeze
 import com.onyx.app.ui.design.LocalGlassScrollFreeze
 import com.onyx.app.ui.design.GlassCircleButton
@@ -134,7 +132,6 @@ import com.onyx.app.ui.design.OnyxBrandMark
 import com.onyx.app.ui.design.OnyxContrast
 import com.onyx.app.ui.design.OnyxRune
 import com.onyx.app.ui.design.Symbols
-import com.onyx.app.ui.design.frostedBar
 import com.onyx.app.ui.design.glassSurface
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.design.onyxTappable
@@ -1081,16 +1078,10 @@ private fun SidebarSearch(
             .defaultMinSize(minHeight = MinTarget)
             // L'anneau **avant** la vitre : le liseré se lit sur la page, pas sous le voile.
             .then(if (searching) Modifier.border(SearchFocusRing, theme.accent, shape) else Modifier)
-            // **La capsule au clair est un creux uni, sans filet.** Le verre de Frost peignait son
-            // liseré interne et son arête blanche : sur le panneau plat, cela se lisait comme une
-            // bordure autour du champ. Le creux garde sa teinte et son ombre portée, rien de plus.
-            .then(
-                if (theme.dark) {
-                    Modifier.frostedBar(FrostSurface.SEARCH_FIELD, shape)
-                } else {
-                    Modifier.flatPlate(flatWellColor(theme), shape)
-                },
-            )
+            // **La capsule est un creux uni, sans filet — dans les deux apparences.** Le verre de
+            // Frost peignait son liseré interne et son arête : sur le panneau plat, cela se lisait
+            // comme une bordure autour du champ. Le creux garde sa teinte, rien de plus.
+            .flatPlate(flatWellColor(theme), shape)
             // Le premier appui **entre** en recherche : c'est le geste de la référence. Il ne prend
             // pas la frappe au champ — Compose donne l'appui au plus profond, donc au `BasicTextField`
             // dès qu'il est touché ; celui-ci ne prend que le reste de la capsule (la loupe, les

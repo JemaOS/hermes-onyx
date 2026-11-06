@@ -126,6 +126,52 @@ def _ticket_de(chemin: str) -> int:
     return quand_port[1]
 
 
+def _candidats_navigateur() -> list[int]:
+    """Tous les processus où un navigateur peut vivre, du plus prometteur au moins prometteur.
+
+    La sélection (_navigateur_a_joindre) choisit **un** processus. Ici on veut tous les
+    candidats, pour pouvoir réessayer ailleurs quand celui qui a été choisi refuse le ticket
+    parce que la page est chez un autre.
+    """
+    fiches: list[dict] = []
+    try:
+        noms = os.listdir(BROWSER_PEERS)
+    except OSError:
+        noms = []
+    maintenant = time.time()
+    for nom in noms:
+        if not nom.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(BROWSER_PEERS, nom), encoding="utf-8") as flux:
+                fiche = json.load(flux)
+            port = int(fiche.get("port") or 0)
+            pid = int(fiche.get("pid") or 0)
+            age = maintenant - float(fiche.get("ts") or 0.0)
+        except (OSError, ValueError, TypeError):
+            continue
+        if not port or age > BROWSER_PEER_TTL:
+            continue
+        if pid:
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                continue
+        fiches.append(fiche)
+    candidats: list[int] = []
+    for port in [int(f.get("port") or 0) for f in fiches] + [BROWSER_PORT]:
+        if port and port not in candidats:
+            candidats.append(port)
+    # **Ceux qui ont une vraie page d'abord** : c'est là que l'écran doit atterrir.
+    avec_page = []
+    for port in candidats:
+        sante = _sante(port)
+        if sante.get("ok") and sante.get("alive") is not False:
+            avec_page.append((1 if str((sante.get("page") or {}).get("state")) == "ok" else 0, port))
+    avec_page.sort(reverse=True)
+    return [port for _, port in avec_page]
+
+
 def _navigateur_a_joindre() -> tuple[str, int]:
     """Quel processus tient le navigateur de l'agent ?
 
@@ -197,6 +243,10 @@ def _navigateur_a_joindre() -> tuple[str, int]:
         # alors que la page demandée vivait dans l'autre processus.
         page = sante.get("page") or {}
         page_reelle = 1 if str(page.get("state") or "") == "ok" else 0
+        # **Une page réelle bat un simple « il y a un navigateur ».** C'est ce départage qui
+        # envoie l'écran du téléphone sur le processus qui montre *la* page, plutôt que sur un
+        # processus qui a un navigateur mais rien à afficher.
+        score = score + (2 if page_reelle else 0)
         fraicheur = max([float(f.get("ts") or 0) for f in fiches if int(f.get("port") or 0) == port]
                         or [0.0])
         cle = (score, page_reelle, 1 if port == BROWSER_PORT else 0, fraicheur)
@@ -416,7 +466,13 @@ def manifeste() -> dict:
         "bridge": _pont_vivant(),
         "bridgeToken": _jeton_pont(),
         "language": LANGUE,
-        "capabilities": ["sessions", "voices", "skills", "profiles"],
+        # **Ce que la passerelle sait vraiment faire, dit à l'app.**
+        #
+        # L'app décide de montrer l'onglet Bots et les salons d'après cette liste, pas d'après ce
+        # qu'elle découvre en appelant : une capacité absente se lit « cette passerelle n'a pas de
+        # bots », et l'écran affiche « Aucun bot sur cette passerelle » alors que le serveur en a.
+        # `profiles` et `groups` sont servis par le dashboard (9119) que ce relais relaie.
+        "capabilities": ["sessions", "voices", "skills", "profiles", "bots", "groups"],
     }
 
 
@@ -438,6 +494,15 @@ class Relais(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def _trace(self, statut: int = 0) -> None:
+        """**Chaque requête reçue, sur une ligne.** Sans ça, « l'app n'arrive pas » et « l'app
+        arrive et échoue » se ressemblent : les deux laissent un écran vide et aucune trace."""
+        try:
+            chemin = self.path.split("?")[0]
+            print(f"HTTP {self.command} {chemin} -> {statut or '-'}", flush=True)
+        except Exception:
+            pass
+
     def _autorise(self) -> bool:
         brut = (self.headers.get("Authorization") or "").strip()
         if brut[:7].lower() == "bearer ":
@@ -446,9 +511,14 @@ class Relais(BaseHTTPRequestHandler):
             brut = (self.headers.get("X-API-Key") or "").strip()
         return bool(brut) and _constant(brut, CLE)
 
-    def _vers_amont(self, hote: str, port: int, entete_auth: dict[str, str],
-                    corps: bytes | None) -> tuple[int, list[tuple[str, str]], bytes]:
-        """Un aller-retour vers l'amont, avec l'identité que le relais présente à sa place."""
+    def _entetes_amont(self, entete_auth: dict[str, str]) -> dict[str, str]:
+        """Les en-têtes à présenter à l'amont : ceux du client, moins son identité.
+
+        `X-Hermes-Profile` et `X-Hermes-Keep-Running` **passent** : le premier dit de quel
+        profil Hermes la requête parle (une session rangée dans `profiles/coder` n'existe pas
+        dans le profil par défaut — 404 à chaque sondage), le second dit qu'un tour doit
+        survivre à la déconnexion du téléphone.
+        """
         entetes = {}
         for nom, valeur in self.headers.items():
             if nom.lower() in SAUT or nom.lower() in ("authorization", "x-api-key",
@@ -456,6 +526,29 @@ class Relais(BaseHTTPRequestHandler):
                 continue
             entetes[nom] = valeur
         entetes.update(entete_auth)
+        return entetes
+
+    def _veut_un_flux(self, corps: bytes | None) -> bool:
+        """Cette requête attend-elle un flux (SSE) plutôt qu'une réponse ?
+
+        Le chat en mode `stream` : c'est la seule route de l'api_server dont la réponse
+        dure des minutes. Tout le reste (registre des sessions, modèle, etc.) est court
+        et se recopie tel quel.
+        """
+        if not self.path.startswith("/v1/chat/completions"):
+            return False
+        if not corps:
+            return False
+        try:
+            charge = json.loads(corps.decode("utf-8", errors="replace"))
+        except ValueError:
+            return False
+        return bool(isinstance(charge, dict) and charge.get("stream"))
+
+    def _vers_amont(self, hote: str, port: int, entete_auth: dict[str, str],
+                    corps: bytes | None) -> tuple[int, list[tuple[str, str]], bytes]:
+        """Un aller-retour vers l'amont, avec l'identité que le relais présente à sa place."""
+        entetes = self._entetes_amont(entete_auth)
         cx = http.client.HTTPConnection(hote, port, timeout=300)
         try:
             cx.request(self.command, self.path, body=corps, headers=entetes)
@@ -464,12 +557,81 @@ class Relais(BaseHTTPRequestHandler):
         finally:
             cx.close()
 
+    def _vers_amont_flux(self, hote: str, port: int, entete_auth: dict[str, str],
+                         corps: bytes | None):
+        """Ouvre la conversation avec l'amont et rend sa réponse **sans** lire le corps.
+
+        Le corps est laissé à l'appelant : un flux SSE se recopie bloc par bloc, et
+        l'avaler ici le ramasserait d'avance — c'est-à-dire à la fin du tour.
+        """
+        entetes = self._entetes_amont(entete_auth)
+        cx = http.client.HTTPConnection(hote, port, timeout=300)
+        cx.request(self.command, self.path, body=corps, headers=entetes)
+        return cx, cx.getresponse()
+
+    def _relier_flux(self, reponse) -> None:
+        """Recopie un flux de l'amont vers le client, bloc par bloc.
+
+        **C'est le correctif de l'attente.** Le relais lisait la réponse **entière** avant
+        d'en écrire la première ligne au téléphone : pendant tout le tour de l'agent
+        (30 minutes observées le 2026-11-05), l'app ne recevait rien et n'affichait que
+        « rien du serveur depuis … ». Ici chaque bloc part dès qu'il arrive, et le tour
+        reste visible en direct.
+
+        Le client peut partir (app fermée, tunnel coupé) : on cesse d'écrire, on ferme
+        l'amont, et le tour **continue** côté passerelle (`X-Hermes-Keep-Running`), sa
+        réponse se range dans la session où l'app la relira.
+        """
+        self.send_response(reponse.status)
+        for nom, valeur in reponse.getheaders():
+            # `server` et `date` sont réécrits par `send_response` : les recopier
+            # produirait deux en-têtes de chaque.
+            if nom.lower() in SAUT or nom.lower() in ("content-length", "server", "date"):
+                continue
+            self.send_header(nom, valeur)
+        # La longueur est inconnue : c'est un flux, on le déclare comme tel.
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        try:
+            while True:
+                bloc = reponse.read1(65536)
+                if not bloc:
+                    break
+                self.wfile.write(b"%X\r\n" % len(bloc) + bloc + b"\r\n")
+                self.wfile.flush()
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+        except OSError:
+            # Le téléphone est parti : le tour continue en amont, la réponse sera relue.
+            pass
+        finally:
+            self.close_connection = True
+
     # -- routage --
 
     def _servir(self) -> None:
+        self._trace()
         chemin = urlsplit(self.path).path
         longueur = int(self.headers.get("Content-Length") or 0)
         corps = self.rfile.read(longueur) if longueur else None
+
+        # **Toute requête navigateur est tracée, même refusée.** Le refus d'identité (401)
+        # rendait la réponse muette : rien dans le journal ne montrait que l'app avait
+        # essayé, et rien ne montrait ce qu'elle avait demandé. Une trace par requête —
+        # chemin, identité présente ou non, mise à niveau WebSocket — suffit à dire si
+        # l'écran est coince avant le socket (côté app) ou apres (cote relais).
+        if chemin.startswith(BROWSER_PREFIXE):
+            brut = (self.headers.get("Authorization") or "").strip()
+            if brut[:7].lower() == "bearer ":
+                brut = brut[7:].strip()
+            print(
+                f"BROWSER REQ {self.command} {self.path} "
+                f"ident={'oui' if brut else 'non'} "
+                f"identok={_constant(brut, CLE) if brut else False} "
+                f"maj={(self.headers.get('Upgrade') or '-')} "
+                f"ua={(self.headers.get('User-Agent') or '-')[:24]}",
+                flush=True,
+            )
 
         if chemin in ("/health", "/healthz"):
             return self._repondre(200, {"status": "ok"})
@@ -515,12 +677,48 @@ class Relais(BaseHTTPRequestHandler):
             try:
                 hote_nav, port_nav = _navigateur_a_joindre()
                 statut, entetes, charge = self._vers_amont(hote_nav, port_nav, {}, corps)
+                # **Ce que l'app demande vraiment.** Le plugin ignore ces appels : seul le relais
+                # les voit. Sans cette trace, un écran noir ne dit pas si la sonde est partie
+                # (et a échoué) ou si elle n'a jamais été envoyée — deux diagnostics opposés.
+                print(f"BROWSER {self.command} {chemin} -> {statut} (port {port_nav})", flush=True)
+                # **Le plugin refuse le ticket quand la page est chez un autre processus.** On
+                # ne renvoie pas ce refus à l'app : on réessaie ailleurs, dans l'ordre des
+                # candidats, jusqu'à trouver celui qui a la page. L'app reçoit alors un ticket
+                # valide, et l'écran se branche enfin sur la bonne image.
+                if statut == 409 and chemin.rstrip("/").endswith("/observe"):
+                    for autre in _candidats_navigateur():
+                        if autre == port_nav:
+                            continue
+                        sante = _sante(autre)
+                        if not sante.get("ok") or sante.get("alive") is False:
+                            continue
+                        try:
+                            s2, e2, c2 = self._vers_amont(hote_nav, autre, {}, corps)
+                        except OSError:
+                            continue
+                        print(f"BROWSER POST {chemin} -> {s2} (port {autre}, reroute)", flush=True)
+                        if s2 == 200:
+                            statut, entetes, charge = s2, e2, c2
+                            port_nav = autre
+                            break
                 if statut == 200 and chemin.rstrip("/").endswith("/observe"):
                     _retenir_ticket(charge, port_nav)
             except OSError:
                 return self._repondre(503, {"error": "browser_unavailable",
                                             "detail": "no onyx-browser plugin is listening"})
         elif vers_api:
+            # **Le chat est un flux.** `/v1/chat/completions` en mode `stream` doit atteindre
+            # le téléphone bloc par bloc : l'avaler d'abord le laisserait devant « rien du
+            # serveur » pendant tout le tour. Les autres routes de l'api_server sont des
+            # réponses courtes : elles gardent le chemin simple.
+            if self._veut_un_flux(corps):
+                cx, reponse = self._vers_amont_flux(
+                    API_HOTE, API_PORT, {"Authorization": "Bearer " + CLE_API}, corps)
+                try:
+                    self._relier_flux(reponse)
+                finally:
+                    cx.close()
+                return
             statut, entetes, charge = self._vers_amont(
                 API_HOTE, API_PORT, {"Authorization": "Bearer " + CLE_API}, corps)
         elif JETON_DASHBOARD:
@@ -600,9 +798,26 @@ class Relais(BaseHTTPRequestHandler):
                         donnees = source.recv(65536)
                     except BlockingIOError:
                         continue
+                    except OSError:
+                        return
                     if not donnees:
                         return
-                    autre.sendall(donnees)
+                    # **`sendall` sur un socket non bloquant lève `BlockingIOError`** dès que le
+                    # tampon est plein — c'est le cas normal d'un téléphone en 4G, qui lit moins
+                    # vite que le serveur n'écrit. L'exception remontait jusqu'ici : le relais
+                    # perdait la connexion **sans rien dire**, et l'écran du téléphone restait sur
+                    # « En attente… » sans jamais savoir pourquoi. On écrit donc par morceaux, en
+                    # attendant que la prise soit possible.
+                    reste = donnees
+                    while reste:
+                        try:
+                            envoye = autre.send(reste)
+                        except BlockingIOError:
+                            select.select([], [autre], [], 30)
+                            continue
+                        except OSError:
+                            return
+                        reste = reste[envoye:]
         finally:
             amont.close()
             self.close_connection = True

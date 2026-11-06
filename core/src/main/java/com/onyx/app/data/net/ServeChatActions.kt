@@ -2,6 +2,8 @@ package com.onyx.app.data.net
 
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.localization.OnyxLocalization
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -288,9 +290,27 @@ class ServeChatActions(
         // Les deux routes se lisent ensemble : la consommation d'un côté, les postes du contexte de
         // l'autre. La première est l'essentielle ; la seconde vient enrichir, et son absence ne
         // transforme pas une consommation lue en échec.
-        val usage = runCatching { channel().call("session.usage", params, TIMEOUT) }
-        val breakdown = runCatching { channel().call("session.context_breakdown", params, TIMEOUT) }
-        val live = usage.map { usageOf(it, breakdown.getOrNull(), cost) }
+        // **Les deux lectures ensemble, et avec un délai court.**
+        //
+        // Elles étaient faites l'une après l'autre, chacune avec 15 s de patience : une session
+        // morte — le cas de presque toutes les conversations d'un bot une fois la réponse donnée —
+        // faisait tourner le sablier jusqu'à trente secondes avant que le repli ne lise le
+        // registre. « Ça cherche dans le vide » était littéralement vrai : deux allers-retours
+        // RPC dont on savait déjà qu'ils ne répondraient pas.
+        // **Et le registre part en même temps, pas après.**
+        //
+        // Le repli attendait la fin des deux RPC — cinq secondes de sablier même quand la session
+        // était morte depuis longtemps. Ici les trois lectures courent ensemble : la première qui
+        // a des chiffres gagne, et la feuille se remplit au rythme de la plus rapide.
+        val lecture = coroutineScope {
+            val usage = async { runCatching { channel().call("session.usage", params, READ_TIMEOUT) } }
+            val detail = async {
+                runCatching { channel().call("session.context_breakdown", params, READ_TIMEOUT) }
+            }
+            val consigne = async { runCatching { recordedUsage(sessionId, profile) }.getOrNull() }
+            Triple(usage.await(), detail.await(), consigne.await())
+        }
+        val live = lecture.first.map { usageOf(it, lecture.second.getOrNull(), cost) }
 
         // **La session morte n'est pas une absence de chiffres.** `session.usage` ne répond que
         // pour une session vivante : dès que le serveur a relâché la conversation — et c'est le cas
@@ -300,7 +320,7 @@ class ServeChatActions(
         // la ligne « ▲ 8.2k ▼ 1.1k » de la liste). On y va donc en second, et seulement si la
         // lecture vivante n'a rien donné.
         if (live.getOrNull()?.let { !it.isEmpty } == true) return live
-        recordedUsage(sessionId, profile)?.let { return Result.success(it) }
+        lecture.third?.let { return Result.success(it) }
         return live
     }
 
@@ -328,7 +348,7 @@ class ServeChatActions(
      * **absence de processus** — deux choses différentes, et la seconde est une mesure.
      */
     suspend fun processes(sessionId: String): Result<ProcessesRead> =
-        runCatching { channel().call("process.list", sessionParams(liveSessionId(sessionId)), TIMEOUT) }
+        runCatching { channel().call("process.list", sessionParams(liveSessionId(sessionId)), READ_TIMEOUT) }
             .map { ProcessesRead(processesOf(it), live = true) }
             // Une session terminée ne tient **aucun** processus : la liste vide est la vérité, pas
             // un échec. Le message « le serveur ne tient plus la session vivante » reste pour les
@@ -453,6 +473,17 @@ class ServeChatActions(
     companion object {
         /** Le temps d'un aller-retour de lecture : au-delà, la feuille dit qu'elle n'a pas eu de réponse. */
         const val TIMEOUT = 15_000L
+
+        /**
+         * **Le délai d'une lecture de compteurs : cinq secondes, pas quinze.**
+         *
+         * `session.usage` et `process.list` ne répondent que pour une session **vivante**. Sur une
+         * conversation terminée, attendre quinze secondes ne fait que retarder le repli — et les
+         * deux lectures se cumulaient, donc trente secondes de sablier pour une réponse qu'on
+         * connaissait d'avance. Une lecture de compteurs qui met plus de cinq secondes est une
+         * lecture qui n'aboutira pas : mieux vaut le dire vite et lire le registre.
+         */
+        const val READ_TIMEOUT = 5_000L
 
         /** Restaurer touche le dossier : un peu plus de marge. */
         const val RESTORE_TIMEOUT = 30_000L

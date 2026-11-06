@@ -452,7 +452,10 @@ fun OnyxSegmented(
     // creux de la famille plate ([flatTrackColor]), la pastille blanche, et la pastille prend la
     // petite ombre qui la fait lire comme posée **sur** la piste — c'est le seul trait de la famille
     // plate, et il remplace le liseré que le verre portait.
-    val flatTrack = flat && !theme.dark
+    // **La piste plate vaut dans les deux apparences.** Elle n'était appliquée qu'au clair, et la
+    // piste sombre gardait la vitre de Frost — donc son liseré, c'est-à-dire une bordure autour du
+    // contrôle. Le volet ne porte plus de bordure, en clair comme en sombre.
+    val flatTrack = flat
     // **La pastille du contrôle segmenté** : le barreau [OnyxSurfaces.capsule] en sombre — la même
     // marche que la capsule de l'onglet actif, donc les deux capsules de l'app se ressemblent — et
     // la carte blanche en clair, où la séparation vient du filet et de **l'ombre unique**

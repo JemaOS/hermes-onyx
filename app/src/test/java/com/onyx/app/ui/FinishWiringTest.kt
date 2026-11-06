@@ -32,18 +32,18 @@ class FinishWiringTest {
     // — Le verre : chaque surface traitée est branchée —
 
     @Test
-    fun `le volet et ses tuiles portent leur vitre`() {
+    fun `le volet et ses tuiles passent par leur surface, sans vitre`() {
         val sidebar = read(app("sidebar/ChatSidebar.kt"))
         val flat = read(core("FlatLight.kt"))
-        // **Le lot « volet clair propre » a déplacé le branchement, pas retiré la vitre** : la
-        // surface passe maintenant par un point de décision unique, qui appelle la table du verre en
-        // apparence sombre et la plaque plate au clair. C'est donc le point de décision qui doit
-        // citer la surface, et la table du verre qui doit porter l'appel.
+        // **Le point de décision reste branché, mais il ne peint plus de vitre** : ni le panneau ni
+        // la tuile ne ré-échantillonnent le fond, dans aucune apparence. Le verrou garde donc les
+        // sites (une surface posée à la main rouvrirait la porte aux bordures) et constate l'absence
+        // des deux appels de verre. La rangée de liste, elle, garde sa table.
         assertTrue("le volet doit passer par la surface du volet", sidebar.contains(".sidebarPaneSurface()"))
         assertTrue("une tuile doit citer GlassSurface.SIDEBAR_TILE", sidebar.contains(".sidebarTileSurface(GlassSurface.SIDEBAR_TILE, shape)"))
-        assertTrue("la vitre du volet doit rester appelée", flat.contains("liquidGlass(GlassSurface.SIDEBAR_PANEL)"))
-        assertTrue("la vitre d'une tuile doit rester appelée", flat.contains("liquidGlass(surface, shape)"))
-        assertTrue("la vitre doit rester conditionnée à l'apparence sombre", flat.contains("if (theme.dark)"))
+        assertFalse("le volet ne porte plus de vitre", flat.contains("liquidGlass(GlassSurface.SIDEBAR_PANEL)"))
+        assertFalse("la tuile ne porte plus de vitre", flat.contains("liquidGlass(surface, shape)"))
+        assertTrue("la rangée de liste garde sa table", flat.contains("liquidGlass(GlassSurface.LIST_ROW, shape)"))
     }
 
     @Test

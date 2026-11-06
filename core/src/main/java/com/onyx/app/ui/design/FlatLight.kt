@@ -289,36 +289,31 @@ fun Modifier.flatPlate(
     .background(colour)
 
 /**
- * **La surface du volet** : la vitre de la table en sombre, **la couleur du panneau** au clair.
+ * **La surface du volet** : sa couleur pleine, dans **les deux apparences**.
  *
- * Le volet clair est un panneau **uni** : la matière et le halo de la page passaient dessous (le
- * volet les portait lui-même) et se lisaient comme un fond taché, « pas propre ». Le verre clair
- * ré-échantillonnait cette matière à travers sa teinte, donc il ne faisait qu'ajouter du bruit à du
- * bruit. Au clair, le panneau est désormais sa couleur pleine et rien d'autre ; en sombre, il garde
- * exactement la vitre de la table, avec sa lumière et son liseré.
+ * Le volet portait la **matière** et le **halo** de la page sous une vitre qui les ré-échantillonnait.
+ * Le résultat se lisait comme un fond taché — « l'arrière-plan n'est pas une couleur unie, ça n'est
+ * pas propre » — dans les deux apparences. Le panneau est désormais sa couleur et rien d'autre : ni
+ * voile, ni liseré, ni arête, ni échantillonnage. `sidebarPaneColor` reste la seule source, donc la
+ * coquille et le contenu ne peuvent pas diverger d'un cran.
  */
 @Composable
-fun Modifier.sidebarPaneSurface(): Modifier {
-    val theme = LocalOnyxTheme.current
-    return if (theme.dark) this.liquidGlass(GlassSurface.SIDEBAR_PANEL) else this
-}
+fun Modifier.sidebarPaneSurface(): Modifier = this
 
 /**
- * La surface d'une **tuile** (volet) ou d'une **carte de bot** : la vitre de la table en sombre, la
- * **plaque détachée** au clair.
+ * La surface d'une **tuile** (volet) ou d'une **carte de bot** : la **plaque détachée**, dans les
+ * deux apparences.
  *
- * Au clair, la tuile garde sa plaque et le **seuil des tuiles** ([flatTileColor], 1,18:1), mais
- * **plus de filet** : le propriétaire a refusé les bordures autour des tuiles (« il y a des bordures
- * autour que je veux pas »). La plaque se détache par sa seule luminance, comme le panneau.
+ * La tuile garde son **seuil de détachement** ([flatTileColor], 1,18:1) — elle doit se lire comme
+ * une tuile — mais **plus de filet et plus de vitre** : le propriétaire a refusé les bordures
+ * autour des surfaces (« il y a des bordures autour que je veux pas »), et la vitre sombre
+ * ré-échantillonnait le panneau pour n'ajouter qu'un liseré. La plaque se détache par sa seule
+ * luminance, comme le panneau.
  */
 @Composable
 fun Modifier.sidebarTileSurface(surface: GlassSurface, shape: Shape): Modifier {
     val theme = LocalOnyxTheme.current
-    return if (theme.dark) {
-        this.liquidGlass(surface, shape)
-    } else {
-        this.flatPlate(flatTileColor(theme), shape)
-    }
+    return this.flatPlate(flatTileColor(theme), shape)
 }
 
 /**

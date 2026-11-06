@@ -263,7 +263,7 @@ class SidebarFlatLightTest {
     // -----------------------------------------------------------------------------------------
 
     @Test
-    fun `le verre est retire au clair et intact en sombre`() {
+    fun `le verre est retire dans les deux apparences`() {
         // Le panneau : le verre **seulement** quand l'apparence est sombre.
         assertTrue(
             "le panneau ne passe plus par le point de décision du verre",
@@ -277,11 +277,12 @@ class SidebarFlatLightTest {
             "la rangée de liste ne passe plus par le point de décision",
             bots.contains(".sidebarRowSurface(shape)"),
         )
-        // Le panneau **garde** sa vitre en sombre : la fonction de la table du verre est toujours
-        // appelée, avec la même surface qu'avant.
+        // Le panneau et la tuile **ne portent plus de vitre**, dans aucune apparence : le fond du
+        // volet est uni et les surfaces n'ont plus d'arête. La rangée, elle, garde sa table (une
+        // rangée sombre est une teinte, pas un cadre).
         val flat = read("core/src/main/java/com/onyx/app/ui/design/FlatLight.kt")
-        assertTrue("la surface du verre a changé en sombre", flat.contains("this.liquidGlass(GlassSurface.SIDEBAR_PANEL)"))
-        assertTrue("la table du verre n'est plus consultée", flat.contains("this.liquidGlass(surface, shape)"))
+        assertFalse("le panneau garde une vitre", flat.contains("this.liquidGlass(GlassSurface.SIDEBAR_PANEL)"))
+        assertFalse("la tuile garde une vitre", flat.contains("this.liquidGlass(surface, shape)"))
         assertTrue("la rangée ne consulte plus la table", flat.contains("this.liquidGlass(GlassSurface.LIST_ROW, shape)"))
         // L'ombre du panneau : nulle en sombre, jamais en plus du verre.
         assertTrue("l'ombre du panneau n'est pas conditionnée", flat.contains("if (theme.dark) 0.dp else FlatPanelElevation"))
@@ -297,7 +298,7 @@ class SidebarFlatLightTest {
     fun `le selecteur plat ne s applique qu au clair`() {
         assertTrue("le volet ne demande plus la piste plate", sidebar.contains("flat = true,"))
         val form = read("core/src/main/java/com/onyx/app/ui/design/OnyxForm.kt")
-        assertTrue("le drapeau du sélecteur n'est plus neutralisé en sombre", form.contains("val flatTrack = flat && !theme.dark"))
+        assertTrue("la piste plate vaut aussi en sombre", form.contains("val flatTrack = flat"))
         assertTrue("la piste plate n'a plus la couleur des creux", form.contains("flatTrackColor(theme)"))
         assertTrue("la pastille n'est plus blanche", form.contains("flatTrackPillColor(theme)"))
     }
