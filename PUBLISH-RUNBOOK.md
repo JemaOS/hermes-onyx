@@ -13,10 +13,32 @@ d'emploi ; il peut être retiré avant le commit s'il ne doit pas être public.
 | `README.md` | README à jour ; les jetons `__VERSION__`, `__CODE__`, `__SIDECAR__`, `__TESTS__` sont remplacés par `release.sh`. |
 | `docs/screenshots/README.md` | conventions de nommage + liste des captures attendues (sombre et clair). |
 
+## La clé de publication
+
+Depuis la 1.3.97 les trois paquets sont signés par la **clé du projet**, et non plus par la clé
+de mise au point (c'est elle qui a signé jusqu'au 1.3.96, donc la 1.3.97 s'installe **à neuf** :
+une seule désinstallation de l'ancienne version, ensuite les mises à jour passent).
+
+| Élément | Valeur |
+|---|---|
+| Keystore (hors dépôt) | `~/keystores/onyx-release.jks` — RSA 4096, SHA256withRSA, alias `onyx` |
+| Propriétés lues par Gradle | `~/keystores/onyx-release.properties`, recopiée en `keystore.properties` à la racine du clone (`*.jks` et `keystore.properties` sont ignorés par git) |
+| Autre emplacement | `ONYX_RELEASE_KEYSTORE=<chemin du fichier .properties>` (prioritaire sur `keystore.properties`) |
+| Empreinte du certificat | `1a1f8225f509167b4e01d4606b5ffa6eb17c07868d9b8190efc9f47c459a4402` |
+| Validité | jusqu'au 24 mars 2054 |
+| Sauvegarde | keystore **et** mot de passe dans le gestionnaire de mots de passe. Perdus = plus aucune mise à jour possible, pour personne. |
+
+Le JDK du build est `/home/john/android-toolchain/jdk-21` (`JAVA_HOME` doit pointer dessus : le
+`java` par défaut de la machine est un 8, refusé par Gradle).
+
+```bash
+export JAVA_HOME=/home/john/android-toolchain/jdk-21
+```
+
 ## Commande exacte au moment de publier
 
 ```bash
-cd ~/onyx-publish-finale
+cd ~/Bureau/onyx
 
 # 1. (optionnel mais recommandé) rafraîchir la galerie sur le build livré — lots de captures
 
@@ -48,9 +70,21 @@ ni le README ni les notes : c'est le mode à utiliser pour vérifier avant de pu
 
 ## Ce que `release.sh` refuse de faire
 
-- publier un paquet **non signé** ou signé par un **certificat différent** des autres ;
+- publier un paquet **non signé**, signé par le **certificat de débogage** (`CN=Android Debug`),
+  ou signé par un certificat **différent** des autres ;
 - publier si `scripts/check-forbidden-words.sh` trouve une occurrence **nouvelle** ;
 - déclarer une réussite sans avoir **re-téléchargé** chaque paquet et comparé son empreinte.
+
+Noms d'assets : `onyx-app-<version>-release.apk`, `onyx-auto-<version>-release.apk`,
+`onyx-wear-<version>-release.apk`, `SHA256SUMS-<version>.txt` — et le corps de la release suit
+toujours la même forme :
+
+```
+What's Changed
+<une ligne par commit, terminée par « (<sha court>) » et deux espaces>
+
+Full Changelog: v<précédente>...v<nouvelle>
+```
 
 ## Après la publication
 

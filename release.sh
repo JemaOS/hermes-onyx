@@ -79,8 +79,14 @@ VN="$(printf '%s' "$BAD" | sed -E "s/.*versionName='([^']+)'.*/\1/")"
 VC="$(printf '%s' "$BAD" | sed -E "s/.*versionCode='([0-9]+)'.*/\1/")"
 [ -n "$VN" ] && [ "$VN" != "$BAD" ] || die "versionName illisible dans $PHONE"
 [ -n "$VERSION" ] || VERSION="$VN"
-# --version accepte « 586 » comme « 1.0.0+586 ».
-case "$VERSION" in *+*) : ;; *) VERSION="1.0.0+$VERSION" ;; esac
+# --version accepte « 586 » comme « 1.0.0+586 », et laisse passer un `versionName` déjà formé
+# (« 1.3.96 ») : depuis 1.3.x le numéro publié n'est plus un code nu, et le préfixer fabriquait
+# un tag `v1.0.0+1.3.96` qui n'existe pas.
+case "$VERSION" in
+  *+*) : ;;                        # déjà complet
+  ''|*[!0-9]*) : ;;                # 1.3.96 : versionName tel quel
+  *) VERSION="1.0.0+$VERSION" ;;   # « 586 » : ancien style
+esac
 CODE="${VERSION##*+}"
 say "Version"
 info "APK téléphone        : $VN (versionCode $VC)"
@@ -95,6 +101,14 @@ check_apk() {  # $1 = chemin, $2 = rôle
   out="$("$APKSIGNER" verify --print-certs "$apk" 2>&1)" || die "$role : signature invalide\n$out"
   certs="$(printf '%s' "$out" | grep -c 'certificate DN')"
   [ "$certs" -eq 1 ] || die "$role : $certs signataires (il en faut exactement 1)"
+  # Un paquet signé avec la clé de mise au point passerait le contrôle ci-dessus (un seul
+  # signataire, le même partout) tout en étant **impossible à mettre à jour** ailleurs que sur
+  # la machine qui l'a signé. C'est arrivé jusqu'au 1.3.96 : on refuse désormais explicitement.
+  dn="$(printf '%s' "$out" | grep -m1 'certificate DN' | sed -E 's/.*certificate DN: *//')"
+  case "$dn" in
+    *"CN=Android Debug"*) die "$role : signé par la clé de DÉBOGAGE ($dn).\n   Signe avec la clé de release (cf. PUBLISH-RUNBOOK.md) avant de publier." ;;
+  esac
+  info "$role : certificat — $dn"
   cert="$(printf '%s' "$out" | grep -m1 'SHA-256 digest' | sed -E 's/.*digest: *//')"
   info "$role : signé — cert SHA-256 ${cert:0:16}…"
   if [ -z "$CERT" ]; then CERT="$cert"; else [ "$CERT" = "$cert" ] || die "$role : certificat différent des autres paquets"; fi
