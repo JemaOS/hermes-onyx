@@ -2,7 +2,8 @@
 
 Ce fichier est la marche à suivre pour les dépôts qui n'exigent **ni frais, ni compte payant** :
 IzzyOnDroid, F-Droid, et la page des versions GitHub (déjà en place). Il ne reste que deux gestes à
-faire à la main, parce qu'ils demandent un compte GitLab (gratuit) que seul le propriétaire peut ouvrir.
+faire à la main, parce qu'ils demandent un compte gratuit — Codeberg pour IzzyOnDroid, GitLab pour
+F-Droid — que seul le propriétaire peut ouvrir.
 
 ## Ce qui est déjà dans le dépôt
 
@@ -20,10 +21,13 @@ Rien de tout cela ne change l'application : ce sont des fichiers de texte et des
 IzzyOnDroid reprend **tes** APK signés, tels quels : la mise à jour se fait par-dessus l'installation
 existante, sans désinstallation. C'est le dépôt à viser en premier.
 
-1. Se connecter à GitLab (compte gratuit) : https://gitlab.com/users/sign_up
-2. Ouvrir une demande d'ajout : https://gitlab.com/IzzyOnDroid/repo/-/issues/new
+1. Créer un compte sur **Codeberg** (gratuit, email seul) : https://codeberg.org/user/sign_up
+   — leur outil de demandes a déménagé là ; l'ancien suivi GitLab n'est plus la voie d'entrée.
+2. Ouvrir la demande : https://codeberg.org/IzzyOnDroid/repodata/issues/new
+   (sans compte : un mail à `team@izzyondroid.org`, c'est leur adresse pour ce qui ne rentre pas
+   dans une case)
 3. Titre : `Inclusion request: Hermes Onyx (com.onyx.app)`
-4. Corps du message (en anglais) :
+4. Corps du message (en anglais), à coller tel quel :
 
 ```
 App name: Hermes Onyx
@@ -32,32 +36,40 @@ Repository: https://github.com/JemaOS/hermes-onyx
 License: MIT
 Category: Internet
 Latest release: https://github.com/JemaOS/hermes-onyx/releases/latest
-APK to use: onyx-app-<version>-release.apk (signed with the project's release key,
-SHA-256 of the certificate: 1a1f8225f509167b4e01d4606b5ffa6eb17c07868d9b8190efc9f47c459a4402)
+APK to use: onyx-app-<version>-release.apk — signed with the project's release key,
+SHA-256 of the certificate: 1a1f8225f509167b4e01d4606b5ffa6eb17c07868d9b8190efc9f47c459a4402
+(The same key signs the two companions, onyx-auto- and onyx-wear-.)
 
-Fastlane metadata is already in the repository (fastlane/metadata/android/en-US and fr-FR:
-title, short and full description, changelogs, six phone screenshots, feature graphic, 512×512
-icon). The screenshots were captured at 1080×2400 (2.22:1) and are delivered as 1080×1920
-(16:9): each capture is centred on a background sampled from its own edge, because Play refuses
-anything beyond 2:1 and cropping the frame cut the composer in half.
+Fastlane metadata is already in the repository (fastlane/metadata/android/en-US and fr-FR):
+title, short and full description, per-version changelogs, six phone screenshots at 1080x1920,
+a 1024x500 feature graphic and a 512x512 icon.
 
 What it is: the Android client for a self-hosted Hermes agent. No account, no telemetry,
-no Firebase, no Play Services. It talks to one host only: the Hermes Dashboard the user
-runs themselves. Chat with streaming, bots and rooms, hands-free voice, and a live view
-of the user's computer.
+no Firebase, no Play Services. It talks to one host only: the Hermes Dashboard the user runs
+themselves. Streaming chat, bots and group rooms, hands-free voice, and a live view of the
+user's computer.
 
-No proprietary dependency: every library is free software (AndroidX, OkHttp, kotlinx,
-Markwon, sshj, ZXing). There is no billing library, no advertising SDK, no crash reporter.
+Dependencies: every library is free software (AndroidX, OkHttp, kotlinx, Markwon, sshj, ZXing).
+There is no billing library, no advertising SDK and no crash reporter — a Play Billing
+dependency was removed in 1.3.98, so nothing non-free is left.
 
-Anti-features: none. The app requires a self-hosted server to be useful, which I mention
-in the description.
+Cleartext traffic: the app ships a Network Security Configuration
+(app/src/main/res/xml/network_security_config.xml) and permits cleartext, because a self-hosted
+Hermes gateway usually runs on plain http:// on the local network. This is the "local
+webserver" case your policy allows; the file documents the reason in place.
+
+Anti-features: none. The app needs a self-hosted server to be useful, which the description says.
+
+Upstream also publishes the same signed packages from its own F-Droid repository,
+https://jemaos.github.io/hermes-onyx/repo — it does not replace yours, it just shows the
+packages are maintained and consistently signed.
 ```
 
 Izzy vérifie ensuite l'APK, la signature et les métadonnées, puis ajoute l'application à son dépôt.
 Le badge à mettre ensuite dans le README :
 
 ```markdown
-[![IzzyOnDroid](https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png)](https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app)
+[![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app/badge.json)](https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app)
 ```
 
 ## Étape 2 — F-Droid officiel (plus lent, plusieurs semaines à quelques mois)
