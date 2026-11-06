@@ -2060,6 +2060,9 @@ class ChatViewModel(
                     sessionId = serverSessionId
                         ?.takeIf { it.isNotBlank() }
                         ?.takeIf { server.transport == Transport.HERMES_SESSIONS },
+                    // La clé du fil : stable pour cette conversation, donc le gateway retrouve la
+                    // même session d'un tour à l'autre au lieu d'en créer une par requête.
+                    conversationKey = conversationId,
                 )
                 lastRequest = request
                 startStream(server, request, assistantId, prompt = fullText)

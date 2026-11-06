@@ -28,4 +28,14 @@ data class ChatRequest(
     val fast: Boolean = false,
     /** Session côté gateway (`HERMES_SESSIONS`), pour reprendre la session existante sans renvoyer tout le fil. */
     val sessionId: String? = null,
+
+    /**
+     * **La clé qui nomme cette conversation côté gateway** (`X-Hermes-Session-Key`).
+     *
+     * Sans elle, le gateway ne sait pas *quelle* conversation il sert : il en fabrique une à chaque
+     * requête, et se heurte à sa propre route déjà enregistrée — `admission_conflict`, le bandeau
+     * rouge « Réponse inattendue ». Avec elle, il retrouve la session vivante de ce fil, ou en
+     * ouvre une proprement pour cette clé-là.
+     */
+    val conversationKey: String? = null,
 )

@@ -247,6 +247,12 @@ class ChatCompletionsClient(
                 // qu'un en-tête écrit ici survivait à ce repli — le serveur le refusait à chaque
                 // requête, indéfiniment.
                 if (sessionId != null && key.isNotEmpty()) header(SESSION_HEADER, sessionId)
+                // **La clé de conversation, toujours.** Elle nomme le fil pour le gateway : c'est
+                // elle qui lui permet de reconnaître la session existante au lieu d'en créer une
+                // seconde sur la même route (ce que l'état local refuse : `admission_conflict`).
+                request.conversationKey?.trim()?.takeIf { it.isNotEmpty() }?.let { cle ->
+                    if (key.isNotEmpty()) header(SESSION_KEY_HEADER, cle.take(MAX_SESSION_KEY))
+                }
             }
             .build()
     }
@@ -725,6 +731,10 @@ class ChatCompletionsClient(
          */
         const val KEEP_RUNNING_HEADER = "X-Hermes-Keep-Running"
         const val SESSION_HEADER = "X-Hermes-Session-Id"
+        /** Nomme la conversation : le gateway résout sa session au lieu d'en créer une autre. */
+        const val SESSION_KEY_HEADER = "X-Hermes-Session-Key"
+        /** Le plafond du gateway pour cette en-tête (256 octets). */
+        const val MAX_SESSION_KEY = 200
 
         private const val DONE_SENTINEL = "[DONE]"
         private const val HERMES_TOOL_PROGRESS_EVENT = "hermes.tool.progress"
