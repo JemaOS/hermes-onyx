@@ -273,6 +273,12 @@ internal fun ChatSidebarHost(
     // La recherche regarde les messages aussi : c'est ce que fait la liste de l'app, et ce qu'on
     // attend d'un champ « Search chats ». C'est **exactement** ce que l'état vide annonce
     // (`SearchScopeSentence`) : les titres, et le texte des messages.
+    //
+    // **Mais seulement quand il y a une recherche.** `includeMessages = true` en dur faisait lire
+    // le texte de **tous** les messages de **toutes** les conversations à chaque construction de
+    // la liste — donc à chaque ouverture du volet et à chaque changement de bot — pour un résultat
+    // que `sidebarMatches` jette aussitôt : sans requête, la fonction rend `true` sur la première
+    // ligne. La portée suit donc la requête posée ; taper un mot la rallume.
     // **Les libellés vivants du roster.** Le titre d'une conversation de bot est une copie du nom
     // de ce bot ; le roster, lui, dit le nom d'aujourd'hui. `sidebarTitle` s'en sert pour remettre
     // d'aplomb les fils salis par l'ancienne règle de renommage (voir sa note).
@@ -291,7 +297,8 @@ internal fun ChatSidebarHost(
             seenMarks = seenMarks,
             now = now,
             query = activeQuery.trim(),
-            includeMessages = true,
+            // La portée suit la requête posée : sans recherche, rien à scanner.
+            includeMessages = activeQuery.isNotBlank(),
             filter = filter,
             agentName = agentName,
             // La marque d'identité d'une ligne se résout sur le **nom de profil de son bot**, la

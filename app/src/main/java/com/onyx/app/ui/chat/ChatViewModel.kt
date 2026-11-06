@@ -1087,9 +1087,12 @@ class ChatViewModel(
      * Deux passes autrefois, à **chaque** ouverture : `ReplyCards.resolve` relisait les sorties
      * d'outil de tous les messages (JSON compris), puis un `map { copy }` recopiait la liste
      * entière. Un changement de bot ouvre un fil, donc c'était le coût d'un changement de bot.
+     *
      * Ici la résolution est gardée par la **liste source** (celle du dépôt, immuable) : rouvrir
-     * un fil qu'on n'a pas touché ne relit rien, et la copie ne touche que la bulle qui portait
-     * le drapeau — une liste neuve ne serait plus reconnue « inchangée » par le dépôt.
+     * un fil qu'on n'a pas touché ne relit rien. La seconde passe, elle, n'a lieu **que** si une
+     * bulle porte encore le drapeau : un `map` sur cinq cents messages rendait toujours une liste
+     * neuve, même quand aucune n'écrivait — et une liste neuve n'est plus reconnue « inchangée »
+     * par le dépôt, qui réécrivait alors le fichier du fil pour rien.
      */
     private fun cardsFor(conversation: Conversation): List<ChatMessage> {
         val source = conversation.messages
@@ -1097,9 +1100,11 @@ class ChatViewModel(
             if (cachedSource === source) return resolved
         }
         val resolved = ReplyCards.resolve(source)
-            .map { message -> if (message.isStreaming) message.copy(isStreaming = false) else message }
-        cardsCache[conversation.id] = source to resolved
-        return resolved
+        // Aucun message ne diffuse : la liste de la résolution **est** la réponse, sans copie.
+        val clean = if (resolved.none { it.isStreaming }) resolved
+        else resolved.map { message -> if (message.isStreaming) message.copy(isStreaming = false) else message }
+        cardsCache[conversation.id] = source to clean
+        return clean
     }
 
     /**

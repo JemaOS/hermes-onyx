@@ -83,6 +83,44 @@ class SidebarSearchTest {
     }
 
     @Test
+    fun `hors recherche, le volet ne lit aucun message`() {
+        val quartz = conversation(
+            id = "c1",
+            title = "Rapport de quartz",
+            messages = listOf(message("Le fournisseur a répondu")),
+        )
+        val other = conversation(
+            id = "c2",
+            title = "Balade du week-end",
+            messages = listOf(message("Le col était fermé")),
+        )
+        val all = listOf(quartz, other)
+        val now = 1_000.0
+
+        // Sans requête, la portée ne change rien : toutes les lignes passent, et `sidebarMatches`
+        // rend `true` avant d'avoir ouvert un seul message.
+        assertEquals(
+            listOf("c1", "c2"),
+            sidebarRows(all, emptyMap(), emptyMap(), now, query = "", includeMessages = false).map { it.id },
+        )
+        // Une **requête** sans portée « messages » ne regarde que le titre : c'est ce que le volet
+        // fait quand la requête n'est pas posée.
+        assertEquals(
+            listOf("c1"),
+            sidebarRows(all, emptyMap(), emptyMap(), now, query = "quartz", includeMessages = false).map { it.id },
+        )
+        assertTrue(
+            "le texte d'un message n'est pas interrogé sans la portée",
+            sidebarRows(all, emptyMap(), emptyMap(), now, query = "col", includeMessages = false).isEmpty(),
+        )
+        // Et la portée rallumée rend la seconde moitié de la phrase : taper un mot suffit.
+        assertEquals(
+            listOf("c2"),
+            sidebarRows(all, emptyMap(), emptyMap(), now, query = "col", includeMessages = true).map { it.id },
+        )
+    }
+
+    @Test
     fun `la phrase de l etat vide dit la meme chose que la fonction qui filtre`() {
         val shown = OnyxLocalization.translate(SearchScopeSentence, Locale.FRANCE)
         // Elle est **traduite** (l'app parle français), et elle nomme les deux champs lus.
