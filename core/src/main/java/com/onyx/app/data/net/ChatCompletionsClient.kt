@@ -273,6 +273,13 @@ class ChatCompletionsClient(
         /** Les sous-agents déjà annoncés, par `subagent_id` : `subagent.start` n'arrive qu'une fois. */
         private val announcedSubagents = LinkedHashSet<String>()
 
+        /**
+         * **La fin que le serveur a **dite**.** `[DONE]`, ou une `choices[].finish_reason`
+         * (`stop`, `length`, `tool_calls`…). Un flux qui s'arrête sans l'un ni l'autre n'est pas
+         * fini : il a été **coupé**.
+         */
+        private var closedByServer = false
+
         suspend fun pump(response: Response) {
             val body = response.body
             if (body == null) {
@@ -288,7 +295,23 @@ class ChatCompletionsClient(
             }
 
             if (!done) {
-                handle(parser.finish())
+                // La sentinelle peut arriver **sans retour à la ligne final** : `parser.finish()`
+                // rend ce qui restait dans le tampon, et son verdict doit être gardé. Le jeter
+                // faisait passer une réponse entière pour une troncature.
+                done = handle(parser.finish())
+            }
+
+            // **Un flux qui s'arrête sans dire qu'il a fini est coupé, point.** Le serveur ferme
+            // par `[DONE]`, ou par une `finish_reason` sur le dernier choix. S'il ferme sans ni
+            // l'un ni l'autre, la liaison a été arrachée (NAT, tunnel, bascule de réseau, proxy) :
+            // ce qui est affiché est une réponse **tronquée**, et la montrer comme complète est le
+            // pire des deux maux — la personne ne relance rien, et la suite de la conversation
+            // s'appuie sur un texte amputé.
+            //
+            // C'est le défaut signalé comme « la réponse se coupe » : le tour finissait en `Done`,
+            // sans erreur, sur un texte arrêté au milieu d'une phrase.
+            if (!done && !closedByServer) {
+                throw TransportError.Truncated()
             }
 
             // **Un fragment resté sans son entier : le flux s'est interrompu avant la fin.** On le
@@ -423,10 +446,17 @@ class ChatCompletionsClient(
             }
 
             for (choice in chunk.choices.orEmpty()) {
+                // Le serveur a **nommé sa fin** (`stop`, `length`, `tool_calls`) : le flux est
+                // complet même si `[DONE]` ne vient pas (tous les serveurs ne l'envoient pas).
+                if (!choice.finishReason.isNullOrBlank()) closedByServer = true
                 // Réponse NON streamée : le serveur a ignoré `stream` et renvoie le texte
                 // entier dans `message.content` (pas de `delta`). Sans ce cas, la réponse
                 // était purement perdue : bulle vide, aucune erreur.
                 choice.message?.content?.takeIf { it.isNotEmpty() }?.let { whole ->
+                    // Le texte entier est là : la réponse est complète, même sans `finish_reason`
+                    // ni `[DONE]`. Sans cette marque, un serveur qui ignore `stream` voyait sa
+                    // réponse entière rejetée comme une coupure.
+                    closedByServer = true
                     scope.send(TurnEvent.TextFinal(whole))
                 }
                 val delta = choice.delta ?: continue

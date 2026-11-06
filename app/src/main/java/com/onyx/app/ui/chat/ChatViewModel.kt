@@ -1913,8 +1913,18 @@ class ChatViewModel(
                 delay(RESCUE_POLL_MS)
                 val session = turns.session(conversation) ?: return@launch
                 val phase = session.phase
-                if (!phase.isStreaming) return@launch
-                if (phase.quietSeconds(System.currentTimeMillis()) < RESCUE_AFTER_SECONDS) continue
+                // **Deux cas à rattraper, et un seul autrefois.**
+                //
+                //  1. le tour vit encore mais le flux s'est tu (agent qui réfléchit, outil lent) :
+                //     on attend le silence, puis on relit chez l'hôte ;
+                //  2. le flux a été **coupé** (`TransportError.Truncated`) : le tour est déjà
+                //     marqué en échec, et l'ancien garde-fou `if (!phase.isStreaming) return`
+                //     sortait ici même — la bulle restait tronquée avec une erreur, alors que
+                //     l'hôte, lui, avait fini d'écrire la réponse. C'est précisément le
+                //     décrochage : la réponse existe, et l'app ne va pas la chercher.
+                val cut = !phase.isStreaming && session.failure is TransportError.Truncated
+                if (!phase.isStreaming && !cut) return@launch
+                if (!cut && phase.quietSeconds(System.currentTimeMillis()) < RESCUE_AFTER_SECONDS) continue
                 val id = session.serverSessionId ?: serverSessionId ?: continue
                 essais += 1
                 val fromHost = runCatching {
@@ -1923,7 +1933,10 @@ class ChatViewModel(
                 val courant = _state.value.messages.firstOrNull { it.id == assistantId }
                 val fusion = com.onyx.app.data.net.ServeSessionMessages
                     .merge(courant?.text.orEmpty(), fromHost) ?: continue
-                session.edit { message -> message.copy(text = fusion, isStreaming = false) }
+                // Une réponse récupérée chez l'hôte **efface** l'échec : elle est complète, et
+                // laisser l'erreur affichée au-dessus d'un texte entier ferait croire à un
+                // problème qui n'existe plus.
+                session.edit { message -> message.copy(text = fusion, isStreaming = false, error = null) }
                 session.succeed()
                 return@launch
             }

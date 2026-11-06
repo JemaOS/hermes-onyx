@@ -34,7 +34,7 @@ class SilentTurnRescueTest {
     fun `la reponse relue clot le tour`() {
         assertTrue(
             "la réponse relue est posée dans le message du tour",
-            source.contains("session.edit { message -> message.copy(text = fusion, isStreaming = false) }"),
+            source.contains("session.edit { message -> message.copy(text = fusion, isStreaming = false, error = null) }"),
         )
         assertTrue("et le tour se clôt", source.contains("session.succeed()"))
     }
@@ -49,13 +49,29 @@ class SilentTurnRescueTest {
             "il s'arrête quand le tour n'est plus là",
             source.contains("val session = turns.session(conversation) ?: return@launch"),
         )
+        // LOT décrochage : le garde-fou ne sort plus sur tout tour fini, seulement sur un tour
+        // fini **proprement** — une troncature doit encore être rattrapée chez l'hôte.
         assertTrue(
-            "et quand le tour a fini",
-            source.contains("if (!phase.isStreaming) return@launch"),
+            "et quand le tour a fini, sauf s'il a été coupé",
+            source.contains("if (!phase.isStreaming && !cut) return@launch"),
         )
         assertTrue(
             "il est annulé par un nouveau tour",
             source.contains("rescueJob?.cancel()"),
+        )
+    }
+
+    @Test
+    fun `une troncature est rattrapee chez l hote`() {
+        // Le tour est déjà marqué en échec par `TurnSession.fail` : la réponse existe pourtant
+        // chez l'hôte, et c'est exactement ce que le veilleur doit aller chercher.
+        assertTrue(
+            "la coupure est reconnue à sa cause, pas à un silence",
+            source.contains("val cut = !phase.isStreaming && session.failure is TransportError.Truncated"),
+        )
+        assertTrue(
+            "l'échec est effacé par la réponse complète",
+            source.contains("copy(text = fusion, isStreaming = false, error = null)"),
         )
     }
 }
