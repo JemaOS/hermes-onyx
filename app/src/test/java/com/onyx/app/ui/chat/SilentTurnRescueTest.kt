@@ -73,5 +73,9 @@ class SilentTurnRescueTest {
             "l'échec est effacé par la réponse complète",
             source.contains("copy(text = fusion, isStreaming = false, error = null)"),
         )
+        assertTrue(
+            "et elle n'attend pas le silence, puisque le flux est déjà fini",
+            source.contains("if (!cut && phase.quietSeconds(System.currentTimeMillis()) < RESCUE_AFTER_SECONDS) continue"),
+        )
     }
 }
