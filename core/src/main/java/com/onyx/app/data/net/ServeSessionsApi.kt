@@ -137,6 +137,15 @@ object SessionUsage {
  * La même route et la même lecture tolérante des deux enveloppes (`sessions` / `data`) que
  * `HermesServeClient.listSessions` côté référence.
  */
+/** Le message d'un refus qui parle d'un profil que le serveur n'a pas. */
+internal fun profilInconnu(message: String): Boolean =
+    message.contains("ne connaît pas le profil", true) ||
+        message.contains("unknown profile", true) ||
+        message.contains("profil inconnu", true)
+
+/** Le texte brut que le serveur a renvoyé avec son refus, quand il y en a un. */
+internal fun detailDe(erreur: Throwable): String = ((erreur as? TransportError)?.detail).orEmpty()
+
 class ServeSessionsApi(private val client: ServeClient) {
 
     /** Les sessions, les plus récentes d'abord. */
@@ -228,11 +237,24 @@ class ServeSessionsApi(private val client: ServeClient) {
         maxPages: Int = 20,
     ): List<Pair<String, SessionSummary>> {
         val found = LinkedHashMap<String, Pair<String, SessionSummary>>()
+        // **Un profil qui n'existe plus ne fait pas tomber la lecture.**
+        //
+        // Le registre rend « ce serveur ne connaît pas le profil X » dès qu'un bot a été renommé
+        // ou supprimé et que l'app le demande encore : l'exception remontait, l'import échouait
+        // en entier, et la liste restait vide avec un bandeau orange — alors que les autres profils
+        // avaient des dizaines de sessions à rendre.
+        var premiereErreur: Throwable? = null
+        var succes = 0
         for (profile in profilsLus(profiles)) {
-            allSummaries(pageSize, maxPages, profile).forEach { summary ->
-                if (summary.id !in found) found[summary.id] = profile to summary
+            val resultat = runCatching { allSummaries(pageSize, maxPages, profile) }
+            resultat.onSuccess { lignes ->
+                succes += 1
+                lignes.forEach { summary -> if (summary.id !in found) found[summary.id] = profile to summary }
             }
+            resultat.onFailure { erreur -> if (premiereErreur == null) premiereErreur = erreur }
         }
+        // **Toutes** les lectures ont échoué : là, l'erreur est réelle et se dit.
+        if (succes == 0) premiereErreur?.let { throw it }
         return found.values.toList()
     }
 
