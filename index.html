@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onyx — dépôt F-Droid</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: #0a0f17; color: #e8edf4;
+    font: 16px/1.6 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    padding: 2rem 1.25rem;
+  }
+  main { max-width: 40rem; width: 100%; }
+  h1 { font-size: 1.9rem; margin: 0 0 .35rem; letter-spacing: -.02em; }
+  .sub { color: #8fa3bd; margin: 0 0 2rem; }
+  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: #6d819c;
+       margin: 2.2rem 0 .7rem; font-weight: 600; }
+  .url {
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    background: #121b26; border: 1px solid #22303f; border-radius: 10px; padding: .85rem 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .84rem; word-break: break-all;
+  }
+  .url code { color: #7cc7ff; }
+  button {
+    background: #1d5cff; color: #fff; border: 0; border-radius: 7px; padding: .45rem .8rem;
+    font: inherit; font-size: .8rem; cursor: pointer;
+  }
+  button:active { transform: translateY(1px); }
+  ol { padding-left: 1.15rem; margin: .3rem 0; }
+  li { margin: .3rem 0; }
+  a { color: #7cc7ff; }
+  .note { border-left: 2px solid #2a3a4d; padding-left: .9rem; color: #8fa3bd; font-size: .9rem; }
+  footer { margin-top: 2.6rem; color: #566a83; font-size: .78rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Onyx</h1>
+  <p class="sub">Dépôt F-Droid auto-hébergé — client Android pour l'agent Hermes que vous hébergez vous-même.</p>
+
+  <h2>Ajouter le dépôt</h2>
+  <div class="url">
+    <code id="u">https://jemaos.github.io/hermes-onyx/repo</code>
+    <button onclick="navigator.clipboard.writeText(document.getElementById('u').textContent);this.textContent='Copié'">Copier</button>
+  </div>
+  <ol>
+    <li>Ouvrez <strong>F-Droid</strong> (ou Droid-ify), Réglages → Dépôts → Ajouter.</li>
+    <li>Collez l'adresse ci-dessus, puis laissez F-Droid se rafraîchir.</li>
+    <li>Cherchez <strong>Onyx</strong> et installez.</li>
+  </ol>
+
+  <h2>Sans F-Droid</h2>
+  <p>Ouvrez <a href="obtainium://add/https://github.com/JemaOS/hermes-onyx">Obtainium</a> et ajoutez
+     <a href="https://github.com/JemaOS/hermes-onyx">github.com/JemaOS/hermes-onyx</a> : les mises à jour
+     suivront les versions publiées. Les APK sont aussi téléchargeables directement depuis les
+     <a href="https://github.com/JemaOS/hermes-onyx/releases/latest">versions</a>.</p>
+
+  <h2>Clés</h2>
+  <p class="note">
+    Les APK sont signés par la clé de publication du projet —
+    empreinte SHA-256 <code>1a1f8225f509167b4e01d4606b5ffa6eb17c07868d9b8190efc9f47c459a4402</code>.<br>
+    Ce dépôt est signé par une clé distincte — empreinte SHA-256
+    <code>C986144861EBA57ED46C1F7EBF7BE2EA87A28866BA3205CC67576A1680B4EA5B</code>.
+  </p>
+  <p class="note">Ce dépôt ne contient que l'application publiée. Le code source, les notes de version et le
+     suivi des problèmes sont sur <a href="https://github.com/JemaOS/hermes-onyx">GitHub</a>. Licence MIT.</p>
+
+  <footer>Dépôt généré avec fdroidserver · dernière mise à jour à chaque version d'Onyx.</footer>
+</main>
+</body>
+</html>
