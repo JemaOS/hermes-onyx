@@ -374,6 +374,22 @@ sha256sum -c SHA256SUMS-1.3.3.txt
 The app talks to one host only: the one you typed. The API key sits in the Android Keystore, and
 conversations stay in DataStore on the device.
 
+### From a free store
+
+The same signed packages are also published through repositories that ask for no account and no fee:
+
+[![Get it on Obtainium](https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/JemaOS/hermes-onyx)
+
+- **Obtainium** — the button above adds this repository's releases as a source: it installs the app
+  and follows every new version, checking the `SHA256SUMS` file that ships with each release.
+- **IzzyOnDroid** — requested. That repository carries these very APKs, signed by the project key, so
+  an update installs over a copy that came from GitHub.
+- **F-Droid** — requested. Its build is rebuilt from source and signed by F-Droid, so it installs
+  **beside** the GitHub package rather than over it: pick one source and keep it.
+
+The listing text, screenshots and per-version notes live in `fastlane/metadata/android/`, and the
+step-by-step for both requests is in **[docs/SOUMISSION-STORES.md](docs/SOUMISSION-STORES.md)**.
+
 ## Screenshots — light and dark
 
 Every screen below is captured from the release build, in the light and the dark theme.

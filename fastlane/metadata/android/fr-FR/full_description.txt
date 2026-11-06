@@ -1,0 +1,29 @@
+Hermes Onyx est le client Android d'un agent Hermes que vous faites tourner vous-même. Aucun compte à créer, aucune clé embarquée dans l'APK, aucune télémétrie : vous indiquez à l'application l'adresse du Dashboard Hermes déjà en marche sur votre machine, et elle devient la télécommande de vos propres agents.
+
+POURQUOI ELLE EXISTE
+La plupart des assistants sont le cloud de quelqu'un d'autre. Onyx, non. Chaque prompt, chaque fichier, chaque enregistrement vocal va au serveur que vous avez nommé, et nulle part ailleurs. La clé d'API est rangée dans le Keystore Android, les conversations restent dans le stockage de l'application sur le téléphone.
+
+LE CHAT, CINQ ONGLETS DE PROFONDEUR
+Le texte arrive en flux (SSE), le raisonnement replié, les appels d'outils affichés à mesure, les cartes d'approbation, les questions de suivi à un geste, et une bannière d'erreur qui répète ce que le serveur a réellement dit.
+Markdown riche : tableaux, code copiable, maths, diagrammes, aperçus de liens, lecteurs d'images et de vidéos, sélection de texte d'un message à l'autre.
+Chaque conversation porte cinq onglets : Chat, Feed, Fichiers, Idées et Objectifs. Le Feed garde les réponses en cartes datées que vous notez ou transformez en objectif ; Fichiers liste tout ce que le bot a livré et tout ce que vous avez joint, avec filtres par type, cinq tris et un état réel par ligne.
+Un sélecteur de modèle pensé pour les longues listes : recherche parmi modèles et fournisseurs, favoris, et le choix retenu bot par bot.
+
+BOTS ET SALONS
+Chaque profil de votre serveur a son visage, son prompt, ses outils, ses planifications et sa voix. Mettez-en plusieurs dans un salon et regardez-les se répondre pendant que vous approuvez, interrompez ou participez.
+
+LA VOIX, MAINS LIBRES
+Une vraie prise de tour : on coupe la parole, les mots d'acquiescement, les phrases d'arrêt prononcées, et un visage qui suit le niveau de la voix. Chaque bot parle avec sa propre voix installée, et la langue parlée se choisit séparément de la langue de réponse.
+
+VOTRE ORDINATEUR DANS LA POCHE
+Voyez l'écran de votre machine et pilotez-la au doigt, avec une porte d'approbation avant toute commande, des chiffres en direct (aller-retour, gigue, images par seconde) et une qualité adaptative qui descend par paliers plutôt que de se figer.
+
+LE RESTE DE VOTRE SERVEUR
+Kanban, cron, fichiers, terminal SSH, skills, outils et serveurs MCP sur un seul écran, la consommation et le coût sur 7, 30 ou 90 jours, les sous-agents comme une liste de tâches vivante, les processus d'arrière-plan, les points de restauration et l'export en Markdown.
+
+CE QU'IL FAUT
+Un Dashboard Hermes joignable — sur votre réseau local ou par un tunnel — et Android 8.0 ou plus récent. L'application ne parle qu'à un seul hôte : celui que vous avez saisi.
+
+Interface en français ou en anglais, thèmes clair et sombre avec plusieurs palettes, un widget, des canaux de notification et un écran de verrouillage.
+
+Logiciel libre, licence MIT, sans publicité, sans pistage, sans offre payante. Le code est sur GitHub et les APK de version sont signés par un certificat publié.

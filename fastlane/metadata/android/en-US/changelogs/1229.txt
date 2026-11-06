@@ -1,0 +1,6 @@
+Signed with the project's release key (RSA 4096) — the key every later update carries.
+
+- Everything 1.3.96 shipped: hands-free follows the app's language, bottom sheets reach the bottom of the screen, richer Markdown, the Code tab and the Computer screen.
+- Light and dark themes, English and French, no telemetry.
+
+Coming from a build signed with the previous key? Uninstall it first: Android refuses an update across signatures.
