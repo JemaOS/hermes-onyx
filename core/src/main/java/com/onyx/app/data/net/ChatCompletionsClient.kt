@@ -39,7 +39,10 @@ import java.io.IOException
  * jamais sur `finish_reason`, car le bloc `usage` arrive après — et chaque `choices[].delta`
  * alimente soit le texte, soit le « reasoning », soit un appel d'outil.
  *
- * Le transport est **sans état** : l'appelant renvoie tout l'historique à chaque tour.
+ * Le transport HTTP est sans état, mais la **session** ne l'est pas forcément : quand la requête
+ * porte un [ChatRequest.sessionId], l'identifiant part dans `X-Hermes-Session-Id` et le
+ * gateway relit l'historique de son côté. Sa réponse renvoie l'identifiant en vigueur (la rotation
+ * d'une compression change l'id) et l'app le reprend via [TurnEvent.SessionId].
  */
 class ChatCompletionsClient(
     private val config: ServerConfig,

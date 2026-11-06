@@ -1945,6 +1945,13 @@ class ChatViewModel(
                     reasoningEffort = settings.reasoningEffort.value.takeIf { it.isNotEmpty() },
                     fast = server.transport == Transport.HERMES_SESSIONS &&
                         serverSessionId?.let { runControls.isFast(server.configSignature, it) } == true,
+                    // Une session déjà connue est reprise par son identifiant : le gateway relit son
+                    // historique (state.db) au lieu de faire confiance au fil renvoyé par l'app, et le
+                    // tour redevient « réveillable » côté serveur. Réservé au transport Hermes — un
+                    // serveur OpenAI-compatible quelconque n'a pas cette en-tête.
+                    sessionId = serverSessionId
+                        ?.takeIf { it.isNotBlank() }
+                        ?.takeIf { server.transport == Transport.HERMES_SESSIONS },
                 )
                 lastRequest = request
                 startStream(server, request, assistantId, prompt = fullText)
