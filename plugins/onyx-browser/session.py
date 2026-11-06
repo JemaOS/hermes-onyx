@@ -20,7 +20,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 TICKET_TTL_S = 30.0
-TAKEOVER_TIMEOUT_S = 15 * 60
+#: **Six minutes, pas quinze.** L'outil bloque le tour en attendant la main de l'humain, mais le
+#: harnais d'appel d'outil coupe à 420 s : au-delà, l'agent reçoit une erreur opaque au lieu du
+#: `{"status": "timeout"}` propre qui lui dit quoi faire. Rester sous 420 s garde la main dans le
+#: code du plugin — et six minutes suffisent largement pour taper un mot de passe.
+TAKEOVER_TIMEOUT_S = 6 * 60
 #: **La marge de fraîcheur d'une saisie, en secondes.**
 #:
 #: La règle 3 du §7 refuse un geste calculé sur une image qui n'est plus la dernière. Prise à la
@@ -54,6 +58,17 @@ class Waiting:
     done: threading.Event = field(default_factory=threading.Event)
     note: str = ""
     facts: dict[str, Any] = field(default_factory=dict)
+    #: **La conversation qui a demandé la main** (`HERMES_SESSION_ID` du tour). Sans elle, l'app ne
+    #: pouvait pas savoir à quel fil appartenait la demande : elle la montrait dans toutes les
+    #: conversations ouvertes, et la personne la voyait revenir dans des fils où elle n'avait rien
+    #: demandé. C'est le serveur qui le sait, pas le client.
+    session: str = ""
+    #: La page montrée au moment de la demande : avec la conversation, c'est la clé d'un refus.
+    url: str = ""
+    #: **Le refus est un résultat.** Une demande qui se termine sans `refused` ni `facts` se
+    #: lisait comme un succès silencieux : l'agent croyait qu'on avait pris la main, alors que
+    #: personne n'avait rien fait. Le drapeau dit la vérité à l'outil.
+    refused: bool = False
 
 
 class Session:
@@ -65,6 +80,9 @@ class Session:
         self.epoch = 0
         self.seq = 0
         self.viewport = (1280, 720)
+        #: La taille que **l'écran de la personne** a annoncée, en pixels physiques. Elle décide
+        #: de la finesse de la capture ; `None` = gabarit par défaut.
+        self.phone_size: dict[str, Any] | None = None
         self.scale = 0.6
         self.frames = 0
         self.tickets: dict[str, Ticket] = {}

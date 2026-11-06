@@ -12,6 +12,9 @@ booléen « il y avait un champ mot de passe ». Rien d'autre ne traverse.
 from __future__ import annotations
 
 import json
+import logging
+import os
+import sys
 import threading
 import time
 import uuid
@@ -19,6 +22,8 @@ from typing import Any
 
 from . import cdp, server
 from .session import TAKEOVER_TIMEOUT_S, Waiting
+
+log = logging.getLogger(__name__)
 
 TAKEOVER_SCHEMA = {
     "name": "browser_request_takeover",
@@ -40,6 +45,24 @@ TAKEOVER_SCHEMA = {
         "required": ["reason"],
     },
 }
+
+
+def _session_id() -> str:
+    """**La conversation qui demande la main**, telle que Hermes la nomme.
+
+    Le plugin tourne dans le processus de l'agent : le contexte de session y est lisible. En CLI
+    ou dans un test il ne l'est pas, et une demande sans conversation reste une demande — elle
+    s'affiche alors dans le fil vivant, comme avant.
+    """
+    try:
+        from gateway.session_context import get_session_env
+
+        value = str(get_session_env("HERMES_SESSION_ID") or "").strip()
+        if value:
+            return value
+    except Exception:
+        pass
+    return str(os.environ.get("HERMES_SESSION_ID") or "").strip()
 
 
 def request_takeover(reason: str) -> str:
@@ -83,7 +106,32 @@ def request_takeover(reason: str) -> str:
             },
             ensure_ascii=False,
         )
-    if not server.notify_pending(waiting.takeover_id, waiting.reason):
+    # **Une demande sait d'où elle vient.** La conversation est lue ici, dans le contexte du tour :
+    # c'est ce que l'écran affiche pour poser la carte dans le bon fil, et la clé d'un refus déjà
+    # donné sur cette page.
+    waiting.session = _session_id()
+    try:
+        waiting.url = str(server.page_snapshot().get("url") or "")
+    except Exception:
+        waiting.url = ""
+    # **Refusé, cela reste refusé.** La personne a dit non sur cette page : reposer la question au
+    # tour suivant — à chaque prompt réécrit — n'est pas une demande, c'est un harcèlement. On le
+    # dit au modèle tout de suite, sans publier de carte.
+    if waiting.session and server.declined_recently(waiting.session, waiting.url):
+        server.SESSION.waiting = None
+        return json.dumps(
+            {
+                "status": "declined",
+                "reason": "declined_by_owner",
+                "message": (
+                    "The owner already declined to take over on this page. Do not ask again: "
+                    "either solve it yourself with what you have, or tell them what you need and "
+                    "stop."
+                ),
+            },
+            ensure_ascii=False,
+        )
+    if not server.notify_pending(waiting.takeover_id, waiting.reason, waiting.session):
         # Aucun serveur vivant dans ce processus : l'écran du téléphone ne verra jamais cette
         # demande. Le dire tout de suite vaut mieux que bloquer quinze minutes sur un écran vide.
         server.SESSION.waiting = None
@@ -149,6 +197,31 @@ def request_takeover(reason: str) -> str:
                 },
                 ensure_ascii=False,
             )
+        # **Un refus se dit à l'agent, pas seulement à l'écran.** Sans cette branche, un refus
+        # aurait laissé l'outil croire que la personne avait pris la main puis était revenue :
+        # il aurait repris son tour en croyant la page modifiée, avec des « facts » vides.
+        if getattr(waiting, "refused", False):
+            server.announce(
+                {
+                    "type": "takeover_done",
+                    "id": waiting.takeover_id,
+                    "facts": {},
+                    "refused": True,
+                    "reason": "declined",
+                }
+            )
+            return json.dumps(
+                {
+                    "status": "declined",
+                    "reason": "declined_by_owner",
+                    "message": (
+                        "The owner declined to take over. Nothing was typed and the page is as you "
+                        "left it. Do not wait and do not ask again in this turn: either solve it "
+                        "yourself, or tell them what you need and stop."
+                    ),
+                },
+                ensure_ascii=False,
+            )
         if not waiting.done.is_set():
             server.clear_pending()
             server.announce(
@@ -210,10 +283,84 @@ def on_pre_tool_call(tool_name: str = "", **kwargs: Any) -> None:
     task_id = kwargs.get("task_id")
     if task_id and str(tool_name).startswith("browser_"):
         server.STATE["task_id"] = str(task_id)
+    _recharger_si_demande()
+
+
+def _recharger_si_demande() -> None:
+    """Recharge le plugin **dans ce processus**, quand on le demande.
+
+    Le plugin est importé une fois pour toutes : un changement de `server.py` n'est pris en
+    compte qu'au redémarrage du gateway — et le gateway ne peut pas être redémarré depuis
+    l'intérieur de lui-même (le SIGTERM tuerait la commande qui l'a demandé).
+
+    On recharge donc `cdp` et `server` en place, depuis le crochet qui tourne **dans** le
+    processus du gateway. La boucle aiohttp et le port en écoute ne bougent pas ; seul le
+    code change. Le rechargement est idempotent : la balise dans `sys.modules` l'empêche de
+    se répéter à chaque appel d'outil.
+
+    **La demande vient d'un fichier, pas d'une variable.** Un drapeau dans `sys.modules`
+    n'atteint jamais le processus du gateway depuis l'extérieur : il faudrait déjà y exécuter
+    du code. Un fichier sur disque, en revanche, se dépose de n'importe où — et le crochet
+    `pre_tool_call` le voit au prochain appel d'outil. Le fichier est **effacé** après usage :
+    le rechargement est donc demandé une fois, et jamais rejoué.
+
+    **Le nom du module n'est pas `onyx_browser`.** Le plugin est chargé sous le nom de son
+    répertoire d'origine — `hermes_plugins.onyx_browser.server` pour la copie globale, et
+    `hermes_plugins.onyx_browser__home_<empreinte>.server` pour une copie logée ailleurs. On
+    cherche donc **tous** les modules dont le nom finit par `.cdp` ou `.server` et qui portent
+    `onyx_browser` : sans cela, la demande de rechargement ne trouvait rien, et le correctif
+    restait inerte jusqu'au prochain redémarrage du gateway.
+    """
+    if not _demande_de_rechargement():
+        return
+    try:
+        import importlib
+
+        # **`tools.py` d'abord** : c'est lui qui porte le crochet, et c'est lui qui décide de
+        # recharger les autres. Le recharger après les autres laisserait son propre code
+        # (la liste des noms de modules, la demande par fichier) périmé pour cette fois.
+        cibles = [
+            nom
+            for nom in list(sys.modules)
+            if "onyx_browser" in nom and nom.endswith((".cdp", ".server", ".tools"))
+        ]
+        if not cibles:
+            log.warning("onyx-browser: aucun module à recharger dans ce processus")
+            return
+        for nom in cibles:
+            module = sys.modules.get(nom)
+            if module is not None:
+                importlib.reload(module)
+        log.info("onyx-browser: cdp, server et tools rechargés à chaud (%s)", ", ".join(sorted(cibles)))
+    except Exception as erreur:  # pragma: no cover — un rechargement ne doit rien casser
+        log.warning("onyx-browser: rechargement à chaud impossible (%s)", erreur)
+
+
+#: Le fichier qui demande un rechargement à chaud. Il est effacé dès qu'il a été pris en
+#: compte : la demande est donc ponctuelle, et le prochain appel d'outil la traite.
+FICHIER_DEMANDE = "/home/john/.hermes/onyx-browser/recharger"
+
+
+def _demande_de_rechargement() -> bool:
+    """Vrai quand un rechargement à chaud vient d'être demandé (et le consume)."""
+    if sys.modules.get("onyx_browser_recharge_demande") == "oui":
+        sys.modules.pop("onyx_browser_recharge_demande", None)
+        return True
+    try:
+        if not os.path.exists(FICHIER_DEMANDE):
+            return False
+        os.unlink(FICHIER_DEMANDE)
+    except OSError:
+        return False
+    return True
 
 
 def on_post_tool_call(tool_name: str = "", **kwargs: Any) -> None:
     on_pre_tool_call(tool_name=tool_name, **kwargs)
+    if str(tool_name).startswith("browser_"):
+        # Une image après chaque geste de l'agent : l'écran qui s'ouvrira ensuite verra où en est
+        # la page, même si personne ne regardait pendant l'action.
+        server.vignette()
 
 
 def register(ctx: Any) -> None:
