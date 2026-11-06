@@ -107,7 +107,11 @@ def handle(email, auteur):
 
 
 # Ce qui n'apprend rien a celui qui installe : la note de version elle-meme.
-BRUIT = re.compile(r"^(Release notes|Notes \d|Release \d|Changelog)", re.I)
+# **Ce qui ne dit rien à personne.** Un numéro de version qui monte, une note de release qui se
+# décrit elle-même, une fusion : ce ne sont pas des changements, et ils n'ont rien à faire dans la
+# liste que lit le propriétaire.
+BRUIT = re.compile(
+    r"^(Bump to|Bump |Release notes|Release:|Notes \d|Release \d|Changelog|Merge )", re.I)
 
 
 def sujet_de(sha, sujet):
@@ -120,16 +124,18 @@ def puce(sujet, sha):
     # **Le sujet du commit, tel quel.** Pas de préfixe réécrit, pas de « **Onyx** — » : la
     # structure demandée est « * sujet (sha) », comme les notes générées par GitHub.
     texte = sujet.strip()
-    return f"* {texte[:1].upper() + texte[1:]} ({sha})"
+    # **Une ligne, sans puce.** La structure demandée est « sujet (sha) », telle quelle ; deux
+    # espaces en fin de ligne gardent le saut à l'affichage Markdown, invisibles dans le texte.
+    return f"{texte[:1].upper() + texte[1:]} ({sha})  "
 
 
 def corps(version, precedent, liste):
-    lignes = ["## What's Changed"]
+    lignes = ["What's Changed"]
     utiles = [c for c in liste if not BRUIT.match(c[1])] or liste
     for sha, sujet, _, _ in utiles:
         lignes.append(puce(sujet_de(sha, sujet), sha))
-    lignes.append(f"**Full Changelog**: https://github.com/{DEPOT}/compare/"
-                  f"{precedent}...{version}")
+    lignes.append("")
+    lignes.append(f"Full Changelog: {precedent}...{version}")
     return "\n".join(lignes)
 
 
@@ -171,14 +177,13 @@ def principal():
         texte = corps(tag, precedent, liste)
         if not liste:
             meme = git("rev-parse", "--short", tag).strip() or tag
-            texte = (f"## What's Changed\n"
-                     f"* No new commit between `{precedent}` and `{tag}` — both tags point to {meme}.\n"
-                     f"**Full Changelog**: https://github.com/{DEPOT}/compare/"
-                     f"{precedent}...{tag}")
+            texte = (f"What's Changed\n"
+                     f"No new commit between {precedent} and {tag} — both tags point to {meme}.  \n"
+                     f"\nFull Changelog: {precedent}...{tag}")
         if nouveau:
-            texte += "\n\n## New Contributors\n"
+            texte += "\n\nNew Contributors\n"
             for h, sha in dict(nouveau).items():
-                texte += f"* {h} made their first contribution in {sha}\n"
+                texte += f"{h} made their first contribution in {sha}  \n"
         plan.append((rel, texte, len(liste)))
         rel["_nom"] = "Onyx " + tag.lstrip("v")
         (BROUILLON / f"{tag}.md").write_text(texte, encoding="utf-8")
