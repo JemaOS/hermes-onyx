@@ -11,9 +11,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
@@ -445,16 +443,11 @@ private fun onyxRouteTransition(initialState: Route, targetState: Route): Conten
     val initialTab = SectionRoutes.indexOf(initialState)
     val targetTab = SectionRoutes.indexOf(targetState)
     if (initialTab >= 0 && targetTab >= 0 && initialTab != targetTab) {
-        val forward = targetTab > initialTab
-        return (
-            slideInHorizontally(animationSpec = OnyxMotion.Sites.TabSelectionOffset) {
-                if (forward) it else -it
-            } + fadeIn(animationSpec = OnyxMotion.Sites.TabSelection)
-            ).togetherWith(
-            slideOutHorizontally(animationSpec = OnyxMotion.Sites.TabSelectionOffset) {
-                if (forward) -it else it
-            } + fadeOut(animationSpec = OnyxMotion.Sites.TabSelection),
-        )
+        // **Un changement de section ne fait plus glisser la page.** Le volet ouvre l'écran
+        // demandé : la page apparaît sur place, avec un fondu court. Le glissement latéral se
+        // lisait comme « la page qui bouge » à chaque appui sur une tuile ou un raccourci.
+        return fadeIn(animationSpec = OnyxMotion.Sites.TabSelection)
+            .togetherWith(fadeOut(animationSpec = OnyxMotion.Sites.TabSelection))
     }
     return EnterTransition.None.togetherWith(ExitTransition.None)
 }
