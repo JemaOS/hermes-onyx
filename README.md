@@ -11,7 +11,7 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 [![Build](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml/badge.svg)](https://github.com/JemaOS/hermes-onyx/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JemaOS/hermes-onyx?sort=semver&color=blue)](https://github.com/JemaOS/hermes-onyx/releases/latest)
 [![F-Droid repo](https://img.shields.io/badge/F--Droid-repo-1976D2?logo=fdroid&logoColor=white)](https://jemaos.github.io/hermes-onyx/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-FSL--1.1--MIT-blue)](LICENSE)
 
 <!-- IzzyOnDroid : la demande est partie, l'app n'y est pas encore listée.
      Décommenter ces deux lignes le jour où la fiche existe — avant, le badge renvoie 404.
@@ -392,12 +392,15 @@ The same signed packages are also published through repositories that ask for no
   signed by a second, separate key. Landing page: <https://jemaos.github.io/hermes-onyx/>.
 - **Obtainium** — the button above adds this repository's releases as a source: it installs the app
   and follows every new version, checking the `SHA256SUMS` file that ships with each release.
-- **IzzyOnDroid** and **F-Droid** — neither carries the app yet: nothing has been requested there.
-  A build from F-Droid would be rebuilt from source and signed by F-Droid, so it would install
-  **beside** the package above rather than over it — one source per device, then keep it.
+- **F-Droid's catalogue and IzzyOnDroid** — neither carries the app, and no listing is requested
+  for now. The license (FSL-1.1-MIT, see below) is not an open-source license, so F-Droid's
+  catalogue cannot take it until each Redde version's MIT date. The project's own repository above
+  is unaffected. A build from F-Droid would be rebuilt from source and signed by F-Droid, so it
+  would install **beside** the package above rather than over it — one source per device.
 
-The listing text, screenshots and per-version notes live in `fastlane/metadata/android/`, and the
-step-by-step for those two requests is in **[docs/SOUMISSION-STORES.md](docs/SOUMISSION-STORES.md)**.
+The listing text, screenshots and per-version notes live in `fastlane/metadata/android/`. The
+step-by-step for the F-Droid and IzzyOnDroid requests is kept in
+**[docs/SOUMISSION-STORES.md](docs/SOUMISSION-STORES.md)** for the day the code is MIT again.
 
 ## Screenshots — light and dark
 
@@ -519,7 +522,17 @@ Issues and pull requests are welcome. Four rules keep the tree healthy:
 
 ## License
 
-[MIT](LICENSE) © JemaOS. Use it, fork it, ship it — keep the copyright notice.
+[Functional Source License 1.1, MIT Future License](LICENSE) (**FSL-1.1-MIT**). It is
+source-available, not an OSI open-source license: it allows use, modification and redistribution
+for any purpose other than a competing commercial product, and each version becomes MIT two years
+after its release.
+
+Onyx is based on [Redde](https://github.com/goosehouse-llc/redde), the iOS, macOS, Watch and
+CarPlay Hermes client by Goosehouse LLC, and much of its Kotlin code, motion and French copy is a
+port of it. Those parts are **© 2026 Goosehouse LLC** and are used under the same license; the rest
+is © 2026 JemaOS. [NOTICE](NOTICE) says which files come from where.
+
+Onyx stays free to use and to share: no paid tier, tips, subscriptions or in-app purchases.
 
 Bundled third-party components keep their own licenses; the full texts ship in
 `core/src/main/assets/rich/LICENSES/` and are listed below.
@@ -538,6 +551,7 @@ metadata for the libraries, the shipped license file for the embedded assets:
 - **[ZXing Android Embedded](https://github.com/journeyapps/zxing-android-embedded)** — Apache-2.0, © the ZXing authors and JourneyApps.
 - **[KaTeX](https://katex.org/)** — MIT, © 2013-2020 Khan Academy and other contributors; its fonts under the SIL OFL 1.1.
 - **[mermaid](https://mermaid.js.org/)** — MIT, © 2014-2022 Knut Sveidqvist.
+- **[Redde](https://github.com/goosehouse-llc/redde)** — the iOS, macOS, Watch and CarPlay Hermes client by Goosehouse LLC; much of Onyx's Kotlin UI, data types, motion and French copy is a port of it. FSL-1.1-MIT, © 2026 Goosehouse LLC; see [NOTICE](NOTICE).
 - **[Inter](https://rsms.me/inter/)** — SIL OFL 1.1, © The Inter Project Authors.
 - **[Source Code Pro](https://github.com/adobe-fonts/source-code-pro)** — SIL OFL 1.1, © Adobe (reserved font name "Source").
 

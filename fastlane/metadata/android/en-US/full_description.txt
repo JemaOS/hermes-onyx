@@ -26,4 +26,4 @@ A Hermes Dashboard you can reach â€” on your local network or through a tunnel â
 
 Interface in English or French, light and dark themes with several palettes, a widget, notification channels and a lock screen.
 
-Free software, MIT licence, no ads, no tracking, no paid tier. The source is on GitHub and the release APKs are signed with a published certificate.
+Source-available under the Functional Source License 1.1 (FSL-1.1-MIT), no ads, no tracking, no paid tier. It is based on Redde by Goosehouse LLC. The source is on GitHub and the release APKs are signed with a published certificate.

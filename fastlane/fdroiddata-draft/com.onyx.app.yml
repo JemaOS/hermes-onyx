@@ -1,6 +1,9 @@
+# ON HOLD: F-Droid's catalogue accepts only free/open-source licenses, and this repository is
+# FSL-1.1-MIT, derived from Redde, until each Redde version's MIT date. Do not open the
+# inclusion request before then; see NOTICE.
 Categories:
   - Internet
-License: MIT
+License: FSL-1.1-MIT
 AuthorName: JemaOS
 WebSite: https://github.com/JemaOS/hermes-onyx
 SourceCode: https://github.com/JemaOS/hermes-onyx

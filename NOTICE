@@ -1,0 +1,24 @@
+Hermes Onyx
+Copyright (c) 2026 JemaOS
+
+This distribution contains code derived from Redde (https://github.com/goosehouse-llc/redde),
+Copyright 2026 Goosehouse LLC, used under the Functional Source License, Version 1.1, MIT Future
+License (FSL-1.1-MIT, see LICENSE).
+
+What comes from Redde:
+
+- The Kotlin sources under app/, core/ and auto/ that carry a provenance comment ("port de",
+  "Miroir de", or a reference to an Echo/... file and line). They are ports or mirrors of Redde
+  Swift types, and the comments name the Redde file and line.
+- MOTION-INVENTORY.tsv: animation and motion lines taken from Redde's Swift views.
+- PARITY-COLOURS.md: the colour comparison against Redde's Echo/Models/Theme.swift.
+- core/src/main/java/com/onyx/app/localization/OnyxSharedFrench.kt: French strings taken key for key
+  from Redde's Localizable.xcstrings. Other catalogs under app/ and core/ that carry the same
+  provenance comments are in the same position.
+- The tests under app/src/test and core/src/test that carry the same provenance comments.
+
+The rest of the repository (Android app shell, release tooling, CI, documentation) is
+Copyright (c) 2026 JemaOS.
+
+Redde is also available under the MIT license two years after each version's release. Until each
+version's MIT date, this repository is distributed under the FSL-1.1-MIT terms in LICENSE.

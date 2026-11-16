@@ -1,3 +1,7 @@
+> **En attente.** Ce dépôt est sous FSL-1.1-MIT (dérivé de Redde) et non sous une licence libre
+> au sens de la FSF. F-Droid et IzzyOnDroid ne peuvent donc pas le référencer pour l'instant.
+> Ne pas envoyer les demandes ci-dessous avant la date MIT de chaque version de Redde ;
+> voir `NOTICE`. Ce fichier reste la marche à suivre pour ce moment-là.
 # Publier Onyx sur les dépôts libres — sans compte développeur payant
 
 Ce fichier est la marche à suivre pour les dépôts qui n'exigent **ni frais, ni compte payant** :
@@ -33,7 +37,7 @@ existante, sans désinstallation. C'est le dépôt à viser en premier.
 App name: Hermes Onyx
 App id: com.onyx.app
 Repository: https://github.com/JemaOS/hermes-onyx
-License: MIT
+License: FSL-1.1-MIT
 Category: Internet
 Latest release: https://github.com/JemaOS/hermes-onyx/releases/latest
 APK to use: onyx-app-<version>-release.apk — signed with the project's release key,
@@ -94,7 +98,7 @@ Texte de la demande :
 App: Hermes Onyx
 Package: com.onyx.app
 Source: https://github.com/JemaOS/hermes-onyx
-License: MIT
+License: FSL-1.1-MIT
 Category: Internet
 
 Build: gradle, `assembleRelease` from the repository root (`subdir: .`).

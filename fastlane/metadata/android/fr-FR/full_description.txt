@@ -26,4 +26,4 @@ Un Dashboard Hermes joignable — sur votre réseau local ou par un tunnel — e
 
 Interface en français ou en anglais, thèmes clair et sombre avec plusieurs palettes, un widget, des canaux de notification et un écran de verrouillage.
 
-Logiciel libre, licence MIT, sans publicité, sans pistage, sans offre payante. Le code est sur GitHub et les APK de version sont signés par un certificat publié.
+Code source disponible sous licence Functional Source License 1.1 (FSL-1.1-MIT), sans publicité, sans pistage, sans offre payante. Basé sur Redde, de Goosehouse LLC. Le code est sur GitHub et les APK de version sont signés par un certificat publié.
