@@ -17,7 +17,6 @@ class HermesSpeechClientTest {
         val bytes = byteArrayOf(9, 8, 7)
         val dataUrl = "data:audio/mpeg;base64," + Base64.getEncoder().encodeToString(bytes)
         val server = MockWebServer()
-        server.enqueue(MockResponse().setResponseCode(401))
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         server.enqueue(
             MockResponse()
@@ -40,7 +39,6 @@ class HermesSpeechClientTest {
             assertEquals("audio/mpeg", audio.mimeType)
             assertEquals("elevenlabs", audio.provider)
             assertEquals(bytes.toList(), audio.bytes.toList())
-            assertEquals("/api/sessions?limit=1", server.takeRequest().path)
             val login = server.takeRequest()
             assertEquals("/auth/password-login", login.path)
             val loginBody = Json.parseToJsonElement(login.body.readUtf8()).jsonObject

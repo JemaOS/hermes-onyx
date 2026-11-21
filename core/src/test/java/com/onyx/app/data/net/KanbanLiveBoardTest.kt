@@ -66,8 +66,8 @@ class KanbanLiveBoardTest {
         var livePath = ""
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {
-                request.path?.startsWith("/api/sessions") == true ->
-                    MockResponse().setResponseCode(200).setBody("""{"sessions":[]}""")
+                request.path == "/auth/password-login" ->
+                    MockResponse().setResponseCode(200).setBody("{}")
 
                 request.path?.startsWith("/api/auth/ws-ticket") == true ->
                     MockResponse().setResponseCode(200).setBody("""{"ticket":"t-1"}""")
@@ -128,8 +128,8 @@ class KanbanLiveBoardTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {
-                request.path?.startsWith("/api/sessions") == true ->
-                    MockResponse().setResponseCode(200).setBody("""{"sessions":[]}""")
+                request.path == "/auth/password-login" ->
+                    MockResponse().setResponseCode(200).setBody("{}")
 
                 request.path?.startsWith("/api/plugins/kanban/board") == true -> MockResponse()
                     .setResponseCode(200)

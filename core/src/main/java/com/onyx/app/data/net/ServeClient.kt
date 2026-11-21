@@ -3,6 +3,8 @@ package com.onyx.app.data.net
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -45,76 +47,71 @@ class ServeClient(
     /** Faux tant que le Dashboard n'a pas d'adresse et d'identifiants. */
     val isConfigured: Boolean get() = config.hasServeCredentials
 
-    private var loggedInAt: Long = 0
+    private val authState = DashboardAuthState.forConfig(config)
 
     /** L'adresse de base, ou une erreur claire plutôt qu'une URL vide. */
     private fun base(): HttpUrl =
         config.serveBase.toHttpUrlOrNull() ?: throw TransportError.BadUrl(OnyxLocalization["empty Dashboard address"])
 
-    /**
-     * Ouvre la session si besoin.
-     *
-     * Une sonde bon marché (`api/sessions?limit=1`) vérifie qu'un cookie d'une session précédente
-     * vit encore, comme sur la référence ; sinon on s'authentifie avec `auth/password-login`.
-     */
+    /** Password sessions recover on a real request's 401, never a gateway probe. */
     suspend fun login(force: Boolean = false) = withContext(Dispatchers.IO) {
-        val base = base()
-        if (!config.hasServeCredentials) throw TransportError.SignInRequired
-
-        // « Une clé » : le serveur accepte la clé d'installation en `Bearer` sur `/api/*` et
-        // entretient lui-même la session du Dashboard. Aucun identifiant à envoyer, aucun mot de
-        // passe à demander : la clé (posée par l'intercepteur de [clientFor]) suffit, et il n'y a
-        // aucune sonde à faire — il n'y a pas de cookie de session à valider ici.
-        if (config.servesWithKey) {
-            loggedInAt = System.currentTimeMillis()
-            return@withContext
-        }
-
-        if (!force && loggedInAt > 0 && System.currentTimeMillis() - loggedInAt < SESSION_TTL_MS) return@withContext
-
-        val probe = base.newBuilder().addPathSegments("api/sessions").addQueryParameter("limit", "1").build()
-        if (probeCall(probe)) {
-            loggedInAt = System.currentTimeMillis()
-            return@withContext
-        }
-
-        val body = buildJsonObject {
-            put("provider", "basic")
-            put("username", config.serveUsername)
-            put("password", config.servePassword)
-        }
-        val request = Request.Builder()
-            .url(base.newBuilder().addPathSegments(AUTH_PATH).build())
-            .post(json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON))
-            .header("Content-Type", "application/json")
-            .header("User-Agent", OnyxHttp.USER_AGENT)
-            .build()
-
-        try {
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    // Le corps est gardé tel quel : c'est lui qui dit *pourquoi* (« Invalid
-                    // credentials », « no_cookie », « session_expired »), et c'est de lui que
-                    // `TransportError.userMessage` tire un message clair. Un mot de passe refusé
-                    // ne doit jamais être remplacé par un « login rejected » anonyme.
-                    val detail = runCatching { response.peekBody(2_000L).string() }.getOrDefault("")
-                    throw TransportError.Http(response.code, detail)
-                }
-            }
-        } catch (error: IOException) {
-            throw TransportError.from(error, afterHeaders = false)
-        }
-        loggedInAt = System.currentTimeMillis()
+        authenticatedGeneration(if (force) authState.generation else null)
+        Unit
     }
 
-    private fun probeCall(url: HttpUrl): Boolean {
-        val request = Request.Builder()
-            .url(url)
-            .get()
-            .header("Accept", "application/json")
-            .header("User-Agent", OnyxHttp.USER_AGENT)
-            .build()
-        return runCatching { httpClient.newCall(request).execute().use { it.code == 200 } }.getOrDefault(false)
+    /** Execute a replayable Dashboard request with at most one generation-aware refresh. */
+    internal suspend fun executeAuthenticated(
+        request: Request,
+        client: OkHttpClient = httpClient,
+    ): okhttp3.Response = withContext(Dispatchers.IO) {
+        val base = base()
+        val sameOrigin = request.url.scheme == base.scheme && request.url.host == base.host &&
+            request.url.port == base.port
+        if (sameOrigin && !config.hasServeCredentials) throw TransportError.SignInRequired
+        val recover = sameOrigin && !config.servesWithKey && config.hasServeCredentials &&
+            request.header("Authorization") == null
+        if (!recover) return@withContext client.newCall(request).execute()
+
+        val generation = authenticatedGeneration()
+        val response = client.newCall(request).execute()
+        // Only repeat bodies that can be written again (multipart here is byte-array backed).
+        if (response.code != 401 || request.body?.isOneShot() == true || request.body?.isDuplex() == true) {
+            return@withContext response
+        }
+        response.close()
+        currentCoroutineContext().ensureActive()
+        authenticatedGeneration(generation)
+        client.newCall(request).execute()
+    }
+
+    private fun authenticatedGeneration(rejectedGeneration: Long? = null): Long {
+        val base = base()
+        if (!config.hasServeCredentials) throw TransportError.SignInRequired
+        if (config.servesWithKey) return 0
+        return authState.authenticate(rejectedGeneration) {
+            val body = buildJsonObject {
+                put("provider", "basic")
+                put("username", config.serveUsername)
+                put("password", config.servePassword)
+            }
+            val request = Request.Builder()
+                .url(base.newBuilder().addPathSegments(AUTH_PATH).build())
+                .post(json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON))
+                .header("Content-Type", "application/json")
+                .header("User-Agent", OnyxHttp.USER_AGENT)
+                .build()
+            try {
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        authState.cooldown(response.header("Retry-After"))
+                        val detail = runCatching { response.peekBody(2_000L).string() }.getOrDefault("")
+                        throw TransportError.Http(response.code, detail)
+                    }
+                }
+            } catch (error: IOException) {
+                throw TransportError.from(error, afterHeaders = false)
+            }
+        }
     }
 
     /**
@@ -132,13 +129,13 @@ class ServeClient(
         body: JsonElement? = null,
         timeoutSeconds: Long? = null,
     ): JsonElement = withContext(Dispatchers.IO) {
+        var generation = authenticatedGeneration()
         repeat(2) { attempt ->
-            login(force = attempt > 0)
             try {
                 return@withContext send(path, method, query, body, timeoutSeconds)
             } catch (error: TransportError.Http) {
                 if (error.status != 401 || attempt > 0) throw error
-                loggedInAt = 0
+                generation = authenticatedGeneration(generation)
             }
         }
         error(OnyxLocalization["Dashboard session rejected twice in a row"])
@@ -166,13 +163,13 @@ class ServeClient(
      * sans corps). Même reprise qu'ailleurs sur un cookie mort.
      */
     suspend fun delete(path: String, timeoutSeconds: Long? = null): JsonElement = withContext(Dispatchers.IO) {
+        var generation = authenticatedGeneration()
         repeat(2) { attempt ->
-            login(force = attempt > 0)
             try {
                 return@withContext send(path, "DELETE", emptyMap(), null, timeoutSeconds, sendBody = false)
             } catch (error: TransportError.Http) {
                 if (error.status != 401 || attempt > 0) throw error
-                loggedInAt = 0
+                generation = authenticatedGeneration(generation)
             }
         }
         error(OnyxLocalization["Dashboard session rejected twice in a row"])
@@ -235,7 +232,6 @@ class ServeClient(
 
     /** Le corps brut d'un téléchargement (une image, un fichier). */
     suspend fun bytes(path: String, query: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
-        login()
         val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
         query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
         val request = Request.Builder()
@@ -244,7 +240,7 @@ class ServeClient(
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
         try {
-            httpClient.newCall(request).execute().use { response ->
+            executeAuthenticated(request).use { response ->
                 if (!response.isSuccessful) throw TransportError.Http(response.code, "")
                 response.body?.bytes() ?: throw TransportError.Malformed(OnyxLocalization["empty body"])
             }
@@ -257,7 +253,6 @@ class ServeClient(
 
     /** Une chaîne plate (les routes qui ne rendent pas de JSON : un texte, un markdown). */
     suspend fun text(path: String, query: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
-        login()
         val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
         query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
         val request = Request.Builder()
@@ -267,7 +262,7 @@ class ServeClient(
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
         try {
-            httpClient.newCall(request).execute().use { response ->
+            executeAuthenticated(request).use { response ->
                 if (!response.isSuccessful) throw TransportError.Http(response.code, "")
                 response.body?.string().orEmpty()
             }
@@ -279,7 +274,6 @@ class ServeClient(
     /** Envoie un texte brut (l'édition d'un fichier du serveur). */
     suspend fun putText(path: String, text: String, query: Map<String, String> = emptyMap()) {
         withContext(Dispatchers.IO) {
-            login()
             val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
             query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
             val request = Request.Builder()
@@ -288,7 +282,7 @@ class ServeClient(
                 .header("User-Agent", OnyxHttp.USER_AGENT)
                 .build()
             try {
-                httpClient.newCall(request).execute().use { response ->
+                executeAuthenticated(request).use { response ->
                     if (!response.isSuccessful) {
                         val detail = runCatching { response.peekBody(1_000L).string() }.getOrDefault("")
                         throw TransportError.Http(response.code, detail)
@@ -316,7 +310,6 @@ class ServeClient(
         bytes: ByteArray,
         contentType: String = "application/octet-stream",
     ): JsonElement = withContext(Dispatchers.IO) {
-        login()
         val builder = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
         fields.forEach { (key, value) -> builder.addFormDataPart(key, value) }
         builder.addFormDataPart(
@@ -331,7 +324,7 @@ class ServeClient(
             .build()
 
         try {
-            httpClient.newCall(request).execute().use { response ->
+            executeAuthenticated(request).use { response ->
                 val text = runCatching { response.body?.string().orEmpty() }.getOrDefault("")
                 if (!response.isSuccessful) throw TransportError.Http(response.code, text.take(300))
                 if (text.isBlank()) return@use kotlinx.serialization.json.JsonNull
@@ -352,9 +345,6 @@ class ServeClient(
         /** La route qui ouvre une session. */
         const val AUTH_PATH = "auth/password-login"
 
-        /** Le temps pendant lequel on croit la session vivante avant de la reprober. */
-        private const val SESSION_TTL_MS = 5 * 60 * 1000L
-
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
         /**
@@ -363,27 +353,52 @@ class ServeClient(
          */
         fun clientFor(config: ServerConfig): OkHttpClient {
             val builder = OkHttpClient.Builder()
-                .cookieJar(ServeCookieJar)
+                .followSslRedirects(false)
+                .cookieJar(ServeCookieJar.partition(DashboardAuthState.forConfig(config).cookiePartition))
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(90, TimeUnit.SECONDS)
                 .callTimeout(120, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
-            // Le serveur « une clé » (le compagnon) accepte la clé d'installation en `Bearer` sur
-            // tout `/api/*` : c'est son identité, il n'y a pas de session par mot de passe à ouvrir.
-            if (config.servesWithKey) builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey))
+            // Key-only companion identity remains unchanged. Password dashboards additionally
+            // need the gateway key on same-origin session routes, including before redirects.
+            builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
+            builder.addNetworkInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
             return builder.build()
         }
     }
 }
 
-/**
- * Pose `Authorization: Bearer <clé du serveur>` sur les appels du Dashboard quand la clé fait
- * l'identité — le cas du service compagnon « une clé ». Un en-tête déjà posé n'est pas écrasé.
- */
-private class ServeKeyInterceptor(private val key: String) : Interceptor {
+// Marks only headers added by this policy, so explicit caller authorization stays intact.
+private object GatewaySessionBearer
+
+/** Keeps key-only Dashboard auth and mixed-mode gateway session auth origin-scoped. */
+private class ServeKeyInterceptor(private val key: String, private val config: ServerConfig) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (request.header("Authorization") != null) return chain.proceed(request)
-        return chain.proceed(request.newBuilder().header("Authorization", "Bearer $key").build())
+        // Credentials belong to the configured origin, not arbitrary attachment hosts.
+        if (!OnyxHttp.isSameOrigin(request.url, config.serveBase)) {
+            val builder = request.newBuilder()
+            if (request.tag(GatewaySessionBearer::class.java) != null) builder.removeHeader("Authorization")
+            with(OnyxHttp) { builder.withoutServerHeaders(config) }
+            return chain.proceed(builder.build())
+        }
+        // In password mode only the gateway's root sessions route accepts the gateway key.
+        // serveBase owns Dashboard cookies; gatewayBaseUrl owns gateway credentials. They
+        // must both match here: a separate Dashboard must never receive the API server's key.
+        val path = request.url.encodedPath
+        val gatewaySession = config.hasServeCredentials && key.isNotBlank() &&
+            OnyxHttp.isSameOrigin(request.url, config.gatewayBaseUrl) &&
+            (path == "/api/sessions" || path.startsWith("/api/sessions/"))
+        if (!config.servesWithKey && !gatewaySession && request.tag(GatewaySessionBearer::class.java) != null) {
+            return chain.proceed(request.newBuilder().removeHeader("Authorization").build())
+        }
+        if ((!config.servesWithKey && !gatewaySession) || request.header("Authorization") != null) {
+            return chain.proceed(request)
+        }
+        val builder = request.newBuilder().header("Authorization", "Bearer $key")
+        if (gatewaySession && !config.servesWithKey) {
+            builder.tag(GatewaySessionBearer::class.java, GatewaySessionBearer)
+        }
+        return chain.proceed(builder.build())
     }
 }
