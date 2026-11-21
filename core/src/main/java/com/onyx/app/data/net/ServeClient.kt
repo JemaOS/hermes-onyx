@@ -359,31 +359,46 @@ class ServeClient(
                 .readTimeout(90, TimeUnit.SECONDS)
                 .callTimeout(120, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
-            // Le serveur « une clé » (le compagnon) accepte la clé d'installation en `Bearer` sur
-            // tout `/api/*` : c'est son identité, il n'y a pas de session par mot de passe à ouvrir.
-            if (config.servesWithKey) {
-                builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
-            }
+            // Key-only companion identity remains unchanged. Password dashboards additionally
+            // need the gateway key on same-origin session routes, including before redirects.
+            builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
             builder.addNetworkInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
             return builder.build()
         }
     }
 }
 
-/**
- * Pose `Authorization: Bearer <clé du serveur>` sur les appels du Dashboard quand la clé fait
- * l'identité — le cas du service compagnon « une clé ». Un en-tête déjà posé n'est pas écrasé.
- */
+// Marks only headers added by this policy, so explicit caller authorization stays intact.
+private object GatewaySessionBearer
+
+/** Keeps key-only Dashboard auth and mixed-mode gateway session auth origin-scoped. */
 private class ServeKeyInterceptor(private val key: String, private val config: ServerConfig) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         // Credentials belong to the configured origin, not arbitrary attachment hosts.
         if (!OnyxHttp.isSameOrigin(request.url, config.serveBase)) {
             val builder = request.newBuilder()
+            if (request.tag(GatewaySessionBearer::class.java) != null) builder.removeHeader("Authorization")
             with(OnyxHttp) { builder.withoutServerHeaders(config) }
             return chain.proceed(builder.build())
         }
-        if (!config.servesWithKey || request.header("Authorization") != null) return chain.proceed(request)
-        return chain.proceed(request.newBuilder().header("Authorization", "Bearer $key").build())
+        // In password mode only the gateway's root sessions route accepts the gateway key.
+        // serveBase owns Dashboard cookies; gatewayBaseUrl owns gateway credentials. They
+        // must both match here: a separate Dashboard must never receive the API server's key.
+        val path = request.url.encodedPath
+        val gatewaySession = config.hasServeCredentials && key.isNotBlank() &&
+            OnyxHttp.isSameOrigin(request.url, config.gatewayBaseUrl) &&
+            (path == "/api/sessions" || path.startsWith("/api/sessions/"))
+        if (!config.servesWithKey && !gatewaySession && request.tag(GatewaySessionBearer::class.java) != null) {
+            return chain.proceed(request.newBuilder().removeHeader("Authorization").build())
+        }
+        if ((!config.servesWithKey && !gatewaySession) || request.header("Authorization") != null) {
+            return chain.proceed(request)
+        }
+        val builder = request.newBuilder().header("Authorization", "Bearer $key")
+        if (gatewaySession && !config.servesWithKey) {
+            builder.tag(GatewaySessionBearer::class.java, GatewaySessionBearer)
+        }
+        return chain.proceed(builder.build())
     }
 }
