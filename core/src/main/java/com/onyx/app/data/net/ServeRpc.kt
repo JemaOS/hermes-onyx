@@ -350,7 +350,7 @@ class ServeRpc(
             .apply { if (config.servesWithKey) header("Authorization", "Bearer ${config.effectiveApiKey}") }
             .build()
         try {
-            httpClient.newCall(request).execute().use { response ->
+            ServeClient(config, httpClient).executeAuthenticated(request).use { response ->
                 if (!response.isSuccessful) throw TransportError.Http(response.code, "")
                 val text = response.body?.string().orEmpty()
                 val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
