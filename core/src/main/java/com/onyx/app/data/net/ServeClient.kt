@@ -363,6 +363,7 @@ class ServeClient(
          */
         fun clientFor(config: ServerConfig): OkHttpClient {
             val builder = OkHttpClient.Builder()
+                .followSslRedirects(false)
                 .cookieJar(ServeCookieJar)
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(90, TimeUnit.SECONDS)
@@ -371,8 +372,9 @@ class ServeClient(
             // Le serveur « une clé » (le compagnon) accepte la clé d'installation en `Bearer` sur
             // tout `/api/*` : c'est son identité, il n'y a pas de session par mot de passe à ouvrir.
             if (config.servesWithKey) {
-                builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config.serveBase.toHttpUrlOrNull()))
+                builder.addInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
             }
+            builder.addNetworkInterceptor(ServeKeyInterceptor(config.effectiveApiKey, config))
             return builder.build()
         }
     }
@@ -382,14 +384,16 @@ class ServeClient(
  * Pose `Authorization: Bearer <clé du serveur>` sur les appels du Dashboard quand la clé fait
  * l'identité — le cas du service compagnon « une clé ». Un en-tête déjà posé n'est pas écrasé.
  */
-private class ServeKeyInterceptor(private val key: String, private val origin: HttpUrl?) : Interceptor {
+private class ServeKeyInterceptor(private val key: String, private val config: ServerConfig) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         // Credentials belong to the configured origin, not arbitrary attachment hosts.
-        if (origin == null || request.url.scheme != origin.scheme ||
-            request.url.host != origin.host || request.url.port != origin.port
-        ) return chain.proceed(request)
-        if (request.header("Authorization") != null) return chain.proceed(request)
+        if (!OnyxHttp.isSameOrigin(request.url, config.serveBase)) {
+            val builder = request.newBuilder()
+            with(OnyxHttp) { builder.withoutServerHeaders(config) }
+            return chain.proceed(builder.build())
+        }
+        if (!config.servesWithKey || request.header("Authorization") != null) return chain.proceed(request)
         return chain.proceed(request.newBuilder().header("Authorization", "Bearer $key").build())
     }
 }

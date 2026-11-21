@@ -1,6 +1,8 @@
 package com.onyx.app.data.net
 
 import com.onyx.app.data.model.ServerConfig
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +44,18 @@ object OnyxHttp {
     private fun serverKey(config: ServerConfig): String =
         config.normalizedBaseUrl + "|" + (config.effectiveProfile ?: "")
 
+    internal fun isSameOrigin(url: HttpUrl, baseUrl: String): Boolean =
+        baseUrl.toHttpUrlOrNull()?.let {
+            url.scheme == it.scheme && url.host == it.host && url.port == it.port
+        } == true
+
+    internal fun okhttp3.Request.Builder.withoutServerHeaders(config: ServerConfig): okhttp3.Request.Builder = apply {
+        removeHeader("CF-Access-Client-Id")
+        removeHeader("CF-Access-Client-Secret")
+        removeHeader(PROFILE_HEADER)
+        config.customHeaders.filter { it.isUsable }.forEach { removeHeader(it.name.trim()) }
+    }
+
     private fun okhttp3.Request.Builder.withServerHeaders(config: ServerConfig): okhttp3.Request.Builder = apply {
         if (config.accessID.isNotBlank()) header("CF-Access-Client-Id", config.accessID.trim())
         if (config.accessSecret.isNotBlank()) header("CF-Access-Client-Secret", config.accessSecret.trim())
@@ -57,21 +71,36 @@ object OnyxHttp {
     fun clientFor(config: ServerConfig): OkHttpClient = base.newBuilder()
         .addInterceptor { chain ->
             val profile = config.effectiveProfile
-            val sendProfile = profile != null && profileHeaderRefused[serverKey(config)] != true
-            val request = chain.request().newBuilder().withServerHeaders(config).apply {
-                if (sendProfile) header(PROFILE_HEADER, profile!!)
+            val sendProfile = isSameOrigin(chain.request().url, config.gatewayBaseUrl) &&
+                profile != null && profileHeaderRefused[serverKey(config)] != true
+            val request = chain.request().newBuilder().apply {
+                if (sendProfile) header(PROFILE_HEADER, profile)
             }.build()
             val response = chain.proceed(request)
             // 401 avec l'en-tête : ce serveur n'a pas de clé pour ce profil. On réessaie une fois
             // sans, et on s'en souvient — jamais deux allers-retours par requête.
-            if (sendProfile && response.code == 401) {
+            if (sendProfile && response.code == 401 &&
+                isSameOrigin(response.request.url, config.gatewayBaseUrl)) {
                 response.close()
                 profileHeaderRefused[serverKey(config)] = true
                 return@addInterceptor chain.proceed(
-                    chain.request().newBuilder().withServerHeaders(config).build()
+                    chain.request().newBuilder().removeHeader(PROFILE_HEADER).build()
                 )
             }
             response
+        }
+        .addNetworkInterceptor { chain ->
+            val builder = chain.request().newBuilder()
+            if (isSameOrigin(chain.request().url, config.gatewayBaseUrl)) {
+                builder.withServerHeaders(config)
+                // Custom headers must not override the profile decision or its 401 fallback.
+                val profile = config.effectiveProfile
+                if (profileHeaderRefused[serverKey(config)] == true) builder.removeHeader(PROFILE_HEADER)
+                else if (profile != null) builder.header(PROFILE_HEADER, profile)
+            } else {
+                builder.withoutServerHeaders(config)
+            }
+            chain.proceed(builder.build())
         }
         .readTimeout(config.readTimeoutSeconds, TimeUnit.SECONDS)
         .callTimeout(config.callTimeoutSeconds, TimeUnit.SECONDS)
@@ -115,5 +144,6 @@ object OnyxHttp {
         .writeTimeout(30, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .followRedirects(true)
+        .followSslRedirects(false)
         .build()
 }

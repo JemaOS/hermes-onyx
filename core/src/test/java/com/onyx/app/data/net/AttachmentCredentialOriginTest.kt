@@ -62,6 +62,30 @@ class AttachmentCredentialOriginTest {
         }
     }
 
+    @Test fun differentHostnameDoesNotReceiveGatewayKey() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse().setBody("external attachment"))
+            val configured = config(server).copy(baseUrl = "http://localhost:${server.port}")
+            val destination = files.newFile()
+            ServeFileDownload(configured).toUrl("http://127.0.0.1:${server.port}/report.pdf", destination)
+            assertEquals("external attachment", destination.readText())
+            assertNull(server.takeRequest(2, TimeUnit.SECONDS)!!.getHeader("Authorization"))
+        }
+    }
+
+    @Test fun differentSchemeDoesNotReceiveGatewayKey() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse().setBody("external attachment"))
+            val configured = config(server).copy(baseUrl = server.url("/").newBuilder().scheme("https").build().toString())
+            val destination = files.newFile()
+            ServeFileDownload(configured).toUrl(server.url("/report.pdf").toString(), destination)
+            assertEquals("external attachment", destination.readText())
+            assertNull(server.takeRequest(2, TimeUnit.SECONDS)!!.getHeader("Authorization"))
+        }
+    }
+
     @Test fun explicitAuthorizationIsPreservedOnConfiguredOrigin() {
         MockWebServer().use { gateway ->
             gateway.start()

@@ -39,7 +39,9 @@ object ConnectionTester {
             .header("Accept", "application/json")
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
-        val client = OnyxHttp.clientFor(config).newBuilder()
+        // A probe can precede saving the server address. Bind credentials to the explicit
+        // probe destination; OnyxHttp still checks that origin on every redirect hop.
+        val client = OnyxHttp.clientFor(config.copy(baseUrl = config.serveBase)).newBuilder()
             .connectTimeout(OnyxHttp.connectTimeoutFor(DASHBOARD_PROBE_SECONDS), TimeUnit.SECONDS)
             .readTimeout(DASHBOARD_PROBE_SECONDS, TimeUnit.SECONDS)
             .callTimeout(DASHBOARD_PROBE_SECONDS, TimeUnit.SECONDS)
