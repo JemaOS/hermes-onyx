@@ -151,7 +151,7 @@ class SidebarDestinationsTest {
         assertEquals("Insights", labels["INSIGHTS"])
         assertEquals("Capabilities", labels["CAPABILITIES"])
         assertEquals("Plugins", labels["TOOLS"])
-        assertEquals("Config", labels["GATEWAY"])
+        assertEquals("Gateway config", labels["GATEWAY"])
         assertEquals("Archives", labels["ARCHIVED"])
     }
 

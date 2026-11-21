@@ -160,6 +160,7 @@ class ChatViewModel(
     /** Les messages écrits pendant une réponse : ils partent l'un après l'autre à la fin. */
     private val queued = OutboxQueue()
     private var retryJob: Job? = null
+    private val serverImportGate = Mutex()
     /** Le rattrapage d'un tour fini sans nous (voir [resumeDetachedTurn]) : un seul à la fois. */
     private var recoveryJob: Job? = null
     /** Le veilleur du silence : il relit la session quand le flux n'envoie plus rien. */
@@ -434,7 +435,18 @@ class ChatViewModel(
      *
      * Un échec de lecture ne casse rien : le registre local reste, et l'app continue.
      */
-    private suspend fun importServerSessions(server: ServerConfig): Boolean {
+    fun retryServerConversations() {
+        viewModelScope.launch {
+            val server = servers.activeServer.value
+            if (server.hasServeCredentials) importServerSessions(server)
+        }
+    }
+
+    private suspend fun importServerSessions(server: ServerConfig): Boolean = serverImportGate.withLock {
+        importServerSessionsLocked(server)
+    }
+
+    private suspend fun importServerSessionsLocked(server: ServerConfig): Boolean {
         if (conversations.conversations.value.isEmpty()) conversations.load()
         // **Les profils à interroger** : ceux des bots retenus sur ce téléphone, plus celui du
         // serveur. C'est ce qui donne à chaque session le profil qui la porte — sans lui, une
@@ -454,12 +466,13 @@ class ChatViewModel(
             .map { it.trim() }
             .distinct()
         val api = ServeSessionsApi(ServeClient(server))
+        _importNote.value = OnyxLocalization["Refreshing server conversations. Saved/local conversations remain available; counts are not yet refreshed."]
         var tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { error ->
             // **Dit, pas avalé.** C'est cette raison qui manquait sur les trois captures.
             _importNote.value = OnyxLocalization.format(
                 "The server's conversations did not load: %1\$s",
                 humanFailure(error),
-            )
+            ) + " " + OnyxLocalization["Showing saved/local conversations; counts are not a refreshed server total. Check authentication in Settings or retry a temporary connection failure."]
             return false
         }
         // **Le repli qui a déjà fait ses preuves.**

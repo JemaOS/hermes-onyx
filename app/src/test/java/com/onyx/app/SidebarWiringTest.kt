@@ -74,7 +74,7 @@ class SidebarWiringTest {
 
     @Test
     fun `le mode du volet suit la largeur, et l etat est ecrit dans l etat du volet`() {
-        assertTrue(app.contains("val sidebarMode = sidebarModeFor(maxWidth)"))
+        assertTrue(app.contains("val sidebarMode = sidebarModeFor(maxWidth, androidx.compose.ui.platform.LocalDensity.current.fontScale)"))
         assertTrue(app.contains("LaunchedEffect(sidebarMode) { sidebarState.updateMode(sidebarMode) }"))
         assertTrue(
             "la géométrie des deux panneaux suit l'ouverture du volet",
@@ -83,8 +83,8 @@ class SidebarWiringTest {
         // …et **ce que le volet porte** : porteur d'un écran, il prend la largeur d'un écran.
         assertTrue(app.contains("content = sidebarState.isNavigating,"))
         // Le mode est décidé par la largeur, jamais par un réglage.
-        assertTrue(state.contains("fun sidebarModeFor(availableWidth: Dp): SidebarMode"))
-        assertTrue(state.contains("if (canShowTwoPanes(availableWidth)) SidebarMode.DOCKED else SidebarMode.COMPACT"))
+        assertTrue(state.contains("fun sidebarModeFor(availableWidth: Dp, fontScale: Float = 1f): SidebarMode"))
+        assertTrue(state.contains("if (canShowTwoPanes(availableWidth, fontScale)) SidebarMode.DOCKED else SidebarMode.COMPACT"))
     }
 
     @Test

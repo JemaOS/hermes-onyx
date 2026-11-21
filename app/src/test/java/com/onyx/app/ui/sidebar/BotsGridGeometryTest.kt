@@ -75,7 +75,7 @@ class BotsGridGeometryTest {
 
     @Test
     fun `la carte porte sa hauteur et ne s etire plus sur la rangee`() {
-        assertTrue(card.contains(".height(cardHeight)"))
+        assertTrue(card.contains(".heightIn(min = cardHeight)"))
         // La rangée ne s'aligne plus sur sa carte la plus haute : la carte a sa hauteur propre.
         val row = source.substringAfter("items(bots.chunked(columns)").substringBefore("if (rooms.isNotEmpty()")
         assertFalse("plus de fillMaxHeight : la carte ne suit plus la rangée", row.contains("fillMaxHeight()"))

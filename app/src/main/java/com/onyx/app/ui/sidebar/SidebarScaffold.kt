@@ -81,7 +81,7 @@ internal fun SidebarScaffold(
 ) {
     val theme = LocalOnyxTheme.current
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val mode = sidebarModeFor(maxWidth)
+        val mode = sidebarModeFor(maxWidth, LocalDensity.current.fontScale)
         // La largeur décide du mode, et le mode est écrit dans l'état : c'est ce qui donne à chaque
         // largeur **sa** mémoire.
         LaunchedEffect(mode) { state.updateMode(mode) }

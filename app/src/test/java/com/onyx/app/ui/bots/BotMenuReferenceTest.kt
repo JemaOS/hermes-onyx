@@ -289,7 +289,7 @@ class BotMenuReferenceTest {
         // Deux colonnes, cartes de même hauteur (la hauteur est calculée, jamais celle du contenu).
         assertEquals(2, botGridColumns(411f, 1f))
         assertEquals("une seule colonne à 1,3× de police", 1, botGridColumns(411f, 1.3f))
-        assertTrue(chatsidebarBots.contains(".height(cardHeight)"))
+        assertTrue(chatsidebarBots.contains(".heightIn(min = cardHeight)"))
         // L'épingle marque la carte, comme la source (`:489`).
         assertTrue("la marque d'épingle sur la carte", chatsidebarBots.contains("if (bot.pinned)"))
         assertTrue(chatsidebarBots.contains("LucideMenuIcons.Pin"))

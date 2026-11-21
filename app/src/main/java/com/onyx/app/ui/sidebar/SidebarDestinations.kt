@@ -94,7 +94,7 @@ object SidebarDestinations {
         SidebarTile("INSIGHTS", "Insights", com.onyx.app.ui.design.Symbols.ChartBar),
         SidebarTile("CAPABILITIES", "Capabilities", com.onyx.app.ui.design.Symbols.SquareStack3dUp),
         SidebarTile("TOOLS", "Plugins", com.onyx.app.ui.design.Symbols.SliderHorizontal3),
-        SidebarTile("GATEWAY", "Config", com.onyx.app.ui.design.Symbols.Gearshape),
+        SidebarTile("GATEWAY", "Gateway config", com.onyx.app.ui.design.Symbols.Gearshape),
         SidebarTile("ARCHIVED", "Archives", com.onyx.app.ui.design.Symbols.ArchiveBox),
     )
 

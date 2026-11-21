@@ -275,6 +275,16 @@ fun VaultScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 40.dp),
         ) {
+            OnyxFormSection {
+                OnyxRow {
+                    BasicText(
+                        text = OnyxLocalization.format("Gateway Vault - Profile: %1\$s. New keys belong to this profile.", server.hermesProfile.ifBlank { "default" }),
+                        localize = false,
+                        style = theme.footnote.copy(color = bodyInk(theme, theme.formSurfaceColor)),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
             notice?.let {
                 OnyxFormSection {
                     OnyxRow {

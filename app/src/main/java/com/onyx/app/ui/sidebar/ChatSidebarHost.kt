@@ -51,6 +51,7 @@ internal fun ChatSidebarHost(
     reachable: Boolean?,
     /** La raison d'un import de conversations qui n'a pas abouti, `null` quand tout va bien. */
     serverNote: String? = null,
+    onRetryServer: () -> Unit = {},
     agentName: String,
     /**
      * **L'identité d'une conversation**, reçue **par conversation** : le **nom de profil de son
@@ -382,6 +383,7 @@ internal fun ChatSidebarHost(
         // que quand la liste est réellement l'écran.
         footerVisible = !sidebarState.isNavigating,
         serverNote = serverNote,
+        onRetryServer = onRetryServer,
         gatewayName = serverName,
         gatewayAddress = serverAddress,
         reachable = reachable,
