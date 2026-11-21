@@ -57,6 +57,26 @@ class ServeClient(
         Unit
     }
 
+    /** Execute a replayable Dashboard request with at most one generation-aware refresh. */
+    internal suspend fun executeAuthenticated(
+        request: Request,
+        client: OkHttpClient = httpClient,
+    ): okhttp3.Response = withContext(Dispatchers.IO) {
+        val base = base()
+        val sameOrigin = request.url.scheme == base.scheme && request.url.host == base.host &&
+            request.url.port == base.port
+        val recover = sameOrigin && !config.servesWithKey && config.hasServeCredentials &&
+            request.header("Authorization") == null
+        if (!recover) return@withContext client.newCall(request).execute()
+
+        val generation = authenticatedGeneration()
+        val response = client.newCall(request).execute()
+        if (response.code != 401) return@withContext response
+        response.close()
+        authenticatedGeneration(generation)
+        client.newCall(request).execute()
+    }
+
     private fun authenticatedGeneration(rejectedGeneration: Long? = null): Long {
         val base = base()
         if (!config.hasServeCredentials) throw TransportError.SignInRequired
