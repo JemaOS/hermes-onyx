@@ -24,13 +24,16 @@ l'installer à moitié.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import os
+import stat
 import platform
 import re
 import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -110,16 +113,93 @@ def tirer_secret(octets: int = 32) -> str:
     return secrets.token_urlsafe(octets)
 
 
-def ecrire_secret(chemin: Path, valeur: str) -> None:
-    chemin.parent.mkdir(parents=True, exist_ok=True)
-    chemin.write_text(valeur + "\n", encoding="utf-8")
+def _acl_privee(chemin: Path) -> None:
+    # chmod on Windows does not restrict read access; use the current user's SID.
+    import csv
+    sortie = subprocess.run(["whoami", "/user", "/fo", "csv", "/nh"],
+                            capture_output=True, text=True, check=True).stdout
+    sid = next(csv.reader(sortie.strip().splitlines()))[1]
+    if not re.fullmatch(r"S-1-[0-9-]+", sid):
+        raise OSError("Cannot determine the current user's SID")
+    # Apply a complete protected DACL in one operation (no permissive /reset window).
+    type_acl = "DirectorySecurity" if chemin.is_dir() else "FileSecurity"
+    heritage = "OICI" if chemin.is_dir() else ""
+    cible = str(chemin).replace("'", "''")
+    script = (
+        "$ErrorActionPreference = 'Stop'; "
+        f"$acl = New-Object System.Security.AccessControl.{type_acl}; "
+        f"$acl.SetSecurityDescriptorSddlForm('D:P(A;{heritage};FA;;;{sid})'); "
+        f"Set-Acl -LiteralPath '{cible}' -AclObject $acl"
+    )
+    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                   capture_output=True, check=True)
+
+
+@contextmanager
+def fichier_prive(chemin: Path):
+    """Stage privately beside the target, then replace its directory entry, not its symlink."""
+    chemin.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.TemporaryDirectory(prefix=".onyx-", dir=chemin.parent) as dossier:
+        if os.name == "nt":
+            _acl_privee(Path(dossier))
+        temporaire = Path(dossier) / chemin.name
+        fd = os.open(temporaire, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as flux:
+            yield flux
+            flux.flush()
+            os.fsync(flux.fileno())
+        os.replace(temporaire, chemin)
+
+
+def ecrire_prive(chemin: Path, valeur: str, encoding: str = "utf-8") -> None:
+    with fichier_prive(chemin) as flux:
+        flux.write(valeur.encode(encoding, errors="replace"))
+
+
+def proteger_fichier(chemin: Path, creer: bool = False) -> None:
+    """Tighten existing regular files without following links or truncating active logs."""
+    if creer:
+        chemin.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if chemin.is_symlink():
+        raise OSError(f"Refusing sensitive symlink: {chemin}")
+    if os.name == "nt":
+        if not chemin.exists() and creer:
+            ecrire_prive(chemin, "")
+        if chemin.exists():
+            _acl_privee(chemin)
+        return
+    flags = os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW
+    if creer:
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NONBLOCK | os.O_NOFOLLOW
     try:
-        chemin.chmod(0o600)
-    except OSError:
-        pass
+        fd = os.open(chemin, flags, 0o600)
+    except FileNotFoundError:
+        return
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise OSError(f"Refusing non-regular or hard-linked sensitive file: {chemin}")
+        os.fchmod(fd, 0o600)
+    finally:
+        os.close(fd)
+
+
+def proteger_artifacts() -> None:
+    chemins = (CLE, JETON, MDP, ENV_DASH, VOIX_FICHIER, DESTINATAIRE, LIEN, QR,
+               RACINE / "watchdog.log", RACINE / "tunnel.log", RACINE / "dashboard.log",
+               RACINE / "onyx-one.log", Path.home() / ".onyx-computer-bridge" / "token",
+               Path.home() / ".onyx-computer-bridge" / "bridge.log",
+               Path.home() / ".onyx-computer-bridge" / "tunnel.log")
+    for chemin in chemins:
+        proteger_fichier(chemin)
+
+
+def ecrire_secret(chemin: Path, valeur: str) -> None:
+    ecrire_prive(chemin, valeur + "\n")
 
 
 def lire_secret(chemin: Path) -> str:
+    proteger_fichier(chemin)
     try:
         return chemin.read_text(encoding="utf-8").strip()
     except OSError:
@@ -268,13 +348,13 @@ def configurer_api_server() -> str:
         api["key"] = tirer_secret()
         ajouts.append("key")
 
+    proteger_fichier(chemin)
     if not ajouts:
         return "deja"
 
     sauvegarde = chemin.with_name(f"{chemin.name}.avant-onyx-{time.strftime('%Y%m%d-%H%M%S')}")
-    shutil.copy2(chemin, sauvegarde)
-    with chemin.open("w", encoding="utf-8") as flux:
-        yaml.safe_dump(cfg, flux, allow_unicode=True, sort_keys=False)
+    ecrire_prive(sauvegarde, chemin.read_text(encoding="utf-8"))
+    ecrire_prive(chemin, yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False))
     return "ajoute : " + ", ".join(ajouts)
 
 
@@ -328,35 +408,55 @@ class Services:
         nom = f"{base}.service"
         court = base
         self.noms.append(nom)
+        proteger_fichier(journal, creer=True)
+        journal_sortie = str(journal)
+        for index, argument in enumerate(arguments[:-1]):
+            if argument == "--logfile":
+                proteger_fichier(Path(arguments[index + 1]), creer=True)
+                # cloudflared already writes this log; do not duplicate its stderr there.
+                journal_sortie = "/dev/null"
 
         if SYSTEME == "Linux":
-            lignes_env = "".join(f'Environment="{k}={v}"\n' for k, v in env.items())
+            unite = self._unite_linux(nom)
+            environnement = unite.with_suffix(".env")
+            # Environment= is exposed through systemd's D-Bus properties.
+            def env_echappe(valeur: str) -> str:
+                return valeur.replace("\\", "\\\\").replace('"', '\\"')
+            contenu_env = "".join(f'{k}="{env_echappe(v)}"\n' for k, v in env.items())
+            proteger_fichier(environnement)
+            change_env = (not environnement.exists() or
+                          environnement.read_text(encoding="utf-8") != contenu_env)
+            if change_env:
+                ecrire_prive(environnement, contenu_env)
+            lignes_env = f'EnvironmentFile="{environnement}"\n'
             contenu = (
                 "[Unit]\n"
                 f"Description=Onyx — {court}\n"
                 "After=network-online.target\n\n"
                 "[Service]\n"
                 "Type=simple\n"
+                "UMask=0077\n"
                 f"WorkingDirectory={dossier}\n"
                 f"{lignes_env}"
                 f"ExecStart={' '.join(arguments)}\n"
                 f"Restart={'always' if keepalive else 'no'}\n"
                 "RestartSec=3\n"
-                "StandardOutput=journal\n"
-                "StandardError=journal\n\n"
+                f"StandardOutput={'null' if journal_sortie == '/dev/null' else 'append:' + journal_sortie}\n"
+                f"StandardError={'null' if journal_sortie == '/dev/null' else 'append:' + journal_sortie}\n\n"
                 "[Install]\n"
                 "WantedBy=default.target\n"
             )
             unite = self._unite_linux(nom)
             unite.parent.mkdir(parents=True, exist_ok=True)
+            proteger_fichier(unite)
             change = not unite.exists() or unite.read_text(encoding="utf-8") != contenu
             if change:
-                unite.write_text(contenu, encoding="utf-8")
+                ecrire_prive(unite, contenu)
                 subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
             subprocess.run(["systemctl", "--user", "enable", nom], capture_output=True)
             # **Un service sain n'est pas relancé.** Pour le tunnel, le relancer change son nom
             # public — et le lien déjà installé sur le téléphone meurt sans raison.
-            if change or not self.actif(nom):
+            if change or change_env or not self.actif(nom):
                 subprocess.run(["systemctl", "--user", "restart", nom], capture_output=True)
 
         elif SYSTEME == "Darwin":
@@ -375,17 +475,19 @@ class Services:
                 f"  <key>ProgramArguments</key>\n  <array>\n{args_xml}  </array>\n"
                 f"  <key>WorkingDirectory</key><string>{xml(str(dossier))}</string>\n"
                 f"  <key>EnvironmentVariables</key>\n  <dict>\n{env_xml}  </dict>\n"
+                "  <key>Umask</key><integer>63</integer>\n"
                 "  <key>RunAtLoad</key><true/>\n"
                 f"  <key>KeepAlive</key>{'<true/>' if keepalive else '<false/>'}\n"
-                f"  <key>StandardOutPath</key><string>{xml(str(journal))}</string>\n"
-                f"  <key>StandardErrorPath</key><string>{xml(str(journal))}</string>\n"
+                f"  <key>StandardOutPath</key><string>{xml(journal_sortie)}</string>\n"
+                f"  <key>StandardErrorPath</key><string>{xml(journal_sortie)}</string>\n"
                 "</dict>\n</plist>\n"
             )
             agent = self._plist(nom)
             agent.parent.mkdir(parents=True, exist_ok=True)
+            proteger_fichier(agent)
             change = not agent.exists() or agent.read_text(encoding="utf-8") != contenu
             if change:
-                agent.write_text(contenu, encoding="utf-8")
+                ecrire_prive(agent, contenu)
             if change or not self.actif(nom):
                 subprocess.run(["launchctl", "unload", str(agent)], capture_output=True)
                 subprocess.run(["launchctl", "load", "-w", str(agent)], capture_output=True)
@@ -404,12 +506,13 @@ class Services:
                 f"start \"onyx-{court}\" /min {cmd_echappe(ligne)}\r\n"
             )
             fichier = self._cmd_windows(nom)
+            proteger_fichier(fichier)
             existant = fichier.read_text(encoding="utf-8") if fichier.exists() else ""
             change = existant != script
             if change:
                 # ASCII strict : cmd.exe lit les .cmd avec la page de code du poste, et un tiret
                 # cadratin en UTF-8 y apparaît en charabia.
-                fichier.write_text(script, encoding="ascii", errors="replace")
+                ecrire_prive(fichier, script, encoding="ascii")
                 subprocess.run(["schtasks", "/Delete", "/TN", f"Onyx {court}", "/F"],
                                capture_output=True)
                 subprocess.run(["schtasks", "/Create", "/F", "/SC", "ONLOGON",
@@ -527,15 +630,15 @@ def _python_avec_segno() -> str | None:
 _SCRIPT_QR = (
     "import sys, segno\n"
     "if sys.argv[1] == 'png':\n"
-    "    segno.make(sys.argv[2], error='m').save(sys.argv[3], scale=8, border=2)\n"
+    "    segno.make(sys.stdin.read(), error='m').save(sys.stdout.buffer, kind='png', scale=8, border=2)\n"
     "else:\n"
-    "    q = segno.make(sys.argv[2], error='l')\n"
+    "    q = segno.make(sys.stdin.read(), error='l')\n"
     "    for row in q.matrix:\n"
     "        print(''.join('1' if c else '0' for c in row))\n"
 )
 
 
-def rendre_qr(texte: str) -> str:
+def rendre_qr(texte: str, afficher: bool = True) -> str:
     """Le QR dans le terminal, **compact** et seulement s'il rentre.
 
     Un lien `onyx://connect` fait plus de trois cents caractères, donc le code est large. Rendu
@@ -557,8 +660,15 @@ def rendre_qr(texte: str) -> str:
     if python is None:
         return "pas-encodeur"
 
-    subprocess.run([python, "-c", _SCRIPT_QR, "png", texte, str(QR)], capture_output=True)
-    sortie = subprocess.run([python, "-c", _SCRIPT_QR, "matrice", texte],
+    try:
+        with fichier_prive(QR) as flux:
+            subprocess.run([python, "-c", _SCRIPT_QR, "png"], input=texte.encode("utf-8"),
+                           stdout=flux, stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError:
+        return "pas-encodeur"
+    if not afficher:
+        return "image"
+    sortie = subprocess.run([python, "-c", _SCRIPT_QR, "matrice"], input=texte,
                             capture_output=True, text=True)
     if sortie.returncode != 0 or not sortie.stdout.strip():
         return "pas-encodeur"
@@ -664,11 +774,10 @@ def donner_lien(services: Services, ouvrir: bool = True) -> None:
     pont_jeton = lire_secret(Path.home() / ".onyx-computer-bridge" / "token") if pont else ""
 
     texte = lien(serveur, cle, voix, pont, pont_jeton)
-    LIEN.write_text(texte + "\n", encoding="utf-8")
-    try:
-        LIEN.chmod(0o600)
-    except OSError:
-        pass
+    ecrire_secret(LIEN, texte)
+    if not ouvrir:
+        rendre_qr(texte, afficher=False)
+        return
 
     etape("Le lien")
     print()
@@ -697,6 +806,7 @@ def rafraichir(services: Services) -> int:
     public est celui que porte déjà le lien, et le réécrit — puis le pousse à l'utilisateur si un
     destinataire est configuré — dès qu'il en change.
     """
+    proteger_artifacts()
     cle = lire_secret(CLE)
     if not cle:
         return 0
@@ -719,10 +829,16 @@ def rafraichir(services: Services) -> int:
     if destinataire:
         hermes = commande("hermes")
         if hermes:
-            subprocess.run([hermes, "send", "--to", destinataire,
-                            "Le tunnel Onyx a changé de nom — voici le lien courant :",
-                            LIEN.read_text(encoding="utf-8").strip()],
-                           capture_output=True, timeout=120)
+            message = ("Le tunnel Onyx a changé de nom — voici le lien courant :\n"
+                       + LIEN.read_text(encoding="utf-8").strip())
+            try:
+                resultat = subprocess.run([hermes, "send", "--to", destinataire, "--file", "-"],
+                                          input=message, text=True, capture_output=True, timeout=120)
+                if resultat.returncode != 0:
+                    attention("Notification du lien échouée ; le fichier local reste disponible.")
+            except subprocess.TimeoutExpired:
+                # Child output may contain the pairing secret; never include it in diagnostics.
+                attention("Notification du lien expirée ; le fichier local reste disponible.")
     return 0
 
 
@@ -731,16 +847,17 @@ def installer_rafraichissement(services: Services) -> None:
     python = python_systeme()
     script = str(Path(__file__).resolve())
     nom = "onyx-link-watchdog.service"
+    proteger_fichier(RACINE / "watchdog.log", creer=True)
 
     if SYSTEME == "Linux":
         unite = services._unite_linux(nom)
         unite.parent.mkdir(parents=True, exist_ok=True)
-        unite.write_text(
+        ecrire_prive(unite,
             "[Unit]\nDescription=Onyx — régénère le lien quand le tunnel change de nom\n\n"
-            f"[Service]\nType=oneshot\nExecStart={python} {script} --refresh\n",
-            encoding="utf-8")
+            f"[Service]\nType=oneshot\nUMask=0077\nExecStart={python} {script} --refresh\n"
+            "StandardOutput=null\nStandardError=null\n")
         minuterie = unite.with_suffix(".timer")
-        minuterie.write_text(
+        ecrire_prive(minuterie,
             "[Unit]\nDescription=Vérifie le nom du tunnel Onyx toutes les deux minutes\n\n"
             "[Timer]\nOnBootSec=90\nOnUnitActiveSec=120\nUnit=onyx-link-watchdog.service\n\n"
             "[Install]\nWantedBy=timers.target\n", encoding="utf-8")
@@ -751,7 +868,7 @@ def installer_rafraichissement(services: Services) -> None:
     elif SYSTEME == "Darwin":
         agent = Path.home() / "Library/LaunchAgents/com.onyx.watchdog.plist"
         agent.parent.mkdir(parents=True, exist_ok=True)
-        agent.write_text(
+        ecrire_prive(agent,
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
             '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n'
@@ -761,8 +878,8 @@ def installer_rafraichissement(services: Services) -> None:
             "    <string>--refresh</string>\n  </array>\n"
             "  <key>StartInterval</key><integer>120</integer>\n"
             "  <key>RunAtLoad</key><true/>\n"
-            f"  <key>StandardOutPath</key><string>{RACINE}/watchdog.log</string>\n"
-            f"  <key>StandardErrorPath</key><string>{RACINE}/watchdog.log</string>\n"
+            "  <key>StandardOutPath</key><string>/dev/null</string>\n"
+            "  <key>StandardErrorPath</key><string>/dev/null</string>\n"
             "</dict>\n</plist>\n", encoding="utf-8")
         subprocess.run(["launchctl", "unload", str(agent)], capture_output=True)
         subprocess.run(["launchctl", "load", "-w", str(agent)], capture_output=True)
@@ -783,11 +900,12 @@ def main() -> int:
     analyseur.add_argument("--voices", metavar="URL", help="adresse d'un serveur TTS Kokoro-compatible")
     options = analyseur.parse_args()
 
-    RACINE.mkdir(parents=True, exist_ok=True)
+    RACINE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    proteger_artifacts()
 
     if options.voices:
         ecrire_secret(VOIX_FICHIER, options.voices)
-        ok(f"adresse des voix enregistrée : {options.voices}")
+        ok("adresse des voix enregistrée")
 
     services = Services()
 
@@ -906,7 +1024,7 @@ def main() -> int:
             "ONYX_ONE_LANG": "fr",
             "ONYX_ONE_MODEL": "hermes-agent",
         },
-        RACINE, journal_pass)
+        RACINE, RACINE / "onyx-one.log")
     ok("passerelle une-clé installée")
 
     services.installer(
