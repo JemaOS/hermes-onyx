@@ -20,7 +20,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Exercise the real ticket/upgrade and streaming callers, not just the auth coordinator. */
+/** Exercise every authenticated transport, not just the auth coordinator. */
 @RunWith(Parameterized::class)
 class DashboardOperationRecoveryTest(private val operation: String) {
     @get:Rule val temporary = TemporaryFolder()
@@ -31,7 +31,28 @@ class DashboardOperationRecoveryTest(private val operation: String) {
         serveUsername = "user", servePassword = "password",
     )
 
-    private suspend fun perform(config: ServerConfig): Boolean {
+    private suspend fun perform(config: ServerConfig, expectedStatus: Int = 401): Boolean {
+        if (operation !in listOf("download", "rpc")) {
+            return try {
+                val client = ServeClient(config)
+                when (operation) {
+                    "bytes" -> assertArrayEquals(byteArrayOf(0, 1, -1, 13, 10),
+                        client.bytes("api/files/download", mapOf("path" to "binary")))
+                    "multipart" -> assertEquals("{\"uploaded\":true}", client.multipart("api/files/upload",
+                        mapOf("path" to "/target", "overwrite" to "false"), "binary.bin",
+                        byteArrayOf(0, 1, -1, 13, 10)).toString())
+                    "text" -> assertEquals("report contents", client.text("api/files/download", mapOf("path" to "report.txt")))
+                    "json" -> assertEquals("{}", client.request("api/sessions").toString())
+                    "delete" -> assertEquals("{}", client.delete("api/profiles/test").toString())
+                    "putText" -> client.putText("api/files/content", "updated contents")
+                    else -> error("Unknown operation: $operation")
+                }
+                true
+            } catch (error: TransportError.Http) {
+                assertEquals(expectedStatus, error.status)
+                false
+            }
+        }
         if (operation == "download") {
             val destination = temporary.newFile()
             return try {
@@ -40,7 +61,7 @@ class DashboardOperationRecoveryTest(private val operation: String) {
                 assertFalse(destination.resolveSibling(destination.name + ".part").exists())
                 true
             } catch (error: TransportError.Http) {
-                assertEquals(401, error.status)
+                assertEquals(expectedStatus, error.status)
                 false
             }
         }
@@ -49,7 +70,7 @@ class DashboardOperationRecoveryTest(private val operation: String) {
             rpc.connect()
             rpc.isReady
         } catch (error: TransportError.Http) {
-            assertEquals(401, error.status)
+            assertEquals(expectedStatus, error.status)
             false
         } finally {
             rpc.close()
@@ -65,6 +86,10 @@ class DashboardOperationRecoveryTest(private val operation: String) {
                 }
             })
         request.path == "/api/files/download?path=report.txt" -> MockResponse().setBody("report contents")
+        request.path == "/api/files/download?path=binary" -> MockResponse().setBody(okio.Buffer().write(byteArrayOf(0, 1, -1, 13, 10)))
+        request.path == "/api/files/upload" -> MockResponse().setBody("{\"uploaded\":true}")
+        request.path == "/api/sessions" || request.path == "/api/profiles/test" -> MockResponse().setBody("{}")
+        request.path == "/api/files/content" -> MockResponse()
         else -> MockResponse().setResponseCode(404)
     }
 
@@ -73,6 +98,7 @@ class DashboardOperationRecoveryTest(private val operation: String) {
             val logins = AtomicInteger()
             val stale = AtomicInteger()
             val fresh = AtomicInteger()
+            val uploadRequests = mutableListOf<RecordedRequest>()
             server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
                     assertEquals(OnyxHttp.USER_AGENT, request.getHeader("User-Agent"))
@@ -81,6 +107,7 @@ class DashboardOperationRecoveryTest(private val operation: String) {
                         val generation = logins.incrementAndGet()
                         return MockResponse().addHeader("Set-Cookie", "session=$generation; Path=/")
                     }
+                    if (request.path == "/api/files/upload") uploadRequests.add(request)
                     if (request.getHeader("Cookie") == "session=1") {
                         stale.incrementAndGet()
                         return MockResponse().setResponseCode(401)
@@ -98,6 +125,19 @@ class DashboardOperationRecoveryTest(private val operation: String) {
             assertEquals(2, logins.get())
             assertEquals(1, stale.get())
             assertEquals(1, fresh.get())
+            if (operation == "multipart") {
+                assertEquals(2, uploadRequests.size)
+                assertEquals(uploadRequests[0].getHeader("Content-Type"), uploadRequests[1].getHeader("Content-Type"))
+                assertArrayEquals(uploadRequests[0].body.clone().readByteArray(), uploadRequests[1].body.clone().readByteArray())
+                val text = uploadRequests[0].body.clone().readUtf8()
+                assertTrue(text.contains("name=\"path\""))
+                assertTrue(text.contains("\r\n\r\n/target\r\n"))
+                assertTrue(text.contains("name=\"overwrite\""))
+                assertTrue(text.contains("\r\n\r\nfalse\r\n"))
+                assertTrue(text.contains("filename=\"binary.bin\""))
+                assertTrue(text.contains("Content-Type: application/octet-stream"))
+                assertTrue(uploadRequests[0].body.indexOf(okio.ByteString.of(0, 1, -1, 13, 10)) >= 0)
+            }
         }
     }
 
@@ -120,6 +160,17 @@ class DashboardOperationRecoveryTest(private val operation: String) {
             assertFalse(perform(config))
             assertEquals(2, logins.get())
             assertEquals(2, attempts.get())
+        }
+    }
+
+    @Test fun nonUnauthorizedFailureIsNotReplayed() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse())
+            server.enqueue(MockResponse().setResponseCode(403))
+            val config = config(server)
+            ServeClient(config).login()
+            assertFalse(perform(config, expectedStatus = 403))
+            assertEquals(2, server.requestCount)
         }
     }
 
@@ -182,6 +233,6 @@ class DashboardOperationRecoveryTest(private val operation: String) {
 
     companion object {
         @JvmStatic @Parameterized.Parameters(name = "{0}")
-        fun operations() = listOf(arrayOf("rpc"), arrayOf("download"))
+        fun operations() = listOf("rpc", "download", "bytes", "multipart", "text", "json", "delete", "putText").map { arrayOf(it) }
     }
 }

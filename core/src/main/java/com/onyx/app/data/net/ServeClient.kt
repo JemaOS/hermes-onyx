@@ -3,6 +3,8 @@ package com.onyx.app.data.net
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.localization.OnyxLocalization
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -65,14 +67,19 @@ class ServeClient(
         val base = base()
         val sameOrigin = request.url.scheme == base.scheme && request.url.host == base.host &&
             request.url.port == base.port
+        if (sameOrigin && !config.hasServeCredentials) throw TransportError.SignInRequired
         val recover = sameOrigin && !config.servesWithKey && config.hasServeCredentials &&
             request.header("Authorization") == null
         if (!recover) return@withContext client.newCall(request).execute()
 
         val generation = authenticatedGeneration()
         val response = client.newCall(request).execute()
-        if (response.code != 401) return@withContext response
+        // Only repeat bodies that can be written again (multipart here is byte-array backed).
+        if (response.code != 401 || request.body?.isOneShot() == true || request.body?.isDuplex() == true) {
+            return@withContext response
+        }
         response.close()
+        currentCoroutineContext().ensureActive()
         authenticatedGeneration(generation)
         client.newCall(request).execute()
     }
@@ -225,7 +232,6 @@ class ServeClient(
 
     /** Le corps brut d'un téléchargement (une image, un fichier). */
     suspend fun bytes(path: String, query: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
-        login()
         val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
         query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
         val request = Request.Builder()
@@ -234,7 +240,7 @@ class ServeClient(
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
         try {
-            httpClient.newCall(request).execute().use { response ->
+            executeAuthenticated(request).use { response ->
                 if (!response.isSuccessful) throw TransportError.Http(response.code, "")
                 response.body?.bytes() ?: throw TransportError.Malformed(OnyxLocalization["empty body"])
             }
@@ -247,7 +253,6 @@ class ServeClient(
 
     /** Une chaîne plate (les routes qui ne rendent pas de JSON : un texte, un markdown). */
     suspend fun text(path: String, query: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
-        login()
         val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
         query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
         val request = Request.Builder()
@@ -257,7 +262,7 @@ class ServeClient(
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
         try {
-            httpClient.newCall(request).execute().use { response ->
+            executeAuthenticated(request).use { response ->
                 if (!response.isSuccessful) throw TransportError.Http(response.code, "")
                 response.body?.string().orEmpty()
             }
@@ -269,7 +274,6 @@ class ServeClient(
     /** Envoie un texte brut (l'édition d'un fichier du serveur). */
     suspend fun putText(path: String, text: String, query: Map<String, String> = emptyMap()) {
         withContext(Dispatchers.IO) {
-            login()
             val builder = base().newBuilder().addPathSegments(path.trimStart('/'))
             query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
             val request = Request.Builder()
@@ -278,7 +282,7 @@ class ServeClient(
                 .header("User-Agent", OnyxHttp.USER_AGENT)
                 .build()
             try {
-                httpClient.newCall(request).execute().use { response ->
+                executeAuthenticated(request).use { response ->
                     if (!response.isSuccessful) {
                         val detail = runCatching { response.peekBody(1_000L).string() }.getOrDefault("")
                         throw TransportError.Http(response.code, detail)
@@ -306,7 +310,6 @@ class ServeClient(
         bytes: ByteArray,
         contentType: String = "application/octet-stream",
     ): JsonElement = withContext(Dispatchers.IO) {
-        login()
         val builder = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
         fields.forEach { (key, value) -> builder.addFormDataPart(key, value) }
         builder.addFormDataPart(
@@ -321,7 +324,7 @@ class ServeClient(
             .build()
 
         try {
-            httpClient.newCall(request).execute().use { response ->
+            executeAuthenticated(request).use { response ->
                 val text = runCatching { response.body?.string().orEmpty() }.getOrDefault("")
                 if (!response.isSuccessful) throw TransportError.Http(response.code, text.take(300))
                 if (text.isBlank()) return@use kotlinx.serialization.json.JsonNull
