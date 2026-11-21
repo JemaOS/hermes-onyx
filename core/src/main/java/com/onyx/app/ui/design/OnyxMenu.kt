@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -269,7 +270,10 @@ private fun estimateMenuHeight(items: List<MenuItem>, density: Density): Int = w
     rows + OnyxSpace.Half.roundToPx() * 2 + dividers
 }
 
-/** Le panneau : une ligne par entrée, l'une sous l'autre, un filet là où le groupe change. */
+// Use the same opaque floating-surface rung as action sheets; never sample the live page.
+internal fun menuSurface(theme: ResolvedTheme): Color =
+    OnyxSurfaces.surfaceHigh(theme).copy(alpha = 1f)
+
 @Composable
 private fun MenuPanel(
     items: List<MenuItem>,
@@ -283,33 +287,12 @@ private fun MenuPanel(
             // Le panneau lui-même n'est pas une zone de fermeture : appuyer entre deux lignes ne
             // doit rien faire (l'appui est avalé ici, pas transmis au voile).
             .onyxTappable(onClick = {})
-            // **Le verre du panneau**, et non plus un voile.
-            //
-            // Avant, le fond était peint par `frostedBar` : un **voile plat** — aucun calque flouté,
-            // aucune lentille. Le contenu dessous restait lisible (mesuré : contraste 179 → 30, les
-            // arêtes du texte restaient des marches nettes) et le panneau n'avait ni lumière ni
-            // arête : c'était du **lavis**, pas du verre.
-            //
-            // Ici le panneau prend la surface de la **table du verre** ([GlassSurface.MENU]) : le fond
-            // est le contenu réel, flouté et courbé par la lentille, et la finition de la maison
-            // (lumière de tête, ombre de pied, liseré, reflet de tranche) se pose par-dessus.
-            //
-            // **Pas de `masking`**, et c'est délibéré : le panneau ancré se pose sur une **rangée**,
-            // pas sur un fil qui défile sous une plaque. Il doit **laisser voir** ce qu'il recouvre —
-            // c'est le verre qu'on cherche. `masking` remonterait le voile jusqu'à 0,92 et le
-            // panneau redeviendrait l'**aplat** qu'on voulait supprimer (mesuré : fond uniforme, plus
-            // aucune forme derrière). La lisibilité, ici, c'est le **flou** qui la porte, pas
-            // l'opacité.
-            // **Le chemin de Haze, pas celui de la lentille.** Mesuré : le chemin de la lentille
-            // peint une **teinte** mais n'échantillonne **rien** (la texture enregistrée rend vide) —
-            // le panneau laissait alors passer le texte dessous net (corrélation 0,99 avec l'image
-            // non floutée). Le chemin de Haze, lui, échantillonne vraiment (le volet lit la source à
-            // `count=1`) : c'est lui qui donne le fond **flouté** du verre.
-            .liquidGlass(
-                GlassSurface.MENU,
-                RoundedCornerShape(MenuCorner),
-                lens = false,
-            )
+            // The lens path resamples unblurred page pixels; Haze also remains translucent.
+            // Menus must occlude titles/dividers regardless of glass quality or backdrop state.
+            .shadow(12.dp, RoundedCornerShape(MenuCorner))
+            .clip(RoundedCornerShape(MenuCorner))
+            .background(menuSurface(theme))
+            .border(1.dp, theme.separator, RoundedCornerShape(MenuCorner))
             .verticalScroll(rememberScrollState())
             .padding(vertical = OnyxSpace.Half),
     ) {
