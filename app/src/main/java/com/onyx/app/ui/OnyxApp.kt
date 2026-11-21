@@ -5119,14 +5119,9 @@ fun OnyxApp() {
                     }
                 }
 
-              // **Le calque flottant.** Le menu ancré s'y pose. Il est dessiné ici, dans la **même
-              // couche** que la route — c'est ce qui lui permet de lire la source de flou de
-              // l'écran (posée dans cette fenêtre) et de se peindre comme du **verre** : le
-              // contenu réel dessous, flouté et courbé par la lentille. Dans une `Dialog` — une
-              // autre fenêtre — il ne pouvait rien échantillonner, et le panneau se lisait comme un
-              // voile gris posé sur l'écran.
-              OverlayLayer(overlayHost)
               }}
+            // Same-window glass stays outside the animated, recorded route subtree.
+            OverlayLayer(overlayHost)
         }
 
         if (openingRect != null) {

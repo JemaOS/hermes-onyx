@@ -156,7 +156,7 @@ class ModelSheetMarginLockTest {
             ModelSheetHeightFraction in 0.5f..0.99f,
         )
         assertTrue("elle est bornée à cette part", sheet.contains("heightIn(max = sheetCap)"))
-        assertTrue("la liste défile dedans", sheet.contains("weight(1f, fill = false)"))
+        assertTrue("la liste défile dedans", sheet.contains("LazyColumn(") && sheet.contains("item(key = \"controls\")"))
         assertTrue("elle porte l'arête du filet de la maison", sheet.contains("OnyxSurfaces.hairline(theme)"))
         assertTrue("et la poignée", sheet.contains("ModelSheetHandle()"))
     }

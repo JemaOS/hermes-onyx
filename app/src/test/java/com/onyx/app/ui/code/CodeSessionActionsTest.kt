@@ -50,7 +50,7 @@ class CodeSessionActionsTest {
         // Et ce panneau se pose contre la rangée touchée, jamais au centre, jamais hors de l'écran.
         assertTrue(menu.contains("anchor: Rect? = null"))
         assertTrue(menu.contains("boundsInWindow()"))
-        assertTrue(menu.contains("coerceIn(marginPx"))
+        assertTrue(menu.contains("coerceIn(limits.top, limits.bottom - heightPx)"))
     }
 
     @Test
