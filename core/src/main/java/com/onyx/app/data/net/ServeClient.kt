@@ -45,76 +45,46 @@ class ServeClient(
     /** Faux tant que le Dashboard n'a pas d'adresse et d'identifiants. */
     val isConfigured: Boolean get() = config.hasServeCredentials
 
-    private var loggedInAt: Long = 0
+    private val authState = DashboardAuthState.forConfig(config)
 
     /** L'adresse de base, ou une erreur claire plutôt qu'une URL vide. */
     private fun base(): HttpUrl =
         config.serveBase.toHttpUrlOrNull() ?: throw TransportError.BadUrl(OnyxLocalization["empty Dashboard address"])
 
-    /**
-     * Ouvre la session si besoin.
-     *
-     * Une sonde bon marché (`api/sessions?limit=1`) vérifie qu'un cookie d'une session précédente
-     * vit encore, comme sur la référence ; sinon on s'authentifie avec `auth/password-login`.
-     */
+    /** Password sessions recover on a real request's 401, never a gateway probe. */
     suspend fun login(force: Boolean = false) = withContext(Dispatchers.IO) {
-        val base = base()
-        if (!config.hasServeCredentials) throw TransportError.SignInRequired
-
-        // « Une clé » : le serveur accepte la clé d'installation en `Bearer` sur `/api/*` et
-        // entretient lui-même la session du Dashboard. Aucun identifiant à envoyer, aucun mot de
-        // passe à demander : la clé (posée par l'intercepteur de [clientFor]) suffit, et il n'y a
-        // aucune sonde à faire — il n'y a pas de cookie de session à valider ici.
-        if (config.servesWithKey) {
-            loggedInAt = System.currentTimeMillis()
-            return@withContext
-        }
-
-        if (!force && loggedInAt > 0 && System.currentTimeMillis() - loggedInAt < SESSION_TTL_MS) return@withContext
-
-        val probe = base.newBuilder().addPathSegments("api/sessions").addQueryParameter("limit", "1").build()
-        if (probeCall(probe)) {
-            loggedInAt = System.currentTimeMillis()
-            return@withContext
-        }
-
-        val body = buildJsonObject {
-            put("provider", "basic")
-            put("username", config.serveUsername)
-            put("password", config.servePassword)
-        }
-        val request = Request.Builder()
-            .url(base.newBuilder().addPathSegments(AUTH_PATH).build())
-            .post(json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON))
-            .header("Content-Type", "application/json")
-            .header("User-Agent", OnyxHttp.USER_AGENT)
-            .build()
-
-        try {
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    // Le corps est gardé tel quel : c'est lui qui dit *pourquoi* (« Invalid
-                    // credentials », « no_cookie », « session_expired »), et c'est de lui que
-                    // `TransportError.userMessage` tire un message clair. Un mot de passe refusé
-                    // ne doit jamais être remplacé par un « login rejected » anonyme.
-                    val detail = runCatching { response.peekBody(2_000L).string() }.getOrDefault("")
-                    throw TransportError.Http(response.code, detail)
-                }
-            }
-        } catch (error: IOException) {
-            throw TransportError.from(error, afterHeaders = false)
-        }
-        loggedInAt = System.currentTimeMillis()
+        authenticatedGeneration(if (force) authState.generation else null)
+        Unit
     }
 
-    private fun probeCall(url: HttpUrl): Boolean {
-        val request = Request.Builder()
-            .url(url)
-            .get()
-            .header("Accept", "application/json")
-            .header("User-Agent", OnyxHttp.USER_AGENT)
-            .build()
-        return runCatching { httpClient.newCall(request).execute().use { it.code == 200 } }.getOrDefault(false)
+    private fun authenticatedGeneration(rejectedGeneration: Long? = null): Long {
+        val base = base()
+        if (!config.hasServeCredentials) throw TransportError.SignInRequired
+        if (config.servesWithKey) return 0
+        return authState.authenticate(rejectedGeneration) {
+            val body = buildJsonObject {
+                put("provider", "basic")
+                put("username", config.serveUsername)
+                put("password", config.servePassword)
+            }
+            val request = Request.Builder()
+                .url(base.newBuilder().addPathSegments(AUTH_PATH).build())
+                .post(json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON))
+                .header("Content-Type", "application/json")
+                .header("User-Agent", OnyxHttp.USER_AGENT)
+                .build()
+            try {
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        authState.cooldown(response.header("Retry-After"))
+                        val detail = runCatching { response.peekBody(2_000L).string() }.getOrDefault("")
+                        throw TransportError.Http(response.code, detail)
+                    }
+                }
+            } catch (error: IOException) {
+                throw TransportError.from(error, afterHeaders = false)
+            }
+        }
     }
 
     /**
@@ -132,13 +102,13 @@ class ServeClient(
         body: JsonElement? = null,
         timeoutSeconds: Long? = null,
     ): JsonElement = withContext(Dispatchers.IO) {
+        var generation = authenticatedGeneration()
         repeat(2) { attempt ->
-            login(force = attempt > 0)
             try {
                 return@withContext send(path, method, query, body, timeoutSeconds)
             } catch (error: TransportError.Http) {
                 if (error.status != 401 || attempt > 0) throw error
-                loggedInAt = 0
+                generation = authenticatedGeneration(generation)
             }
         }
         error(OnyxLocalization["Dashboard session rejected twice in a row"])
@@ -166,13 +136,13 @@ class ServeClient(
      * sans corps). Même reprise qu'ailleurs sur un cookie mort.
      */
     suspend fun delete(path: String, timeoutSeconds: Long? = null): JsonElement = withContext(Dispatchers.IO) {
+        var generation = authenticatedGeneration()
         repeat(2) { attempt ->
-            login(force = attempt > 0)
             try {
                 return@withContext send(path, "DELETE", emptyMap(), null, timeoutSeconds, sendBody = false)
             } catch (error: TransportError.Http) {
                 if (error.status != 401 || attempt > 0) throw error
-                loggedInAt = 0
+                generation = authenticatedGeneration(generation)
             }
         }
         error(OnyxLocalization["Dashboard session rejected twice in a row"])
@@ -352,9 +322,6 @@ class ServeClient(
         /** La route qui ouvre une session. */
         const val AUTH_PATH = "auth/password-login"
 
-        /** Le temps pendant lequel on croit la session vivante avant de la reprober. */
-        private const val SESSION_TTL_MS = 5 * 60 * 1000L
-
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
         /**
@@ -364,7 +331,7 @@ class ServeClient(
         fun clientFor(config: ServerConfig): OkHttpClient {
             val builder = OkHttpClient.Builder()
                 .followSslRedirects(false)
-                .cookieJar(ServeCookieJar)
+                .cookieJar(ServeCookieJar.partition(DashboardAuthState.forConfig(config).cookiePartition))
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(90, TimeUnit.SECONDS)
                 .callTimeout(120, TimeUnit.SECONDS)

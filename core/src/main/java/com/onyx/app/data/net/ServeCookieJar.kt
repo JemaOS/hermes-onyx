@@ -16,9 +16,17 @@ object ServeCookieJar : CookieJar {
     private val jars = mutableMapOf<String, MutableList<Cookie>>()
     private val lock = Any()
 
-    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+    fun partition(id: String): CookieJar = object : CookieJar {
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) = save(id, url, cookies)
+        override fun loadForRequest(url: HttpUrl): List<Cookie> = load(id, url)
+    }
+
+    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) = save("default", url, cookies)
+    override fun loadForRequest(url: HttpUrl): List<Cookie> = load("default", url)
+
+    private fun save(id: String, url: HttpUrl, cookies: List<Cookie>) {
         synchronized(lock) {
-            val jar = jars.getOrPut(key(url)) { mutableListOf() }
+            val jar = jars.getOrPut(id + "|" + key(url)) { mutableListOf() }
             cookies.forEach { cookie ->
                 jar.removeAll { it.name == cookie.name }
                 if (cookie.expiresAt > System.currentTimeMillis()) jar += cookie
@@ -26,9 +34,9 @@ object ServeCookieJar : CookieJar {
         }
     }
 
-    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+    private fun load(id: String, url: HttpUrl): List<Cookie> {
         synchronized(lock) {
-            val jar = jars[key(url)] ?: return emptyList()
+            val jar = jars[id + "|" + key(url)] ?: return emptyList()
             val now = System.currentTimeMillis()
             jar.removeAll { it.expiresAt < now }
             return jar.filter { it.matches(url) }
@@ -37,7 +45,7 @@ object ServeCookieJar : CookieJar {
 
     /** Oublie la session d'un serveur : à appeler quand son adresse ou son mot de passe change. */
     fun forget(url: HttpUrl) {
-        synchronized(lock) { jars.remove(key(url)) }
+        synchronized(lock) { jars.keys.removeAll { it.endsWith("|" + key(url)) } }
     }
 
     fun forgetAll() {
