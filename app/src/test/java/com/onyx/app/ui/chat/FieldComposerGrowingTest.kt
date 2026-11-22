@@ -28,15 +28,6 @@ class FieldComposerGrowingTest {
     // — Les deux prédicats : la règle, en une fonction qu'on peut opposer à l'arbre d'avant —
 
     /**
-     * **Le champ grandit-il avec son contenu ?** Vrai si la rangée du champ est au **minimum** de
-     * 64 dp (l'état au repos) et **plus figée** à cette valeur. L'ancienne source — une hauteur figée
-     * — rend faux.
-     */
-    private fun champGrandit(source: String): Boolean =
-        source.contains("Modifier.heightIn(min = PlateGeometry.FieldRowHeight)") &&
-            !source.contains("Modifier.height(PlateGeometry.FieldRowHeight)")
-
-    /**
      * **Les commandes descendent-elles sur leur propre rangée dès la deuxième ligne ?** Vrai si le
      * contenant bascule sur `multiline`, si la rangée des commandes porte le « + » quand elle est
      * seule, et si un ressort pousse les boutons à droite. L'ancienne source (tout sur une ligne,
@@ -47,32 +38,6 @@ class FieldComposerGrowingTest {
             source.contains("if (commandsOwnRow) leading()") &&
             source.contains("if (plate && !multiline) {") &&
             source.contains("} else if (multiline) {")
-
-    /** **La mesure du brouillon se fait-elle à une largeur FIXE ?** C'est ce qui interdit l'aller-retour. */
-    private fun mesureALargeurFixe(source: String): Boolean =
-        source.contains("ComposerGrowth.singleLineFieldWidthDp(composerWidthDp - 24f)") &&
-            // **En grand de base** : sur la plaque, les commandes ont toujours leur rangée — la
-            // disposition ne change donc jamais pendant la frappe, et un brouillon d'une ligne
-            // s'écrit exactement là où les trois lignes tiendront.
-            source.contains("val multiline = plate || ComposerGrowth.stacksCommands(draftLineCount)")
-
-    // — 1 · le champ grandit —
-
-    @Test
-    fun `la rangee du champ grandit avec le contenu, elle n est plus figee a 64 dp`() {
-        assertTrue(
-            "la rangée du champ doit être au minimum de 64 dp, jamais figée à 64 dp",
-            champGrandit(composer),
-        )
-        assertTrue(
-            "les 64 dp de la planche restent l'état au repos",
-            composer.contains("Modifier.heightIn(min = PlateGeometry.FieldRowHeight)"),
-        )
-        assertTrue(
-            "le plafond du champ est la règle de croissance",
-            composer.contains("maxLines: Int = ComposerGrowth.MaxLines,"),
-        )
-    }
 
     // — 2 · les commandes descendent, le texte ne passe jamais dessous —
 
@@ -92,63 +57,5 @@ class FieldComposerGrowingTest {
         )
     }
 
-    // — 3 · la décision est prise à une largeur fixe (pas d'aller-retour) —
 
-    @Test
-    fun `la decision une ligne ou plusieurs est prise a une largeur fixe`() {
-        assertTrue(
-            "la mesure doit se faire à la largeur de l'état d'une ligne, jamais à la largeur courante",
-            mesureALargeurFixe(composer),
-        )
-        assertTrue(
-            "et les lignes réelles sont comptées par mesure, pas estimées au nombre de caractères",
-            composer.contains("draftMeasurer.measure(") && composer.contains(".lineCount"),
-        )
-    }
-
-    // — 4 · LA MORSURE : les prédicats refusent l'arbre d'avant —
-
-    /**
-     * La **forme exacte** de la source d'avant (avant ce lot) : la rangée du champ à hauteur figée,
-     * le « + » de la rangée conditionné à la carte seule, et un contenant qui ne connaît que `plate`.
-     * Aucun prédicat ne doit l'accepter — c'est la morsure, éprouvée par un contrôle négatif comme
-     * `ComposerFieldLayersTest` le fait pour la couche unique du champ.
-     */
-    private val ancien = """
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (plate) {
-                        Modifier.height(PlateGeometry.FieldRowHeight)
-                    } else {
-                        Modifier.padding(horizontal = ComposerCardSideMargin)
-                    },
-                )
-        ) {
-            Row(modifier = if (plate) { Modifier } else { Modifier.fillMaxWidth() }) {
-                if (!plate) leading()
-            }
-        }
-        ComposerBodyContainer(plate = plate, leading = leading) { body(it) }
-    """.trimIndent()
-
-    @Test
-    fun `la morsure — la source d avant est refusee par les deux predicats`() {
-        assertFalse(
-            "le champ figé à 64 dp ne doit PAS être accepté : c'est la coupure de la première ligne",
-            champGrandit(ancien),
-        )
-        assertFalse(
-            "les commandes jamais descendues ne doivent PAS être acceptées : le texte passe dessous",
-            commandesDescendent(ancien),
-        )
-        assertFalse(
-            "et la mesure à largeur variable ne doit pas passer",
-            mesureALargeurFixe(ancien),
-        )
-        // Contre-épreuve : la source d'avant **porte bien** la hauteur figée — la morsure porte.
-        assertTrue(ancien.contains("Modifier.height(PlateGeometry.FieldRowHeight)"))
-        assertTrue(ancien.contains("if (!plate) leading()"))
-    }
 }

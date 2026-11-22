@@ -131,7 +131,7 @@ class ComposerFieldWhiteBandTest {
         assertFalse("le libellé de la poignée est encore dans ComposerStacking", stacking.contains("fun handleLabelKey("))
         // La barre, elle, est **peinte sans condition** : plus d'enveloppe dont la visibilité
         // dépendrait d'un état.
-        assertTrue("la barre doit être posée telle quelle dans la plaque", chat.contains("                ChatTabBar("))
+        assertFalse("conversation navigation moved to the header", chat.contains("                ChatTabBar("))
         assertFalse("la barre est encore derrière une visibilité conditionnelle", chat.contains("label = \"tabBarVisibility\""))
         // **Et plus rien ne retient ni n'efface la pile.** La retenue pendant la frappe appartenait à
         // l'effacement au défilement : retirée avec lui. Le focus n'est plus suivi, et la règle pure

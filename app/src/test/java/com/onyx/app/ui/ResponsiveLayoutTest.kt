@@ -400,19 +400,7 @@ class ResponsiveLayoutTest {
         assertTrue(kanbanSource.contains("overflow = TextOverflow.Ellipsis"))
     }
 
-    @Test
-    fun `le placeholder du composeur tient sur une ligne`() {
-        // **Le libellé de la plaque est choisi entre deux clés** (celle de la planche, et la même
-        // sans l'ellipse quand la place manque : voir `PlaqueInvite`) : la source ne porte donc plus
-        // un seul `text = placeholder`, mais les deux cas — et les deux tiennent sur **une** ligne.
-        assertTrue(
-            composerSource.contains("OnyxLocalization[PlaqueInvite.key(maxWidth.value, measureInvite)]"),
-        )
-        assertTrue(composerSource.contains("placeholder"))
-        assertTrue(composerSource.contains("maxLines = if (plate) 1 else 2"))
-        assertTrue(composerSource.contains("maxLines = 1"))
-        assertTrue(composerSource.contains("overflow = TextOverflow.Ellipsis"))
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     @Test
     fun `aucun libelle du volet ne se coupe au milieu d un mot`() {
@@ -456,7 +444,7 @@ class ResponsiveLayoutTest {
         )
         // La hauteur de la barre d'onglets est mesurée, pas devinée.
         assertTrue(chatSource.contains("var tabBarHeightPx by remember { mutableIntStateOf(0) }"))
-        assertTrue(chatSource.contains("tabBarHeightPx = it.height"))
+        assertTrue(chatSource.contains("composerHeightPx = it.height"))
     }
 
     @Test

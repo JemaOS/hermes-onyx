@@ -920,6 +920,9 @@ fun ChatScreen(
     // un seul niveau à la fois, comme le volet, les feuilles et les menus. Il fait exactement ce
     // que fait la croix du bandeau (`onSearch("")` puis `onFindRequested()`), si bien que le bouton
     // retour maison et le geste du bord se comportent pareil.
+    BackHandler(enabled = pagerState.currentPage != 0 && !state.searchOpen) {
+        scope.launch { pagerState.scrollToPage(0) }
+    }
     BackHandler(enabled = state.searchOpen) {
         onSearch("")
         onFindRequested()
@@ -1665,118 +1668,11 @@ fun ChatScreen(
                 // **Le compositeur est posé sur la plaque unique** (voir la pile du bas) :
                 // il ne peint plus sa propre carte, la plaque s'en charge.
                 plate = true,
+                compact = true,
             )
             }
 
-            // **La barre des onglets, toujours là.** L'ordre est **compositeur puis barre** : le
-            // champ reste collé sous le fil qu'on lit, et la barre occupe le bas de la pile, au plus
-            // près du clavier — exactement là où elle a toujours été. Rien n'est donc inséré entre
-            // la conversation et la zone d'écriture, et le champ ne bouge pas d'un onglet à l'autre.
-            //
-            // **Aucun effacement, d'aucune sorte, ne subsiste.** La poignée à chevron qui la masquait
-            // a été retirée de l'écran sur l'ordre du propriétaire, et sa préférence par conversation
-            // (`ChatPanelStore.tabsHidden`) avec elle ; l'effacement **au défilement** de la pile
-            // entière — champ **et** barre — a été retiré à son tour (« ça ne doit JAMAIS disparaître
-            // quand je défile »). Ni le clavier, ni un réglage, ni un geste, ni une position de
-            // défilement ne l'éteignent : la plaque est dessinée **inconditionnellement**.
-            //
-            // **La pilule détachée du bas.** `navigationBarsPadding` la pose au-dessus de la zone
-            // système (barre de navigation, ou zone du geste d'accueil : c'est cette zone qui passait
-            // par-dessus les libellés) ; [TabBarGeometry.BottomMargin] ajoute le dégagement de la
-            // maison — la marche `Half` de l'échelle — pour qu'elle ne paraisse jamais collée au bord.
-            // C'est **cette** hauteur que la réserve du fil reprend, marge comprise : la géométrie de
-            // la pilule et la place que le fil lui laisse ne peuvent donc pas diverger.
-            // **La rangée des onglets, à hauteur fixe** — 76 dp, la hauteur de `.navrow` dans la
-            // planche. C'est la seconde moitié des 140 dp : avec la rangée du champ (64 dp, dans
-            // `OnyxComposer`), la plaque vaut exactement la cible, et elle se **mesure** au lieu de
-            // dépendre de trois rangées qui s'additionnaient (166 dp relevés sur la capture).
-            //
-            // **Le filet de séparation interne est peint ici**, sur la frontière haute de la rangée :
-            // c'est `.ask{border-bottom:1px solid var(--line)}` de la planche — le trait qui sépare
-            // le champ des onglets. Il manquait complètement : sans lui, les deux rangées se lisaient
-            // comme une seule bande de contrôles posés dans un aplat. Il est **peint** et non
-            // mesuré : il ne prend pas un dp à la rangée, donc la somme reste 64 + 76 = 140.
-            val separatorColour = OnyxSurfaces.hairline(theme)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(PlateGeometry.TabRowHeight)
-                    .drawBehind {
-                        drawRect(
-                            color = separatorColour,
-                            topLeft = Offset.Zero,
-                            size = Size(size.width, PlateGeometry.Separator.toPx()),
-                        )
-                    }
-                    // La marge système du bas et le dégagement de la maison sont portés par **la
-                    // plaque** (voir la pile du bas) : la rangée n'a plus à les reprendre, sinon
-                    // l'encart du système serait compté deux fois — le défaut d'origine.
-                    .onSizeChanged { tabBarHeightPx = it.height }
-                    .onGloballyPositioned { tabBarWeldRect = it.boundsInParent() },
-                // **La barre est CENTRÉE dans ses 76 dp.** Le défaut relevé : la pastille de
-                // l'onglet actif était posée au **haut** de la rangée — collée au filet de
-                // séparation, avec tout le blanc sous elle (« c'est même pas centré »). La barre
-                // a maintenant ses 8 dp de dégagement au-dessus **et** au-dessous, comme `.navi`
-                // dans `.navrow` (`hcss.py:227-229`).
-                verticalArrangement = Arrangement.Center,
-            ) {
-                // **Le repère-visage : la position de la barre, une autre porte.**
-                //
-                // Son dessin (le visage dans son cercle à l'accent) occupait la place d'« Idées ».
-                // « Idées » et « Objectifs » sont supprimés (demande du propriétaire) : le repère
-                // ne fait donc plus défiler le pageur jusqu'à une page « Idées » qui n'existe
-                // plus — il ouvre l'identité du bot, ou ne fait rien de sûr. On branche le
-                // **geste** sur ce que le dessin annonce.
-                //
-                // **La plaque du bas est toujours visible.** La poignée à chevron qui pouvait la
-                // masquer a été retirée (demande du propriétaire) : plus d'`AnimatedVisibility`,
-                // plus d'état « barre masquée » — un écrivain de moins, aucune fonction de plus.
-                val faceIndex = ChatTab.drawn.lastIndex
-                ChatTabBar(
-                    selectedIndex = pagerState.currentPage,
-                    // **Quatre repères : trois onglets de contenu, puis le visage du bot.**
-                    // Le cinquième (« Objectifs ») tombait à 4,2 dp de large : ni icône ni
-                    // libellé. Il est **supprimé** avec « Idées » — ce n'est plus une page du
-                    // pageur, c'est un écran qui n'existe plus.
-                    tabs = ChatTab.drawn,
-                    accent = tabAccent,
-                    badges = tabBadges,
-                    // **La barre est posée sur la plaque unique** : elle ne peint plus sa propre
-                    // capsule, la plaque porte la forme, le fond, le filet et l'ombre.
-                    plate = true,
-                    // **Le quatrième repère est le visage**, dans un cercle à l'accent, avec son
-                    // libellé « Onyx » — la planche n'y met pas une ampoule.
-                    faceIndex = faceIndex,
-                    faceLabel = ChatTab.FACE_LABEL,
-                    face = {
-                        BotLook(
-                            name = threadSpeaker.faceName,
-                            faceCode = threadSpeaker.faceCode,
-                            size = PlateGeometry.TabCell,
-                            // Le repère ne cligne pas : quatre repères de barre ne bougent
-                            // pas, et un visage qui cligne dans une barre attire l'œil pour
-                            // rien.
-                            blinks = false,
-                        )
-                    },
-                    onSelect = { index ->
-                        when {
-                            // Le repère-visage ouvre l'identité du bot.
-                            index == faceIndex && onOpenBotIdentity != null -> onOpenBotIdentity()
-                            // Les onglets de contenu font défiler le pageur.
-                            index in 0 until chatTabCount -> scope.launch {
-                                if (reduceMotion) {
-                                    pagerState.scrollToPage(index)
-                                } else {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            }
-                            // Le repère-visage sans porte : rien, jamais un défilement hors page.
-                            else -> Unit
-                        }
-                    },
-                )
-            }
+            // Conversation destinations remain in the header overflow; no bottom navigation here.
             }
         }
 
@@ -1884,6 +1780,21 @@ fun ChatScreen(
 
         if (showMoreMenu && !showProjectMenu) {
             val items = buildList {
+                ChatTab.paged.forEachIndexed { index, tab ->
+                    val label = if (tab == ChatTab.FEED && feedBadge > 0) {
+                        "${OnyxLocalization[tab.label]} · $feedBadge"
+                    } else tab.label
+                    add(MenuItem(label, tab.symbol) {
+                        showMoreMenu = false
+                        scope.launch { pagerState.scrollToPage(index) }
+                    })
+                }
+                onOpenBotIdentity?.let { open ->
+                    add(MenuItem(ChatTab.FACE_LABEL, Symbols.Ellipsis) {
+                        showMoreMenu = false
+                        open()
+                    })
+                }
                 menuItems.forEach { item ->
                     add(item.copy(onSelect = {
                         showMoreMenu = false

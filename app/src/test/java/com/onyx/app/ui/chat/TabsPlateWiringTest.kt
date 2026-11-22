@@ -33,20 +33,7 @@ class TabsPlateWiringTest {
 
     // — 1 · quatre repères, quatre colonnes ÉGALES —
 
-    @Test
-    fun `la barre ne recoit aucune poignee, les quatre colonnes restent egales`() {
-        assertTrue(
-            "l'écran dessine les quatre repères de la planche",
-            screen.contains("tabs = ChatTab.drawn,"),
-        )
-        assertEquals("la barre porte quatre repères, pas cinq", 4, ChatTab.drawn.size)
-        val call = screen.substringAfter("tabs = ChatTab.drawn,").substringBefore("onSelect = {")
-        assertFalse(
-            "une poignée DANS la barre prend la cible d'une colonne avant les repères : « Chat " +
-                "collé à gauche, les autres serrés au centre » — c'est le défaut mesuré",
-            call.contains("handle ="),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     @Test
     fun `chaque repere prend une part egale, et la cellule a son plancher`() {
@@ -67,16 +54,7 @@ class TabsPlateWiringTest {
         )
     }
 
-    @Test
-    fun `la rangee d onglets centre sa barre dans ses 76 dp`() {
-        val row = screen
-            .substringAfter(".height(PlateGeometry.TabRowHeight)")
-            .substringBefore("ChatTabBar(")
-        assertTrue(
-            "sans centrage, la pastille monte jusqu'au filet et laisse tout le blanc sous elle",
-            row.contains("verticalArrangement = Arrangement.Center,"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     // — 2 · le visage désigne le bot, il ne teinte pas la commande —
 
@@ -95,6 +73,6 @@ class TabsPlateWiringTest {
             face.contains("PlateGeometry.FaceRing"),
         )
         // Le visage lui-même porte sa couleur : c'est son identité, et elle reste.
-        assertTrue("le visage de l'écran reste celui de la conversation", screen.contains("BotLook("))
+        assertTrue("le visage de l'écran reste celui de la conversation", screen.contains("avatarName = if (threadBotUnknown) null else threadSpeaker.faceName"))
     }
 }

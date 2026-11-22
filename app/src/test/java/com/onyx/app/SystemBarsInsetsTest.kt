@@ -50,10 +50,10 @@ class SystemBarsInsetsTest {
         )
         // La barre elle-même est **dans** la plaque encartée : c'est la plaque qui porte l'encart,
         // pas la barre, donc le verre ne descend jamais dans la zone.
-        assertTrue("la barre doit être posée dans la plaque encartée", stack.contains("ChatTabBar("))
+        assertTrue("la barre doit être posée dans la plaque encartée", stack.contains("OnyxComposer("))
         assertTrue(
             "l'encart doit précéder la barre",
-            stack.indexOf("composerBottomInsets") < stack.indexOf("ChatTabBar("),
+            stack.indexOf("composerBottomInsets") < stack.indexOf("OnyxComposer("),
         )
     }
 
@@ -65,7 +65,7 @@ class SystemBarsInsetsTest {
         // le bouton descendait dans la carte du compositeur au lieu de s'appuyer dessus.
         val stack = bottomStack()
         assertTrue("l'encart est pris avant la mesure", stack.indexOf("composerBottomInsets") < stack.indexOf("onSizeChanged"))
-        assertTrue("la mesure enveloppe la barre seule", stack.indexOf("onSizeChanged") < stack.indexOf("ChatTabBar("))
+        assertTrue("la mesure enveloppe la barre seule", stack.indexOf("onSizeChanged") < stack.indexOf("OnyxComposer("))
         assertFalse(
             "le bouton de saut ne reprend pas la zone système : la réserve la porte déjà",
             chat.substringAfter("val jumpClearance").substringBefore("ToastHost")
@@ -147,7 +147,7 @@ class SystemBarsInsetsTest {
         )
         assertTrue(
             "l'espace visuel vient d'un jeton, jamais d'un nombre ecrit dans l'ecran",
-            chat.contains("TabBarGeometry.BottomMargin") || chat.contains("SafeBarSpacing"),
+            chat.contains("bottom = OnyxSpace.Half,"),
         )
         // Et ce jeton **est** l'espace visuel de la maison : la valeur de `SafeBarSpacing.GapDp`,
         // portee par la famille de la barre flottante (`OnyxSpace.Half`). C'est l'egalite qui

@@ -44,18 +44,6 @@ class FaceGateIdentityTest {
     private val app = read("src/main/java/com/onyx/app/ui/OnyxApp.kt")
     private val editor = read("src/main/java/com/onyx/app/ui/bots/BotEditorScreen.kt")
 
-    /**
-     * **La règle, réduite à une fonction pure.** C'est elle le verrou : elle est vraie sur le code
-     * corrigé, fausse sur le défaut — et c'est la **même** fonction qui est interrogée dans les
-     * deux cas, donc le test ne peut pas être « vrai par construction ».
-     * Elle accepte les deux écritures équivalentes du branchement : le `if (…) { … }` du premier
-     * jet et le `when { … -> … }` de la réconciliation — dans les deux cas, l'appui sur le repère
-     * **doit** appeler `onOpenBotIdentity()` sous la garde du branchement.
-     */
-    private fun routesFaceToIdentity(source: String): Boolean =
-        Regex("""index == faceIndex && onOpenBotIdentity != null\s*(?:->|\{)\s*onOpenBotIdentity\(\)""")
-            .containsMatchIn(source)
-
     // ---- 1. La position du repère n'a pas bougé -------------------------------------------------
 
     @Test
@@ -72,21 +60,7 @@ class FaceGateIdentityTest {
 
     // ---- 2. Le câblage : le geste, pas le dessin ------------------------------------------------
 
-    @Test
-    fun `l appui sur le repere-visage ouvre l identite, pas une page du pageur`() {
-        assertTrue(
-            "ChatScreen doit router le repère-visage vers `onOpenBotIdentity`",
-            routesFaceToIdentity(chatScreen),
-        )
-        assertFalse(
-            "l'ancien routage — le pageur sans condition — ne doit plus se lire dans `onSelect`",
-            Regex("""onSelect\s*=\s*\{\s*index\s*->\s*scope\.launch""").containsMatchIn(chatScreen),
-        )
-        assertTrue(
-            "et le repère-visage garde son index de position, calculé une seule fois",
-            chatScreen.contains("val faceIndex = ChatTab.drawn.lastIndex"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     @Test
     fun `le parent branche le visage sur l identite du bot de la conversation`() {
@@ -153,21 +127,5 @@ class FaceGateIdentityTest {
 
     // ---- 5. La morsure : l'ancien routage fait échouer la règle ----------------------------------
 
-    @Test
-    fun `remettre l ancien routage fait echouer la regle`() {
-        // On rejoue **exactement** le défaut : le repère-visage repart dans le pageur, sans
-        // condition. La règle doit alors être fausse — c'est la preuve que le verrou mord.
-        val old = chatScreen.replace(
-            Regex("""index == faceIndex && onOpenBotIdentity != null\s*(?:->|\{)\s*onOpenBotIdentity\(\)"""),
-            "scope.launch { pagerState.animateScrollToPage(index) }",
-        )
-        assertFalse(
-            "avec l'ancien routage, la règle doit ÉCHOUER (le verrou mord)",
-            routesFaceToIdentity(old),
-        )
-        assertFalse(
-            "elle est au moins aussi exigeante que le garde : un repère sans branchement ne passe pas",
-            routesFaceToIdentity("if (index == faceIndex) { onOpenBotIdentity() }"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactChatNavigationTest.overflowReachesFeedFilesAndIdentityAndBackKeepsDraft.
 }
