@@ -50,10 +50,9 @@ class BotMenuAnchoredTest {
             "il passe par l'hôte des calques de la fenêtre principale",
             menu.contains("LocalOverlayHost.current") && menu.contains("host?.show"),
         )
-        assertTrue(
-            "et il se peint en verre",
-            Regex("""\.liquidGlass\(\s*GlassSurface\.MENU""").containsMatchIn(menu),
-        )
+        // Occlusion is intentional; OnyxMenuRenderTest verifies actual light/dark pixels.
+        assertTrue("le panneau masque la page", menu.contains(".background(menuSurface(theme))"))
+        assertFalse("aucun echantillonnage translucide", menu.contains(".liquidGlass("))
         // L'origine du voile est mesurée, pas devinée : la rangée et le panneau vivent dans le
         // même repère.
         assertTrue("le voile se mesure", menu.contains("placed = it.boundsInWindow().topLeft"))
@@ -106,36 +105,13 @@ class BotMenuAnchoredTest {
         assertTrue("une ligne reste une cible confortable", OnyxSpace.RowHeight.value >= 48f)
         assertEquals(OnyxSpace.RowHeight, 56.dp)
         assertEquals("l'icône d'une ligne", 17, Regex("private val MenuIconSize = (\\d+)\\.dp").find(menu)!!.groupValues[1].toInt())
-        // **Le fond est du VERRE, pas un voile.**
-        //
-        // Le défaut mesuré : le menu peignait son fond avec `frostedBar`, c'est-à-dire un **voile
-        // plat** — aucun calque flouté, aucune finition. Le contenu dessous se lisait à travers
-        // (contraste 179 → 30) et le panneau n'avait ni lumière ni arête : du lavis, pas du verre.
-        //
-        // Le panneau prend donc la surface de la **table du verre** ([GlassSurface.MENU]), qui
-        // porte le rayon de flou, l'ombre et l'encre attendue — et il vit dans la **fenêtre
-        // principale**, où la source de flou existe (dans une `Dialog`, il ne pouvait rien
-        // échantillonner : il ne restait qu'un voile).
+        // Keep geometry here; OnyxMenuRenderTest checks opaque light/dark pixel occlusion.
         assertTrue(
-            "le panneau prend la surface de verre de la table",
-            menu.contains("GlassSurface.MENU,"),
+            "le panneau prend la surface flottante opaque",
+            Regex("""internal fun menuSurface\(theme: ResolvedTheme\): Color\s*=\s*OnyxSurfaces\.surfaceHigh\(theme\)\.copy\(alpha = 1f\)""")
+                .containsMatchIn(menu),
         )
-        assertTrue(
-            "et il passe par le panneau de verre (calque flouté + finition), pas par un voile plat",
-            Regex("""\.liquidGlass\(\s*GlassSurface\.MENU""").containsMatchIn(menu),
-        )
-        assertFalse(
-            "plus de voile plat sur le panneau du menu",
-            menu.contains("frostedBar(\n                FrostSurface.MENU"),
-        )
-        // Le voile du menu : mesuré sur un fond flouté, il descend bien sous le voile opaque
-        // d'avant (0,94 en clair) — c'est ce qui laisse voir le verre.
-        assertTrue(
-            "le voile du menu se mesure sur le fond flouté",
-            Regex("""glassMaskingTintAlphaBlurred\(""").containsMatchIn(
-                File("../core/src/main/java/com/onyx/app/ui/design/LiquidGlass.kt").readText(),
-            ),
-        )
+        assertFalse("aucun voile translucide", menu.contains("frostedBar("))
         assertTrue(menu.contains("Color.Black.copy(alpha = 0.18f)"))
     }
 

@@ -21,7 +21,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import okhttp3.OkHttpClient
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
@@ -92,8 +91,17 @@ class GroupRoomSendEndToEndTest {
         dashboard = MockWebServer()
         dashboard.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {
+                // The real transport authenticates before requesting its one-use socket ticket.
+                request.path == "/auth/password-login" && request.method == "POST" ->
+                    MockResponse().setBody("{}")
+                        .addHeader("Set-Cookie", "onyx-test-session=accepted; Path=/; HttpOnly")
+
                 request.path?.startsWith("/api/auth/ws-ticket") == true ->
-                    MockResponse().setBody("""{"ticket":"ticket-1"}""")
+                    if (request.getHeader("Cookie")?.contains("onyx-test-session=accepted") == true) {
+                        MockResponse().setBody("""{"ticket":"ticket-1"}""")
+                    } else {
+                        MockResponse().setResponseCode(401)
+                    }
 
                 request.path?.startsWith("/api/ws") == true ->
                     MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
@@ -253,11 +261,12 @@ class GroupRoomSendEndToEndTest {
 
     @Test
     fun `un message ecrit dans une salle y est ecrit, et revient par son journal`() = runBlocking {
-        val feed = GroupRoomFeed(room, ServeGroupsRpc(ServeRpc(live, OkHttpClient())))
+        val feed = GroupRoomFeed(room, ServeGroupsRpc(ServeRpc(live)))
         assertTrue("la salle part vide", feed.state.value.events.isEmpty())
 
         val id = feed.beginSend("Bonjour à tous")
         feed.deliver(id, "Bonjour à tous")
+        assertNull("delivery problem: ${feed.state.value.problem}", feed.state.value.problem)
 
         // La salle l'a retenu : c'est ce que `groups.send` a écrit, avec l'identifiant du message.
         assertEquals(1, roomLog.size)
@@ -288,7 +297,7 @@ class GroupRoomSendEndToEndTest {
     @Test
     fun `une question envoyee produit la reponse du bot, affichee et mise en file de lecture`() = runBlocking {
         answers = true
-        val feed = GroupRoomFeed(room, ServeGroupsRpc(ServeRpc(live, OkHttpClient())))
+        val feed = GroupRoomFeed(room, ServeGroupsRpc(ServeRpc(live)))
         // Ce que la voix connaissait avant de poser la question : rien.
         val replies = GroupVoiceReplies(feed.state.value.voiceLines())
 
@@ -321,7 +330,7 @@ class GroupRoomSendEndToEndTest {
 
     @Test
     fun `l arret d une salle part au Dashboard avec un identifiant neuf`() = runBlocking {
-        val feed = GroupRoomFeed(room, ServeGroupsRpc(ServeRpc(live, OkHttpClient())))
+        val feed = GroupRoomFeed(room, ServeGroupsRpc(ServeRpc(live)))
 
         feed.stop()
 
@@ -334,7 +343,7 @@ class GroupRoomSendEndToEndTest {
     /** Le fil branché sur **ce** Dashboard, avec des poses d'envoi instantanées pour la preuve. */
     private fun feed(wait: Boolean = false): GroupRoomFeed = GroupRoomFeed(
         initialRoom = room,
-        api = ServeGroupsRpc(ServeRpc(live, OkHttpClient())),
+        api = ServeGroupsRpc(ServeRpc(live)),
         sendBackoffMs = listOf(10L, 20L, 30L, 40L),
         waitSend = { ms -> if (wait) kotlinx.coroutines.delay(ms) },
     )
