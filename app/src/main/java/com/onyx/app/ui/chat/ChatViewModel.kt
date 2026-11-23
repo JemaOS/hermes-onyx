@@ -2226,7 +2226,7 @@ class ChatViewModel(
         }
     }
 
-    /** The reader confirms the head of the queue; the following ones then resume in the same order. */
+    /** Le lecteur confirme la tête de file ; les suivants reprennent ensuite dans le même ordre. */
     fun sendQueuedNow(id: String) {
         if (!queued.confirmFirst(id, now())) return
         retryAttempt = 0
