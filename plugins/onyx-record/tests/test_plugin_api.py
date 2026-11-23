@@ -1,11 +1,11 @@
-"""Contrat HTTP du plugin sur une application FastAPI nue (sans Hermes).
+"""The plugin's HTTP contract on a bare FastAPI application (without Hermes).
 
-Vérifie ce que le client lit vraiment : le statut, ``detail.code`` en première
-clé, un corps de refus sous 300 caractères, jamais un texte secret. Le montage
-par le vrai Dashboard (authentification, activation) est prouvé séparément dans
+Checks what the client really reads: the status, ``detail.code`` as the first
+key, a refusal body under 300 characters, never a secret text. Mounting
+by the real Dashboard (authentication, activation) is proven separately in
 ``test_dashboard_mount.py``.
 
-Lancer depuis la racine du plugin :
+Run from the plugin root:
     python -m unittest discover -s tests -t tests -v
 """
 
@@ -31,7 +31,7 @@ from starlette.testclient import TestClient  # noqa: E402
 api = support.load_api()
 core = api.record_core
 
-# Petit corps de refus : ``ServeClient`` ne garde que 300 caractères.
+# Small refusal body: ``ServeClient`` keeps only 300 characters.
 MAX_ERROR_BODY = 300
 
 
@@ -304,7 +304,7 @@ class TestHealthAndInfo(ApiCase):
 
 class TestNoWrite(ApiCase):
     def test_nothing_is_written_on_disk(self):
-        """D5 : un brouillon qui n'a pas été relu n'atterrit nulle part."""
+        """D5: a draft that was not reviewed lands nowhere."""
         with tempfile.TemporaryDirectory() as tmp:
             before = sorted(p.name for p in Path(tmp).rglob("*"))
             journal = self.journal(self.started["session_id"])

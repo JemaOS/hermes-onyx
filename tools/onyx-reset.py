@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Onyx — remise à zéro, comme sur une machine neuve.
+"""Onyx — reset to factory state, like a brand-new machine.
 
-Efface **tout ce que l'installeur crée** : les services (systemd / launchd / tâche planifiée), les
-secrets, la passerelle Onyx One, le pont, le lien et son QR. Ne touche **jamais** à Hermes : sa
-configuration, ses sessions et sa base restent intactes.
+Erases **everything the installer creates**: the services (systemd / launchd / scheduled task),
+the secrets, the Onyx One gateway, the bridge, the link and its QR. Never touches Hermes: its
+configuration, sessions and database stay intact.
 
-À quoi ça sert : éprouver le parcours d'un nouvel utilisateur. On efface, on relance
-`tools/onyx-setup.py`, et on regarde si tout revient — au lieu de le supposer.
+What it is for: exercising a new user's journey. We erase, rerun
+`tools/onyx-setup.py`, and watch whether everything comes back — instead of assuming it.
 
-    python3 tools/onyx-reset.py            demande confirmation
-    python3 tools/onyx-reset.py --force    sans question (pour un essai automatisé)
+    python3 tools/onyx-reset.py            asks for confirmation
+    python3 tools/onyx-reset.py --force    no question (for an automated trial)
 """
 
 from __future__ import annotations
@@ -55,8 +55,8 @@ def arreter_linux() -> None:
     for nom in SERVICES_LINUX:
         for suffixe in (".service", ".timer"):
             (dossier / f"{nom}{suffixe}").unlink(missing_ok=True)
-        # Les surcharges (`*.service.d/`) gardent d'anciennes lignes de commande : les laisser
-        # ferait renaître le service avec l'ancienne configuration au premier redémarrage.
+        # Overrides (`*.service.d/`) keep old command lines: leaving them would
+        # bring the service back with the old configuration on the first reboot.
     for reste in dossier.glob("onyx-*.service.d"):
         shutil.rmtree(reste, ignore_errors=True)
     subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)

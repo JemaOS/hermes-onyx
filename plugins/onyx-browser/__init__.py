@@ -1,8 +1,8 @@
-"""onyx-browser — le navigateur de l'agent, en direct sur le téléphone, et sa prise en main.
+"""onyx-browser — the agent's browser, live on the phone, and its takeover flow.
 
-Un plugin de plateforme au sens de Hermes : `register(ctx)` lui donne un outil (qui bloque le tour)
-et deux crochets (qui retiennent le `task_id` du navigateur). Le serveur aiohttp démarre avec lui,
-sur la boucle locale, et ne s'arrête jamais : `onyx-one` le relaie sous `/onyx-browser/`.
+A platform plugin in the Hermes sense: `register(ctx)` gives it one tool (which blocks the turn)
+and two hooks (which retain the browser's `task_id`). The aiohttp server starts with it,
+on the loopback interface, and never stops: `onyx-one` relays it under `/onyx-browser/`.
 """
 
 from __future__ import annotations
@@ -11,11 +11,11 @@ from . import server, tools
 
 
 def register(ctx):
-    # **Le serveur démarre ici, pas dans l'outil.** Hermes enregistre d'abord les crochets puis
-    # différe les outils (« tools (next session) ») : tant que le serveur ne se levait qu'au
-    # premier appel d'outil, `/onyx-browser/health` ne répondait jamais, et la ligne de Réglages
-    # n'apparaissait jamais non plus. Le serveur n'a pas besoin qu'on l'appelle : il a besoin
-    # d'être là quand le téléphone sonde.
+    # **The server starts here, not in the tool.** Hermes registers the hooks first and then
+    # defers the tools ("tools (next session)"): as long as the server only came up on the
+    # first tool call, `/onyx-browser/health` never answered, and the Settings row
+    # never appeared either. The server does not need to be called: it needs
+    # to be there when the phone probes.
     server.ensure_started()
     tools.register(ctx)
     return {"tools": ["browser_request_takeover"], "hooks": ["pre_tool_call", "post_tool_call"]}

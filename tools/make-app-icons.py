@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Fabrique les icones de l'app (mipmaps 48-192 px, carre et rond) depuis la source
-vectorielle de `design/icons/`.
+"""Builds the app icons (48-192 px mipmaps, square and round) from the vector
+source in `design/icons/`.
 
-La marque est le « O » d'Onyx, trace comme la rune Othalan (ᛟ) : un losange ferme et ses
-deux jambes qui se croisent au-dessous. C'est un chemin geometrique (`Path`), pas une police
-ni un emoji : il reste net a 24 dp comme a 1024 px. La source `design/icons/*.svg` porte le
-tracé ; ce script la rasterise en 1024 px (Chromium sans interface) puis la reduit en LANCZOS
-aux cinq densites Android.
+The mark is Onyx's "O", drawn like the Othalan rune (ᛟ): a closed diamond and its
+two legs crossing below. It is a geometric path (`Path`), not a font
+or an emoji: it stays sharp at 24 dp as well as at 1024 px. The source `design/icons/*.svg` carries the
+outline; this script rasterizes it at 1024 px (headless Chromium) then scales it down in LANCZOS
+to the five Android densities.
 
-Usage :
-    python3 tools/make-app-icons.py                 # toutes les variantes
-    python3 tools/make-app-icons.py --preview DIR    # + un apercu 512 px par variante
-    python3 tools/make-app-icons.py --android-path   # le pathData pour les vector drawables
+Usage:
+    python3 tools/make-app-icons.py                 # all variants
+    python3 tools/make-app-icons.py --preview DIR    # + a 512 px preview per variant
+    python3 tools/make-app-icons.py --android-path   # the pathData for the vector drawables
 """
 
 from __future__ import annotations
@@ -26,21 +26,21 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 DESIGN = ROOT / "design" / "icons"
 RES = ROOT / "app" / "src" / "main" / "res"
-WORK = Path("/home/john/icontmp-work")   # hors dossier cache : Chromium (snap) doit lire le SVG
+WORK = Path("/home/john/icontmp-work")   # outside the cache folder: Chromium (snap) must read the SVG
 
 CHROMIUM = "/snap/bin/chromium"
 
 DENSITIES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
-# --- la rune Othalan, en unites de la vue 64 x 64 -----------------------------------------
-RUNE_CENTER = (32.0, 31.0)   # centre optique de la bulle, la ou se tenait la marque
-RUNE_SIZE = (13.2, 18.6)     # largeur, hauteur visuelles (losange et jambes compris)
-RUNE_STROKE = 3.0            # meme graisse que la hampe du « r » de la reference
-RUNE_SIDE = 0.36             # hauteur des sommets lateraux, en part du faite
+# --- the Othalan rune, in units of the 64 x 64 view ---------------------------------------
+RUNE_CENTER = (32.0, 31.0)   # optical center of the bubble, where the mark used to sit
+RUNE_SIZE = (13.2, 18.6)     # visual width, height (diamond and legs included)
+RUNE_STROKE = 3.0            # same weight as the stem of the "r" in the reference
+RUNE_SIDE = 0.36             # height of the side vertices, as a fraction of the apex
 
 
 def rune_points(cx: float, cy: float, width: float, height: float, stroke: float):
-    """Les cinq sommets, en clair : pied gauche, sommet droit, faite, sommet gauche, pied droit."""
+    """The five vertices, plainly: left foot, right vertex, apex, left vertex, right foot."""
     wc = width - stroke
     hc = height - stroke
     top = cy - hc / 2
@@ -48,11 +48,11 @@ def rune_points(cx: float, cy: float, width: float, height: float, stroke: float
     side_y = top + RUNE_SIDE * hc
     bottom = cy + hc / 2
     return [
-        (left_x, bottom),    # pied gauche
-        (right_x, side_y),   # sommet droit
-        (cx, top),           # faite
-        (left_x, side_y),    # sommet gauche
-        (right_x, bottom),   # pied droit
+        (left_x, bottom),    # left foot
+        (right_x, side_y),   # right vertex
+        (cx, top),           # apex
+        (left_x, side_y),    # left vertex
+        (right_x, bottom),   # right foot
     ]
 
 
@@ -63,11 +63,11 @@ def android_path(cx: float = RUNE_CENTER[0], cy: float = RUNE_CENTER[1],
     (x0, y0), *rest = pts
     d = f"M{x0:.2f},{y0:.2f}"
     d += "".join(f"L{x:.2f},{y:.2f}" for x, y in rest)
-    d += "Z"   # referme la figure : le dernier trait revient au pied gauche
+    d += "Z"   # closes the shape: the last stroke returns to the left foot
     return d
 
 
-# --- variante Android -> source vectorielle ------------------------------------------------
+# --- Android variant -> vector source ------------------------------------------------------
 VARIANTS: dict[str, Path] = {
     "face_mist": DESIGN / "picker" / "onyx-face-mist.svg",
     "graphite": DESIGN / "picker" / "graphite.svg",

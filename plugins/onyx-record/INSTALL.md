@@ -1,29 +1,29 @@
-# Installation — plugin Hermes `onyx-record`
+# Installation — Hermes plugin `onyx-record`
 
-Serveur de la **démonstration → skill** (lot 3) : bail d'enregistrement, journal
-d'actions canonique, brouillon Markdown. Servi par le Dashboard Hermes sous
-`/api/plugins/onyx-record/`. Aucune UI, aucun onglet, aucun redémarrage.
+Server for the **demonstration → skill** feature (batch 3): recording lease, canonical
+action journal, Markdown draft. Served by the Hermes Dashboard under
+`/api/plugins/onyx-record/`. No UI, no tab, no restart.
 
-Tous les chemins ci-dessous sont ceux de la machine de John (`/home/john`).
+All paths below are those of John's machine (`/home/john`).
 
 ---
 
-## 0. Ce qui est installé, et où
+## 0. What is installed, and where
 
-| Élément | Emplacement |
+| Item | Location |
 |---|---|
-| Code du plugin | `~/.hermes/plugins/onyx-record/dashboard/` |
-| Activation | `plugins.enabled` dans `~/.hermes/config.yaml` |
-| Données | **aucune** — tout vit en mémoire, 120 s au plus |
+| Plugin code | `~/.hermes/plugins/onyx-record/dashboard/` |
+| Activation | `plugins.enabled` in `~/.hermes/config.yaml` |
+| Data | **none** — everything lives in memory, 120 s at most |
 
-Le plugin n'écrit rien : ni base, ni fichier, ni journal. Un journal envoyé à
-`skills.draft` n'est pas conservé après la réponse, et un journal reçu par
-`skills.record.stop` disparaît au bout de 120 s (fenêtre de collecte de la spec).
-Un redémarrage du Dashboard perd donc, au pire, un journal qui allait expirer.
+The plugin writes nothing: no database, no file, no journal. A journal sent to
+`skills.draft` is not kept after the response, and a journal received by
+`skills.record.stop` disappears after 120 s (the spec's collection window).
+A Dashboard restart therefore loses, at worst, a journal that was about to expire.
 
 ---
 
-## 1. Copier le plugin
+## 1. Copy the plugin
 
 ```bash
 mkdir -p ~/.hermes/plugins/onyx-record
@@ -32,33 +32,33 @@ cp -r /home/john/Bureau/onyx-record-plugin/dashboard \
 chmod -R go-w ~/.hermes/plugins/onyx-record
 ```
 
-Résultat attendu :
+Expected result:
 
 ```
 ~/.hermes/plugins/onyx-record/dashboard/
-├── manifest.json      # déclaration (name, tab masqué, api)
-├── plugin_api.py      # router = APIRouter() — les cinq routes
-├── onyx_record.py     # cœur : validation, bornes, brouillon Markdown
-└── dist/index.js      # module vide (aucune UI)
+├── manifest.json      # declaration (name, hidden tab, api)
+├── plugin_api.py      # router = APIRouter() — the five routes
+├── onyx_record.py     # core: validation, bounds, Markdown draft
+└── dist/index.js      # empty module (no UI)
 ```
 
-`INSTALL.md`, `ECARTS.md`, `README.md` et `tests/` n'ont pas besoin d'être
-copiés : Hermes ne lit que `dashboard/manifest.json`. Le plugin peut cohabiter
-avec `onyx-vault` — ce sont deux dossiers, deux lignes dans `plugins.enabled`,
-et deux modules Python distincts.
+`INSTALL.md`, `ECARTS.md`, `README.md` and `tests/` do not need to be
+copied: Hermes only reads `dashboard/manifest.json`. The plugin can coexist
+with `onyx-vault` — they are two folders, two lines in `plugins.enabled`,
+and two distinct Python modules.
 
 ---
 
-## 2. Activer le plugin
+## 2. Enable the plugin
 
-Ouvrir `~/.hermes/config.yaml` et ajouter **exactement cette ligne** (4 espaces
-d'indentation, sous `plugins.enabled`) :
+Open `~/.hermes/config.yaml` and add **exactly this line** (4 spaces
+of indentation, under `plugins.enabled`):
 
 ```yaml
     - onyx-record
 ```
 
-Bloc complet si `plugins.enabled` n'existe pas encore :
+Full block if `plugins.enabled` does not exist yet:
 
 ```yaml
 plugins:
@@ -66,155 +66,155 @@ plugins:
     - onyx-record
 ```
 
-Si `plugins:` existe déjà, ajouter seulement la ligne `- onyx-record` dans la
-liste `enabled:` existante, à la même indentation.
+If `plugins:` already exists, only add the `- onyx-record` line to the
+existing `enabled:` list, at the same indentation.
 
-> ⚠️ `hermes plugins enable onyx-record` **ne fonctionne pas** : la CLI ne
-> connaît que les plugins qui portent un `plugin.yaml` avec du code `register(ctx)`.
-> Un plugin « dashboard-only » s'active uniquement par cette ligne. C'est aussi la
-> garde de sécurité du Dashboard : sans elle, `plugin_api.py` n'est jamais importé
+> ⚠️ `hermes plugins enable onyx-record` **does not work**: the CLI only
+> knows plugins that carry a `plugin.yaml` with `register(ctx)` code.
+> A "dashboard-only" plugin is enabled only by this line. It is also the
+> Dashboard's safety guard: without it, `plugin_api.py` is never imported
 > (`_plugin_api_mount_skip_reason`, GHSA-mcfc-hp25-cjv7).
 
-Aucun redémarrage : le Dashboard découvre le plugin à la première requête
-(`_PluginApiHotMount` → `_try_hot_mount_plugin_api`). **Précision mesurée** : à
-chaud, Hermes insère les routes juste avant son repli ; un montage forcé à la
-main après l'import les laisserait *derrière* ce repli et rendrait
-`404 {"detail":"Not Found"}`. C'est pourquoi un plugin activé au démarrage est le
-cas nominal, et pourquoi le test de montage démarre un vrai serveur.
+No restart: the Dashboard discovers the plugin on the first request
+(`_PluginApiHotMount` → `_try_hot_mount_plugin_api`). **Measured precision**: when
+hot, Hermes inserts the routes just before its fallback; a forced manual mount
+after import would leave them *behind* that fallback and make it return
+`404 {"detail":"Not Found"}`. This is why a plugin enabled at startup is the
+nominal case, and why the mount test starts a real server.
 
 ---
 
-## 3. Vérifier
+## 3. Verify
 
 ```bash
-PORT=9119   # port du Dashboard Hermes
+PORT=9119   # Hermes Dashboard port
 TOKEN=$(curl -s "http://127.0.0.1:$PORT/" \
         | sed -n 's/.*__HERMES_SESSION_TOKEN__="\([^"]*\)".*/\1/p' | head -1)
 B="http://127.0.0.1:$PORT/api/plugins/onyx-record"
 H="X-Hermes-Session-Token: $TOKEN"
 
-# 1. le serveur répond-il ? (aucun journal, aucun identifiant de bail)
+# 1. does the server respond? (no journal, no lease identifier)
 curl -s "$B/health"; echo
 
-# 2. ouvrir un bail
+# 2. open a lease
 curl -s -X POST "$B/skills/record/start" -H "$H" -H 'Content-Type: application/json' \
   -d '{"bridge":{"endpoint":"192.168.1.24:8765","session":"pc-7f21"}}'; echo
 # -> {"session_id":"rec_…","started_at":…,"deadline_at":…,"max_seconds":600,"grace_seconds":120}
 
-# 3. fermer le bail sans journal (abandon)
+# 3. close the lease without a journal (abandon)
 curl -s -X POST "$B/skills/record/stop" -H "$H" -H 'Content-Type: application/json' \
   -d '{"session_id":"rec_…","journal":null}'; echo
 # -> {"…","end_reason":"discarded"}
 
-# 4. convertir un journal (sans état, aucun bail nécessaire)
+# 4. convert a journal (stateless, no lease needed)
 curl -s -X POST "$B/skills/draft" -H "$H" -H 'Content-Type: application/json' \
   -d @journal.json; echo
 # -> {"name":…,"title":…,"steps":…,"markdown":…,"review":[…],"warnings":[…],"journal_bytes":…}
 ```
 
-Attendu : `health` → `"ok":true` ; `start` → `200` avec `max_seconds: 600` ;
-un second `start` sans `stop` → `409 {"detail":{"code":"already_recording",…}}` ;
-`stop` → `200`, et un second `stop` rend **le même `bytes`** ; `draft` → `200`
-avec un `markdown` identique au golden de l'app.
+Expected: `health` → `"ok":true`; `start` → `200` with `max_seconds: 600`;
+a second `start` without `stop` → `409 {"detail":{"code":"already_recording",…}}`;
+`stop` → `200`, and a second `stop` returns **the same `bytes`**; `draft` → `200`
+with a `markdown` identical to the app's golden.
 
-Sans jeton, toute requête répond `401 {"detail":"Unauthorized"}` : c'est
-l'authentification du Dashboard, que le plugin ne contourne pas.
+Without a token, every request answers `401 {"detail":"Unauthorized"}`: that is
+the Dashboard's authentication, which the plugin does not bypass.
 
-Si le Dashboard est derrière la page de connexion (`dashboard_auth`), le jeton
-d'en-tête est remplacé par le cookie de session : utilisez l'onglet Réseau du
-navigateur, ou testez depuis l'app.
+If the Dashboard is behind the login page (`dashboard_auth`), the header
+token is replaced by the session cookie: use the browser's Network tab, or test
+from the app.
 
 ---
 
-## 4. Lancer les tests
+## 4. Run the tests
 
 ```bash
 PY=$(ls -d ~/.hermes/tools/python-3.14.7*/bin/python3 | head -1)
 
-# toute la suite, un seul bloc, un seul processus (85 tests)
+# the whole suite, a single block, a single process (85 tests)
 cd ~/.hermes/hermes-agent
 PYTHONPATH=/home/john/.hermes/hermes-agent "$PY" -m unittest discover \
     -s /home/john/Bureau/onyx-record-plugin/tests \
     -t /home/john/Bureau/onyx-record-plugin/tests -v
 ```
 
-ou, depuis le dossier du plugin :
+or, from the plugin folder:
 
 ```bash
 cd /home/john/Bureau/onyx-record-plugin
 PYTHONPATH=/home/john/.hermes/hermes-agent "$PY" -m unittest discover -s tests -v
 ```
 
-Le test de montage démarre le vrai Dashboard dans un `HERMES_HOME` jetable
-(deux processus enfants, aucun accès à `~/.hermes`) : il ne faut donc ni
-redémarrer ni arrêter le gateway en cours.
+The mount test starts the real Dashboard in a disposable `HERMES_HOME`
+(two child processes, no access to `~/.hermes`): so there is no need to
+restart or stop the running gateway.
 
 ---
 
-## 5. Désinstaller
+## 5. Uninstall
 
 ```bash
-# 1. retirer le plugin
+# 1. remove the plugin
 rm -rf ~/.hermes/plugins/onyx-record
 
-# 2. retirer la ligne "    - onyx-record" de ~/.hermes/config.yaml
+# 2. remove the line "    - onyx-record" from ~/.hermes/config.yaml
 ```
 
-Sans l'étape 2, le Dashboard journalise un plugin activé mais introuvable. Rien
-d'autre à nettoyer : le plugin n'écrit aucun fichier.
+Without step 2, the Dashboard logs an enabled but missing plugin. Nothing
+else to clean up: the plugin writes no file.
 
 ---
 
-## 6. Réglages
+## 6. Settings
 
-Aucun. Pas de variable d'environnement, pas de clé, pas de dossier de données :
+None. No environment variable, no key, no data folder:
 
-| Constante | Valeur | Où |
+| Constant | Value | Where |
 |---|---|---|
-| durée d'un enregistrement | 600 s | `onyx_record.MAX_SECONDS` |
-| fenêtre de collecte après la fin | 120 s | `onyx_record.GRACE_SECONDS` |
-| événements par journal | 2000 | `onyx_record.MAX_EVENTS` |
-| taille d'un journal | 262144 octets | `onyx_record.MAX_JOURNAL_BYTES` |
+| recording duration | 600 s | `onyx_record.MAX_SECONDS` |
+| collection window after the end | 120 s | `onyx_record.GRACE_SECONDS` |
+| events per journal | 2000 | `onyx_record.MAX_EVENTS` |
+| journal size | 262144 bytes | `onyx_record.MAX_JOURNAL_BYTES` |
 
-Ces bornes sont celles de la spec ; les changer demande de changer le test.
+These bounds are those of the spec; changing them means changing the test.
 
 ---
 
-## 7. Dépannage
+## 7. Troubleshooting
 
-| Symptôme | Cause | Correctif |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `401 {"detail":"Unauthorized"}` | pas de jeton de session | en-tête `X-Hermes-Session-Token` (§3) |
-| `404 {"detail":"Plugin not found"}` | absent de `plugins.enabled`, ou désactivé à chaud | ligne §2 ; vérifier aussi `plugins.disabled` |
-| `404 {"detail":"No such API endpoint: …"}` | plugin activé mais `manifest.json`/`api` introuvable | vérifier `~/.hermes/plugins/onyx-record/dashboard/manifest.json` |
-| `404 {"detail":"Not Found"}` sur une route précise | montage à chaud en course, ou plugin monté à la main derrière le repli | redémarrer le Dashboard une fois (hors périmètre du plugin), puis re-vérifier §3 |
-| `409 already_recording` | un bail est ouvert | le client adopte le `session_id` rendu ; sinon `stop` avec `journal: null` |
-| `409 journal_pending` | un journal attend d'être converti (120 s) | convertir, puis `start` avec `"discard_pending": true` |
-| `410 session_expired` | bail expiré depuis plus de 120 s | le journal reste sur le téléphone : `skills.draft` en ligne fonctionne encore |
-| `422 secret_text_present` | un événement `secret: true` porte un `text` | défaut côté app : le texte ne doit pas partir |
-| `503 recorder_unavailable` | exception interne inattendue | consulter le log du Dashboard (le plugin ne journalise jamais un contenu) |
+| `401 {"detail":"Unauthorized"}` | no session token | `X-Hermes-Session-Token` header (§3) |
+| `404 {"detail":"Plugin not found"}` | missing from `plugins.enabled`, or disabled at runtime | line §2; also check `plugins.disabled` |
+| `404 {"detail":"No such API endpoint: …"}` | plugin enabled but `manifest.json`/`api` not found | check `~/.hermes/plugins/onyx-record/dashboard/manifest.json` |
+| `404 {"detail":"Not Found"}` on a specific route | hot mount race, or plugin mounted manually behind the fallback | restart the Dashboard once (outside the plugin's scope), then re-check §3 |
+| `409 already_recording` | a lease is open | the client adopts the returned `session_id`; otherwise `stop` with `journal: null` |
+| `409 journal_pending` | a journal is waiting to be converted (120 s) | convert, then `start` with `"discard_pending": true` |
+| `410 session_expired` | lease expired more than 120 s ago | the journal stays on the phone: `skills.draft` online still works |
+| `422 secret_text_present` | a `secret: true` event carries a `text` | app-side default: the text must not be sent |
+| `503 recorder_unavailable` | unexpected internal exception | check the Dashboard log (the plugin never logs content) |
 
 ---
 
-## 8. Limites de sécurité assumées
+## 8. Assumed security limits
 
-1. **Aucun secret dans une réponse ni dans un log.** Un `text` accompagné de
-   `secret: true` est refusé (`422`), jamais nettoyé : le serveur ne décide pas
-   de jeter en silence un texte qu'on lui a envoyé. Les logs ne portent que
-   `session_id`, compteurs et `end_reason`.
-2. **Rien sur disque.** Ni journal, ni brouillon, ni état : un brouillon non relu
-   n'atterrit nulle part. L'écriture d'un skill reste `POST api/skills`.
-3. **Le journal ne contient ni pixel ni audio.** Les champs `image`, `png`,
-   `screenshot`, `audio`, `transcript`… sont refusés à n'importe quelle
-   profondeur, et les sept `kind` sont fermés.
-4. **`bridge.endpoint` est un hôte:port nu** : ni schéma, ni identifiant. Un
-   journal livré sous une autre session de pont est refusé (`409 bridge_mismatch`).
-5. **Le seul contrôle d'accès est le jeton du Dashboard** — le même niveau de
-   confiance que le Dashboard lui-même. Le plugin ne lit aucun secret Hermes et
-   n'ouvre aucun profil : il refuse même un `profile` explicite.
-6. **Un bail par serveur.** Le profil est celui du Dashboard ; la route ne peut
-   pas en désigner un autre (`400 profile_not_supported`), donc « un
-   enregistrement déjà en cours pour ce profil » se lit « un bail est ouvert ».
-7. **Mémoire seulement** : le journal en collecte (120 s) et le bail vivent dans
-   le processus du Dashboard. Un redémarrage les perd — sans conséquence, le
-   journal de référence est sur le téléphone.
+1. **No secret in a response or a log.** A `text` accompanied by
+   `secret: true` is rejected (`422`), never sanitized: the server does not decide
+   to silently discard a text that was sent to it. Logs carry only
+   `session_id`, counters and `end_reason`.
+2. **Nothing on disk.** No journal, no draft, no state: an unreviewed draft lands
+   nowhere. Writing a skill remains `POST api/skills`.
+3. **The journal contains neither pixels nor audio.** The `image`, `png`,
+   `screenshot`, `audio`, `transcript`… fields are rejected at any
+   depth, and the seven `kind`s are closed.
+4. **`bridge.endpoint` is a bare host:port**: no scheme, no identifier. A
+   journal delivered under another bridge session is rejected (`409 bridge_mismatch`).
+5. **The only access control is the Dashboard token** — the same level of
+   trust as the Dashboard itself. The plugin reads no Hermes secret and
+   opens no profile: it even rejects an explicit `profile`.
+6. **One lease per server.** The profile is the Dashboard's; the route cannot
+   designate another one (`400 profile_not_supported`), so "a
+   recording already in progress for this profile" reads as "a lease is open".
+7. **Memory only**: the journal being collected (120 s) and the lease live in
+   the Dashboard process. A restart loses them — with no consequence, the
+   reference journal is on the phone.

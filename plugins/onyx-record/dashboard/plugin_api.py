@@ -1,31 +1,31 @@
-"""onyx-record — API du serveur « démonstration → skill ».
+"""onyx-record — API of the "demonstration → skill" server.
 
-Montée sous ``/api/plugins/onyx-record/`` par le Dashboard Hermes.
+Mounted under ``/api/plugins/onyx-record/`` by the Hermes Dashboard.
 
-Contrat HTTP (``docs/SPEC-SKILLS-RECORD.md``) :
+HTTP contract (``docs/SPEC-SKILLS-RECORD.md``):
 
-* ``POST skills/record/start`` -> ouvre un bail ``{session_id, started_at, deadline_at, max_seconds, grace_seconds}``
-* ``POST skills/record/stop``  -> ferme le bail et rend le journal **canonique** (jamais celui du client)
-* ``POST skills/draft``        -> brouillon Markdown déterministe + étapes à relire (sans état)
-* ``GET  health`` -> état du serveur d'enregistrement (aucun secret)
-* ``GET  info``   -> version + cible de montage
+* ``POST skills/record/start`` -> opens a lease ``{session_id, started_at, deadline_at, max_seconds, grace_seconds}``
+* ``POST skills/record/stop``  -> closes the lease and returns the **canonical** journal (never the client's)
+* ``POST skills/draft``        -> deterministic Markdown draft + steps to review (stateless)
+* ``GET  health`` -> state of the recording server (no secret)
+* ``GET  info``   -> version + mount target
 
-Un seul mode de montage
------------------------
-Ce module expose ``router`` (un ``APIRouter``) et **rien d'autre** : le
-Dashboard l'inclut sous son préfixe, avec sa dépendance d'authentification et la
-porte de consentement par requête. Aucune route n'est enregistrée directement sur
-l'application, aucune variable d'environnement ne change le mode.
+A single mount mode
+-------------------
+This module exposes ``router`` (an ``APIRouter``) and **nothing else**: the
+Dashboard includes it under its prefix, with its authentication dependency and the
+per-request consent gate. No route is registered directly on
+the application, and no environment variable changes the mode.
 
-C'est une correction délibérée du modèle ``onyx-vault`` : ce plugin-là avait deux
-modes de montage (application ou routeur, choisis par ``ONYX_VAULT_MOUNT``), et le
-mode non autoritaire cassait des tests quand les suites partageaient un
-interpréteur. Le coffre avait besoin du contournement parce que ses routes lisent
-``?profile=`` comme nom de profil ; ici aucune route ne lit ``?profile=`` (le
-profil est refusé, et le profil Hermes est celui du Dashboard), donc la
-dépendance standard est inoffensive et suffisante.
+This is a deliberate correction of the ``onyx-vault`` model: that plugin had two
+mount modes (application or router, chosen by ``ONYX_VAULT_MOUNT``), and the
+non-authoritative mode broke tests when suites shared an
+interpreter. The vault needed the workaround because its routes read
+``?profile=`` as a profile name; here no route reads ``?profile=`` (the
+profile is refused, and the Hermes profile is the Dashboard's), so the
+standard dependency is harmless and sufficient.
 
-Rien de sensible ne sort : ni texte, ni libellé, ni URL, ni journal dans un log.
+Nothing sensitive goes out: no text, no label, no URL, no journal in a log.
 """
 
 from __future__ import annotations
@@ -48,27 +48,27 @@ PLUGIN_NAME = "onyx-record"
 VERSION = "1.0.0"
 PREFIX = f"/api/plugins/{PLUGIN_NAME}"
 
-# Un journal pèse au plus 262144 octets ; l'enveloppe et le reste tiennent
-# largement dans le double. Au-delà, c'est un envoi qui n'aurait pas dû partir.
+# A journal weighs at most 262144 bytes; the envelope and the rest fit
+# comfortably within double. Beyond that, it is a send that should not have gone out.
 _MAX_BODY_BYTES = 2 * 262144
 
 _NO_STORE = {"Cache-Control": "no-store, no-cache, must-revalidate"}
 
 
 def _load_core():
-    """Charge ``onyx_record.py`` voisin, sous un nom dérivé de son chemin.
+    """Load the neighboring ``onyx_record.py``, under a name derived from its path.
 
-    Le nom n'est pas fixe (contrairement à ``onyx_vault_core``) : deux copies du
-    plugin dans le même interpréteur — celle du dépôt et celle d'un
-    ``HERMES_HOME`` jetable — doivent avoir **deux** états mémoire, sinon la
-    suite de tests d'un dossier voit les baux de l'autre.
+    The name is not fixed (unlike ``onyx_vault_core``): two copies of the
+    plugin in the same interpreter — the repository's and a
+    throwaway ``HERMES_HOME``'s — must have **two** memory states, otherwise the
+    test suite of one folder sees the leases of the other.
     """
     path = (Path(__file__).resolve().parent / "onyx_record.py").resolve()
     module_name = "onyx_record_core_" + hashlib.sha1(str(path).encode("utf-8")).hexdigest()[:10]
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:  # pragma: no cover - fichier déplacé
+    if spec is None or spec.loader is None:  # pragma: no cover - file moved
         raise ImportError(f"{PLUGIN_NAME}: onyx_record.py introuvable à côté de plugin_api.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -80,7 +80,7 @@ record_core = _load_core()
 
 
 # ---------------------------------------------------------------------------
-# Réponses / refus
+# Responses / refusals
 # ---------------------------------------------------------------------------
 
 
@@ -89,11 +89,11 @@ def _json(payload: dict, status_code: int = 200) -> JSONResponse:
 
 
 def _refused(exc: "record_core.RecordError") -> JSONResponse:
-    """Le refus tel que la spec le fixe : ``{"detail": {"code": …}}``.
+    """The refusal as the spec fixes it: ``{"detail": {"code": …}}``.
 
-    ``code`` est la première clé de ``detail`` (donc du corps) parce que le
-    client ne garde que les 300 premiers caractères d'une réponse en erreur.
-    Aucun champ n'est dérivé du journal : ni texte, ni libellé, ni URL.
+    ``code`` is the first key of ``detail`` (hence of the body) because the
+    client keeps only the first 300 characters of an error response.
+    No field is derived from the journal: no text, no label, no URL.
     """
     return _json({"detail": exc.payload()}, status_code=exc.status)
 
@@ -107,10 +107,10 @@ def _bad_request(message: str) -> "record_core.RecordError":
 
 
 async def _json_body(request: Request) -> dict:
-    """Corps JSON lu à la main : aucune erreur de validation ne recopie un champ.
+    """JSON body read by hand: no validation error copies a field.
 
-    Une ``RequestValidationError`` de FastAPI recopierait la valeur fautive dans
-    la réponse ; ici, un corps illisible ne rend qu'un code.
+    A FastAPI ``RequestValidationError`` would copy the offending value into
+    the response; here, an unreadable body returns only a code.
     """
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > _MAX_BODY_BYTES:
@@ -122,8 +122,8 @@ async def _json_body(request: Request) -> dict:
     if len(raw) > _MAX_BODY_BYTES:
         raise record_core.RecordError("journal_too_large")
     try:
-        # ``NaN``/``Infinity`` ne sont pas du JSON : sans ce refus, ils
-        # atteindraient la sérialisation de la réponse.
+        # ``NaN``/``Infinity`` are not JSON: without this refusal, they
+        # would reach the response serialization.
         body = json.loads(raw or b"{}", parse_constant=_reject_constant)
     except Exception:
         raise _bad_request("Invalid JSON body.") from None
@@ -133,7 +133,7 @@ async def _json_body(request: Request) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Les trois routes
+# The three routes
 # ---------------------------------------------------------------------------
 
 
@@ -143,7 +143,7 @@ async def record_start(request: Request):
         opened = record_core.get_store().start(body)
     except record_core.RecordError as exc:
         return _refused(exc)
-    except Exception as exc:  # jamais de détail : un journal pourrait y passer
+    except Exception as exc:  # never a detail: a journal could get in there
         log.error("onyx-record: start failed (%s)", type(exc).__name__)
         return _refused(record_core.RecordError("recorder_unavailable"))
     log.info("onyx-record: bail ouvert %s", opened["session_id"])
@@ -155,7 +155,7 @@ async def record_stop(request: Request):
         body = await _json_body(request)
         closed = record_core.get_store().stop(body)
     except record_core.RecordError as exc:
-        # Un refus ne dit rien du journal : code + message, jamais un extrait.
+        # A refusal says nothing about the journal: code + message, never an excerpt.
         log.info("onyx-record: stop refusé (%s)", exc.code)
         return _refused(exc)
     except Exception as exc:
@@ -211,13 +211,13 @@ async def record_draft(request: Request):
             "journal_bytes": journal_bytes,
         }
     )
-    # Le brouillon n'écrit rien (D5) : aucun fichier, aucun état, aucun cache.
+    # The draft writes nothing (D5): no file, no state, no cache.
     log.info("onyx-record: brouillon servi (%s étapes, %s octets reçus)", draft["steps"], journal_bytes)
     return _json(draft)
 
 
 # ---------------------------------------------------------------------------
-# Router : le seul mode de montage
+# Router: the only mount mode
 # ---------------------------------------------------------------------------
 
 router = APIRouter()
@@ -240,7 +240,7 @@ async def skills_draft(request: Request):
 
 @router.get("/health")
 def health() -> dict:
-    """État du serveur d'enregistrement — sans journal, sans identifiant de bail."""
+    """State of the recording server — without journal, without lease identifier."""
     state = record_core.get_store().health()
     return {"plugin": PLUGIN_NAME, "version": VERSION, "ok": True, **state}
 

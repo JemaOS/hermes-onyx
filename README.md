@@ -13,9 +13,9 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 [![F-Droid repo](https://img.shields.io/badge/F--Droid-repo-1976D2?logo=fdroid&logoColor=white)](https://jemaos.github.io/hermes-onyx/)
 [![License](https://img.shields.io/badge/license-FSL--1.1--MIT-blue)](LICENSE)
 
-<!-- IzzyOnDroid : aucune demande n'a été envoyée (licence FSL-1.1-MIT, pas encore libre au sens
-     de la FSF) ; voir docs/SOUMISSION-STORES.md. Décommenter ces deux lignes le jour où la fiche
-     existe — avant, le badge renvoie 404.
+<!-- IzzyOnDroid: no request has been sent (FSL-1.1-MIT license, not yet free under the FSF
+     definition); see docs/SOUMISSION-STORES.md. Uncomment these two lines the day the listing
+     exists — before that, the badge returns 404.
 [![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app/badge.json)](https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app)
 --> 
 

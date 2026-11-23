@@ -1,30 +1,29 @@
-"""onyx-vault — API du coffre, montée sous ``/api/plugins/onyx-vault/``.
+"""onyx-vault — vault API, mounted under ``/api/plugins/onyx-vault/``.
 
-Contrat HTTP (aucune réponse ne contient jamais une valeur) :
+HTTP contract (no response ever contains a value):
 
-* ``GET  vault.list?profile=<profil>``  -> ``{profile, count, secrets:[{name, fingerprint, updated_at, used_by}]}``
+* ``GET  vault.list?profile=<profile>``  -> ``{profile, count, secrets:[{name, fingerprint, updated_at, used_by}]}``
 * ``POST vault.put``   ``{profile, name, value, used_by?}`` -> ``{profile, name, fingerprint, updated_at, used_by, created}``
 * ``POST vault.revoke`` ``{profile, name}`` -> ``{profile, name, revoked}``
-* ``GET  health`` -> état du coffre (jamais de secret)
-* ``GET  info``   -> version + cible de montage
+* ``GET  health`` -> vault state (never a secret)
+* ``GET  info``   -> version + mount target
 
-Pourquoi deux mécanismes de montage
------------------------------------
-Le Dashboard monte chaque plugin avec la dépendance
-``hermes_cli.web_server_dashboard._plugin_route_secret_scope``, dont le paramètre
-``profile`` est lu dans la *query string* et désigne un **profil Hermes**. Un
-``?profile=onyx`` (profil de coffre) y répond donc ``404 Profile 'onyx' does not exist``
-avant même d'atteindre ce module (mesuré, cf. ``tests/test_dashboard_mount.py``).
+Why two mounting mechanisms
+---------------------------
+The Dashboard mounts each plugin with the
+``hermes_cli.web_server_dashboard._plugin_route_secret_scope`` dependency, whose
+``profile`` parameter is read from the *query string* and designates a **Hermes profile**. A
+``?profile=onyx`` (vault profile) therefore answers ``404 Profile 'onyx' does not exist``
+even before reaching this module (measured, cf. ``tests/test_dashboard_mount.py``).
 
-Les routes sans ``?profile=`` (``health``, ``info``) passent par l'``APIRouter``
-normal, avec la dépendance du Dashboard — c'est le chemin standard. Les trois
-routes du coffre sont enregistrées directement sur l'application Dashboard, ce
-qui contourne *uniquement* cette dépendance de portée de profil. Ce que le
-contournement ne retire pas : l'authentification du Dashboard, la porte de
-consentement par requête (``_plugin_api_runtime_gate``, qui refuse un plugin
-désactivé) et la limite de taille de corps s'appliquent toujours, puisqu'elles
-sont montées en middleware sur l'application. Ce plugin ne lit aucun secret
-Hermes : la portée de profil ne lui sert à rien.
+The routes without ``?profile=`` (``health``, ``info``) go through the normal
+``APIRouter``, with the Dashboard dependency — that is the standard path. The three
+vault routes are registered directly on the Dashboard application, which
+bypasses *only* that profile-scope dependency. What the
+bypass does not remove: the Dashboard authentication, the per-request consent
+gate (``_plugin_api_runtime_gate``, which refuses a disabled plugin) and the body size
+limit still apply, since they are mounted as middleware on the application. This plugin
+reads no Hermes secret: profile scope is of no use to it.
 """
 
 from __future__ import annotations
@@ -52,13 +51,13 @@ _NO_STORE = {"Cache-Control": "no-store, no-cache, must-revalidate"}
 
 
 def _load_core():
-    """Charge ``onyx_vault.py`` voisin (le fichier API est importé hors package)."""
+    """Load the neighboring ``onyx_vault.py`` (the API file is imported outside the package)."""
     module_name = "onyx_vault_core"
     if module_name in sys.modules:
         return sys.modules[module_name]
     path = Path(__file__).resolve().parent / "onyx_vault.py"
     spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:  # pragma: no cover - fichier déplacé
+    if spec is None or spec.loader is None:  # pragma: no cover - file moved
         raise ImportError(f"{PLUGIN_NAME}: onyx_vault.py introuvable à côté de plugin_api.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -70,7 +69,7 @@ vault_core = _load_core()
 
 
 # ---------------------------------------------------------------------------
-# Réponses / erreurs
+# Responses / errors
 # ---------------------------------------------------------------------------
 
 
@@ -79,7 +78,7 @@ def _json(payload: dict, status_code: int = 200) -> JSONResponse:
 
 
 def _unavailable(exc: Exception) -> JSONResponse:
-    """503 actionnable : le coffre est désactivé, le Dashboard reste debout."""
+    """Actionable 503: the vault is disabled, the Dashboard stays up."""
     return _json(
         {
             "code": "vault_unavailable",
@@ -96,7 +95,7 @@ def _refused(exc: Exception, status_code: int = 400) -> JSONResponse:
 
 
 async def _json_body(request: Request) -> dict:
-    """Corps JSON validé à la main : aucune erreur de validation ne recopie la valeur."""
+    """JSON body validated by hand: no validation error copies the value."""
     declared_length = request.headers.get("content-length")
     if declared_length and declared_length.isdigit() and int(declared_length) > _MAX_BODY_BYTES:
         raise HTTPException(status_code=413, detail="corps trop volumineux")
@@ -123,17 +122,17 @@ def _string_field(body: dict, field: str) -> str:
 
 
 def _vault():
-    """Instance du coffre. Peut lever ``VaultUnavailable`` (clé absente) -> 503."""
+    """Vault instance. May raise ``VaultUnavailable`` (missing key) -> 503."""
     return vault_core.get_vault()
 
 
 # ---------------------------------------------------------------------------
-# Handlers des trois routes du coffre
+# Handlers of the three vault routes
 # ---------------------------------------------------------------------------
 
 
 async def vault_list(request: Request):
-    """Liste les secrets d'un profil : noms, empreintes, métadonnées. Jamais de valeur."""
+    """List a profile's secrets: names, fingerprints, metadata. Never a value."""
     try:
         profile = vault_core.validate_profile(request.query_params.get("profile"))
         metas = _vault().list(profile)
@@ -141,7 +140,7 @@ async def vault_list(request: Request):
         return _unavailable(exc)
     except vault_core.VaultError as exc:
         return _refused(exc)
-    except Exception as exc:  # santé : jamais de détail (une valeur ne doit pas fuiter par un message)
+    except Exception as exc:  # health: never a detail (a value must not leak through a message)
         log.error("onyx-vault: échec de list (%s)", type(exc).__name__)
         return _json({"code": "vault_error", "detail": "échec interne du coffre"}, status_code=500)
     return _json(
@@ -150,7 +149,7 @@ async def vault_list(request: Request):
 
 
 async def vault_put(request: Request):
-    """Écrit/remplace un secret et renvoie son empreinte — la valeur n'est jamais renvoyée."""
+    """Write/replace a secret and return its fingerprint — the value is never returned."""
     body = await _json_body(request)
     try:
         profile = vault_core.validate_profile(body.get("profile"))
@@ -161,7 +160,7 @@ async def vault_put(request: Request):
         return _unavailable(exc)
     except vault_core.VaultError as exc:
         return _refused(exc)
-    except Exception as exc:  # santé : jamais de détail
+    except Exception as exc:  # health: never a detail
         log.error("onyx-vault: échec de put (%s)", type(exc).__name__)
         return _json({"code": "vault_error", "detail": "échec interne du coffre"}, status_code=500)
     log.info("onyx-vault: put servi (profil=%s, nom=%s)", meta["profile"], meta["name"])
@@ -169,7 +168,7 @@ async def vault_put(request: Request):
 
 
 async def vault_revoke(request: Request):
-    """Supprime un secret (idempotent : ``revoked`` vaut false s'il était absent)."""
+    """Remove a secret (idempotent: ``revoked`` is false if it was absent)."""
     body = await _json_body(request)
     try:
         profile = vault_core.validate_profile(body.get("profile"))
@@ -179,7 +178,7 @@ async def vault_revoke(request: Request):
         return _unavailable(exc)
     except vault_core.VaultError as exc:
         return _refused(exc)
-    except Exception as exc:  # santé : jamais de détail
+    except Exception as exc:  # health: never a detail
         log.error("onyx-vault: échec de revoke (%s)", type(exc).__name__)
         return _json({"code": "vault_error", "detail": "échec interne du coffre"}, status_code=500)
     return _json({"profile": profile, "name": name, "revoked": removed})
@@ -193,7 +192,7 @@ _VAULT_ROUTES = (
 
 
 # ---------------------------------------------------------------------------
-# Routes standard (APIRouter) : celles qui n'utilisent pas ``?profile=``
+# Standard routes (APIRouter): those that do not use ``?profile=``
 # ---------------------------------------------------------------------------
 
 router = APIRouter()
@@ -201,7 +200,7 @@ router = APIRouter()
 
 @router.get("/health")
 def health() -> dict:
-    """État du coffre — sans secret, sans valeur, interrogeable par un probe."""
+    """Vault state — without secret, without value, queryable by a probe."""
     try:
         vault = vault_core.get_vault()
     except vault_core.VaultUnavailable as exc:
@@ -242,23 +241,23 @@ def info() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Montage
+# Mounting
 # ---------------------------------------------------------------------------
 
 
 def register_vault_routes(app: Any = None) -> str:
-    """Enregistre les routes à ``?profile=`` sur l'app Dashboard (sinon sur le routeur).
+    """Register the ``?profile=`` routes on the Dashboard app (otherwise on the router).
 
-    Retourne ``"app"`` ou ``"router"``. Idempotent : un second appel ne duplique rien.
+    Returns ``"app"`` or ``"router"``. Idempotent: a second call duplicates nothing.
     """
     if os.environ.get("ONYX_VAULT_MOUNT", "").strip().lower() == "router":
-        # Le mode est **forcé** : on ne retombe pas sur l'app du Dashboard, même si
-        # `hermes_cli.web_server` est déjà chargé dans ce processus. Sans cette distinction,
-        # deux suites de tests exécutées dans le même interpréteur se volaient leurs routes
-        # (la seconde trouvait la première dans `sys.modules` et montait sur l'app d'autrui).
+        # The mode is **forced**: we do not fall back on the Dashboard app, even if
+        # `hermes_cli.web_server` is already loaded in this process. Without this distinction,
+        # two test suites run in the same interpreter stole each other's routes
+        # (the second found the first in `sys.modules` and mounted on someone else's app).
         app = None
     elif app is None:
-        module = sys.modules.get("hermes_cli.web_server")  # déjà chargé = Dashboard en cours
+        module = sys.modules.get("hermes_cli.web_server")  # already loaded = Dashboard in progress
         app = getattr(module, "app", None) if module is not None else None
 
     if app is not None and hasattr(app, "router"):
@@ -284,7 +283,7 @@ _MOUNT_TARGET = register_vault_routes()
 
 
 def _warn_if_unavailable() -> None:
-    """Au montage : un message clair si la clé manque — le plugin reste debout, en 503."""
+    """At mount time: a clear message if the key is missing — the plugin stays up, in 503."""
     try:
         vault_core.load_key()
     except vault_core.VaultUnavailable as exc:

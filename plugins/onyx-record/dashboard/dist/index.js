@@ -1,4 +1,4 @@
-// onyx-record n'expose aucune interface : l'onglet est masqué (`tab.hidden`) et ce
-// module ne fait volontairement rien. Il existe pour que le chargeur du Dashboard
-// trouve l'entrée déclarée par manifest.json au lieu d'un 404 dans la console.
+// onyx-record exposes no interface: the tab is hidden (`tab.hidden`) and this
+// module deliberately does nothing. It exists so that the Dashboard loader finds
+// the entry declared by manifest.json instead of a 404 in the console.
 export default {};

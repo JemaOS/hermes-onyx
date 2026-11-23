@@ -1,9 +1,9 @@
-"""Contrat HTTP du plugin, sur une application FastAPI nue (sans Hermes).
+"""The plugin's HTTP contract, on a bare FastAPI application (without Hermes).
 
-Couvre : aucune valeur dans une réponse, empreinte, 503 sans clé, 400 sans fuite,
-``GET vault.list?profile=`` avec le nom de profil demandé.
+Covers: no value in a response, fingerprint, 503 without key, 400 without leak,
+``GET vault.list?profile=`` with the requested profile name.
 
-Lancer :
+Run:
     python -m unittest tests.test_plugin_api -v
 """
 
@@ -28,7 +28,7 @@ SENTINEL = "SENTINEL-http-do-not-leak-7c1d-WXYZ"
 
 
 def load_plugin_api():
-    """Charge le module comme le fait le Dashboard (hors package, par chemin)."""
+    """Load the module the way the Dashboard does (outside the package, by path)."""
     spec = importlib.util.spec_from_file_location("onyx_vault_plugin_api", API_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules["onyx_vault_plugin_api"] = module
@@ -39,7 +39,7 @@ def load_plugin_api():
 class PluginApiTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Force le montage sur l'APIRouter : pas de Dashboard dans ce processus.
+        # Force mounting on the APIRouter: no Dashboard in this process.
         os.environ["ONYX_VAULT_MOUNT"] = "router"
         cls.api = load_plugin_api()
 
@@ -138,9 +138,9 @@ class PluginApiTestCase(unittest.TestCase):
 
     def test_bad_payload_never_echoes_the_value(self):
         cases = [
-            {"profile": "onyx", "name": "K"},  # valeur absente
-            {"profile": "onyx", "name": "K", "value": 42},  # type invalide
-            {"profile": "onyx", "name": "K", "value": ""},  # vide
+            {"profile": "onyx", "name": "K"},  # missing value
+            {"profile": "onyx", "name": "K", "value": 42},  # invalid type
+            {"profile": "onyx", "name": "K", "value": ""},  # empty
             {"profile": "onyx", "name": "K", "value": SENTINEL, "used_by": ["mauvais nom!"]},
         ]
         for payload in cases:

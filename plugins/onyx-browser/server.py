@@ -1,15 +1,15 @@
-"""Le serveur du navigateur : un aiohttp sur la boucle locale, derrière `onyx-one`.
+"""The browser server: an aiohttp on the loopback interface, behind `onyx-one`.
 
-Trois routes et un WebSocket, rien de plus :
+Three routes and one WebSocket, nothing more:
 
-    GET  /onyx-browser/health   → le plugin est là, et y a-t-il un navigateur vivant ?
-    POST /onyx-browser/observe  → un ticket à usage unique (30 s) et un `viewer_id`
-    POST /onyx-browser/lease    → « je conduis » / « je rends la main »
-    GET  /onyx-browser/ws       → les trames, les saisies, la fin
+    GET  /onyx-browser/health   → the plugin is there, and is there a live browser?
+    POST /onyx-browser/observe  → a single-use ticket (30 s) and a `viewer_id`
+    POST /onyx-browser/lease    → "I drive" / "I hand back control"
+    GET  /onyx-browser/ws       → frames, inputs, the end
 
-Le port n'est **jamais** exposé : `onyx-one.py` relaie `/onyx-browser/` vers 127.0.0.1:8788, et
-c'est lui qui porte l'authentification de l'app. Le plugin ajoute par-dessus son ticket à usage
-unique. Deux verrous, et le port reste en boucle locale.
+The port is **never** exposed: `onyx-one.py` relays `/onyx-browser/` to 127.0.0.1:8788, and
+it is the one carrying the app's authentication. The plugin adds its single-use ticket on top.
+Two locks, and the port stays on the loopback interface.
 """
 
 from __future__ import annotations
@@ -33,37 +33,37 @@ log = logging.getLogger(__name__)
 from .cdp import MOBILE_HEIGHT, MOBILE_WIDTH, BrowserUnavailable, Controller
 from .session import TAKEOVER_TIMEOUT_S, AlreadyHeld, Session
 
-#: **L'échelle et la qualité de capture, par conducteur.** L'ancien réglage (`0.6` + `quality 55`
-#: + `optimizeForSpeed`) donnait une trame de 450 px de large, étirée à ~1080 px par l'app avec
-#: `FilterQuality.Low` : le formulaire de connexion était illisible et le doigt tombait à côté.
+#: **The capture scale and quality, per driver.** The old setting (`0.6` + `quality 55`
+#: + `optimizeForSpeed`) produced a 450 px wide frame, stretched to ~1080 px by the app with
+#: `FilterQuality.Low`: the login form was unreadable and the finger missed.
 #:
-#: **Ne jamais dépasser 1.0.** Le viewport téléphone est posé en DPR 2 (`use_phone_viewport`), donc
-#: `scale 1.0` capture déjà 750×1688 px. Au-delà, `Page.captureScreenshot` avec `clip.scale > 1`
-#: rend une **mosaïque** (la page répétée en 2×2, « captureBeyondViewport » n'y change rien) :
-#: constaté et mesuré, cf. `frames/beyond_1.5.jpg`.
-WATCH_SCALE = 0.6        # 450×1013 px, ~26 Ko, 3 img/s ≈ 0,6 Mbit/s
-DRIVE_SCALE = 1.0        # 750×1688 px, ~68 Ko, 8 img/s ≈ 4,4 Mbit/s (net sur le téléphone)
+#: **Never exceed 1.0.** The phone viewport is set at DPR 2 (`use_phone_viewport`), so
+#: `scale 1.0` already captures 750×1688 px. Beyond that, `Page.captureScreenshot` with `clip.scale > 1`
+#: returns a **mosaic** (the page repeated 2×2, "captureBeyondViewport" changes nothing):
+#: observed and measured, cf. `frames/beyond_1.5.jpg`.
+WATCH_SCALE = 0.6        # 450×1013 px, ~26 KB, 3 fps ≈ 0.6 Mbit/s
+DRIVE_SCALE = 1.0        # 750×1688 px, ~68 KB, 8 fps ≈ 4.4 Mbit/s (clean on the phone)
 WATCH_QUALITY = 62
 DRIVE_QUALITY = 66
-#: 6 img/s en conduite : à 750 px de large et q66 la trame pèse ~110 Ko, soit ~5 Mbit/s — le
-#: plafond qu'un tunnel + un forfait mobile portent sans à-coups. Au-delà, le fil prend du retard
-#: et l'image « saute » au lieu de simplement payer plus cher.
+#: 6 fps while driving: at 750 px wide and q66 the frame weighs ~110 KB, i.e. ~5 Mbit/s — the
+#: ceiling that a tunnel + a mobile plan carry without stutter. Beyond that, the wire falls behind
+#: and the image "jumps" instead of simply costing more.
 DRIVE_DELAY_S = 0.15
-WATCH_DELAY_S = 0.3      # §2 : 3 img/s quand l'app regarde
+WATCH_DELAY_S = 0.3      # §2: 3 fps when the app is watching
 IDLE_DELAY_S = 1.5
-#: Le rythme du battement `idle`. Il doit rester **très en dessous** du délai de silence que
-#: l'app compte comme un flux mort (12 s) : sinon le chien de garde de l'app croit le flux
-#: mort pendant qu'il est parfaitement vivant, et se reconnecte en boucle.
+#: The `idle` heartbeat rate. It must stay **far below** the silence delay that
+#: the app counts as a dead stream (12 s): otherwise the app's watchdog believes the stream
+#: dead while it is perfectly alive, and reconnects in a loop.
 IDLE_BEAT_S = 2.0
 
-# **Hermes charge le même plugin plusieurs fois dans un seul processus** : une fois en portée
-# « lancement », une fois par profil. Chaque import créait sa propre `Session`, sa propre boucle et
-# son propre serveur — la première copie prenait le port, la seconde mourait en `EADDRINUSE` en
-# gardant une boucle **déjà fermée** dans `_LOOP`. L'outil de prise en main tournait alors dans la
-# copie morte : `RuntimeError: Event loop is closed`, et la demande n'atteignait jamais l'écran.
+# **Hermes loads the same plugin several times in a single process**: once in "launch"
+# scope, once per profile. Each import created its own `Session`, its own loop and
+# its own server — the first copy took the port, the second died with `EADDRINUSE` while
+# keeping an **already closed** loop in `_LOOP`. The takeover tool then ran in the
+# dead copy: `RuntimeError: Event loop is closed`, and the request never reached the screen.
 #
-# Le hub est rangé dans `sys.modules` : c'est le seul endroit que toutes les copies d'un même
-# processus partagent. Une session, un état, une boucle, un port.
+# The hub is stored in `sys.modules`: it is the only place that all copies of the same
+# process share. One session, one state, one loop, one port.
 def _hub() -> Any:
     import types
 
@@ -86,8 +86,8 @@ HUB = _hub()
 SESSION = HUB.SESSION
 STATE = HUB.STATE
 STARTED = HUB.STARTED
-#: Gardée pour l'écran qui s'ouvre : une trame de plus de quinze secondes décrit une page qui a
-#: probablement changé, et la montrer telle quelle ferait croire à l'humain qu'il regarde le présent.
+#: Kept for the screen that opens: a frame more than fifteen seconds old describes a page that has
+#: probably changed, and showing it as-is would make the human believe they are looking at the present.
 STALE_FRAME_S = 15.0
 STATE.setdefault("last_frame", None)
 
@@ -100,59 +100,59 @@ def _bind(value: str) -> tuple[str, int]:
 HOST, PORT = _bind(os.environ.get("BROWSER_BIND", "127.0.0.1:8788"))
 TOKEN = os.environ.get("BROWSER_TOKEN", "").strip()
 
-# **Un port par processus, et un registre pour les trouver.**
+# **One port per process, and a registry to find them.**
 #
-# Hermes fait tourner plusieurs processus qui chargent tous ce plugin : `gateway run` (le chat de
-# l'app, l'api_server) et `serve --port 9119` (le dashboard). Le navigateur de l'agent vit dans
-# **le** processus qui exécute le tour — et c'est rarement celui qui a pris 8788 en premier.
+# Hermes runs several processes that all load this plugin: `gateway run` (the app's
+# chat, the api_server) and `serve --port 9119` (the dashboard). The agent's browser lives in
+# **the** process running the turn — and it is rarely the one that took 8788 first.
 #
-# Avant ce registre, la deuxième copie mourait en `EADDRINUSE` : elle marquait « démarré » sans
-# écouter nulle part, et l'outil de prise en main levait `RuntimeError: Event loop is closed`.
+# Before this registry, the second copy died with `EADDRINUSE`: it marked itself "started" without
+# listening anywhere, and the takeover tool raised `RuntimeError: Event loop is closed`.
 #
-# Maintenant chaque processus écoute — 8788 s'il est libre, un port éphémère sinon — et dépose sa
-# fiche ici. `onyx-one` choisit la fiche de celui qui a une demande en attente, donc l'écran du
-# téléphone arrive toujours sur le processus qui tient le navigateur.
+# Now each process listens — 8788 if free, an ephemeral port otherwise — and drops its
+# record here. `onyx-one` chooses the record of the one with a pending request, so the phone
+# screen always arrives at the process holding the browser.
 PEERS_DIR = Path(os.environ.get("BROWSER_PEERS") or (Path.home() / ".hermes" / "onyx-browser" / "peers"))
-PEER_TTL_S = 20.0        # au-delà, la fiche est un fantôme : `onyx-one` l'ignore
-PEER_BEAT_S = 2.0        # rafraîchissement de la fiche
+PEER_TTL_S = 20.0        # beyond that, the record is a ghost: `onyx-one` ignores it
+PEER_BEAT_S = 2.0        # record refresh
 
 
 def _peer_file(pid: int | None = None) -> Path:
     return PEERS_DIR / f"{pid or os.getpid()}.json"
 
 
-# **Une seule écriture de fiche à la fois, et un nom de temporaire par écriture.**
+# **A single record write at a time, and a temporary name per write.**
 #
-# Le battement (toutes les 2 s) et `notify_pending` écrivent la même fiche depuis deux fils
-# différents. Tous deux passaient par le **même** temporaire `<pid>.tmp` : l'un tronquait pendant
-# que l'autre écrivait, et `os.replace` publiait un JSON hybride. Observé en vrai :
+# The heartbeat (every 2 s) and `notify_pending` write the same record from two different
+# threads. Both went through the **same** temporary `<pid>.tmp`: one truncated while
+# the other was writing, and `os.replace` published a hybrid JSON. Observed for real:
 #
 #     {"…", "ts": 1793846556.4075263}.4075465}
 #
-# Un relais qui n'arrive pas à lire la fiche ignore le processus — donc l'écran du téléphone part
-# sur le port 8788, c'est-à-dire sur un autre processus, et attend une page qui n'y est pas. Le
-# défaut ne ressemble pas à une erreur : il ressemble à un écran vide.
+# A relay that cannot read the record ignores the process — so the phone screen goes
+# to port 8788, that is, to another process, and waits for a page that is not there. The
+# defect does not look like an error: it looks like a blank screen.
 _ECRITURE = threading.Lock()
 
 
 def _peer_avec_page() -> int | None:
-    """Le pid d'un **autre** processus qui montre une vraie page.
+    """The pid of **another** process that shows a real page.
 
-    Deux processus Hermes tournent en parallèle — la passerelle (`gateway run`) et le tableau de
-    bord (`hermes serve`) — et chacun peut avoir son propre navigateur. Le navigateur de l'agent
-    vit dans celui qui exécute le tour ; l'autre n'a rien à montrer. Un écran qui se connecte au
-    mauvais reste donc sur « En attente… » indéfiniment, et le relais — qui épingle le ticket
-    sur l'émetteur — le renvoie au même endroit à chaque tentative.
+    Two Hermes processes run in parallel — the gateway (`gateway run`) and the dashboard
+    (`hermes serve`) — and each can have its own browser. The agent's browser
+    lives in the one running the turn; the other has nothing to show. A screen connecting to the
+    wrong one therefore stays on "Waiting…" indefinitely, and the relay — which pins the ticket
+    on the sender — sends it back to the same place on every attempt.
 
-    On regarde donc les fiches du répertoire partagé : si un autre processus a une page (`ok`),
-    c'est là que l'écran doit aller. La fiche est rafraîchie toutes les deux secondes et
-    périmée au bout de vingt : ce n'est qu'un indice, d'où la vérification du pid.
+    We therefore look at the records in the shared directory: if another process has a page (`ok`),
+    that is where the screen must go. The record is refreshed every two seconds and
+    stale after twenty: it is only a hint, hence the pid check.
 
-    **Sauf si c'est le même navigateur.** Les deux processus peuvent être attachés au *même*
-    Chromium (la découverte DevTools le trouve par `/proc`, sans distinction de propriétaire) :
-    le port DevTools est alors identique. Dans ce cas, l'autre processus ne montre pas « la
-    page ailleurs » — il montre **la même page**, et l'envoyer chez lui coupe l'écran en plein
-    milieu pour rien. On l'ignore donc, et l'écran reste là où la page est réellement.
+    **Unless it is the same browser.** Both processes can be attached to the *same*
+    Chromium (DevTools discovery finds it through `/proc`, with no distinction of owner):
+    the DevTools port is then identical. In that case, the other process is not showing "the
+    page elsewhere" — it shows **the same page**, and sending the screen there cuts it off in the
+    middle for nothing. We therefore ignore it, and the screen stays where the page really is.
     """
     try:
         noms = os.listdir(PEERS_DIR)
@@ -178,8 +178,8 @@ def _peer_avec_page() -> int | None:
             os.kill(pid, 0)
         except OSError:
             continue
-        # **Le même navigateur n'est pas « ailleurs ».** On ne renvoie l'écran chez l'autre
-        # processus que s'il tient un *autre* Chromium.
+        # **The same browser is not "elsewhere".** We only send the screen to the other
+        # process if it holds an *other* Chromium.
         if notre_port != -1 and port_fiche != -1 and port_fiche == notre_port:
             continue
         return pid
@@ -187,32 +187,32 @@ def _peer_avec_page() -> int | None:
 
 
 def write_peer(**extra: Any) -> None:
-    """Dépose (ou rafraîchit) la fiche de ce processus. Sans serveur, il n'y a rien à déposer."""
+    """Drop (or refresh) this process's record. Without a server, there is nothing to drop."""
     if HUB.port is None:
         return
-    # La sonde CDP est lente et mise en cache : elle se fait **hors** du verrou.
+    # The CDP probe is slow and cached: it is done **outside** the lock.
     page = page_snapshot()
     chemin = _peer_file()
     with _ECRITURE:
         approach = {
             "pid": os.getpid(),
             "port": HUB.port,
-            # Lu sous le verrou : une demande posée par `notify_pending` ne peut plus être
-            # écrasée par un battement parti juste avant.
+            # Read under the lock: a request posted by `notify_pending` can no longer be
+            # overwritten by a heartbeat that started just before.
             "pending": HUB.pending,
-            # **`browser` veut dire « il y a une page à montrer », pas « ce processus a déjà eu
-            # un navigateur ».** Le drapeau tiré de `STATE` restait vrai après la fermeture de la
-            # page : le relais choisissait alors ce processus pour l'écran du téléphone, qui
-            # n'avait rien à montrer. `health` et la fiche doivent dire la même chose.
+            # **`browser` means "there is a page to show", not "this process has already had
+            # a browser".** The flag taken from `STATE` stayed true after the page closed:
+            # the relay then chose this process for the phone screen, which
+            # had nothing to show. `health` and the record must say the same thing.
             "browser": page["state"] == "ok",
-            # **Ce que ce processus peut réellement montrer.** Deux processus Hermes tiennent chacun
-            # leur navigateur : la fiche dit lequel a une vraie page, pour que le relais n'envoie pas
-            # l'écran du téléphone sur un onglet vide.
+            # **What this process can really show.** Two Hermes processes each hold
+            # their browser: the record says which one has a real page, so the relay does not send
+            # the phone screen to an empty tab.
             "page": page["url"],
             "state": page["state"],
-            # **L'identité du navigateur** (son port DevTools). Deux processus attachés au même
-            # Chromium le partagent : sans cette valeur, l'un se prend pour « la page est
-            # ailleurs » et renvoie l'écran du téléphone chez l'autre — pour la même page.
+            # **The browser's identity** (its DevTools port). Two processes attached to the same
+            # Chromium share it: without this value, one takes itself for "the page is
+            # elsewhere" and sends the phone screen to the other — for the same page.
             "browser_port": int(page.get("port") or -1),
             "frames": SESSION.frames,
             "viewport": list(SESSION.viewport),
@@ -238,7 +238,7 @@ def drop_peer() -> None:
 
 
 async def _heartbeat() -> None:
-    """Une fiche périmée est une fiche morte : on la garde fraîche tant que la boucle vit."""
+    """A stale record is a dead record: we keep it fresh as long as the loop lives."""
     while True:
         write_peer()
         await asyncio.sleep(PEER_BEAT_S)
@@ -249,27 +249,27 @@ def clear_pending() -> None:
     write_peer()
 
 
-# **Un refus tient pour la conversation et la page où il a été dit.**
+# **A refusal holds for the conversation and the page where it was said.**
 #
-# Sans mémoire, refuser ne servait à rien : le tour suivant rappelait l'outil sur la même page,
-# une demande neuve était publiée avec un identifiant neuf, et la carte revenait — à chaque
-# prompt réécrit, dans la conversation où l'on venait de dire non comme dans les autres. Le
-# refus n'était donc pas une réponse, seulement un geste sans suite.
+# Without memory, refusing was useless: the next turn called the tool again on the same page,
+# a fresh request was published with a new identifier, and the card came back — on every
+# rewritten prompt, in the conversation where the no had just been said as in the others. The
+# refusal was therefore not an answer, only a gesture with no follow-up.
 #
-# La clé est le couple (conversation, page) : ailleurs — un autre site, une autre conversation —
-# une nouvelle demande est légitime et s'affiche.
+# The key is the pair (conversation, page): elsewhere — another site, another conversation —
+# a new request is legitimate and is displayed.
 DECLINE_TTL_S = 30 * 60
 DECLINES: dict[tuple[str, str], float] = {}
 _DECLINES = threading.Lock()
 
 
 def _url_key(url: str) -> str:
-    """Une page, sans son ancre ni sa barre finale : deux formes de la même adresse sont un refus."""
+    """A page, without its anchor or trailing slash: two forms of the same address are one refusal."""
     return str(url or "").split("#", 1)[0].rstrip("/")
 
 
 def page_key() -> str:
-    """L'identité de ce qu'on a refusé : la page, sans son ancre ni sa barre finale."""
+    """The identity of what was refused: the page, without its anchor or trailing slash."""
     try:
         url = str(page_snapshot().get("url") or "")
     except Exception:
@@ -278,14 +278,14 @@ def page_key() -> str:
 
 
 def note_declined(session: str, url: str | None = None) -> None:
-    """Retient un refus, pour que la même demande ne repose pas la même question."""
+    """Retain a refusal, so the same request does not ask the same question again."""
     key = (str(session or ""), page_key() if url is None else _url_key(url))
     with _DECLINES:
         DECLINES[key] = time.time()
 
 
 def declined_recently(session: str, url: str | None = None) -> bool:
-    """Vrai si cette conversation a déjà refusé la main sur cette page."""
+    """True if this conversation has already refused control on this page."""
     key = (str(session or ""), page_key() if url is None else _url_key(url))
     with _DECLINES:
         at = DECLINES.get(key)
@@ -297,31 +297,31 @@ def declined_recently(session: str, url: str | None = None) -> bool:
         return True
 
 
-# **Le navigateur meurt d'inactivité pendant que l'humain tape.**
+# **The browser dies of inactivity while the human types.**
 #
-# `browser.inactivity_timeout` vaut 120 s par défaut, et le balayeur de Hermes ferme la session
-# quand aucun outil `browser_*` n'a été appelé. Or une prise en main bloque le tour jusqu'à 15
-# minutes **sans appeler d'outil** : la page était donc fermée au bout de deux minutes, et
-# l'écran du téléphone affichait `about:blank` — un formulaire de connexion qui disparaît pendant
-# qu'on le remplit. On demande explicitement à Hermes de compter ce temps comme de l'activité.
+# `browser.inactivity_timeout` is 120 s by default, and the Hermes sweeper closes the session
+# when no `browser_*` tool has been called. But a takeover blocks the turn for up to 15
+# minutes **without calling a tool**: the page was therefore closed after two minutes, and
+# the phone screen showed `about:blank` — a login form disappearing while
+# it is being filled in. We explicitly ask Hermes to count this time as activity.
 KEEPALIVE_S = 20.0
 
 
 def _touch() -> None:
-    """Compte le temps de la prise en main comme de l'activité pour le balayeur de Hermes.
+    """Count the takeover time as activity for the Hermes sweeper.
 
-    **Le nom de la session n'est pas toujours nu.** Le balayeur indexe `_session_last_activity`
-    tantôt sous `api-xxx`, tantôt sous `api-xxx@/home/john/.hermes` selon le processus qui a ouvert
-    le navigateur. Ne rafraîchir que la forme reçue par le crochet laissait l'autre expirer : la
-    page se fermait au bout de 120 s, en plein formulaire, et l'écran du téléphone passait à
-    `about:blank`. On rafraîchit donc **toutes** les clés qui désignent cette session.
+    **The session name is not always bare.** The sweeper indexes `_session_last_activity`
+    sometimes under `api-xxx`, sometimes under `api-xxx@/home/john/.hermes` depending on the process that opened
+    the browser. Refreshing only the form received by the hook let the other expire: the
+    page closed after 120 s, in the middle of a form, and the phone screen switched to
+    `about:blank`. We therefore refresh **all** the keys that designate this session.
     """
     task_id = STATE.get("task_id")
     if not task_id:
         return
     try:
         from tools import browser_tool_lifecycle as cycle
-    except Exception:  # version de Hermes sans ce crochet : la prise en main reste possible
+    except Exception:  # Hermes version without this hook: the takeover remains possible
         return
     marques = [str(task_id)]
     registre = getattr(getattr(cycle, "_bt", None), "_session_last_activity", None)
@@ -336,21 +336,21 @@ def _touch() -> None:
 
 
 def _keepalive() -> None:
-    """Un battement **tant qu'un navigateur d'agent existe**, pas seulement pendant qu'on regarde.
+    """A heartbeat **as long as an agent browser exists**, not only while we are watching.
 
-    **La page mourait entre deux tours.** `_touch()` n'était appelé que si une prise en main
-    attendait ou qu'un écran était connecté — c'est-à-dire précisément quand personne n'a besoin
-    d'ouvrir l'écran pour la première fois. L'humain ouvrait donc le panneau sur une page déjà
-    récoltée par le balayeur d'inactivité, et lisait « aucune page n'est ouverte » alors que
-    l'agent venait de la charger. Maintenir le navigateur vivant tant qu'un `task_id` est connu est
-    le comportement attendu d'un écran qu'on peut consulter à tout moment.
+    **The page died between two turns.** `_touch()` was only called if a takeover
+    was waiting or a screen was connected — that is, precisely when nobody needs
+    to open the screen for the first time. The human therefore opened the panel on a page already
+    reaped by the inactivity sweeper, and read "no page is open" whereas
+    the agent had just loaded it. Keeping the browser alive as long as a `task_id` is known is
+    the expected behavior of a screen that can be consulted at any time.
 
-    **Et il y avait un deuxième minuteur, celui du démon.** Même refreshed par `_touch()`, le
-    démon `agent-browser` s'arrêtait de lui-même au bout de dix minutes : il ne voit que ses
-    propres commandes CLI, et le trafic CDP du plugin lui est invisible. Le Chromium partait avec
-    lui, et l'écran du téléphone — ouvert, en attente — lisait « aucune page n'est ouverte » pour
-    une page qui existait encore deux minutes plus tôt. Le battement parle donc aussi au démon,
-    par sa CLI (`get cdp-url`, qui ne navigue pas).
+    **And there was a second timer, the daemon's.** Even refreshed by `_touch()`, the
+    `agent-browser` daemon stopped by itself after ten minutes: it only sees its
+    own CLI commands, and the plugin's CDP traffic is invisible to it. The Chromium left with
+    it, and the phone screen — open, waiting — read "no page is open" for
+    a page that still existed two minutes earlier. The heartbeat therefore also talks to the daemon,
+    through its CLI (`get cdp-url`, which does not navigate).
     """
     while True:
         try:
@@ -363,19 +363,19 @@ def _keepalive() -> None:
 
 
 def _relance_le_demon() -> None:
-    """Relance le minuteur du démon `agent-browser` qui tient le navigateur courant.
+    """Restart the timer of the `agent-browser` daemon holding the current browser.
 
-    **Sans ça, la page finit par disparaître de l'écran.** Le démon ne voit que les commandes
-    CLI qu'il reçoit : le plugin, qui parle CDP en direct, lui est invisible. `get cdp-url` ne
-    navigue pas — elle relit l'URL DevTools — et son minuteur repart.
+    **Without this, the page eventually disappears from the screen.** The daemon only sees the
+    CLI commands it receives: the plugin, which speaks CDP directly, is invisible to it. `get cdp-url` does not
+    navigate — it re-reads the DevTools URL — and its timer restarts.
 
-    On ne parle qu'au démon du navigateur **réellement accroché** : un démon inconnu ne mérite
-    pas qu'on le relance, et le plugin ignore lequel est vivant quand il n'a pas de page.
+    We only talk to the daemon of the browser **really attached**: an unknown daemon does not deserve
+    to be restarted, and the plugin does not know which one is alive when it has no page.
     """
     port = int(_PAGE.get("port") or -1)
     if port <= 0:
-        # Le port n'est connu que si une sonde a tourné récemment. On en déclenche une :
-        # elle rafraîchit `_PAGE` et rend le port du navigateur accroché.
+        # The port is only known if a probe ran recently. We trigger one:
+        # it refreshes `_PAGE` and returns the attached browser's port.
         try:
             page_snapshot()
         except Exception:
@@ -394,16 +394,16 @@ def _relance_le_demon() -> None:
 
 
 def _rafraichit_activite_hermes(nom_session: str) -> None:
-    """Compte la présence de l'écran comme de l'activité pour le ramasse-miettes de Hermes.
+    """Count the screen's presence as activity for the Hermes garbage collector.
 
-    **Le ramasse-miettes de Hermes est un second timer, indépendant du démon.** Il ferme les
-    sessions dont le dernier passage d'un outil `browser_*` date de plus de
-    `browser.inactivity_timeout`. Or `_touch()` ne peut rien faire sans `task_id` — et il est
-    vide pour toute session gateway (`attached: false` dans `health`). La session était donc
-    récoltée au même moment que le démon, et l'écran lisait « aucune page n'est ouverte ».
+    **The Hermes garbage collector is a second timer, independent of the daemon.** It closes
+    sessions whose last `browser_*` tool call is older than
+    `browser.inactivity_timeout`. But `_touch()` can do nothing without `task_id` — and it is
+    empty for any gateway session (`attached: false` in `health`). The session was therefore
+    reaped at the same time as the daemon, and the screen read "no page is open".
 
-    On rafraîchit donc l'activité de **la session qui porte ce navigateur**, retrouvée par le
-    nom de session du démon (`session_name`), et non par un `task_id` que l'on n'a pas.
+    We therefore refresh the activity of **the session carrying this browser**, found by the
+    daemon's session name (`session_name`), and not by a `task_id` we do not have.
     """
     if not nom_session:
         return
@@ -429,12 +429,12 @@ def _rafraichit_activite_hermes(nom_session: str) -> None:
 
 
 def _registry_task_id() -> str:
-    """Le `task_id` du navigateur vivant, lu dans le registre du superviseur.
+    """The `task_id` of the live browser, read from the supervisor registry.
 
-    **Le crochet ne suffit pas.** `model_tools._CallIds.task_id` vaut `""` quand l'appel vient
-    d'une session gateway : `STATE["task_id"]` restait donc vide, `health` annonçait
-    `attached: false`, et l'écran du téléphone n'avait aucune page à capturer — alors que le
-    superviseur, lui, en tenait une. On demande donc directement à qui sait.
+    **The hook is not enough.** `model_tools._CallIds.task_id` is `""` when the call comes
+    from a gateway session: `STATE["task_id"]` therefore stayed empty, `health` announced
+    `attached: false`, and the phone screen had no page to capture — whereas the
+    supervisor held one. We therefore ask directly whoever knows.
     """
     try:
         from tools.browser_supervisor import SUPERVISOR_REGISTRY as registre
@@ -448,7 +448,7 @@ def _registry_task_id() -> str:
 
 
 def _task_id() -> str:
-    """L'identifiant retenu pour ce processus : le crochet d'abord, le registre ensuite."""
+    """The identifier retained for this process: the hook first, the registry next."""
     task_id = str(STATE.get("task_id") or "")
     if not task_id:
         task_id = _registry_task_id()
@@ -458,26 +458,26 @@ def _task_id() -> str:
 
 
 def _controller() -> Controller:
-    """Le contrôleur du navigateur du tour — même sans `task_id`.
+    """The controller of the turn's browser — even without `task_id`.
 
-    **Le `task_id` n'est pas un prérequis.** Il ne sert qu'à la première voie (le seam du
-    superviseur) ; la seconde (DevTools, lue dans `/proc`) n'en veut pas. Exiger un identifiant
-    ici transformait « aucun superviseur » en « aucun navigateur » et l'écran du téléphone
-    annonçait une page absente alors que le Chromium affichait la page.
+    **`task_id` is not a prerequisite.** It is only used by the first path (the supervisor
+    seam); the second (DevTools, read from `/proc`) does not want it. Requiring an identifier
+    here turned "no supervisor" into "no browser" and the phone screen
+    announced a missing page whereas the Chromium was displaying the page.
     """
     return Controller(_task_id())
 
 
 def _phone_css(size: dict[str, Any] | None = None) -> tuple[int, int, float]:
-    """La forme CSS à poser pour que la capture fasse **exactement** les pixels de l'écran.
+    """The CSS size to set so the capture makes **exactly** the screen's pixels.
 
-    L'app annonce son écran en pixels physiques (`{width, height, dpr}`). On garde un DPR de 2 —
-    celui des téléphones visés, et celui pour lequel les pages sont écrites — et on en déduit la
-    largeur CSS : `css = pixels / 2`. La capture vaut alors `css × 2`, c'est-à-dire la définition
-    du téléphone, sans agrandissement à l'affichage : c'est là que le flou disparaît.
+    The app announces its screen in physical pixels (`{width, height, dpr}`). We keep a DPR of 2 —
+    that of the targeted phones, and the one for which pages are written — and derive the
+    CSS width: `css = pixels / 2`. The capture is then worth `css × 2`, that is, the phone's
+    definition, with no upscaling at display time: this is where the blur disappears.
 
-    Bornée : jamais moins de 200 px de CSS (une page minuscule n'est pas pilotable), jamais plus
-    de 1 400 (au-delà, la trame pèse plus que le réseau ne porte).
+    Bounded: never less than 200 px of CSS (a tiny page is not operable), never more
+    than 1 400 (beyond that, the frame weighs more than the network carries).
     """
     brut = size if isinstance(size, dict) else (SESSION.phone_size or {})
     try:
@@ -495,37 +495,37 @@ def _phone_css(size: dict[str, Any] | None = None) -> tuple[int, int, float]:
 
 
 async def _pose_viewport(phone: bool, size: dict[str, Any] | None = None) -> None:
-    """Donne à la page la forme du pouce, ou la lui retire.
+    """Give the page the thumb's shape, or take it away.
 
-    **Le viewport suit le volant, pas l'outil.** L'outil posait le viewport mobile avant de
-    sonner, mais l'app peut prendre la main seule : la page restait alors en 1280 px réduits à
-    la largeur d'un téléphone — le formulaire illisible et le doigt à côté du champ. Poser ici
-    garantit la même page à celui qui conduit, quel que soit le chemin qui l'a amené.
+    **The viewport follows the wheel, not the tool.** The tool set the mobile viewport before
+    ringing, but the app can also take control on its own: the page then stayed at 1280 px reduced to
+    the width of a phone — the unreadable form and the finger beside the field. Setting it here
+    guarantees the same page for the one driving, whatever path brought them there.
     """
     try:
         controleur = _controller()
     except Exception:
-        return  # pas de page : rien à mettre en forme
+        return  # no page: nothing to lay out
     try:
         if phone:
-            # **`repaint_viewport`, pas `use_phone_viewport`.** Il efface d'abord l'émulation en
-            # place puis recharge : sans ce nettoyage, une émulation déjà posée (par le navigateur
-            # de l'agent, par un écran précédent) se superpose et la capture sort en **mosaïque** —
-            # la page répétée en 2×2, illisible et impossible à piloter.
+            # **`repaint_viewport`, not `use_phone_viewport`.** It first clears the emulation in
+            # place then reloads: without this cleanup, an emulation already set (by the browser
+            # of the agent, by a previous screen) overlaps and the capture comes out as a **mosaic** —
+            # the page repeated 2×2, unreadable and impossible to drive.
             await asyncio.to_thread(controleur.repaint_viewport, *_phone_css(size))
         else:
             await asyncio.to_thread(controleur.clear_viewport)
     except Exception:
-        # Un viewport refusé ne doit pas faire échouer la prise en main : on préfère un écran
-        # en desktop à un bouton « Prendre la main » qui ne répond pas.
+        # A refused viewport must not make the takeover fail: we prefer a desktop
+        # screen to a "Take over" button that does not respond.
         pass
 
 
-# -- authentification -------------------------------------------------------------------------
+# -- authentication -------------------------------------------------------------------------
 
 def _authorised(request: web.Request) -> bool:
     if not TOKEN:
-        # Sans jeton, on n'accepte que la boucle locale : `onyx-one` est le seul appelant.
+        # Without a token, we only accept the loopback interface: `onyx-one` is the only caller.
         peer = (request.remote or "").split("%")[0]
         return peer in ("127.0.0.1", "::1", "")
     header = request.headers.get("Authorization") or ""
@@ -539,37 +539,37 @@ def _refused(reason: str, status: int = 401) -> web.Response:
     return web.json_response({"ok": False, "error": reason}, status=status)
 
 
-# -- la page est-elle encore là ? ---------------------------------------------------------------
+# -- is the page still there? ---------------------------------------------------------------
 
-#: Une sonde CDP coûte quelques millisecondes, et `health` est appelé par le relais à chaque
-#: ouverture d'écran. On garde la réponse deux secondes : assez frais pour ne pas router l'écran
-#: vers une page morte, assez rare pour ne pas harceler Chromium.
+#: A CDP probe costs a few milliseconds, and `health` is called by the relay on every
+#: screen opening. We keep the answer for two seconds: fresh enough not to route the screen
+#: to a dead page, rare enough not to harass Chromium.
 ALIVE_CACHE_S = 2.0
-#: Combien de temps l'outil de prise en main dort avant de redemander si la page vit encore.
+#: How long the takeover tool sleeps before asking again whether the page is still alive.
 SONDE_S = 2.0
-#: `state` : `ok`, `blank` (navigateur neuf, rien dedans) ou `gone` (aucun navigateur du tout).
-#: `url` : ce que montre la page, pour que l'app puisse l'afficher au lieu de deviner.
+#: `state`: `ok`, `blank` (fresh browser, nothing in it) or `gone` (no browser at all).
+#: `url`: what the page shows, so the app can display it instead of guessing.
 _PAGE: dict[str, Any] = {"at": 0.0, "state": "gone", "url": "", "port": -1}
 
 
 def page_snapshot() -> dict[str, str]:
-    """L'état de la page du tour, avec deux secondes de mémoire."""
+    """The state of the turn's page, with two seconds of memory."""
     now = time.time()
     if now - float(_PAGE["at"]) < ALIVE_CACHE_S:
         return {"state": str(_PAGE["state"]), "url": str(_PAGE["url"])}
     task_id = _task_id()
     etat, url = "gone", ""
     port = -1
-    # **Pas de `if task_id`.** La découverte DevTools n'a pas besoin d'identifiant : exiger ici
-    # un `task_id` faisait annoncer « aucun navigateur » alors que la page était là, et l'écran
-    # du téléphone restait vide.
+    # **No `if task_id`.** DevTools discovery does not need an identifier: requiring
+    # a `task_id` here caused "no browser" to be announced while the page was there, and the phone
+    # screen stayed blank.
     try:
         controleur = Controller(task_id)
         etat = controleur.page_state()
         url = controleur.current_url() if etat == "ok" else ""
-        # **Le port DevTools du navigateur accroché.** C'est l'identité du navigateur : deux
-        # processus attachés au même Chromium doivent se reconnaître, sinon l'un d'eux concludes
-        # que « la page est ailleurs » et renvoie l'écran du téléphone chez l'autre.
+        # **The DevTools port of the attached browser.** It is the browser's identity: two
+        # processes attached to the same Chromium must recognize each other, otherwise one of them concludes
+        # that "the page is elsewhere" and sends the phone screen to the other.
         port = controleur.browser_port()
     except Exception:
         etat, url = "gone", ""
@@ -578,10 +578,10 @@ def page_snapshot() -> dict[str, str]:
 
 
 def page_alive() -> bool:
-    """La page du tour montre-t-elle vraiment quelque chose ?
+    """Does the turn's page really show something?
 
-    **`blank` compte comme mort.** Sinon l'outil attendait quinze minutes devant un onglet vide,
-    et le modèle annonçait à l'humain une prise en main qui n'avait aucune page à montrer.
+    **`blank` counts as dead.** Otherwise the tool waited fifteen minutes in front of an empty tab,
+    and the model announced to the human a takeover that had no page to show.
     """
     return page_snapshot()["state"] == "ok"
 
@@ -592,11 +592,11 @@ async def health(request: web.Request) -> web.Response:
     if not _authorised(request):
         return _refused("token")
     waiting = SESSION.waiting
-    # **Une demande sans page n'est pas une demande.** Le navigateur de Hermes meurt après deux
-    # minutes sans outil : une prise en main restée en attente devient un fantôme que le relais
-    # continue de préférer — l'écran du téléphone aboutissait alors sur un processus qui ne pouvait
-    # rien lui montrer. On la déclare morte ici, et on retire le drapeau pour ne plus y router
-    # personne. L'outil, lui, la voit par sa propre sonde et rend la main sans attendre 15 minutes.
+    # **A request without a page is not a request.** The Hermes browser dies after two
+    # minutes without a tool: a takeover left pending becomes a ghost that the relay
+    # keeps preferring — the phone screen then ended up at a process that could
+    # show it nothing. We declare it dead here, and remove the flag so nothing is routed
+    # there anymore. The tool, for its part, sees it through its own probe and hands back without waiting 15 minutes.
     alive = page_alive()
     page = page_snapshot()
     if waiting is not None and not alive:
@@ -606,21 +606,21 @@ async def health(request: web.Request) -> web.Response:
         {
             "ok": True,
             "plugin": "onyx-browser",
-            # **`browser` veut dire « il y a une page à montrer », pas « ce processus a déjà eu un
-            # navigateur ».** Le drapeau tiré de `STATE` restait vrai après la fermeture de la page,
-            # et le relais routait l'écran du téléphone vers un processus vide (`idle` au lieu
-            # d'images). `attached` garde la trace du tour, pour le diagnostic.
+            # **`browser` means "there is a page to show", not "this process has already had a
+            # browser".** The flag taken from `STATE` stayed true after the page closed,
+            # and the relay routed the phone screen to an empty process (`idle` instead of
+            # images). `attached` keeps track of the turn, for diagnostics.
             "browser": alive,
             "attached": bool(STATE.get("task_id")),
             "alive": alive,
-            # **L'écran a besoin de savoir ce qu'il y a à montrer.** `blank` n'est pas une panne :
-            # c'est un navigateur neuf, et l'app peut le dire (« rouvre la page ») au lieu
-            # d'afficher du blanc sans explication.
+            # **The screen needs to know what there is to show.** `blank` is not a failure:
+            # it is a fresh browser, and the app can say so ("reopen the page") instead of
+            # displaying blank with no explanation.
             "page": page,
-            # **Les réglages de capture, en clair.** Après une modification du plugin, c'est le seul
-            # moyen de savoir ce que le processus *vivant* exécute : `hermes` ne recharge pas les
-            # modules à chaud quand le crochet est inerte, et deux valeurs identiques au fichier ne
-            # disent rien de la mémoire.
+            # **The capture settings, in plain sight.** After a plugin change, it is the only
+            # way to know what the *live* process is executing: `hermes` does not reload
+            # modules hot when the hook is inert, and two values identical to the file
+            # say nothing about memory.
             "stream": {
                 "watch": [WATCH_SCALE, WATCH_QUALITY],
                 "drive": [DRIVE_SCALE, DRIVE_QUALITY],
@@ -633,8 +633,8 @@ async def health(request: web.Request) -> web.Response:
                 {
                     "id": waiting.takeover_id,
                     "reason": waiting.reason,
-                    # **À quelle conversation la demande appartient.** L'app ne devine plus : elle
-                    # affiche la carte dans le fil qui a demandé, et dans aucun autre.
+                    # **Which conversation the request belongs to.** The app no longer guesses: it
+                    # displays the card in the thread that asked, and in no other.
                     "session": waiting.session,
                     "url": waiting.url,
                 }
@@ -648,11 +648,11 @@ async def health(request: web.Request) -> web.Response:
 async def observe(request: web.Request) -> web.Response:
     if not _authorised(request):
         return _refused("token")
-    # **Un écran qui arrive chez le mauvais processus doit repartir ailleurs.** Le relais épingle
-    # le ticket sur l'émetteur : sans ce refus, l'app demandait un ticket, le plugin le lui
-    # servait, et l'écran restait sur « En attente… » pendant que la vraie page jouait chez
-    # l'autre processus. En refusant (`409`), l'app redemande un ticket — et le relais, qui
-    # voit alors que ce processus n'a rien à montrer, route l'écran vers celui qui a la page.
+    # **A screen that arrives at the wrong process must leave elsewhere.** The relay pins
+    # the ticket on the sender: without this refusal, the app asked for a ticket, the plugin
+    # served it, and the screen stayed on "Waiting…" while the real page was playing at
+    # the other process. By refusing (`409`), the app asks for a ticket again — and the relay, which
+    # then sees that this process has nothing to show, routes the screen to the one with the page.
     if not page_alive():
         autre = _peer_avec_page()
         if autre is not None:
@@ -688,17 +688,17 @@ async def lease(request: web.Request) -> web.Response:
             return web.json_response(
                 {"ok": False, "error": "lease_held", "epoch": held.epoch}, status=409
             )
-        # **La page prend la forme du pouce dès que l'humain conduit.** L'outil le faisait avant
-        # de sonner, mais l'app peut aussi prendre la main seule (bouton « Prendre la main ») :
-        # elle héritait alors d'un viewport de 1280 px réduit à la largeur de l'écran — texte
-        # minuscule, cibles de trois pixels, et un tap qui tombe à côté.
+        # **The page takes the thumb's shape as soon as the human drives.** The tool did it before
+        # ringing, but the app can also take control alone ("Take over" button):
+        # it then inherited a viewport of 1280 px reduced to the screen width — tiny
+        # text, three-pixel targets, and a tap that lands beside.
         await _pose_viewport(True)
         await _broadcast({"type": "lease", **state})
         return web.json_response({"ok": True, **state})
     if action == "viewport":
-        # **L'écran qui regarde dit sa taille, et la page prend cette forme-là.** C'est ce qui
-        # remplace le gabarit figé 390×844 : la capture arrive ensuite à la définition du
-        # téléphone au lieu d'être agrandie à l'affichage (l'image molle signalée).
+        # **The screen that watches says its size, and the page takes that shape.** This is what
+        # replaces the fixed 390×844 template: the capture then arrives at the phone's
+        # definition instead of being upscaled at display time (the reported soft image).
         taille = (body or {}).get("size")
         if isinstance(taille, dict):
             SESSION.phone_size = taille
@@ -706,19 +706,19 @@ async def lease(request: web.Request) -> web.Response:
                 await _pose_viewport(True, taille)
         return web.json_response({"ok": True, "css": list(_phone_css()[:2])})
     if action == "decline":
-        # **Refuser est un droit, pas une absence de réponse.** Sans cette action, la seule issue
-        # était de ne rien faire : la carte restait affichée, l'agent attendait jusqu'à 15 minutes,
-        # et la demande suivait la personne dans toutes les conversations ouvertes. Ici, le refus
-        # est **dit** : la demande tombe, l'agent reprend son tour avec la raison, et l'app peut
-        # retirer la carte immédiatement.
+        # **Refusing is a right, not a lack of response.** Without this action, the only outcome
+        # was to do nothing: the card stayed displayed, the agent waited up to 15 minutes,
+        # and the request followed the person into every open conversation. Here, the refusal
+        # is **said**: the request drops, the agent resumes its turn with the reason, and the app can
+        # remove the card immediately.
         waiting = SESSION.waiting
         if waiting is None:
             clear_pending()
             return web.json_response({"ok": True, "declined": False, "reason": "nothing_pending"})
         waiting.refused = True
         waiting.note = str((body or {}).get("note") or "")
-        # **Le refus se retient.** Sans cette mémoire, le tour suivant rappelait l'outil sur la
-        # même page et la carte revenait — c'est exactement ce qui était signalé.
+        # **The refusal is retained.** Without this memory, the next turn called the tool on the
+        # same page and the card came back — which is exactly what was reported.
         note_declined(waiting.session, waiting.url or None)
         waiting.done.set()
         clear_pending()
@@ -726,27 +726,27 @@ async def lease(request: web.Request) -> web.Response:
         return web.json_response({"ok": True, "declined": True, "id": waiting.takeover_id})
     if action == "release":
         state = SESSION.release(str((body or {}).get("note") or ""))
-        # Rendre la main rend aussi la page à sa forme de bureau : l'agent reprend son tour, et
-        # il ne doit pas hériter du gabarit du téléphone.
+        # Handing back control also gives the page back its desktop shape: the agent resumes its turn, and
+        # it must not inherit the phone template.
         await _pose_viewport(False)
         await _broadcast({"type": "lease", **state})
         return web.json_response({"ok": True, **state})
     return _refused("action", status=400)
 
 
-# -- le WebSocket -----------------------------------------------------------------------------
+# -- the WebSocket -----------------------------------------------------------------------------
 
 async def websocket(request: web.Request) -> web.WebSocketResponse:
     ticket = SESSION.redeem(request.query.get("ticket", ""))
     if ticket is None:
-        # Un ticket mort n'obtient pas de 101 : la poignée de main est refusée franchement.
+        # A dead ticket does not get a 101: the handshake is refused outright.
         raise web.HTTPUnauthorized(text="ticket")
     ws = web.WebSocketResponse(heartbeat=30)
     await ws.prepare(request)
     STATE["clients"].add(ws)
-    # **Un écran qui s'ouvre voit la page tout de suite.** Sans cette trame, il attendait le
-    # prochain tour de pompage — et restait sur « En attente du navigateur de l'agent… » alors que
-    # la page existait déjà.
+    # **A screen that opens sees the page right away.** Without this frame, it waited for the
+    # next pump round — and stayed on "Waiting for the agent's browser…" while
+    # the page already existed.
     garde = STATE.get("last_frame") or {}
     if garde and time.time() - float(garde.get("at") or 0.0) <= STALE_FRAME_S:
         await _send(ws, {**garde["trame"], "live": False})
@@ -762,17 +762,17 @@ async def websocket(request: web.Request) -> web.WebSocketResponse:
             await _on_frame(payload, ws)
     finally:
         STATE["clients"].discard(ws)
-        # **Un écran fermé ne garde pas le volant.** Le bail se prenait depuis le téléphone : si
-        # l'app se ferme, perd le réseau ou change de conversation, personne ne le rend. Le bail
-        # restait humain pour toujours, et la prise en main suivante était refusée en `409` — un
-        # « quelqu'un conduit déjà » fantôme, impossible à lever sans redémarrer Hermes.
+        # **A closed screen does not keep the wheel.** The lease was taken from the phone: if
+        # the app closes, loses the network or changes conversation, nobody hands it back. The lease
+        # stayed human forever, and the next takeover was refused with `409` — a
+        # ghost "someone is already driving", impossible to clear without restarting Hermes.
         if not STATE["clients"]:
             asyncio.ensure_future(_release_when_abandoned())
     return ws
 
 
-#: Le temps qu'un écran revienne avant qu'on considère qu'il est parti. Un ticket neuf et une
-#: reconnexion prennent moins d'une seconde ; vingt laissent la place à un changement de réseau.
+#: How long a screen has to come back before we consider it gone. A new ticket and a
+#: reconnection take less than a second; twenty leaves room for a network change.
 RELEASE_GRACE_S = 20.0
 
 
@@ -782,10 +782,10 @@ async def _release_when_abandoned() -> None:
         return
     state = SESSION.abandon()
     await _broadcast({"type": "lease", **state})
-    # **L'écran parti, la page reprend sa forme.** Le viewport de téléphone était posé pour la
-    # prise en main ; si l'app se ferme sans rendre la main, il restait appliqué et l'agent
-    # héritait d'une page en 390 px de large — illisible pour lui, alors qu'il croyait retrouver
-    # la page comme il l'avait laissée.
+    # **The screen gone, the page regains its shape.** The phone viewport was set for the
+    # takeover; if the app closes without handing back control, it stayed applied and the agent
+    # inherited a page 390 px wide — unreadable for it, whereas it believed it was getting
+    # the page back as it had left it.
     await _pose_viewport(phone=False)
     log.info("onyx-browser: écran parti, le bail revient à l'agent")
 
@@ -793,7 +793,7 @@ async def _release_when_abandoned() -> None:
 async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
     kind = payload.get("type")
     if kind == "watch":
-        # Rien à faire : le pompage tourne tant qu'il y a un client. On renvoie l'état.
+        # Nothing to do: the pump runs as long as there is a client. We send back the state.
         await _send(ws, {"type": "lease", "holder": SESSION.holder, "epoch": SESSION.epoch})
         return
     if kind == "input":
@@ -807,11 +807,11 @@ async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
             raw_css = payload.get("css") or []
             css = (int(raw_css[0]), int(raw_css[1])) if len(raw_css) >= 2 else (0, 0)
             if css[0] <= 0 or css[1] <= 0:
-                # **La mesure du serveur vaut mieux que celle de l'app.** L'app envoie la taille
-                # CSS qu'elle a lue sur la dernière trame ; si elle ne l'a pas lue (trame
-                # reçue avant la correction, ou version de l'app plus ancienne), elle envoie
-                # zéro — et le geste était rejoué sur un viewport de zéro pixel, c'est-à-dire
-                # au coin de l'écran. On retombe alors sur ce que le serveur a mesuré lui-même.
+                # **The server's measurement is worth more than the app's.** The app sends the CSS
+                # size it read on the last frame; if it did not read it (frame
+                # received before the fix, or an older app version), it sends
+                # zero — and the gesture was replayed on a zero-pixel viewport, that is,
+                # in the corner of the screen. We then fall back on what the server measured itself.
                 css = tuple(SESSION.viewport)
             if css[0] <= 0 or css[1] <= 0:
                 await _send(ws, {"type": "refused", "seq": payload.get("seq"), "reason": "no_page"})
@@ -833,9 +833,9 @@ async def _on_frame(payload: dict[str, Any], ws: web.WebSocketResponse) -> None:
         except Exception:
             facts = {}
         facts["origin_refused"] = False
-        # **Les faits avant le réveil.** `release()` débloque l'outil de l'agent : les faits
-        # doivent déjà être rangés quand il se réveille, sinon il lit un dictionnaire vide et
-        # annonce au modèle « pas de formulaire » alors que la page en avait un.
+        # **The facts before the wake-up.** `release()` unblocks the agent's tool: the facts
+        # must already be stored when it wakes up, otherwise it reads an empty dictionary and
+        # announces to the model "no form" whereas the page had one.
         waiting = SESSION.waiting
         if waiting is not None:
             waiting.facts.update(facts)
@@ -852,15 +852,15 @@ def _ensure_pump() -> None:
 
 
 def vignette() -> None:
-    """Une image après chaque outil `browser_*`, même quand personne ne regarde.
+    """An image after each `browser_*` tool, even when nobody is watching.
 
-    Le pompage ne tourne que s'il y a un spectateur : l'écran ouvert recevait donc sa première
-    image au premier tour de pompage, et un écran rouvert plus tard ne voyait rien de ce qui s'était
-    passé entre-temps. On capture ici une trame unique, sans diffusion, qui sert de garde à la
-    prochaine connexion (voir `websocket`). Appelée depuis un fil qui n'est pas celui de la boucle.
+    The pump only runs if there is a spectator: the open screen therefore received its first
+    image on the first pump round, and a screen reopened later saw nothing of what had
+    happened in the meantime. We capture a single frame here, without broadcasting, which serves as a guard for the
+    next connection (see `websocket`). Called from a thread that is not the loop's.
     """
     if STATE["clients"]:
-        return  # le pompage tourne déjà : il produira la trame
+        return  # the pump is already running: it will produce the frame
     boucle = HUB.loop
     if boucle is None or boucle.is_closed():
         return
@@ -877,16 +877,16 @@ async def _capture_once() -> None:
 
 
 async def _pump() -> None:
-    """Une trame à la fois, tant qu'un client regarde. Personne ne regarde : rien ne tourne."""
+    """One frame at a time, as long as a client is watching. Nobody is watching: nothing runs."""
     idle_sent = False
     dernier_idle = 0.0
     while STATE["clients"]:
         try:
             trame = await _une_trame()
         except Exception:
-            # **Une panne de capture ne tue pas l'écran.** Elle est journalisée avec sa trace, puis
-            # on réessaie : sans ce garde-fou, la tâche de pompage mourait et l'écran du téléphone
-            # se figeait sans un mot dans le journal.
+            # **A capture failure does not kill the screen.** It is logged with its traceback, then
+            # we retry: without this safeguard, the pump task died and the phone screen
+            # froze without a word in the log.
             log.exception("onyx-browser: capture en échec — le pompage continue")
             await asyncio.sleep(IDLE_DELAY_S)
             continue
@@ -895,24 +895,24 @@ async def _pump() -> None:
             await _broadcast(trame)
             await asyncio.sleep(DRIVE_DELAY_S if SESSION.holder == "human" else WATCH_DELAY_S)
         else:
-            # **`idle` est un battement, pas une annonce.** Envoyé une seule fois, il laissait
-            # l'écran dans un silence absolu : le chien de garde de l'app, qui ne compte que les
-            # trames, ne se déclenchait jamais, et le socket mort en silence derrière le relais
-            # n'était jamais noticed. L'écran restait donc sur « En attente… » pour toujours,
-            # même quand la page réapparaissait. On répète donc `idle` — c'est ce qui permet à
-            # l'app de distinguer « le flux est vivant mais il n'y a pas de page » de « le flux
-            # est mort », et de se reconnecter tout seul dans le second cas.
+            # **`idle` is a heartbeat, not an announcement.** Sent only once, it left
+            # the screen in absolute silence: the app's watchdog, which only counts
+            # frames, never fired, and the socket dead in silence behind the relay
+            # was never noticed. The screen therefore stayed on "Waiting…" forever,
+            # even when the page reappeared. We therefore repeat `idle` — this is what lets
+            # the app distinguish "the stream is alive but there is no page" from "the stream
+            # is dead", and reconnect by itself in the second case.
             maintenant = time.monotonic()
             if not idle_sent or (maintenant - dernier_idle) >= IDLE_BEAT_S:
-                # **Dire pourquoi**, pas seulement « rien » : `blank` (navigateur neuf, onglet
-                # vide) et `gone` (aucun navigateur) demandent deux gestes différents à l'humain.
+                # **Say why**, not just "nothing": `blank` (fresh browser, empty tab)
+                # and `gone` (no browser) require two different actions from the human.
                 await _broadcast({"type": "idle", "state": page_snapshot()["state"]})
                 idle_sent = True
                 dernier_idle = maintenant
-            # **Un écran coincé chez le mauvais processus doit repartir.** La page vit dans un
-            # autre processus : on le dit à l'écran, qui redemande alors un ticket — et le relais
-            # le route cette fois vers le bon. Sans cela, l'app restait sur « En attente… » pour
-            # toujours, alors que la page existait et était visible ailleurs.
+            # **A screen stuck at the wrong process must leave.** The page lives in another
+            # process: we tell the screen, which then asks for a new ticket — and the relay
+            # routes it to the right one this time. Without that, the app stayed on "Waiting…" for
+            # ever, whereas the page existed and was visible elsewhere.
             autre = _peer_avec_page()
             if autre is not None:
                 log.info("onyx-browser: la page est chez le pid %d — l'écran est renvoyé", autre)
@@ -927,17 +927,17 @@ async def _pump() -> None:
             await asyncio.sleep(IDLE_DELAY_S)
 
 async def _une_trame() -> dict[str, Any] | None:
-    """Capture la page, et rend la trame à diffuser — `None` s'il n'y a rien à montrer.
+    """Capture the page, and return the frame to broadcast — `None` if there is nothing to show.
 
-    **La taille CSS part avec la trame.** Elle en était retirée juste avant la diffusion
-    (`frame.pop("css")`), et l'app recevait donc `cssWidth = 0` : ses gestes étaient calculés sur
-    un viewport de zéro pixel, et le serveur les rejouait au coin de l'écran. Le serveur garde la
-    mesure pour lui, mais il la diffuse aussi : c'est elle qui dit à l'app où poser le doigt.
+    **The CSS size travels with the frame.** It was stripped just before broadcasting
+    (`frame.pop("css")`), and the app therefore received `cssWidth = 0`: its gestures were computed on
+    a zero-pixel viewport, and the server replayed them in the corner of the screen. The server keeps the
+    measurement for itself, but it also broadcasts it: it is what tells the app where to put the finger.
     """
     try:
         controller = _controller()
-        # Le mode de capture suit le volant : pendant que l'humain conduit, la trame est pleine
-        # résolution et lisible ; sinon elle reste légère (3 img/s de surveillance).
+        # The capture mode follows the wheel: while the human drives, the frame is full
+        # resolution and readable; otherwise it stays light (3 fps monitoring).
         conduit = SESSION.holder == "human"
         frame = await asyncio.to_thread(
             controller.frame,
@@ -945,10 +945,10 @@ async def _une_trame() -> dict[str, Any] | None:
             DRIVE_QUALITY if conduit else WATCH_QUALITY,
         )
     except (BrowserUnavailable, TimeoutError, RuntimeError, KeyError, IndexError, TypeError) as erreur:
-        # **On n'attrape que ce qui veut dire « pas de page ».** Un `except Exception` nu
-        # transformait une vraie panne (attribut manquant, bug de trame) en `idle` silencieux :
-        # l'écran affichait « rien à montrer » et personne ne voyait l'erreur. Le reste remonte,
-        # et `_pump` le journalise.
+        # **We only catch what means "no page".** A bare `except Exception`
+        # turned a real failure (missing attribute, frame bug) into a silent `idle`:
+        # the screen showed "nothing to show" and nobody saw the error. The rest propagates,
+        # and `_pump` logs it.
         log.debug("onyx-browser: pas de trame (%s)", type(erreur).__name__)
         return None
     if not frame:
@@ -957,9 +957,9 @@ async def _une_trame() -> dict[str, Any] | None:
     css = frame.get("css") or [0, 0]
     SESSION.viewport = (int(css[0]), int(css[1]))
     trame = {"type": "frame", "seq": seq, "live": True, **frame}
-    # **La dernière image ne se perd pas.** Un écran qui s'ouvre entre deux trames attendait le
-    # prochain tour de pompage (ou restait vide si aucun pompage ne tournait) : la vignette capturée
-    # après chaque outil `browser_*` est donc gardée ici, et servie à la connexion.
+    # **The last image is not lost.** A screen that opens between two frames waited for the
+    # next pump round (or stayed empty if no pump was running): the thumbnail captured
+    # after each `browser_*` tool is therefore kept here, and served on connection.
     STATE["last_frame"] = {"at": time.time(), "trame": trame}
     return trame
 
@@ -976,7 +976,7 @@ async def _broadcast(payload: dict[str, Any]) -> None:
         await _send(ws, payload)
 
 
-# -- démarrage --------------------------------------------------------------------------------
+# -- startup --------------------------------------------------------------------------------
 
 def build_app() -> web.Application:
     app = web.Application()
@@ -984,7 +984,7 @@ def build_app() -> web.Application:
     app.router.add_post("/onyx-browser/observe", observe)
     app.router.add_post("/onyx-browser/lease", lease)
     app.router.add_get("/onyx-browser/ws", websocket)
-    # Les mêmes chemins sans préfixe : `onyx-one` peut relayer l'un ou l'autre.
+    # The same paths without the prefix: `onyx-one` can relay either one.
     app.router.add_get("/health", health)
     app.router.add_get("/ws", websocket)
     return app
@@ -994,17 +994,17 @@ async def _serve() -> None:
     runner = web.AppRunner(build_app(), access_log=None)
     await runner.setup()
 
-    # **Le port préféré, sinon un port libre** : jamais l'exception qui tue la boucle.
+    # **The preferred port, otherwise a free one**: never the exception that kills the loop.
     #
-    # `TCPSite` lève `EADDRINUSE` quand un autre processus Hermes tient déjà 8788 — et
-    # `asyncio.run` fermait alors la boucle, laissant `HUB.loop` pointer sur un cadavre. On prend
-    # la socket nous-mêmes : on sait alors sur quel port on a atterri, et on le publie.
+    # `TCPSite` raises `EADDRINUSE` when another Hermes process already holds 8788 — and
+    # `asyncio.run` then closed the loop, leaving `HUB.loop` pointing at a corpse. We take
+    # the socket ourselves: we then know which port we landed on, and we publish it.
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock.bind((HOST, PORT))
     except OSError as erreur:
-        if getattr(erreur, "errno", None) not in (98, 48):  # EADDRINUSE : Linux, macOS
+        if getattr(erreur, "errno", None) not in (98, 48):  # EADDRINUSE: Linux, macOS
             raise
         sock.close()
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1021,26 +1021,26 @@ async def _serve() -> None:
     HUB.port = sock.getsockname()[1]
     site = web.SockSite(runner, sock)
     await site.start()
-    # **La boucle n'est retenue qu'une fois la socket réellement en écoute.**
+    # **The loop is only retained once the socket is actually listening.**
     HUB.loop = asyncio.get_running_loop()
     write_peer()
     atexit.register(drop_peer)
     STARTED.set()
     log.info("onyx-browser: en écoute sur %s:%s/onyx-browser/health", HOST, HUB.port)
     asyncio.ensure_future(_heartbeat())
-    # **Le serveur vit aussi longtemps que la boucle.** `_serve()` rendait la main juste après le
-    # démarrage : `asyncio.run()` fermait alors la boucle et le runner tombait avec elle — le
-    # port se refermait une poignée de millisecondes après s'être ouvert (connexion réinitialisée,
-    # jamais un 500). On attend ici, pour toujours.
+    # **The server lives as long as the loop.** `_serve()` returned right after
+    # startup: `asyncio.run()` then closed the loop and the runner fell with it — the
+    # port closed again a handful of milliseconds after opening (connection reset,
+    # never a 500). We wait here, forever.
     await asyncio.Event().wait()
 
 
 def ensure_started() -> None:
-    """Démarre le serveur une fois, dans son propre fil : `register()` est synchrone.
+    """Start the server once, in its own thread: `register()` is synchronous.
 
-    Le verrou n'est pas décoratif : Hermes appelle `register()` plusieurs fois (lancement, puis
-    chaque profil), et deux appels rapprochés voyaient tous deux `STARTED` vide — deux `TCPSite`
-    sur le même port, un `EADDRINUSE`, et le plugin passait pour mort.
+    The lock is not decorative: Hermes calls `register()` several times (launch, then
+    each profile), and two close calls both saw `STARTED` empty — two `TCPSite`
+    on the same port, an `EADDRINUSE`, and the plugin looked dead.
     """
     if STARTED.is_set():
         return
@@ -1058,7 +1058,7 @@ def ensure_started() -> None:
 
 
 def announce(payload: dict[str, Any]) -> bool:
-    """Prévient les écrans ouverts, depuis un fil qui n'est pas celui de la boucle."""
+    """Notify open screens, from a thread that is not the loop's."""
     boucle = HUB.loop
     if boucle is None or boucle.is_closed():
         return False
@@ -1070,17 +1070,17 @@ def announce(payload: dict[str, Any]) -> bool:
 
 
 def notify_pending(takeover_id: str, reason: str, session: str = "") -> bool:
-    """Prévient les clients déjà à l'écran qu'une demande vient d'arriver.
+    """Notify clients already on screen that a request has just arrived.
 
-    Rend `False` — sans lever — quand aucun serveur ne vit dans ce processus : c'est une
-    information utile à l'outil, pas une panne de l'appelant.
+    Returns `False` — without raising — when no server lives in this process: this is
+    useful information for the tool, not a failure of the caller.
     """
     boucle = HUB.loop
     if boucle is None or boucle.is_closed() or HUB.port is None:
         log.warning("onyx-browser: aucune boucle vivante, la prise en main reste locale")
         return False
-    # **La fiche dit « demande en attente »** : c'est ce drapeau qu'`onyx-one` lit pour envoyer
-    # l'écran du téléphone à CE processus plutôt qu'à celui qui tient le port 8788.
+    # **The record says "request pending"**: this is the flag `onyx-one` reads to send
+    # the phone screen to THIS process rather than the one holding port 8788.
     HUB.pending = takeover_id
     write_peer()
     _touch()
@@ -1089,7 +1089,7 @@ def notify_pending(takeover_id: str, reason: str, session: str = "") -> bool:
             _broadcast({"type": "takeover", "id": takeover_id, "reason": reason, "session": session}), boucle
         )
         return True
-    except RuntimeError:  # boucle fermée entre-temps
+    except RuntimeError:  # loop closed in the meantime
         log.warning("onyx-browser: boucle fermée pendant la notification")
         clear_pending()
         return False

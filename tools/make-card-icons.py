@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Écrit les vector drawables des cartes de réponse (météo, carte) dans core/src/main/res/drawable.
+"""Writes the vector drawables for the reply cards (weather, map) into core/src/main/res/drawable.
 
-Les SF Symbols de la référence n'existent pas sur Android : chaque symbole employé par les cartes
-(`ReplyCardViews`) a ici son équivalent, dessiné en blanc (les vues le teintent, comme `OnyxIcon`).
-Les formes sont composées de cercles, de rectangles et de traits — assez pour se lire à 20 dp.
+The reference's SF Symbols do not exist on Android: each symbol used by the cards
+(`ReplyCardViews`) has its equivalent here, drawn in white (the views tint it, like `OnyxIcon`).
+The shapes are made of circles, rectangles and strokes — enough to read at 20 dp.
 """
 
 from pathlib import Path
@@ -53,7 +53,7 @@ def write(name, body):
 
 
 def cloud(shift_x=0.0, shift_y=0.0, scale=1.0):
-    """Une nue d'un seul tenant : trois cercles et un ventre plat."""
+    """A single-piece cloud: three circles and a flat belly."""
     def point(x, y, r):
         return circle(x * scale + shift_x, y * scale + shift_y, r * scale)
 
@@ -74,12 +74,12 @@ def sun(cx=6.9, cy=6.4, r=3.0):
 
 
 def crescent(cx=6.6, cy=6.2, r=3.7):
-    """Une lune : le disque évidé par un second disque décalé."""
+    """A moon: the disc hollowed out by a second, offset disc."""
     return (f'    <path android:pathData="M{cx + r * 0.4},{round(cy - r, 2)} A{r},{r} 0 1 1 {cx + r * 0.4},{round(cy + r, 2)} '
             f'A{r * 0.8},{r * 0.8} 0 1 0 {cx + r * 0.4},{round(cy - r, 2)} Z" android:fillColor="{WHITE}" />\n')
 
 
-# ---- météo
+# ---- weather
 write("ic_sym_cloud_fill", cloud())
 write("ic_sym_cloud_sun_fill", cloud(shift_x=1.8, shift_y=2.6, scale=0.9) + sun())
 write("ic_sym_cloud_moon_fill", cloud(shift_x=1.8, shift_y=2.6, scale=0.9) + crescent())
@@ -109,7 +109,7 @@ write("ic_sym_thermometer_medium", stroke("M10.6,14.0 V5.6 a2.0,2.0 0 1 1 4.0,0 
       + circle(12.6, 16.6, 3.1)
       + stroke("M15.8,7.2 H17.8", 1.6) + stroke("M15.8,10.4 H18.6", 1.6))
 
-# ---- la carte et ses actions
+# ---- the map and its actions
 write("ic_sym_map", stroke("M3.0,6.4 L9.0,4.4 L15.0,6.4 L21.0,4.4 V17.6 L15.0,19.6 L9.0,17.6 L3.0,19.6 Z", 1.9)
       + stroke("M9.0,4.4 V17.6", 1.6) + stroke("M15.0,6.4 V19.6", 1.6))
 write("ic_sym_location_fill", fill("M12,2.4 A6.6,6.6 0 0 0 5.4,9 c0,4.9 6.6,12.6 6.6,12.6 S18.6,13.9 18.6,9 A6.6,6.6 0 0 0 12,2.4 Z")

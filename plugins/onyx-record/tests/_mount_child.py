@@ -1,18 +1,18 @@
-"""Démarrage réel du Dashboard dans un ``HERMES_HOME`` jetable — un scénario.
+"""Real startup of the Dashboard in a throwaway ``HERMES_HOME`` — one scenario.
 
-Lancé par ``test_dashboard_mount.py`` dans un interpréteur neuf, avec
-``PYTHONPATH`` sur le dépôt Hermes. Il n'écrit rien hors de son ``HERMES_HOME``
-et ne touche ni au serveur de production ni à ``~/.hermes``.
+Launched by ``test_dashboard_mount.py`` in a fresh interpreter, with
+``PYTHONPATH`` pointing at the Hermes repository. It writes nothing outside its ``HERMES_HOME``
+and touches neither the production server nor ``~/.hermes``.
 
-Pourquoi un processus séparé : le Dashboard monte les routes des plugins au
-moment où il importe ``hermes_cli.web_server``, **avant** d'installer son repli
-``/api/plugins/{name}/{path:path}``. Monter après coup (comme le ferait un test
-in-process) ajoute les routes *derrière* ce repli, qui les masque — mesuré :
-``404 {"detail":"Not Found"}``. Le montage au démarrage est donc le seul
-autoritaire, et c'est celui qu'on exerce ici.
+Why a separate process: the Dashboard mounts plugin routes at the
+moment it imports ``hermes_cli.web_server``, **before** installing its
+``/api/plugins/{name}/{path:path}`` fallback. Mounting afterwards (as an in-process
+test would do) adds the routes *behind* that fallback, which masks them — measured:
+``404 {"detail":"Not Found"}``. Mounting at startup is therefore the only
+authoritative way, and it is the one exercised here.
 
-Usage : python _mount_child.py <HERMES_HOME> <enabled|disabled>
-Sortie : une ligne JSON sur stdout (le rapport) ; les logs vont sur stderr.
+Usage: python _mount_child.py <HERMES_HOME> <enabled|disabled>
+Output: one JSON line on stdout (the report); logs go to stderr.
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ def main() -> int:
         for p in plugins
         if p.get("name") == PLUGIN_NAME
     ]
-    # Idempotent : appelé après le démarrage, il n'ajoute rien au bon ordre.
+    # Idempotent: called after startup, it adds nothing when the order is right.
     web_server_dashboard._mount_plugin_api_routes()
     report["routes_after_mount_call"] = routes()
 
@@ -101,9 +101,9 @@ def main() -> int:
     )
     report["draft"] = {"status": drafted.status_code, "body": drafted.json()}
 
-    # Journal secret : 422, et le texte ne doit apparaître nulle part.
-    # Le journal du stop précédent attend encore : on le jette explicitement
-    # (c'est ce que fait le client après avoir converti, voir ECARTS.md §6).
+    # Secret journal: 422, and the text must not appear anywhere.
+    # The previous stop's journal is still waiting: we discard it explicitly
+    # (this is what the client does after converting, see ECARTS.md §6).
     secret_open = client.post(
         f"{prefix}/skills/record/start",
         json=dict(start_body, discard_pending=True),
@@ -138,7 +138,7 @@ def main() -> int:
         "mentions_session": session_id in health.text or secret_id in health.text,
     }
 
-    # Désactivation à chaud : la porte de consentement par requête doit refuser.
+    # Hot deactivation: the per-request consent gate must refuse.
     with open(os.path.join(home, "config.yaml"), "w", encoding="utf-8") as handle:
         handle.write("plugins:\n  enabled: []\n  disabled: []\n")
     gated = client.get(f"{prefix}/health", headers=headers)

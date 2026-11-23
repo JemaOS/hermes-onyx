@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Onyx — premier démarrage, une commande, sur Linux, macOS et Windows.
+"""Onyx — first start, one command, on Linux, macOS and Windows.
 
-Ce script fait ce qu'un nouvel utilisateur ne peut pas deviner :
+This script does what a new user cannot guess:
 
-  1. vérifie ce qui doit exister (Hermes, cloudflared) et **l'installe si besoin** ;
-  2. active l'exposition de Hermes à l'app (`api_server`), en n'ajoutant que ce qui manque ;
-  3. tire **une** clé et les secrets locaux, en 0600 ;
-  4. installe les composants comme services du système — systemd sous Linux, launchd sous macOS,
-     une tâche à l'ouverture de session sous Windows — pour qu'ils reviennent seuls ;
-  5. attend que le tunnel **réponde vraiment**, puis affiche le lien `onyx://connect` et son QR.
+  1. checks what must exist (Hermes, cloudflared) and **installs it if needed**;
+  2. enables exposing Hermes to the app (`api_server`), adding only what is missing;
+  3. draws **one** key and the local secrets, in 0600;
+  4. installs the components as system services — systemd on Linux, launchd on macOS,
+     a sign-in task on Windows — so they come back on their own;
+  5. waits for the tunnel to **really answer**, then prints the `onyx://connect` link and its QR.
 
-Il est rejouable : relancé, il ne change ni la clé, ni le tunnel, ni le lien déjà installé.
+It is re-runnable: run again, it changes neither the key, nor the tunnel, nor the already installed link.
 
-    python3 tools/onyx-setup.py                 installe / répare, puis donne le lien
-    python3 tools/onyx-setup.py --link          redonne seulement le lien courant
-    python3 tools/onyx-setup.py --voices URL    adresse d'un serveur TTS Kokoro-compatible
+    python3 tools/onyx-setup.py                 install / repair, then print the link
+    python3 tools/onyx-setup.py --link          print only the current link
+    python3 tools/onyx-setup.py --voices URL    address of a Kokoro-compatible TTS server
 
-Ce qui ne suit pas partout : le pont « Ordinateur » capture un écran X11 — il n'existe que sous
-Linux. Ailleurs, l'écran Ordinateur de l'app restera vide, et le script le dit au lieu de
-l'installer à moitié.
+What does not follow everywhere: the "Computer" bridge captures an X11 screen — it exists only on
+Linux. Elsewhere, the app's Computer screen will stay empty, and the script says so instead of
+half-installing it.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ PORT_PONT = 8795
 SYSTEME = platform.system()          # Linux / Darwin / Windows
 
 
-# --------------------------------------------------------------------------- affichage
+# --------------------------------------------------------------------------- display
 
 def etape(titre: str) -> None:
     print(f"\n\033[1m{titre}\033[0m")
@@ -76,10 +76,10 @@ def mourir(texte: str) -> "None":
     sys.exit(1)
 
 
-# --------------------------------------------------------------------------- outils
+# --------------------------------------------------------------------------- tools
 
 def python_systeme() -> str:
-    """L'interpréteur avec lequel les services tourneront — celui qui a lancé ce script."""
+    """The interpreter the services will run under — the one that launched this script."""
     return sys.executable or "python3"
 
 
@@ -88,13 +88,13 @@ def commande(nom: str) -> str | None:
 
 
 def http_statut(url: str, cle: str | None = None, delai: int = 5) -> int:
-    """Le code HTTP d'une adresse, ou 0 si rien ne répond. Jamais d'exception.
+    """The HTTP code of an address, or 0 if nothing answers. Never an exception.
 
-    [cle] : la clé de l'`api_server`. La sonde envoyait autrefois `"x"` en dur — et la passerelle
-    journalisait **un avertissement par sonde** (« API server rejected invalid API key », /v1/models),
-    alors que le 401 disait déjà tout : le serveur est là, la clé est fausse. On envoie donc la clé
-    que le fichier de configuration porte ([cle_api_server]) ; s'il n'y en a pas encore — première
-    installation — on n'envoie **aucun** en-tête, plutôt qu'une fausse clé.
+    [cle]: the `api_server` key. The probe used to send a hardcoded `"x"` — and the gateway
+    logged **a warning per probe** ("API server rejected invalid API key", /v1/models),
+    whereas the 401 already said it all: the server is there, the key is wrong. So we send the key
+    the configuration file carries ([cle_api_server]); if there is none yet — first
+    installation — we send **no** header at all, rather than a false key.
     """
     if cle is None:
         cle = cle_api_server()
@@ -216,7 +216,7 @@ LIENS_CLOUDFLARED = {
 
 
 def installer_cloudflared() -> str:
-    """Le binaire, présent ou téléchargé dans le dossier de l'utilisateur. Aucun compte requis."""
+    """The binary, present or downloaded into the user's folder. No account required."""
     present = commande("cloudflared")
     if present:
         return present
@@ -269,7 +269,7 @@ def config_hermes() -> Path:
 
 
 def cle_api_server() -> str:
-    """La clé de l'`api_server`, où que soit son bloc : `platforms`, `gateway`, ou ailleurs."""
+    """The `api_server` key, wherever its block lives: `platforms`, `gateway`, or elsewhere."""
     chemin = config_hermes()
     try:
         import yaml
@@ -299,7 +299,7 @@ def cle_api_server() -> str:
             trouve = chercher(cfg)
             if trouve:
                 return trouve
-        except Exception:  # noqa: BLE001 — une config illisible ne doit pas tuer l'installation
+        except Exception:  # noqa: BLE001 — an unreadable config must not kill the installation
             pass
 
     dans_bloc = False
@@ -318,11 +318,11 @@ def cle_api_server() -> str:
 
 
 def configurer_api_server() -> str:
-    """Ajoute ce qui manque à `api_server`. Ne remplace **jamais** une clé existante.
+    """Adds what is missing to `api_server`. Never **replaces** an existing key.
 
-    Un Hermes de base n'a ni `enabled`, ni port, ni clé : sans ce bloc, l'app n'a personne à qui
-    parler. Et sur une installation déjà réglée, ajouter un second bloc ailleurs installe une
-    exposition concurrente — le téléphone déjà configuré se met alors à recevoir des 401.
+    A bare Hermes has no `enabled`, no port, no key: without this block, the app has no one to
+    talk to. And on an already configured installation, adding a second block elsewhere installs a competing
+    exposure — the already-configured phone then starts receiving 401s.
     """
     chemin = config_hermes()
     if not chemin.exists():
@@ -370,16 +370,16 @@ def configurer_api_server() -> str:
 # --------------------------------------------------------------------------- services
 
 class Services:
-    """Le même contrat sur trois systèmes : installe, démarre, redémarre, état.
+    """The same contract on three systems: install, start, restart, status.
 
-    Chaque système a sa façon de garder un processus vivant après la fermeture du terminal :
+    Each system has its own way of keeping a process alive after the terminal closes:
 
-      Linux   systemd utilisateur (`systemctl --user`), unités dans ~/.config/systemd/user ;
-      macOS   launchd (`launchctl`), agents dans ~/Library/LaunchAgents ;
-      Windows une tâche planifiée à l'ouverture de session (`schtasks`).
+      Linux   user systemd (`systemctl --user`), units in ~/.config/systemd/user ;
+      macOS   launchd (`launchctl`), agents in ~/Library/LaunchAgents ;
+      Windows a sign-in scheduled task (`schtasks`).
 
-    Le même trio est piloté partout : la passerelle, le dashboard, le tunnel — plus le pont et son
-    tunnel sous Linux seulement.
+    The same trio is driven everywhere: the gateway, the dashboard, the tunnel — plus the bridge and its
+    tunnel on Linux only.
     """
 
     def __init__(self) -> None:
@@ -403,15 +403,15 @@ class Services:
         base = nom[:-len(".service")] if nom.endswith(".service") else nom
         return RACINE / f"{base}.cmd"
 
-    # -- commun --
+    # -- common --
 
     def installer(self, nom: str, arguments: list[str], env: dict[str, str],
                   dossier: Path, journal: Path, keepalive: bool = True) -> None:
-        """Déclare un composant auprès du système, et le (re)lance.
+        """Declares a component to the system, and (re)starts it.
 
-        `nom` peut arriver avec ou sans le suffixe `.service` : il est normalisé ici, parce que
-        l'ajouter deux fois produit une unité nommée `…service.service`, que rien ne lance et que
-        `systemctl` déclare introuvable.
+        `nom` may arrive with or without the `.service` suffix: it is normalized here, because
+        adding it twice produces a unit named `…service.service`, which nothing starts and which
+        `systemctl` declares not found.
         """
         base = nom[:-len(".service")] if nom.endswith(".service") else nom
         nom = f"{base}.service"
@@ -463,8 +463,8 @@ class Services:
                 ecrire_prive(unite, contenu)
                 subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
             subprocess.run(["systemctl", "--user", "enable", nom], capture_output=True)
-            # **Un service sain n'est pas relancé.** Pour le tunnel, le relancer change son nom
-            # public — et le lien déjà installé sur le téléphone meurt sans raison.
+            # **A healthy service is not restarted.** For the tunnel, restarting it changes its
+            # public name — and the link already installed on the phone dies for no reason.
             if change or change_env or not self.actif(nom):
                 subprocess.run(["systemctl", "--user", "restart", nom], capture_output=True)
 
@@ -519,8 +519,8 @@ class Services:
             existant = fichier.read_text(encoding="utf-8") if fichier.exists() else ""
             change = existant != script
             if change:
-                # ASCII strict : cmd.exe lit les .cmd avec la page de code du poste, et un tiret
-                # cadratin en UTF-8 y apparaît en charabia.
+                # Strict ASCII: cmd.exe reads .cmd files with the machine's code page, and an em
+                # dash in UTF-8 appears there as gibberish.
                 ecrire_prive(fichier, script, encoding="ascii")
                 subprocess.run(["schtasks", "/Delete", "/TN", f"Onyx {court}", "/F"],
                                capture_output=True)
@@ -543,8 +543,8 @@ class Services:
         return True
 
     def redemarrer_hermes(self) -> bool:
-        """La configuration de Hermes n'est lue qu'au démarrage : sans relance, une clé écrite à
-        l'instant est refusée (401) alors que le fichier la montre bien."""
+        """Hermes's configuration is only read at startup: without a restart, a key written
+        just now is rejected (401) even though the file clearly shows it."""
         if SYSTEME == "Linux" and subprocess.run(
                 ["systemctl", "--user", "list-unit-files"], capture_output=True,
                 text=True).stdout.count("hermes-gateway.service"):
@@ -559,10 +559,10 @@ class Services:
         return False
 
 
-# --------------------------------------------------------------------------- lien
+# --------------------------------------------------------------------------- link
 
 def journal_tunnel(services: Services, nom: str) -> Path:
-    """Le journal du tunnel, lu là où le service écrit vraiment (une surcharge peut le déplacer)."""
+    """The tunnel log, read where the service actually writes (an override may move it)."""
     defaut = RACINE / f"{nom}.log"
     if SYSTEME == "Linux":
         sortie = subprocess.run(["systemctl", "--user", "show", nom, "-p", "ExecStart"],
@@ -610,12 +610,12 @@ def _largeur_terminal() -> int:
 
 
 def _python_avec_segno() -> str | None:
-    """L'interpréteur qui sait faire des QR — le courant, ou celui du venv d'Onyx.
+    """The interpreter that can make QRs — the current one, or Onyx's venv's.
 
-    Le script peut tourner sous n'importe quel Python (celui de Hermes, celui du système) ; on ne
-    suppose donc pas que `segno` soit importable ici. S'il ne l'est pas, on lui prépare son propre
-    environnement et on lui parle par sous-processus : cela marche quel que soit l'interpréteur
-    appelant, au lieu d'insérer un chemin `site-packages` qui dépend de la version.
+    The script may run under any Python (Hermes's, the system's); we therefore do not
+    assume `segno` is importable here. If it is not, we prepare its own
+    environment and talk to it through a subprocess: this works whatever the calling
+    interpreter, instead of inserting a `site-packages` path that depends on the version.
     """
     try:
         import segno  # noqa: F401
@@ -648,22 +648,22 @@ _SCRIPT_QR = (
 
 
 def rendre_qr(texte: str, afficher: bool = True) -> str:
-    """Le QR dans le terminal, **compact** et seulement s'il rentre.
+    """The QR in the terminal, **compact** and only if it fits.
 
-    Un lien `onyx://connect` fait plus de trois cents caractères, donc le code est large. Rendu
-    naïvement — deux caractères pleins par module — il occupait une centaine de colonnes et une
-    soixantaine de lignes : il débordait de l'écran et ne se scannait plus.
+    An `onyx://connect` link is more than three hundred characters, so the code is wide. Rendered
+    naively — two full characters per module — it took up about a hundred columns and
+    sixty lines: it overflowed the screen and could no longer be scanned.
 
-    Trois choix le rendent lisible :
-      * **une colonne par module** au lieu de deux ;
-      * des **demi-blocs** (▀) : chaque ligne de texte porte deux lignes du code, la hauteur est
-        divisée par deux ;
-      * la correction d'erreur la plus faible pour l'écran (un lien de 300 caractères passe de la
-        version 15 à la version 12, soit 69 colonnes au lieu de 81), et la moyenne pour le fichier
-        PNG, qui peut être photographié.
+    Three choices make it readable:
+      * **one column per module** instead of two;
+      * **half blocks** (▀): each text line carries two lines of the code, so the height is
+        halved;
+      * the weakest error correction for the screen (a 300-character link goes from
+        version 15 to version 12, i.e. 69 columns instead of 81), and the medium one for the
+        PNG file, which may be photographed.
 
-    Rend `"ok"`, `"trop-large"` ou `"pas-encodeur"` — trois issues distinctes, parce qu'elles
-    n'appellent pas le même conseil.
+    Returns `"ok"`, `"trop-large"` or `"pas-encodeur"` — three distinct outcomes, because they
+    do not call for the same advice.
     """
     python = _python_avec_segno()
     if python is None:
@@ -687,11 +687,11 @@ def rendre_qr(texte: str, afficher: bool = True) -> str:
     largeur_modules = len(matrice[0]) + 2 * marge
     taille = shutil.get_terminal_size((80, 24))
 
-    # **Un code trop dense n'est pas rendu dans le terminal.** Un lien `onyx://connect` fait
-    # 65 modules : en demi-blocs cela tient en colonnes, mais dépend de l'interligne exact, de la
-    # police et du nombre de couleurs du terminal — trois choses qui varient d'une machine à
-    # l'autre, et un QR à moitié cassé est pire qu'aucun QR. Au-delà de 45 modules, l'image
-    # prend le relais : elle est fidèle au bit près, elle s'ouvre, et elle se scanne.
+    # **A code too dense is not rendered in the terminal.** An `onyx://connect` link is
+    # 65 modules: in half blocks that fits within the columns, but depends on the exact line spacing, the
+    # font and the number of terminal colors — three things that vary from one machine to
+    # another, and a half-broken QR is worse than no QR. Beyond 45 modules, the image
+    # takes over: it is faithful to the bit, it opens, and it scans.
     if largeur_modules > 45:
         return "image"
     if largeur_modules > taille.columns - 4:
@@ -705,8 +705,8 @@ def rendre_qr(texte: str, afficher: bool = True) -> str:
     if len(grille) % 2:
         grille.append(vide[:])
 
-    # La hauteur compte autant que la largeur : un code qui tient en colonnes mais pousse les
-    # instructions hors de l'écran oblige à faire défiler pour lire ce qu'il faut faire ensuite.
+    # Height counts as much as width: a code that fits in columns but pushes the
+    # instructions off screen forces scrolling to read what to do next.
     if len(grille) // 2 + 3 > taille.lines:
         return "trop-haut"
 
@@ -725,7 +725,7 @@ def rendre_qr(texte: str, afficher: bool = True) -> str:
 
 
 def ouvrir_image(chemin: Path) -> bool:
-    """Ouvre une image dans la visionneuse du système. Silencieux si ça échoue."""
+    """Opens an image in the system viewer. Silent if it fails."""
     commandes = {
         "Linux": ["xdg-open", str(chemin)],
         "Darwin": ["open", str(chemin)],
@@ -742,7 +742,7 @@ def ouvrir_image(chemin: Path) -> bool:
 
 
 def _encadre(texte: str, titre: str) -> None:
-    """Le lien dans un cadre, coupé proprement : lisible même sur un terminal étroit."""
+    """The link in a frame, wrapped cleanly: readable even on a narrow terminal."""
     colonnes = max(40, min(_largeur_terminal() - 4, 100))
     interieur = colonnes - 4
     lignes: list[str] = []
@@ -753,12 +753,12 @@ def _encadre(texte: str, titre: str) -> None:
     print("  ┌─ " + titre + " " + "─" * max(0, colonnes - 5 - len(titre)) + "┐")
     for ligne in lignes:
         print("  │ " + ligne.ljust(interieur) + " │")
-    # Largeur du bas = celle du contenu ("  │ " + interieur + " │" = interieur + 6), moins le
-    # coin lui-même et l'indentation de deux espaces.
+    # Bottom width = the content's ("  │ " + interior + " │" = interior + 6), minus the
+    # corner itself and the two-space indentation.
     print("  └" + "─" * (interieur + 2) + "┘")
 
 
-# --------------------------------------------------------------------------- principal
+# --------------------------------------------------------------------------- main
 
 def donner_lien(services: Services, ouvrir: bool = True) -> None:
     cle = lire_secret(CLE)
@@ -770,16 +770,16 @@ def donner_lien(services: Services, ouvrir: bool = True) -> None:
     voix = lire_secret(VOIX_FICHIER)
     if not voix:
         voix = adresse_tunnel("kokoro-tunnel.service", services)
-    # Le pont : son tunnel peut mettre quelques secondes de plus que la passerelle à publier son
-    # adresse. On l'attend un peu — un lien qui porte le jeton sans l'adresse donne un écran
-    # « Ordinateur » muet, sans que rien ne dise pourquoi.
+    # The bridge: its tunnel may take a few seconds longer than the gateway to publish its
+    # address. We wait a little — a link carrying the token without the address gives a silent
+    # "Computer" screen, with nothing saying why.
     pont = ""
     for _ in range(10):
         pont = adresse_tunnel("onyx-computer-tunnel.service", services)
         if pont:
             break
         time.sleep(2)
-    # Pas d'adresse, pas de jeton : les deux champs voyagent ensemble ou pas du tout.
+    # No address, no token: the two fields travel together or not at all.
     pont_jeton = lire_secret(Path.home() / ".onyx-computer-bridge" / "token") if pont else ""
 
     texte = lien(serveur, cle, voix, pont, pont_jeton)
@@ -796,9 +796,9 @@ def donner_lien(services: Services, ouvrir: bool = True) -> None:
     if issue == "ok":
         print(f"  QR enregistré : {QR}")
     elif issue in ("image", "trop-large", "trop-haut"):
-        # L'image est fidèle au bit près : on l'ouvre, plutôt que de dessiner un code que le
-        # terminal peut déformer. **Jamais depuis le chien de garde** : une fenêtre qui s'ouvre
-        # toute seule sur le bureau deux fois par heure serait une nuisance, pas un service.
+        # The image is faithful to the bit: we open it, rather than draw a code the
+        # terminal may deform. **Never from the watchdog**: a window opening on its own
+        # on the desktop twice an hour would be a nuisance, not a service.
         ouvert = ouvrir_image(QR) if ouvrir else False
         print(f"  QR : {QR}")
         if not ouvert and ouvrir:
@@ -809,11 +809,11 @@ def donner_lien(services: Services, ouvrir: bool = True) -> None:
 
 
 def rafraichir(services: Services) -> int:
-    """Le lien a-t-il vieilli ? Un tunnel « quick » change de nom quand cloudflared redémarre.
+    """Has the link aged? A "quick" tunnel changes name when cloudflared restarts.
 
-    Appelé toutes les deux minutes par le planificateur du système : ne fait rien tant que le nom
-    public est celui que porte déjà le lien, et le réécrit — puis le pousse à l'utilisateur si un
-    destinataire est configuré — dès qu'il en change.
+    Called every two minutes by the system scheduler: does nothing as long as the public
+    name is the one the link already carries, and rewrites it — then pushes it to the user if a
+    recipient is configured — as soon as it changes.
     """
     proteger_artifacts()
     cle = lire_secret(CLE)
@@ -821,7 +821,7 @@ def rafraichir(services: Services) -> int:
         return 0
     actuel = adresse_tunnel("onyx-one-tunnel.service", services)
     if not actuel:
-        return 0                      # tunnel muet : le laisser revenir de lui-même
+        return 0                      # silent tunnel: let it come back on its own
 
     ancien = ""
     try:
@@ -852,7 +852,7 @@ def rafraichir(services: Services) -> int:
 
 
 def installer_rafraichissement(services: Services) -> None:
-    """Le planificateur qui appelle `--refresh` toutes les deux minutes."""
+    """The scheduler that calls `--refresh` every two minutes."""
     python = python_systeme()
     script = str(Path(__file__).resolve())
     nom = "onyx-link-watchdog.service"
@@ -925,7 +925,7 @@ def main() -> int:
     if options.refresh:
         return rafraichir(services)
 
-    # --- 1. ce qui doit exister -------------------------------------------------------------
+    # --- 1. what must exist -----------------------------------------------------------------
     etape("1/5  Ce qui doit être là")
     hermes = commande("hermes")
     if not hermes:
@@ -944,7 +944,7 @@ def main() -> int:
         ok("planificateur de tâches Windows disponible")
         attention("le pont « Ordinateur » n'existe que sous Linux : l'écran Ordinateur restera vide")
 
-    # Copie locale de la passerelle : le service ne doit pas dépendre d'un clone qui bougera.
+    # Local copy of the gateway: the service must not depend on a clone that may move.
     source = Path(__file__).resolve().parent / "onyx-one.py"
     if source.exists() and source.resolve() != (RACINE / "onyx-one.py").resolve():
         texte = source.read_text(encoding="utf-8")
@@ -953,7 +953,7 @@ def main() -> int:
             actuel.write_text(texte, encoding="utf-8")
             ok("passerelle Onyx One installée")
 
-    # --- 2. l'exposition de Hermes ----------------------------------------------------------
+    # --- 2. exposing Hermes -----------------------------------------------------------------
     etape("2/5  Hermes et son api_server")
     if http_statut(f"http://127.0.0.1:{PORT_API}/v1/models") == 0:
         changement = configurer_api_server()
@@ -976,7 +976,7 @@ def main() -> int:
                f"(platforms.api_server : enabled, host, port, key) puis relance.")
     ok(f"Hermes répond sur {PORT_API}")
 
-    # --- 3. les secrets ---------------------------------------------------------------------
+    # --- 3. the secrets ---------------------------------------------------------------------
     etape("3/5  Les secrets locaux")
     for chemin, nom, taille in ((CLE, "clé de l'app", 32),
                                 (JETON, "jeton du dashboard", 32),
@@ -1004,7 +1004,7 @@ def main() -> int:
     ]))
     ok("identifiants du dashboard écrits")
 
-    # --- 4. les services --------------------------------------------------------------------
+    # --- 4. the services --------------------------------------------------------------------
     etape("4/5  Les services")
     python = python_systeme()
     hermes_cmd = hermes
@@ -1075,7 +1075,7 @@ def main() -> int:
         else:
             attention("code du pont absent (tools/onyx-computer-bridge)")
 
-    # --- 5. le tunnel public, puis le lien ---------------------------------------------------
+    # --- 5. the public tunnel, then the link -------------------------------------------------
     etape("5/5  Le tunnel public")
     serveur = ""
     for _ in range(30):
@@ -1086,12 +1086,12 @@ def main() -> int:
     if not serveur:
         mourir(f"Le tunnel n'a pas publié d'adresse en 60 s. Journal : {journal_pass}")
 
-    # Un nom publié n'est pas un tunnel qui sert : Cloudflare l'annonce avant que l'arête ne
-    # réponde, et donner le lien à cet instant produit un 530 chez l'utilisateur.
+    # A published name is not a tunnel that serves: Cloudflare announces it before the edge
+    # answers, and giving the link at that instant produces a 530 for the user.
     #
-    # Le nom est **relu à chaque tour** : un journal peut contenir plusieurs adresses (une
-    # relance, une surcharge d'unité), et juger sur la première lue condamne un tunnel qui vient
-    # justement de changer de nom.
+    # The name is **re-read on every turn**: a log may contain several addresses (a
+    # restart, a unit override), and judging on the first one read condemns a tunnel that has
+    # just changed name.
     repond = False
     for _ in range(30):
         serveur = adresse_tunnel("onyx-one-tunnel.service", services) or serveur

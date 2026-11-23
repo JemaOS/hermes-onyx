@@ -1,62 +1,62 @@
-# Pont « Ordinateur » — l'écran du PC en direct, et ses entrées
+# “Ordinateur” (Computer) bridge — the PC screen live, and its inputs
 
-Ce dossier contient le **compagnon PC** de l'écran « Ordinateur » d'Onyx : le service qui capture
-l'écran de la machine, l'envoie à l'app en quelques images par seconde, et prend en retour les
-clics, les glissers et les frappes.
+This folder contains the **PC companion** for Onyx's “Ordinateur” screen: the service that captures
+the machine's screen, sends it to the app at a few frames per second, and takes back the
+clicks, drags and keystrokes.
 
-- `bridge.py` — le service (capture + entrées + prise de main + approbation).
-- `check-bridge.py` — l'éprouve de bout en bout, sans l'app, **en local**.
-- `check-public.py` — la même éprouve **depuis l'adresse publique** (tunnel), jeton refusé compris.
-- `check-token.py` — vérifie que le jeton est **accueilli tel qu'il arrive** (blancs, `Bearer ` en
-  trop, `?token=`) et que chaque refus porte **son motif** (`bad-token:missing`, `bad-token:len`,
-  `bad-token:mismatch`).
+- `bridge.py` — the service (capture + input + takeover + approval).
+- `check-bridge.py` — the end-to-end test, without the app, **locally**.
+- `check-public.py` — the same test **from the public address** (tunnel), including a rejected token.
+- `check-token.py` — verifies that the token is **accepted as it arrives** (whitespace, extra
+  `Bearer `, `?token=`) and that each refusal carries **its reason** (`bad-token:missing`,
+  `bad-token:len`, `bad-token:mismatch`).
 
-## Pourquoi un pont, et pas une route du serveur Hermes
+## Why a bridge, and not a route on the Hermes server
 
-L'enquête a été faite avant d'écrire : **le serveur Hermes n'expose rien qui capture l'écran du
-poste ni qui y injecte des entrées.**
+The investigation was done before writing: **the Hermes server exposes nothing that captures the
+machine's screen or injects input into it.**
 
-| Ce qui existe | Ce que ça donne | Pourquoi ça ne suffit pas |
+| What exists | What it gives | Why it is not enough |
 |---|---|---|
-| `computer_use` (cua-driver) | Pilote vraiment le bureau : captures, souris, clavier, X11 | C'est un **outil dans un tour d'agent**, pas un point d'accès : aucun client ne peut s'y abonner ni envoyer un clic |
-| `GET /api/display/ws` du Dashboard | Relaie du **RFB** (VNC) en WebSocket, avec une prise de main (`lease`) et une éviction propre | Ne sert qu'un **bureau de bot** : il exige `<HERMES_HOME>/bot-desktop/rfb.sock` (Xvnc en bac à sable) et un **ticket** `bot-desktop` à usage unique émis pour le Desktop. Rien de tout cela n'est l'écran du PC |
-| `/api/tools/computer-use/*` | L'état des permissions du pilote | Pas de capture, pas d'entrée |
-| `terminal` / PTY du Dashboard | Un shell | Ce n'est pas l'écran |
+| `computer_use` (cua-driver) | Really drives the desktop: captures, mouse, keyboard, X11 | It is a **tool inside an agent turn**, not an endpoint: no client can subscribe to it or send a click |
+| Dashboard's `GET /api/display/ws` | Relays **RFB** (VNC) over WebSocket, with a takeover (`lease`) and a clean eviction | Serves only a **bot desktop**: it requires `<HERMES_HOME>/bot-desktop/rfb.sock` (sandboxed Xvnc) and a one-time `bot-desktop` **ticket** issued for the Desktop. None of that is the PC screen |
+| `/api/tools/computer-use/*` | The driver's permission state | No capture, no input |
+| Dashboard `terminal` / PTY | A shell | It is not the screen |
 
-Le pont reprend donc, côté app, **les idées** de ce qui existe déjà côté Hermes — la main
-(`agent` / `human`), le refus d'entrée sans la main, une seule vérité d'état — mais sur **l'écran
-réel** de la machine, et sur son propre canal. C'est le même choix que le serveur TTS compagnon :
-un service local, que l'app joint à son adresse.
+The bridge therefore takes, on the app side, **the ideas** of what already exists on the Hermes
+side — control (`agent` / `human`), refusal of input without control, a single source of state
+truth — but on the machine's **real screen**, and on its own channel. It is the same choice as the
+companion TTS server: a local service, which the app reaches at its address.
 
-## Lancer
+## Running
 
 ```bash
-# Dépendances : une fois, dans un environnement à part
+# Dependencies: once, in a separate environment
 /usr/bin/python3 -m venv ~/.onyx-computer-bridge/venv
 ~/.onyx-computer-bridge/venv/bin/pip install python-xlib websockets
 
-# L'éprouve : affichage, ffmpeg, XTest, et une image
+# The test: display, ffmpeg, XTest, and an image
 python3 bridge.py --display :1 doctor
 
-# Le service (local seulement)
+# The service (local only)
 python3 bridge.py --display :1 --port 8795 --fps 6 --turbo-fps 12
 ```
 
-En service, maintenant : deux **unités utilisateur** systemd (pas de `sudo`), `enable`, qui
-redémarrent toutes seules.
+In service now: two systemd **user units** (no `sudo`), `enable`d, which
+restart on their own.
 
 ```bash
-systemctl --user enable --now onyx-computer-bridge.service   # le pont (127.0.0.1:8795)
-systemctl --user enable --now onyx-computer-tunnel.service    # le tunnel public cloudflared
+systemctl --user enable --now onyx-computer-bridge.service   # the bridge (127.0.0.1:8795)
+systemctl --user enable --now onyx-computer-tunnel.service    # the public cloudflared tunnel
 ```
 
-| Unité | Ce qu'elle fait | Son journal |
+| Unit | What it does | Its log |
 |---|---|---|
-| `onyx-computer-bridge.service` | le pont : capture + entrées, sur `127.0.0.1:8795` | `~/.onyx-computer-bridge/bridge.log` (et `journalctl --user -u onyx-computer-bridge`) |
-| `onyx-computer-tunnel.service` | le tunnel `cloudflared` vers `http://127.0.0.1:8795` | `~/.onyx-computer-bridge/tunnel.log` |
+| `onyx-computer-bridge.service` | the bridge: capture + input, on `127.0.0.1:8795` | `~/.onyx-computer-bridge/bridge.log` (and `journalctl --user -u onyx-computer-bridge`) |
+| `onyx-computer-tunnel.service` | the `cloudflared` tunnel to `http://127.0.0.1:8795` | `~/.onyx-computer-bridge/tunnel.log` |
 
 <details>
-<summary>Ouvrir l'unité du pont</summary>
+<summary>Open the bridge unit</summary>
 
 ```ini
 # ~/.config/systemd/user/onyx-computer-bridge.service
@@ -69,286 +69,286 @@ Environment=XAUTHORITY=/run/user/1000/gdm/Xauthority
 ```
 </details>
 
-Au premier lancement, un **jeton** est créé dans `~/.onyx-computer-bridge/token` (droits `0600`) et
-n'est jamais affiché. C'est celui qu'on colle dans l'app, écran « Ordinateur » → *More* → *Adresse
-du pont*.
+On first launch, a **token** is created in `~/.onyx-computer-bridge/token` (permissions `0600`) and
+never displayed. It is the one you paste into the app, the “Ordinateur” screen → *More* → *Adresse
+du pont* (bridge address).
 
-Dans l'app, l'adresse à saisir dépend d'où l'on vient :
+In the app, the address to enter depends on where you are connecting from:
 
-| D'où | Adresse |
+| From | Address |
 |---|---|
-| Un émulateur Android sur le PC (le pont tourne sur l'hôte) | `http://10.0.2.2:8795` |
-| Un téléphone sur le même réseau local | `http://<ip-du-pc>:8795` (voir « Réseau local ») |
-| **Depuis un autre réseau** (téléphone ailleurs, 4G, autre ville) | `https://<…>.trycloudflare.com` — voir « Depuis un autre réseau » |
+| An Android emulator on the PC (the bridge runs on the host) | `http://10.0.2.2:8795` |
+| A phone on the same local network | `http://<ip-du-pc>:8795` (see “Local network”) |
+| **From another network** (phone elsewhere, 4G, another city) | `https://<…>.trycloudflare.com` — see “From another network” |
 
-## Le protocole, en une page
+## The protocol, in one page
 
-Une seule WebSocket, `ws://<hôte>:<port>/ws`. Le jeton passe en en-tête
-(`Authorization: Bearer …` ou `X-Onyx-Token`), jamais dans l'URL par défaut.
+A single WebSocket, `ws://<hôte>:<port>/ws`. The token goes in a header
+(`Authorization: Bearer …` or `X-Onyx-Token`), never in the URL by default.
 
-**Le pont → l'app**
+**The bridge → the app**
 
-| Trame | Contenu |
+| Frame | Content |
 |---|---|
-| binaire | une image JPEG de l'écran (l'écran entier, réduit ; le curseur est dedans) |
-| `{"t":"hello"}` | `screen` (taille réelle du PC), `view` (taille de l'image), `fps`, `viewer`, `holder` |
-| `{"t":"state"}` | `holder` (`agent`/`human`), `viewer`, `busy`, `last` (la dernière action) |
-| `{"t":"ack"}` / `{"t":"denied"}` | le sort de la dernière demande, avec sa raison |
-| `{"t":"run_result"}` | la sortie d'une commande approuvée |
+| binary | a JPEG image of the screen (the whole screen, downscaled; the cursor is in it) |
+| `{"t":"hello"}` | `screen` (actual PC size), `view` (image size), `fps`, `viewer`, `holder` |
+| `{"t":"state"}` | `holder` (`agent`/`human`), `viewer`, `busy`, `last` (the last action) |
+| `{"t":"ack"}` / `{"t":"denied"}` | the outcome of the last request, with its reason |
+| `{"t":"run_result"}` | the output of an approved command |
 
-**L'app → le pont**
+**The app → the bridge**
 
-| Demande | Effet |
+| Request | Effect |
 |---|---|
-| `take` / `release` | prendre la main, la rendre |
-| `tap` `x`,`y`,`button` | un clic aux coordonnées de **l'écran du PC** |
-| `drag` `from`,`to` | un glisser |
-| `scroll` `x`,`y`,`amount` | la molette |
-| `text` `text` | la frappe, accents compris, par la disposition réelle du clavier |
-| `key` `keys`,`approved` | un raccourci (`ctrl+c`, `Return`, `alt+F4`…) |
-| `run` `command`,`approved` | une commande — **refusée sans `approved: true`** |
-| `stream` `width`,`quality` | la taille et la qualité de l'image **voulues** — ce n'est pas une entrée sur le PC, la main n'est donc pas requise |
-| `rate` `moving` | l'app se déplace : cadence de geste, sinon cadence de repos |
+| `take` / `release` | take control, give it back |
+| `tap` `x`,`y`,`button` | a click at coordinates on the **PC screen** |
+| `drag` `from`,`to` | a drag |
+| `scroll` `x`,`y`,`amount` | the scroll wheel |
+| `text` `text` | typing, accents included, through the keyboard's actual layout |
+| `key` `keys`,`approved` | a shortcut (`ctrl+c`, `Return`, `alt+F4`…) |
+| `run` `command`,`approved` | a command — **refused without `approved: true`** |
+| `stream` `width`,`quality` | the **desired** image size and quality — this is not input to the PC, so control is not required |
+| `rate` `moving` | the app is moving: gesture rate, otherwise idle rate |
 
-**Ce que l'app demande, le pont le borne.** `stream` est ramené à `MIN_VIEW_WIDTH`…`--max-width`
-(jamais plus que l'écran, toujours pair), le quantificateur à 2…31, et `rate` à `--fps`…`--max-fps` :
-un client ne décide pas de brûler le processeur du PC. Après un changement de taille, le pont
-**réannonce** `hello` — l'app doit placer ses clics dans une géométrie qui existe. Redemander la
-même chose ne redémarre pas la capture ; quand plus personne ne regarde, la cadence retombe au
-repos.
+**Whatever the app asks for, the bridge bounds it.** `stream` is clamped to `MIN_VIEW_WIDTH`…`--max-width`
+(never more than the screen, always even), the quantizer to 2…31, and `rate` to `--fps`…`--max-fps`:
+a client does not get to burn the PC's CPU. After a size change, the bridge
+**re-announces** `hello` — the app must place its clicks in a geometry that exists. Asking for the
+same thing again does not restart capture; when no one is watching anymore, the rate drops back to
+idle.
 
-Le débit se règle donc des deux côtés : l'app annonce la largeur **réelle** de son volet (sur un
-téléphone plié, ~1080 pixels — demander 1280 encodait, transmettait et décodait 200 pixels jetés),
-et le pont, lui, ne descend jamais sous ce qui reste lisible ni ne monte au-delà de son plafond.
+Throughput is therefore tuned on both sides: the app announces the **actual** width of its pane (on a
+folded phone, ~1080 pixels — asking for 1280 encoded, transmitted and decoded 200 wasted pixels),
+and the bridge never goes below what remains legible nor above its ceiling.
 
-## La main, et l'approbation
+## Control, and approval
 
-- **Un seul détenteur.** Tant que la main est à l'agent, chaque entrée de l'app est refusée
-  (`denied`, raison `not_holder`) : on peut regarder sans cliquer. Un second client qui demande la
-  main pendant qu'un autre la détient est refusé aussi (`taken_by_other`).
-- **Fermer la fenêtre rend la main.** Une connexion qui se termine rend la main de lui-même ; une
-  session reprise par l'app (l'utilisateur quitte l'écran et revient) ne la rend pas.
-- **L'approbation est dans l'app, le refus est dans le pont.** L'app demande avant d'envoyer ; le
-  pont, lui, ne demande rien : il refuse ce qui n'est pas marqué approuvé. Une app modifiée ne peut
-  donc pas contourner la question. Sont concernés les **commandes** (`run`) et les **raccourcis de
-  session** (verrouillage, déconnexion, changement de console).
-- **Quelques commandes sont refusées même approuvées** (formatage, écriture directe sur un disque,
-  `rm -rf /`, arrêt de la machine) : le motif est gravé des deux côtés, dans l'app et dans le pont.
+- **A single holder.** As long as control is with the agent, every input from the app is refused
+  (`denied`, reason `not_holder`): you can watch without clicking. A second client that asks for
+  control while another holds it is also refused (`taken_by_other`).
+- **Closing the window gives control back.** A connection that ends gives control back by itself; a
+  session resumed by the app (the user leaves the screen and comes back) does not give it back.
+- **Approval is in the app, refusal is in the bridge.** The app asks before sending; the
+  bridge asks nothing: it refuses anything not marked approved. A modified app therefore cannot
+  bypass the question. This covers **commands** (`run`) and **session
+  shortcuts** (lock, logout, console switch).
+- **A few commands are refused even when approved** (formatting, direct write to a disk,
+  `rm -rf /`, shutting the machine down): the reason is hard-coded on both sides, in the app and in the bridge.
 
-## Sécurité
+## Security
 
-- **Écoute locale par défaut** (`127.0.0.1`). Le pont lui-même n'ouvre rien ; pour l'extérieur,
-  c'est le tunnel cloudflared qui publie, et lui seul.
-- **Jeton obligatoire** sur chaque connexion, comparé **à temps constant** (`secrets.compare_digest`),
-  lu dans un fichier `0600`, jamais journalisé — pas même dans le chemin d'une URL refusée — jamais
-  transmis à un client, et `GET /health` ne rend que `{"ok": true}` (ni image, ni jeton, ni nom de
-  machine).
-- **Aucun jeton dans l'URL** côté app : il part dans un en-tête `Authorization: Bearer <jeton>`. Le
-  pont **tolère** encore `?token=…` (compatibilité), mais ne l'utilisez pas : une URL traîne dans
-  les journaux de tout le monde.
-- **L'origine réelle est journalisée.** Derrière le tunnel, le pair TCP vaut toujours `127.0.0.1` :
-  le pont lit `CF-Connecting-IP` (puis `X-Forwarded-For`) et note l'adresse de l'appelant sur
-  chaque connexion, chaque refus et chaque action —
+- **Local listening by default** (`127.0.0.1`). The bridge itself opens nothing; for the outside,
+  it is the cloudflared tunnel that publishes, and it alone.
+- **Mandatory token** on every connection, compared **in constant time** (`secrets.compare_digest`),
+  read from a `0600` file, never logged — not even in the path of a rejected URL — never
+  sent to a client, and `GET /health` returns only `{"ok": true}` (no image, no token, no machine
+  name).
+- **No token in the URL** on the app side: it goes in an `Authorization: Bearer <jeton>` header. The
+  bridge still **tolerates** `?token=…` (compatibility), but do not use it: a URL lingers in
+  everyone's logs.
+- **The real origin is logged.** Behind the tunnel, the TCP peer is always `127.0.0.1`:
+  the bridge reads `CF-Connecting-IP` (then `X-Forwarded-For`) and records the caller's address on
+  every connection, every refusal and every action —
   `{"event":"action","kind":"click","x":1920,"y":1950,"origin":"2a01:cb1d:…"}`.
-- **Les tentatives sont limitées.** 5 jetons faux en 60 s depuis une même origine → cette origine
-  est refusée 5 min (`{"event":"token_blocked", "retry_in":…}`), **même avec le bon jeton** le temps
-  du blocage. La limitation vit en mémoire : un `restart` du pont la remet à zéro.
-- **Le jeton reste dans le trousseau du téléphone** (Keystore Android) et s'affiche masqué en
-  entier, avec un bouton *copier* : l'app ne le montre jamais en clair.
-- **Ce que le pont ne fait pas** : il ne prend pas la main sur l'agent. Le `computer_use` de
-  Hermes, lui, n'est pas au courant de la prise de main de l'app (sa vue est un bureau de bot, pas
-  cet écran) : pendant qu'on pilote au doigt, il vaut mieux laisser l'agent tranquille.
-- Toucher l'écran déplace **le vrai pointeur** et frappe de **vraies touches** (XTest) : c'est ce
-  que veut dire « prendre la main ». Le temps de la prise, la souris de la machine est prise.
+- **Attempts are rate-limited.** 5 bad tokens in 60 s from the same origin → that origin
+  is refused for 5 min (`{"event":"token_blocked", "retry_in":…}`), **even with the right token** for the
+  duration of the block. The limiter lives in memory: a bridge `restart` resets it to zero.
+- **The token stays in the phone's keychain** (Android Keystore) and is displayed fully
+  masked, with a *copy* button: the app never shows it in clear text.
+- **What the bridge does not do**: it does not take control from the agent.
+  Hermes's `computer_use` is not aware of the app's takeover (its view is a bot desktop, not
+  this screen): while you are driving by finger, it is better to leave the agent alone.
+- Touching the screen moves **the real pointer** and presses **real keys** (XTest): that is what
+  “taking control” means. For the duration of the takeover, the machine's mouse is taken.
 
-### Le lien se juge au flux, pas à un ping de contrôle
+### The link is judged on the stream, not on a control ping
 
-Le pont sert **sans** keepalive WebSocket (`ping_interval=None`) : il envoie déjà six images par
-seconde — le flux est le battement de cœur, et une socket morte se voit à l'envoi suivant. Un ping
-de contrôle n'ajoutait qu'une façon de tuer une session saine : son pong fait la queue derrière des
-dizaines de kilo-octets d'image, et un aller-retour de réseau mobile suffit à dépasser les 20 s du
-délai. Côté app, un ping de contrôle toutes les 20 s produisait exactement ce texte à l'écran :
-« sent ping but didn't receive pong within 20000ms (after 0 successful ping/pongs) » — le texte de
-la bibliothèque cliente, en anglais et en millisecondes, sur une session qui avait bien été
-établie. Le battement est donc **applicatif** : l'app envoie `{"t":"ping"}`, le pont répond
-`{"t":"pong"}`, et la session n'est déclarée morte qu'après 45 s sans **aucune** trame.
+The bridge serves **without** WebSocket keepalive (`ping_interval=None`): it already sends six images per
+second — the stream is the heartbeat, and a dead socket shows on the next send. A control ping
+only added a way to kill a healthy session: its pong queues behind tens of kilobytes of image,
+and one mobile-network round trip is enough to exceed the 20 s
+timeout. On the app side, a control ping every 20 s produced exactly this text on screen:
+“sent ping but didn't receive pong within 20000ms (after 0 successful ping/pongs)” — the text from
+the client library, in English and in milliseconds, on a session that had indeed been
+established. The heartbeat is therefore **application-level**: the app sends `{"t":"ping"}`, the bridge replies
+`{"t":"pong"}`, and the session is only declared dead after 45 s without **any** frame.
 
-Mesuré le 26/10 à travers le tunnel public, trois connexions simultanées tenues 380 s (2 283
-trames chacune) :
+Measured on 26/10 through the public tunnel, three simultaneous connections held for 380 s (2,283
+frames each):
 
-- ping de contrôle **client → pont** : pong en **0 ms** ;
-- ping de contrôle **pont → client** : reçu à **+20 s** — il traverse donc cloudflared ;
-- un client qui ne répond **pas** aux pings est coupé à **+40 s** par le pont, code 1011, motif
+- control ping **client → bridge**: pong in **0 ms**;
+- control ping **bridge → client**: received at **+20 s** — so it does cross cloudflared;
+- a client that does **not** answer pings is cut at **+40 s** by the bridge, code 1011, reason
   `keepalive ping timeout`.
 
-Ce dernier point tranche le diagnostic : le pont ne dit pas « sent ping but didn't receive pong
-within 20000ms ». Ce texte-là ne venait pas du pont mais du client, et il ne disait rien d'utile à
-qui lisait l'écran.
+This last point settles the diagnosis: the bridge does not say “sent ping but didn't receive pong
+within 20000ms”. That text did not come from the bridge but from the client, and it said nothing useful to
+whoever was reading the screen.
 
-### Ce qui reste possible pour qui aurait l'adresse **et** le jeton
+### What remains possible for anyone with the address **and** the token
 
-À dire sans détour : **tout ce que l'écran et le clavier permettent.** Le jeton ne limite pas les
-dégâts, il limite l'entrée.
+To put it plainly: **everything the screen and keyboard allow.** The token does not limit
+the damage, it limits entry.
 
-- voir l'écran en continu (6 i/s) — y compris ce qui s'y affiche en clair ;
-- cliquer, glisser, taper du texte, donc **ouvrir un terminal et y lancer des commandes** ;
-- la route `run … approved: true` exécute une commande shell : c'est une **exécution de code à
-  distance**, avec les droits de l'utilisateur `john` (dossiers, navigateur, trousseau déverrouillé,
-  accès réseau interne) ;
-- les seules bornes : les raccourcis de session et les commandes destructrices connues
-  (`mkfs`, `dd of=/dev/…`, `rm -rf /`, `shutdown`…) sont refusées **même approuvées**, et la main ne
-  peut être détenue que par un seul client à la fois.
+- watch the screen continuously (6 fps) — including whatever appears there in clear text;
+- click, drag, type text, and therefore **open a terminal and run commands in it**;
+- the `run … approved: true` route executes a shell command: this is **remote code
+  execution**, with the rights of user `john` (folders, browser, unlocked keychain,
+  internal network access);
+- the only bounds: session shortcuts and known destructive commands
+  (`mkfs`, `dd of=/dev/…`, `rm -rf /`, `shutdown`…) are refused **even when approved**, and control
+  can only be held by one client at a time.
 
-Autrement dit : **l'adresse et le jeton, ensemble, valent le contrôle de la machine.** L'adresse
-seule ne vaut rien (essai → `token_rejected` au journal).
+In other words: **the address and the token, together, are worth control of the machine.** The address
+alone is worth nothing (try it → `token_rejected` in the log).
 
-### Changer le jeton
+### Changing the token
 
-À faire **maintenant** : ce jeton a circulé dans des journaux de session.
+Do this **now**: this token has circulated in session logs.
 
 ```bash
-# 1. un jeton neuf
+# 1. a fresh token
 python3 -c "import secrets; print(secrets.token_hex(24))" > ~/.onyx-computer-bridge/token
 chmod 600 ~/.onyx-computer-bridge/token
 
-# 2. le pont le relit
+# 2. the bridge re-reads it
 systemctl --user restart onyx-computer-bridge.service
 
-# 3. le recopier dans l'app : Ordinateur → More → Adresse du pont → champ Token
+# 3. copy it back into the app: Ordinateur (Computer) → More → Adresse du pont (bridge address) → Token field
 cat ~/.onyx-computer-bridge/token
 ```
 
-L'ancien jeton ne vaut plus rien dès l'étape 2 ; l'app se reconnecte toute seule avec le nouveau.
-Le tunnel, lui, n'a pas besoin d'être redémarré — donc **l'adresse publique ne change pas**.
+The old token is worthless from step 2 on; the app reconnects on its own with the new one.
+The tunnel does not need to be restarted — so **the public address does not change**.
 
-### Réseau local (téléphone sur le même Wi-Fi)
+### Local network (phone on the same Wi-Fi)
 
 ```bash
 python3 bridge.py --display :1 --port 8795 --host 0.0.0.0
 ```
 
-À ne faire que sur un réseau de confiance, et en gardant le jeton : c'est un accès au clavier et à
-la souris de la machine.
+Only do this on a trusted network, and keep the token: this is access to the machine's keyboard and
+mouse.
 
-### Depuis un autre réseau (tunnel public) — **en service**
+### From another network (public tunnel) — **in service**
 
-C'est monté. Le pont n'écoute toujours que sur `127.0.0.1` ; c'est **cloudflared** qui publie une
-adresse `https://…trycloudflare.com` et la rabat sur le pont. Rien n'est ouvert sur la box.
+It is set up. The bridge still listens only on `127.0.0.1`; it is **cloudflared** that publishes an
+address `https://…trycloudflare.com` and forwards it to the bridge. Nothing is opened on the router.
 
-#### L'adresse à saisir dans l'app
+#### The address to enter in the app
 
-Dans l'app : écran **Ordinateur** → **More** (en haut à droite) → **Adresse du pont**, puis collez
-l'adresse dans le champ **Address** :
+In the app: **Ordinateur** screen (Computer) → **More** (top right) → **Adresse du pont** (bridge address), then paste
+the address into the **Address** field:
 
 ```
 https://give-overnight-reveal-nano.trycloudflare.com
 ```
 
-**Gardez le `https://`.** L'app en tire `wss://…/ws`. Sans schéma, elle prendrait `ws://…` (port 80,
-en clair) — ça finit par marcher, mais c'est le trajet non chiffré. Le champ **Token** est juste
-au-dessous : voir plus bas où le prendre.
+**Keep the `https://`.** The app derives `wss://…/ws` from it. Without a scheme, it would use `ws://…` (port 80,
+in clear text) — it does end up working, but that is the unencrypted path. The **Token** field is just
+below: see further down where to get it.
 
-Pour réafficher l'adresse du moment :
+To display the current address again:
 
 ```bash
 grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' ~/.onyx-computer-bridge/tunnel.log | tail -1
 ```
 
-> **L'adresse change à chaque redémarrage du tunnel** (c'est une adresse « express », sans compte
-> Cloudflare). Si l'app ne joint plus le pont après un redémarrage du PC, c'est presque toujours ça :
-> relisez l'adresse ci-dessus et recollez-la dans l'app.
+> **The address changes on every tunnel restart** (it is an “express” address, with no
+> Cloudflare account). If the app can no longer reach the bridge after a PC restart, that is almost always it:
+> read the address above again and paste it back into the app.
 
-#### Le jeton
+#### The token
 
-Il vit dans `~/.onyx-computer-bridge/token` (droits `0600`). L'app le garde dans le trousseau
-Android et ne l'affiche jamais en entier.
+It lives in `~/.onyx-computer-bridge/token` (permissions `0600`). The app keeps it in the Android
+keychain and never displays it in full.
 
 ```bash
-cat ~/.onyx-computer-bridge/token      # à recopier dans l'app, une fois
+cat ~/.onyx-computer-bridge/token      # copy into the app, once
 ```
 
-#### Voir l'état, redémarrer
+#### Check status, restart
 
 ```bash
 systemctl --user status  onyx-computer-bridge.service onyx-computer-tunnel.service
-systemctl --user restart onyx-computer-bridge.service     # relit le jeton, réarme la limitation
-systemctl --user restart onyx-computer-tunnel.service     # ⚠ change l'adresse publique
+systemctl --user restart onyx-computer-bridge.service     # re-reads the token, re-arms the rate limiter
+systemctl --user restart onyx-computer-tunnel.service     # ⚠ changes the public address
 journalctl --user -u onyx-computer-bridge -n 40 --no-pager
-tail -f ~/.onyx-computer-bridge/bridge.log                # qui s'est connecté, qui a cliqué
+tail -f ~/.onyx-computer-bridge/bridge.log                # who connected, who clicked
 ```
 
-#### Tout fermer (plus aucun accès depuis l'extérieur)
+#### Close everything (no more access from outside)
 
 ```bash
-systemctl --user stop onyx-computer-tunnel.service    # coupe l'accès public
-systemctl --user stop onyx-computer-bridge.service    # coupe aussi le pont
-systemctl --user disable onyx-computer-tunnel.service # pour que ça ne reparte pas au démarrage
+systemctl --user stop onyx-computer-tunnel.service    # cuts public access
+systemctl --user stop onyx-computer-bridge.service    # also cuts the bridge
+systemctl --user disable onyx-computer-tunnel.service # so it does not start again at boot
 ```
 
-Le simple `stop` du tunnel suffit : l'adresse publique cesse de répondre, le pont reste utilisable
-en local.
+A simple `stop` of the tunnel is enough: the public address stops answering, the bridge stays usable
+locally.
 
-#### Éprouver l'accès public, sans le téléphone
+#### Test public access, without the phone
 
 ```bash
 python3 check-public.py --url wss://give-overnight-reveal-nano.trycloudflare.com/ws --tap 1920,1950
 ```
 
-(voir « Éprouver » plus bas pour ce que la sortie doit dire)
+(see “Testing” below for what the output must say)
 
-#### Ce que ça change, côté risque
+#### What this changes, risk-wise
 
-Publier ce port, c'est publier **l'écran, la souris et le clavier** du PC. Le jeton devient la
-**seule** serrure ; ce qui suit la protège (voir « Sécurité »), mais lisez la ligne « ce qui reste
-possible » avant de laisser ça ouvert en permanence.
+Publishing this port is publishing the PC's **screen, mouse and keyboard**. The token becomes the
+**only** lock; what follows protects it (see “Security”), but read the “what remains
+possible” line before leaving this open permanently.
 
-## Éprouver
+## Testing
 
 ```bash
 python3 check-bridge.py --url ws://127.0.0.1:8795/ws --tap 320,180 --type "bonjour" \
     --refuse-first --command "uname -a"
 ```
 
-Ce que le script doit rendre, et ce que le journal (`~/.onyx-computer-bridge/bridge.log`, une ligne
-JSON par événement) doit montrer :
+What the script should return, and what the log (`~/.onyx-computer-bridge/bridge.log`, one JSON
+line per event) should show:
 
 ```
-jeton faux refusé (ConnectionClosedError)      → {"event":"token_rejected"}
-salut : écran [3840, 2160] → image [1280, 720], 6 i/s
-état initial : main à agent
-sans la main : denied / not_holder             → {"event":"denied","reason":"not_holder"}
-prise de main : ack / taken                    → {"event":"takeover"}
-commande sans approbation : denied / needs_approval   → {"event":"denied","reason":"needs_approval"}
-commande approuvée : run_result / sortie 0     → {"event":"run_started"} … {"event":"run_finished"}
-main rendue : ack / released                   → {"event":"handback"}
-après le rendu : denied / not_holder
+bad token refused (ConnectionClosedError)      → {"event":"token_rejected"}
+hello: screen [3840, 2160] → image [1280, 720], 6 fps
+initial state: control with agent
+without control: denied / not_holder           → {"event":"denied","reason":"not_holder"}
+takeover: ack / taken                          → {"event":"takeover"}
+command without approval: denied / needs_approval   → {"event":"denied","reason":"needs_approval"}
+approved command: run_result / output 0        → {"event":"run_started"} … {"event":"run_finished"}
+control given back: ack / released             → {"event":"handback"}
+after handback: denied / not_holder
 ```
 
-### Depuis l'adresse publique (ce que voit le propriétaire à 1000 km)
+### From the public address (what the owner sees 1000 km away)
 
 ```bash
 python3 check-public.py --url wss://give-overnight-reveal-nano.trycloudflare.com/ws --tap 1920,1950
 ```
 
-Ce que la sortie rend (relevé réel du montage) :
+What the output returns (actual reading from the setup):
 
 ```
-sans aucun jeton → refusé à la session (code 4401)
-avec un faux jeton → refusé à la session (code 4401)
-salut : écran [3840, 2160] → image [1280, 720], 6 i/s, main à agent
-image reçue : 95242 octets, JPEG 1280x720
-prise de main : ack / taken
-clic à 1920,1950 (écran du PC) : ack / clicked 1920,1950
-pointeur relu sur le PC : 1920 1950 (attendu 1920 1950)      ← le clic est bien arrivé au PC
-main rendue : ack / released
+with no token at all → refused at the session (code 4401)
+with a bad token → refused at the session (code 4401)
+hello: screen [3840, 2160] → image [1280, 720], 6 fps, control with agent
+image received: 95242 bytes, JPEG 1280x720
+takeover: ack / taken
+click at 1920,1950 (PC screen): ack / clicked 1920,1950
+pointer read back on the PC: 1920 1950 (expected 1920 1950)      ← the click really reached the PC
+control given back: ack / released
 
-— limitation des tentatives —
-  essai 1..5 : code 4401
-  essai 6 : code 4429  ← mise au coin
-bon jeton pendant la mise au coin → refusé à la session (code 4429)
+— attempt rate limiting —
+  attempt 1..5: code 4401
+  attempt 6: code 4429  ← blocked
+good token during the block → refused at the session (code 4429)
 ```
 
-et le journal du pont, **avec l'adresse d'origine** :
+and the bridge log, **with the origin address**:
 
 ```
 {"event":"token_rejected","origin":"2a01:cb1d:…","path":"/ws","reason":"len","token_len":48,
@@ -358,12 +358,12 @@ et le journal du pont, **avec l'adresse d'origine** :
 {"event":"token_blocked","origin":"2a01:cb1d:…","retry_in":299.9}
 ```
 
-`reason` et les deux longueurs sont la **preuve** d'un jeton refusé : `missing` (aucun jeton
-présenté), `len` (le jeton reçu n'a pas la longueur de celui du pont — un collage tronqué, ou un
-jeton d'avant le changement), `mismatch` (même longueur, autre valeur). Le jeton lui-même n'est
-jamais écrit, et **on n'écrit pas non plus d'empreinte** : huit caractères hexadécimaux d'un
-SHA-256 se forcent hors ligne en quelques secondes contre un jeton de vingt caractères, ce serait
-publier le secret. La longueur, elle, ne dit rien du secret et suffit à trancher.
+`reason` and the two lengths are the **proof** of a rejected token: `missing` (no token
+presented), `len` (the received token is not the length of the bridge's — a truncated paste, or a
+token from before the change), `mismatch` (same length, different value). The token itself is
+never written, and **no fingerprint is written either**: eight hexadecimal characters of a
+SHA-256 are brute-forced offline in seconds against a twenty-character token, which would be
+publishing the secret. The length itself says nothing about the secret and is enough to decide.
 
-> L'éprouve met **votre propre origine** au coin pour 5 min. Pour réarmer tout de suite :
+> The test blocks **your own origin** for 5 min. To re-arm it right away:
 > `systemctl --user restart onyx-computer-bridge.service`.

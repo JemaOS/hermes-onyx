@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------------------------
-# check-forbidden-words.sh — garde-fou du dépôt public.
+# check-forbidden-words.sh — guard rail for the public repository.
 #
-# Le dépôt public ne porte AUCUNE marque de plateforme, aucun nom de l'ancien produit ni celui de
-# la firme d'origine. Ce garde-fou les **désigne** sans jamais les écrire : chaque mot est
-# assemblé par fragments au moment de l'exécution. C'est le seul fichier du dépôt autorisé à
-# viser ces motifs, et il le fait sans en contenir aucun — sans quoi le contrôle `grep -rilE` du
-# dépôt (qui doit rendre 0) se déclencherait sur le garde-fou lui-même.
+# The public repository carries NO platform trademark, no name of the former product, and none of
+# the original firm. This guard rail **names** them without ever writing them: each word is
+# assembled from fragments at run time. It is the only file in the repository allowed to
+# target these patterns, and it does so without containing any of them — otherwise the repository's
+# `grep -rilE` check (which must return 0) would trigger on the guard rail itself.
 #
-# Il vérifie le CONTENU **et** les NOMS de fichiers, à bornes de mot, sans tenir compte de la
-# casse : le motif le plus court du garde-fou ne doit pas matcher « audioSession » ni
-# « AudioScenario ».
+# It checks file CONTENT **and** NAMES, with word boundaries, ignoring
+# case: the guard rail's shortest pattern must not match "audioSession" or
+# "AudioScenario".
 #
-# Usage : scripts/check-forbidden-words.sh [racine=.]
-# Sortie : 0 si aucune occurrence ; 1 sinon (et la liste est imprimée).
+# Usage: scripts/check-forbidden-words.sh [root=.]
+# Output: 0 if no occurrence; 1 otherwise (and the list is printed).
 # ---------------------------------------------------------------------------------------------
 set -uo pipefail
 
 ROOT="${1:-.}"
 cd "$ROOT" || exit 2
 
-# Mots interdits, assemblés par morceaux (voir l'entête).
+# Forbidden words, assembled from pieces (see the header).
 W_OLD_PRODUCT="red""de"
 W_FIRM="goose""house"
 W1="i""phone"
@@ -36,13 +36,13 @@ PATTERN="\\b(${W_OLD_PRODUCT}|${W_FIRM}|${W1}|${W2}|${W3}|${W4}|${W5}|${W6}|${W7
 hits=0
 printf 'Dépôt scanné : %s\n' "$(pwd)"
 
-# -r récursif, -l noms de fichiers, -I saute le binaire, -i insensible à la casse, -E étendu.
+# -r recursive, -l file names, -I skip binary, -i case-insensitive, -E extended.
 #
-# **L'exemption des plists, et elle seule.** L'identifiant de DTD d'un plist
-# (`<!DOCTYPE plist PUBLIC "-//…//DTD PLIST 1.0//EN" "http://…/DTDs/PropertyList-1.0.dtd">`) est un
-# **littéral du format** : un LaunchAgent macOS ne se lit pas sans lui, et le mot qu'il contient n'y
-# est pas une mention de marque. Ces lignes-là sont donc écartées **à la ligne**, pas le fichier :
-# le contrôle reste entier partout ailleurs, y compris dans le même fichier.
+# **The plist exemption, and it alone.** A plist's DTD identifier
+# (`<!DOCTYPE plist PUBLIC "-//…//DTD PLIST 1.0//EN" "http://…/DTDs/PropertyList-1.0.dtd">`) is a
+# **format literal**: a macOS LaunchAgent cannot be read without it, and the word it contains is
+# not a trademark mention there. Those lines are therefore excluded **line by line**, not the file:
+# the check remains complete everywhere else, including within the same file.
 EXEMPT='<!DOCTYPE plist|DTDs/PropertyList'
 content="$(grep -rIiE "$PATTERN" . --exclude-dir=.git 2>/dev/null | grep -vE "$EXEMPT" | cut -d: -f1 | sed 's#^\./##' | sort -u || true)"
 if [ -n "$content" ]; then

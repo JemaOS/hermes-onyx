@@ -1,25 +1,25 @@
-# onyx-vault — coffre de secrets par profil pour Onyx
+# onyx-vault — per-profile secret vault for Onyx
 
-Plugin Hermes « dashboard-only » : il ajoute des routes backend sous
-`/api/plugins/onyx-vault/` et rien d'autre. Les secrets sont chiffrés au repos
-(Fernet) dans SQLite, hors du dépôt Hermes, un jeu par profil (`onyx`, `staging`,
-…). Aucune valeur n'est jamais renvoyée par HTTP, écrite en clair sur disque,
-journalisée ou recopiée dans une exception.
+Hermes "dashboard-only" plugin: it adds backend routes under
+`/api/plugins/onyx-vault/` and nothing else. The secrets are encrypted at rest
+(Fernet) in SQLite, outside the Hermes repository, one set per profile (`onyx`, `staging`,
+…). No value is ever returned over HTTP, written in plaintext to disk,
+logged or copied into an exception.
 
-Installation, activation, désinstallation : voir **[INSTALL.md](INSTALL.md)**.
+Installation, activation, uninstallation: see **[INSTALL.md](INSTALL.md)**.
 
 ## API
 
-Toutes les routes exigent le jeton de session du Dashboard
-(`X-Hermes-Session-Token`), comme n'importe quelle route `/api/`.
+All routes require the Dashboard session token
+(`X-Hermes-Session-Token`), like any `/api/` route.
 
-| Méthode | Chemin | Entrée | Sortie |
+| Method | Path | Input | Output |
 |---|---|---|---|
-| `GET` | `/api/plugins/onyx-vault/vault.list` | `?profile=<nom>` | `{profile, count, secrets:[{name, fingerprint, updated_at, used_by}]}` |
+| `GET` | `/api/plugins/onyx-vault/vault.list` | `?profile=<name>` | `{profile, count, secrets:[{name, fingerprint, updated_at, used_by}]}` |
 | `POST` | `/api/plugins/onyx-vault/vault.put` | `{profile, name, value, used_by?}` | `{profile, name, fingerprint, updated_at, used_by, created}` |
 | `POST` | `/api/plugins/onyx-vault/vault.revoke` | `{profile, name}` | `{profile, name, revoked}` |
-| `GET` | `/api/plugins/onyx-vault/health` | — | état du coffre (jamais de secret) |
-| `GET` | `/api/plugins/onyx-vault/info` | — | version, routes, cible de montage |
+| `GET` | `/api/plugins/onyx-vault/health` | — | vault state (never a secret) |
+| `GET` | `/api/plugins/onyx-vault/info` | — | version, routes, mount target |
 
 ```bash
 B=http://127.0.0.1:9119/api/plugins/onyx-vault
@@ -37,28 +37,28 @@ curl -s -X POST "$B/vault.revoke" -H "$H" -H 'Content-Type: application/json' \
 # -> {"profile":"onyx","name":"OPENAI_API_KEY","revoked":true}
 ```
 
-Codes : `200` ok · `400` entrée invalide · `401` pas de jeton · `404` plugin non
-activé · `413` corps trop gros · `503` clé absente ou invalide (réponse avec la
-commande de remédiation).
+Codes: `200` ok · `400` invalid input · `401` no token · `404` plugin not
+enabled · `413` body too large · `503` key missing or invalid (response with the
+remediation command).
 
-`fingerprint` = les 4 derniers caractères de la valeur, `****` si la valeur fait
-moins de 8 caractères.
+`fingerprint` = the last 4 characters of the value, `****` if the value is
+shorter than 8 characters.
 
-## Format sur disque
+## On-disk format
 
-`~/.hermes/vault/onyx-vault.db` (0600) — table `secrets` :
+`~/.hermes/vault/onyx-vault.db` (0600) — `secrets` table:
 
-| colonne | contenu |
+| column | content |
 |---|---|
-| `profile`, `name` | identifiants, en clair |
-| `ciphertext` | jeton Fernet d'une enveloppe `{v, p, n, s}` : la valeur **et** son `(profil, nom)` |
-| `fingerprint` | 4 derniers caractères |
-| `used_by` | liste JSON déclarative |
+| `profile`, `name` | identifiers, in plaintext |
+| `ciphertext` | Fernet token of an envelope `{v, p, n, s}`: the value **and** its `(profile, name)` |
+| `fingerprint` | last 4 characters |
+| `used_by` | declarative JSON list |
 | `created_at`, `updated_at` | ISO 8601 UTC |
 
-Lier le chiffré à son `(profil, nom)` détecte le déplacement d'une ligne à l'autre.
-Une clé différente produit `400 "déchiffrement impossible"`, jamais une trace de la
-valeur.
+Binding the ciphertext to its `(profile, name)` detects when a row is moved to
+another. A different key produces `400 "déchiffrement impossible"` (decryption
+impossible), never a trace of the value.
 
 ## Structure
 
@@ -66,15 +66,15 @@ valeur.
 onyx-vault-plugin/
 ├── INSTALL.md
 ├── README.md
-├── dashboard/            # <- seul dossier à copier dans ~/.hermes/plugins/onyx-vault/
-│   ├── manifest.json     # name, tab masqué, api: plugin_api.py
-│   ├── plugin_api.py     # router = APIRouter() + montage des routes à ?profile=
-│   ├── onyx_vault.py     # cœur testable seul : Fernet + SQLite + empreintes
-│   └── dist/index.js     # module vide (aucune UI)
+├── dashboard/            # <- only folder to copy into ~/.hermes/plugins/onyx-vault/
+│   ├── manifest.json     # name, hidden tab, api: plugin_api.py
+│   ├── plugin_api.py     # router = APIRouter() + mounting of routes at ?profile=
+│   ├── onyx_vault.py     # core testable on its own: Fernet + SQLite + fingerprints
+│   └── dist/index.js     # empty module (no UI)
 └── tests/
-    ├── test_vault_core.py       # 17 tests : non-fuite, chiffrement, validation
-    ├── test_plugin_api.py       # 12 tests : contrat HTTP (FastAPI nue)
-    └── test_dashboard_mount.py  #  6 tests : vrai Dashboard, 401/montage/put/list/revoke
+    ├── test_vault_core.py       # 17 tests: no-leak, encryption, validation
+    ├── test_plugin_api.py       # 12 tests: HTTP contract (bare FastAPI)
+    └── test_dashboard_mount.py  #  6 tests: real Dashboard, 401/mount/put/list/revoke
 ```
 
 ## Tests
@@ -83,29 +83,29 @@ onyx-vault-plugin/
 cd /home/john/Bureau/onyx-vault-plugin
 PY=$(ls -d ~/.hermes/tools/python-3.14.7*/bin/python3 | head -1)
 
-# cœur + contrat HTTP (aucun besoin de Hermes)
+# core + HTTP contract (no need for Hermes)
 "$PY" -m unittest tests.test_vault_core tests.test_plugin_api -v
 
-# intégration au vrai Dashboard, dans un HERMES_HOME jetable (ne touche pas au serveur en cours)
+# integration with the real Dashboard, in a throwaway HERMES_HOME (does not touch the running server)
 cd ~/.hermes/hermes-agent
 PYTHONPATH=/home/john/.hermes/hermes-agent "$PY" \
   /home/john/Bureau/onyx-vault-plugin/tests/test_dashboard_mount.py
 ```
 
-## Deux décisions à connaître
+## Two decisions to be aware of
 
-**1. `?profile=` est un nom de profil de coffre, pas un profil Hermes.**
-Le Dashboard monte chaque plugin avec une dépendance dont le paramètre `profile`
-est lu dans la query string et désigne un profil **Hermes** ; avec
-`?profile=onyx` elle répond `404 Profile 'onyx' does not exist` avant d'atteindre
-le plugin. Les trois routes du coffre sont donc enregistrées sur l'application
-Dashboard (ce qui n'écarte que cette dépendance de portée : authentification,
-consentement par requête et limites de corps restent des middlewares actifs). Les
-routes sans `?profile=` (`health`, `info`) passent par l'`APIRouter` standard.
-Détail et mesures : `tests/test_dashboard_mount.py`, docstring de `plugin_api.py`,
-§8 d'`INSTALL.md`.
+**1. `?profile=` is a vault profile name, not a Hermes profile.**
+The Dashboard mounts each plugin with a dependency whose `profile` parameter
+is read from the query string and designates a **Hermes** profile; with
+`?profile=onyx` it answers `404 Profile 'onyx' does not exist` before reaching
+the plugin. The vault's three routes are therefore registered on the Dashboard
+application (which rules out only that scope dependency: authentication,
+per-request consent and body limits remain active middleware). Routes without
+`?profile=` (`health`, `info`) go through the standard `APIRouter`.
+Details and measurements: `tests/test_dashboard_mount.py`, docstring of `plugin_api.py`,
+§8 of `INSTALL.md`.
 
-**2. La clé absente ne casse rien.** `plugin_api.py` s'importe toujours : sans clé
-il journalise un avertissement explicite et répond `503` avec la commande de
-génération. Dès que la clé apparaît, la requête suivante fonctionne — pas de
-redémarrage, pas de crash du Dashboard.
+**2. A missing key breaks nothing.** `plugin_api.py` always imports: without a key
+it logs an explicit warning and answers `503` with the generation
+command. As soon as the key appears, the next request works — no
+restart, no Dashboard crash.

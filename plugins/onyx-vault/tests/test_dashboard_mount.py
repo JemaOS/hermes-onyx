@@ -1,17 +1,17 @@
-"""Preuve d'intégration : le vrai Dashboard Hermes monte le plugin et le sert.
+"""Integration proof: the real Hermes Dashboard mounts the plugin and serves it.
 
-Ce fichier n'est pas un test unitaire : il démarre le vrai ``hermes_cli.web_server``
-dans un ``HERMES_HOME`` jetable (aucun accès au serveur de production), puis vérifie
-de bout en bout :
+This file is not a unit test: it starts the real ``hermes_cli.web_server``
+in a throwaway ``HERMES_HOME`` (no access to the production server), then checks
+end to end:
 
-1. plugin installé mais absent de ``plugins.enabled`` -> aucune route montée ;
-2. ajout dans ``plugins.enabled`` -> montage à chaud à la première requête ;
-3. sans jeton de session -> ``401 Unauthorized`` ;
-4. avec jeton -> ``put`` / ``list`` / ``revoke`` (empreinte seulement, jamais la valeur) ;
-5. plugin désactivé -> ``404 Plugin not found`` (porte de consentement par requête) ;
-6. clé absente -> ``503`` + remédiation, sans faire tomber le serveur.
+1. plugin installed but absent from ``plugins.enabled`` -> no route mounted;
+2. added to ``plugins.enabled`` -> hot mount on the first request;
+3. without session token -> ``401 Unauthorized``;
+4. with token -> ``put`` / ``list`` / ``revoke`` (fingerprint only, never the value);
+5. plugin disabled -> ``404 Plugin not found`` (per-request consent gate);
+6. missing key -> ``503`` + remediation, without bringing the server down.
 
-Lancer (le venv Hermes n'est pas sur le PATH) :
+Run (the Hermes venv is not on the PATH):
     PY=$(ls -d ~/.hermes/tools/python-3.14.7*/bin/python3 | head -1)
     cd ~/.hermes/hermes-agent
     PYTHONPATH=/home/john/.hermes/hermes-agent "$PY" \\
@@ -42,7 +42,7 @@ def _write_config(home: Path, enabled: list) -> None:
 
 
 def setUpModule() -> None:
-    """Installe le plugin dans un HERMES_HOME jetable AVANT d'importer le serveur."""
+    """Install the plugin in a throwaway HERMES_HOME BEFORE importing the server."""
     tmp = tempfile.mkdtemp(prefix="onyx-vault-test-")
     home = Path(tmp) / "home"
     home.mkdir(parents=True)
@@ -55,17 +55,17 @@ def setUpModule() -> None:
     os.environ.pop("HERMES_DASHBOARD_SESSION_TOKEN", None)
     os.environ.pop("ONYX_VAULT_MOUNT", None)
     os.environ["ONYX_VAULT_DIR"] = str(Path(tmp) / "vault")
-    _write_config(home, [])  # installé, pas encore activé
+    _write_config(home, [])  # installed, not yet enabled
 
     try:
-        import hermes_bootstrap  # noqa: F401  (prépare sys.path, comme le serveur)
+        import hermes_bootstrap  # noqa: F401  (prepares sys.path, like the server)
 
-        # cryptography n'est visible qu'après le bootstrap : le venv Hermes a la
-        # dépendance, l'interpréteur de départ non.
+        # cryptography is only visible after the bootstrap: the Hermes venv has the
+        # dependency, the starting interpreter does not.
         from cryptography.fernet import Fernet
 
         from hermes_cli import web_server, web_server_dashboard
-    except Exception as exc:  # environnement sans Hermes : on saute proprement
+    except Exception as exc:  # environment without Hermes: we skip cleanly
         raise unittest.SkipTest(f"hermes_cli indisponible : {exc}") from None
 
     os.environ["ONYX_VAULT_KEY"] = Fernet.generate_key().decode()
@@ -86,7 +86,7 @@ def tearDownModule() -> None:
 
 
 class _TestClient:
-    """Petit adaptateur : TestClient paresseux pour ne pas dépendre de httpx à l'import."""
+    """Small adapter: lazy TestClient so as not to depend on httpx at import time."""
 
     def __init__(self, app):
         from starlette.testclient import TestClient
@@ -210,7 +210,7 @@ class TestDashboardMount(unittest.TestCase):
 
 
 def _reload_core(web_server=None) -> None:
-    """Le plugin garde un singleton paresseux : on le vide entre deux scénarios."""
+    """The plugin keeps a lazy singleton: we clear it between two scenarios."""
     core = sys.modules.get("onyx_vault_core")
     if core is not None and hasattr(core, "reset_vault"):
         core.reset_vault()

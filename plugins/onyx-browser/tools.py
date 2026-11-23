@@ -1,12 +1,12 @@
-"""L'outil qui bloque le tour, et les crochets d'où vient le `task_id` du navigateur.
+"""The tool that blocks the turn, and the hooks from which the browser's `task_id` comes.
 
-Le point non négociable du plan (§4) : **Hermes ferme son navigateur à la fin du tour**. Une prise
-en main n'a donc de sens que si l'agent **attend** pendant son tour. C'est ce que fait
-`browser_request_takeover` : il pose une demande, publie l'attente, et bloque sur un
-`threading.Event` jusqu'à ce que l'humain rende la main (ou 15 minutes).
+The non-negotiable point of the plan (§4): **Hermes closes its browser at the end of the turn**. A takeover
+therefore only makes sense if the agent **waits** during its turn. That is what
+`browser_request_takeover` does: it posts a request, publishes the wait, and blocks on a
+`threading.Event` until the human hands control back (or 15 minutes).
 
-L'outil ne voit **jamais** ce que l'humain tape : il reçoit une note libre, l'hôte de la page et un
-booléen « il y avait un champ mot de passe ». Rien d'autre ne traverse.
+The tool **never** sees what the human types: it receives a free-form note, the page host and a
+boolean "there was a password field". Nothing else crosses over.
 """
 
 from __future__ import annotations
@@ -48,11 +48,11 @@ TAKEOVER_SCHEMA = {
 
 
 def _session_id() -> str:
-    """**La conversation qui demande la main**, telle que Hermes la nomme.
+    """**The conversation asking for control**, as Hermes names it.
 
-    Le plugin tourne dans le processus de l'agent : le contexte de session y est lisible. En CLI
-    ou dans un test il ne l'est pas, et une demande sans conversation reste une demande — elle
-    s'affiche alors dans le fil vivant, comme avant.
+    The plugin runs in the agent's process: the session context is readable there. In CLI
+    mode or in a test it is not, and a request without a conversation remains a request — it
+    is then shown in the live thread, as before.
     """
     try:
         from gateway.session_context import get_session_env
@@ -66,20 +66,20 @@ def _session_id() -> str:
 
 
 def request_takeover(reason: str) -> str:
-    """Pose la demande, attend, et rend au modèle un compte rendu sans aucun secret."""
+    """Post the request, wait, and return to the model a report with no secret in it."""
     waiting = Waiting(takeover_id=uuid.uuid4().hex[:12], reason=reason.strip() or "Take over my browser.")
     server.ensure_started()
     server.SESSION.waiting = waiting
-    # Le viewport de téléphone est posé **avant** que l'humain tape (§2.1).
+    # The phone viewport is set **before** the human types (§2.1).
     try:
         with controller_guard():
             width, height = cdp_controller().use_phone_viewport()
             server.SESSION.viewport = (width, height)
     except Exception:
-        # **Pas de page, pas de prise en main.** Hermes récolte un navigateur resté deux minutes
-        # sans outil et en rouvre un, vide, au tour suivant : `page_state()` distingue ce cas
-        # (`blank`) de l'absence de navigateur (`gone`), et le modèle reçoit le geste à faire au
-        # lieu d'attendre quinze minutes devant un écran blanc.
+        # **No page, no takeover.** Hermes reaps a browser left two minutes
+        # without a tool and reopens an empty one on the next turn: `page_state()` distinguishes this case
+        # (`blank`) from the absence of a browser (`gone`), and the model receives the gesture to perform
+        # instead of waiting fifteen minutes in front of a blank screen.
         server.SESSION.waiting = None
         try:
             etat = server.page_snapshot()["state"]
@@ -106,17 +106,17 @@ def request_takeover(reason: str) -> str:
             },
             ensure_ascii=False,
         )
-    # **Une demande sait d'où elle vient.** La conversation est lue ici, dans le contexte du tour :
-    # c'est ce que l'écran affiche pour poser la carte dans le bon fil, et la clé d'un refus déjà
-    # donné sur cette page.
+    # **A request knows where it comes from.** The conversation is read here, in the turn's context:
+    # it is what the screen displays to place the card in the right thread, and the key of a refusal already
+    # given on this page.
     waiting.session = _session_id()
     try:
         waiting.url = str(server.page_snapshot().get("url") or "")
     except Exception:
         waiting.url = ""
-    # **Refusé, cela reste refusé.** La personne a dit non sur cette page : reposer la question au
-    # tour suivant — à chaque prompt réécrit — n'est pas une demande, c'est un harcèlement. On le
-    # dit au modèle tout de suite, sans publier de carte.
+    # **Refused stays refused.** The person said no on this page: asking the question again on the
+    # next turn — on every rewritten prompt — is not a request, it is harassment. We say it
+    # to the model right away, without publishing a card.
     if waiting.session and server.declined_recently(waiting.session, waiting.url):
         server.SESSION.waiting = None
         return json.dumps(
@@ -132,8 +132,8 @@ def request_takeover(reason: str) -> str:
             ensure_ascii=False,
         )
     if not server.notify_pending(waiting.takeover_id, waiting.reason, waiting.session):
-        # Aucun serveur vivant dans ce processus : l'écran du téléphone ne verra jamais cette
-        # demande. Le dire tout de suite vaut mieux que bloquer quinze minutes sur un écran vide.
+        # No live server in this process: the phone screen will never see this
+        # request. Saying so right away is better than blocking fifteen minutes on a blank screen.
         server.SESSION.waiting = None
         return json.dumps(
             {
@@ -146,12 +146,12 @@ def request_takeover(reason: str) -> str:
             ensure_ascii=False,
         )
     try:
-        # **On ne dort pas quinze minutes d'un bloc : on surveille la page.**
+        # **We do not sleep fifteen minutes in one go: we watch the page.**
         #
-        # Le navigateur de Hermes meurt après deux minutes sans appel d'outil. Quand ça arrive
-        # pendant une prise en main, l'humain voit un écran noir et l'agent attend un rendez-vous
-        # qui n'aura jamais lieu. La sonde (un simple aller-retour CDP, sans capture) rend la main
-        # en quelques secondes, avec une raison exacte que le modèle peut expliquer.
+        # The Hermes browser dies after two minutes without a tool call. When that happens
+        # during a takeover, the human sees a black screen and the agent waits for a rendezvous
+        # that will never happen. The probe (a simple CDP round trip, without capture) hands back
+        # within seconds, with an exact reason the model can explain.
         limite = time.monotonic() + TAKEOVER_TIMEOUT_S
         page_perdue = False
         while True:
@@ -197,9 +197,9 @@ def request_takeover(reason: str) -> str:
                 },
                 ensure_ascii=False,
             )
-        # **Un refus se dit à l'agent, pas seulement à l'écran.** Sans cette branche, un refus
-        # aurait laissé l'outil croire que la personne avait pris la main puis était revenue :
-        # il aurait repris son tour en croyant la page modifiée, avec des « facts » vides.
+        # **A refusal is told to the agent, not only to the screen.** Without this branch, a refusal
+        # would have left the tool believing the person had taken control and then come back:
+        # it would have resumed its turn believing the page had been modified, with empty "facts".
         if getattr(waiting, "refused", False):
             server.announce(
                 {
@@ -267,7 +267,7 @@ def cdp_controller() -> cdp.Controller:
 
 
 class controller_guard:
-    """Un contexte vide, pour que l'appel ressemble aux autres et reste lisible."""
+    """An empty context, so the call looks like the others and stays readable."""
 
     def __enter__(self) -> None:
         return None
@@ -276,10 +276,10 @@ class controller_guard:
         return None
 
 
-# -- crochets ---------------------------------------------------------------------------------
+# -- hooks ---------------------------------------------------------------------------------
 
 def on_pre_tool_call(tool_name: str = "", **kwargs: Any) -> None:
-    """Retient le `task_id` du navigateur : c'est lui qui désigne la page à capturer."""
+    """Retain the browser's `task_id`: it is what designates the page to capture."""
     task_id = kwargs.get("task_id")
     if task_id and str(tool_name).startswith("browser_"):
         server.STATE["task_id"] = str(task_id)
@@ -287,38 +287,38 @@ def on_pre_tool_call(tool_name: str = "", **kwargs: Any) -> None:
 
 
 def _recharger_si_demande() -> None:
-    """Recharge le plugin **dans ce processus**, quand on le demande.
+    """Reload the plugin **in this process**, when asked to.
 
-    Le plugin est importé une fois pour toutes : un changement de `server.py` n'est pris en
-    compte qu'au redémarrage du gateway — et le gateway ne peut pas être redémarré depuis
-    l'intérieur de lui-même (le SIGTERM tuerait la commande qui l'a demandé).
+    The plugin is imported once and for all: a change to `server.py` is only taken into
+    account when the gateway restarts — and the gateway cannot be restarted from
+    inside itself (the SIGTERM would kill the command that asked for it).
 
-    On recharge donc `cdp` et `server` en place, depuis le crochet qui tourne **dans** le
-    processus du gateway. La boucle aiohttp et le port en écoute ne bougent pas ; seul le
-    code change. Le rechargement est idempotent : la balise dans `sys.modules` l'empêche de
-    se répéter à chaque appel d'outil.
+    We therefore reload `cdp` and `server` in place, from the hook that runs **inside** the
+    gateway process. The aiohttp loop and the listening port do not move; only the
+    code changes. The reload is idempotent: the tag in `sys.modules` prevents it from
+    repeating on every tool call.
 
-    **La demande vient d'un fichier, pas d'une variable.** Un drapeau dans `sys.modules`
-    n'atteint jamais le processus du gateway depuis l'extérieur : il faudrait déjà y exécuter
-    du code. Un fichier sur disque, en revanche, se dépose de n'importe où — et le crochet
-    `pre_tool_call` le voit au prochain appel d'outil. Le fichier est **effacé** après usage :
-    le rechargement est donc demandé une fois, et jamais rejoué.
+    **The request comes from a file, not a variable.** A flag in `sys.modules`
+    never reaches the gateway process from outside: code would first have to run there.
+    A file on disk, on the other hand, can be dropped from anywhere — and the hook
+    `pre_tool_call` sees it on the next tool call. The file is **deleted** after use:
+    the reload is therefore requested once, and never replayed.
 
-    **Le nom du module n'est pas `onyx_browser`.** Le plugin est chargé sous le nom de son
-    répertoire d'origine — `hermes_plugins.onyx_browser.server` pour la copie globale, et
-    `hermes_plugins.onyx_browser__home_<empreinte>.server` pour une copie logée ailleurs. On
-    cherche donc **tous** les modules dont le nom finit par `.cdp` ou `.server` et qui portent
-    `onyx_browser` : sans cela, la demande de rechargement ne trouvait rien, et le correctif
-    restait inerte jusqu'au prochain redémarrage du gateway.
+    **The module name is not `onyx_browser`.** The plugin is loaded under the name of its
+    origin directory — `hermes_plugins.onyx_browser.server` for the global copy, and
+    `hermes_plugins.onyx_browser__home_<hash>.server` for a copy located elsewhere. We
+    therefore look for **all** modules whose name ends with `.cdp` or `.server` and which carry
+    `onyx_browser`: without that, the reload request found nothing, and the fix
+    stayed inert until the next gateway restart.
     """
     if not _demande_de_rechargement():
         return
     try:
         import importlib
 
-        # **`tools.py` d'abord** : c'est lui qui porte le crochet, et c'est lui qui décide de
-        # recharger les autres. Le recharger après les autres laisserait son propre code
-        # (la liste des noms de modules, la demande par fichier) périmé pour cette fois.
+        # **`tools.py` first**: it is the one carrying the hook, and the one deciding to
+        # reload the others. Reloading it after the others would leave its own code
+        # (the list of module names, the file-based request) stale for this time.
         cibles = [
             nom
             for nom in list(sys.modules)
@@ -332,17 +332,17 @@ def _recharger_si_demande() -> None:
             if module is not None:
                 importlib.reload(module)
         log.info("onyx-browser: cdp, server et tools rechargés à chaud (%s)", ", ".join(sorted(cibles)))
-    except Exception as erreur:  # pragma: no cover — un rechargement ne doit rien casser
+    except Exception as erreur:  # pragma: no cover — a reload must not break anything
         log.warning("onyx-browser: rechargement à chaud impossible (%s)", erreur)
 
 
-#: Le fichier qui demande un rechargement à chaud. Il est effacé dès qu'il a été pris en
-#: compte : la demande est donc ponctuelle, et le prochain appel d'outil la traite.
+#: The file that requests a hot reload. It is deleted as soon as it has been taken
+#: into account: the request is therefore one-shot, and the next tool call handles it.
 FICHIER_DEMANDE = "/home/john/.hermes/onyx-browser/recharger"
 
 
 def _demande_de_rechargement() -> bool:
-    """Vrai quand un rechargement à chaud vient d'être demandé (et le consume)."""
+    """True when a hot reload has just been requested (and consumes it)."""
     if sys.modules.get("onyx_browser_recharge_demande") == "oui":
         sys.modules.pop("onyx_browser_recharge_demande", None)
         return True
@@ -358,8 +358,8 @@ def _demande_de_rechargement() -> bool:
 def on_post_tool_call(tool_name: str = "", **kwargs: Any) -> None:
     on_pre_tool_call(tool_name=tool_name, **kwargs)
     if str(tool_name).startswith("browser_"):
-        # Une image après chaque geste de l'agent : l'écran qui s'ouvrira ensuite verra où en est
-        # la page, même si personne ne regardait pendant l'action.
+        # One image after each of the agent's gestures: the screen that opens next will see where
+        # the page stands, even if nobody was watching during the action.
         server.vignette()
 
 

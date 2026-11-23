@@ -1,45 +1,45 @@
 #!/usr/bin/env python3
-"""Pont « Ordinateur » — l'écran du PC en direct et ses entrées, pour l'app Onyx.
+"""The "Computer" bridge — the PC's live screen and its inputs, for the Onyx app.
 
-Pourquoi ce pont existe
------------------------
-Le serveur Hermes n'expose **aucune** route pour capturer l'écran du poste ni pour y injecter
-des entrées : `computer_use` est un outil *dans* un tour d'agent, pas un point d'accès, et
-`/api/display/ws` ne relaie que le RFB d'un bureau de bot (Xvnc **dans** un bac à sable,
-ticket à usage unique réservé au Desktop). Il fallait donc un compagnon local, comme le
-serveur TTS : il tourne sur le PC, parle à l'app, et ne touche à rien d'autre.
+Why this bridge exists
+----------------------
+The Hermes server exposes **no** route to capture the desktop screen or to inject
+inputs into it: `computer_use` is a tool *inside* an agent turn, not an endpoint, and
+`/api/display/ws` only relays the RFB of a bot desktop (Xvnc **inside** a sandbox,
+single-use ticket reserved for the Desktop). A local companion was therefore needed, like the TTS
+server: it runs on the PC, talks to the app, and touches nothing else.
 
-Ce qu'il fait
--------------
-- **Capture** : un seul ffmpeg `x11grab` sur l'affichage X souhaité, ré-encodé en JPEG
-  (quelques images par seconde), diffusé à tous les clients abonnés ; l'image la plus récente
-  seulement, jamais de file d'attente qui prendrait du retard.
-- **Entrées** : XTest (du vrai pointeur, du vrai clavier — c'est ce que veut dire « prendre la
-  main »), au clic, au glisser, à la molette et au clavier.
-- **Prise de main** : un seul détenteur — l'agent, ou un humain (l'app). Comme dans Hermes, la
-  main se prend et se rend explicitement ; un client qui n'a pas la main peut regarder mais
-  chaque entrée est refusée, avec la raison.
-- **Approbation** : les actions sensibles (une commande, les raccourcis qui verrouillent ou
-  changent de session) exigent `approved: true`. Le pont refuse, il ne demande pas : la
-  demande d'approbation vit dans l'app, devant l'utilisateur.
+What it does
+------------
+- **Capture**: a single ffmpeg `x11grab` on the desired X display, re-encoded as JPEG
+  (a few frames per second), broadcast to all subscribed clients; only the most recent
+  frame, never a queue that would fall behind.
+- **Inputs**: XTest (a real pointer, a real keyboard — that is what "taking
+  control" means), for clicks, drags, the wheel and the keyboard.
+- **Control**: a single holder — the agent, or a human (the app). As in Hermes, control
+  is taken and handed back explicitly; a client without control can watch, but
+  every input is refused, with the reason.
+- **Approval**: sensitive actions (a command, shortcuts that lock or
+  switch sessions) require `approved: true`. The bridge refuses, it does not ask: the
+  approval request lives in the app, in front of the user.
 
-Sécurité
+Security
 --------
-- Écoute **en local seulement** (`127.0.0.1` par défaut). Aucun service n'est exposé sur
-  l'Internet public par ce script ; un accès distant (réseau local, ou tunnel) se décide et se
-  monte à la main — voir README.md.
-- **Jeton obligatoire** sur chaque connexion (en-tête `Authorization: Bearer <jeton>` ou
-  `X-Onyx-Token`), lu dans un fichier `0600`, comparé à **temps constant**. Le jeton n'est jamais
-  journalisé — pas même dans le chemin d'une URL refusée — ni rendu par une route, ni renvoyé au
+- Listens **locally only** (`127.0.0.1` by default). No service is exposed on
+  the public Internet by this script; remote access (local network, or tunnel) is decided and
+  set up by hand — see README.md.
+- **Mandatory token** on every connection (`Authorization: Bearer <token>` header or
+  `X-Onyx-Token`), read from a `0600` file, compared in **constant time**. The token is never
+  logged — not even in the path of a refused URL — nor returned by a route, nor sent back to the
   client.
-- **Origine réelle** : derrière un tunnel, le pair TCP est toujours `127.0.0.1`. Chaque
-  connexion et chaque action est journalisée avec l'adresse d'origine (`CF-Connecting-IP`, sinon
-  `X-Forwarded-For`, sinon le pair).
-- **Tentatives limitées** : au-delà de `AUTH_MAX_FAILURES` jetons faux en `AUTH_WINDOW_SECONDS`
-  depuis une même origine, cette origine est mise au coin `AUTH_BLOCK_SECONDS`
-  (`token_blocked` au journal).
-- `GET /health` ne dit que « le pont est là » : pas d'image, pas de jeton, pas de nom de
-  machine.
+- **Real origin**: behind a tunnel, the TCP peer is always `127.0.0.1`. Every
+  connection and every action is logged with the origin address (`CF-Connecting-IP`, otherwise
+  `X-Forwarded-For`, otherwise the peer).
+- **Limited attempts**: beyond `AUTH_MAX_FAILURES` wrong tokens in `AUTH_WINDOW_SECONDS`
+  from the same origin, that origin is put in the corner for `AUTH_BLOCK_SECONDS`
+  (`token_blocked` in the log).
+- `GET /health` only says "the bridge is here": no frame, no token, no machine
+  name.
 """
 
 from __future__ import annotations
@@ -64,17 +64,17 @@ TOKEN_PATH = Path.home() / ".onyx-computer-bridge" / "token"
 JPEG_SOI = b"\xff\xd8"
 JPEG_EOI = b"\xff\xd9"
 
-#: La largeur d'image minimale : en dessous, le texte du PC ne se lit plus.
+#: The minimum frame width: below that, the text on the PC is no longer legible.
 MIN_VIEW_WIDTH = 480
 
-#: Raccourcis qui verrouillent la session, l'éteignent ou en changent : ils demandent une
-#: approbation explicite, comme une commande.
+#: Shortcuts that lock the session, turn it off or switch it: they require explicit
+#: approval, like a command.
 SENSITIVE_KEYS = {
     "ctrl+alt+l", "super+l", "logoff", "ctrl+alt+delete", "ctrl+alt+backspace",
     "ctrl+alt+f1", "ctrl+alt+f2", "ctrl+alt+f3", "ctrl+alt+f4", "ctrl+alt+f5", "ctrl+alt+f6",
 }
 
-#: Ce que le pont refuse même avec l'approbation : ça n'a rien à faire dans un aperçu piloté.
+#: What the bridge refuses even with approval: it has no business in a driven preview.
 DENY_COMMANDS = (
     re.compile(r"\bmkfs(\.|\s)"),
     re.compile(r"\bdd\b[^\n]*\bof=/dev/"),
@@ -83,15 +83,15 @@ DENY_COMMANDS = (
     re.compile(r":\(\)\s*\{"),
 )
 
-#: Combien de jetons faux une même origine peut présenter, sur quelle fenêtre, et pour quelle
-#: mise au coin. Le jeton est la seule serrure d'un pont exposé : on compte les essais.
+#: How many wrong tokens one origin may present, over what window, and for what
+#: cornering. The token is the only lock of an exposed bridge: attempts are counted.
 AUTH_MAX_FAILURES = 5
 AUTH_WINDOW_SECONDS = 60.0
 AUTH_BLOCK_SECONDS = 300.0
 
 
 def log_line(event: str, **fields) -> None:
-    """Une ligne JSON par événement, horodatée — la preuve se lit ici, pas à l'écran."""
+    """One JSON line per event, timestamped — the evidence is read here, not on screen."""
     record = {"at": round(time.time(), 3), "event": event}
     record.update(fields)
     text = json.dumps(record, ensure_ascii=False)
@@ -104,7 +104,7 @@ def log_line(event: str, **fields) -> None:
         pass
 
 
-# ----------------------------------------------------------------------------- jeton
+# ----------------------------------------------------------------------------- token
 
 
 def read_token(path: Path) -> str:
@@ -117,16 +117,16 @@ def read_token(path: Path) -> str:
     return token
 
 
-# ----------------------------------------------------------------------------- origine
+# ----------------------------------------------------------------------------- origin
 
 
 def client_origin(request, connection) -> str:
-    """L'adresse d'où vient vraiment une connexion.
+    """The address a connection really comes from.
 
-    Derrière un tunnel (cloudflared), le pair TCP est **toujours** `127.0.0.1` : sans lire les
-    en-têtes posés par le tunnel, toutes les traces se ressemblent et une origine malveillante
-    reste anonyme. On lit donc, dans l'ordre : `CF-Connecting-IP` (posé par Cloudflare), le
-    premier saut de `X-Forwarded-For`, puis le pair TCP en dernier recours.
+    Behind a tunnel (cloudflared), the TCP peer is **always** `127.0.0.1`: without reading the
+    headers set by the tunnel, all traces look alike and a malicious origin
+    stays anonymous. We therefore read, in order: `CF-Connecting-IP` (set by Cloudflare), the
+    first hop of `X-Forwarded-For`, then the TCP peer as a last resort.
     """
     headers = getattr(request, "headers", None)
     if headers is not None:
@@ -143,16 +143,16 @@ def client_origin(request, connection) -> str:
     return str(peer) if peer else "inconnue"
 
 
-# ----------------------------------------------------------------------------- garde
+# ----------------------------------------------------------------------------- guard
 
 
 class AuthGuard:
-    """Limite les tentatives de jeton — la seule serrure d'un pont exposé.
+    """Limits token attempts — the only lock of an exposed bridge.
 
-    Le jeton fait 48 caractères hexadécimaux (192 bits) : on ne le devine pas. Mais un tunnel
-    public laisse, sans ce filet, essayer des milliers de jetons par minute. On compte donc les
-    échecs **par origine** sur une fenêtre glissante ; au-delà du seuil, l'origine est mise au
-    coin un moment, et l'événement se lit dans le journal.
+    The token is 48 hexadecimal characters (192 bits): it is not guessed. But without this
+    net, a public tunnel lets thousands of tokens be tried per minute. Failures are therefore counted
+    **per origin** over a sliding window; beyond the threshold, the origin is put in the
+    corner for a while, and the event is read in the log.
     """
 
     def __init__(self, max_failures: int = AUTH_MAX_FAILURES,
@@ -165,7 +165,7 @@ class AuthGuard:
         self._blocked_until: dict[str, float] = {}
 
     def blocked_for(self, origin: str) -> float:
-        """Les secondes de blocage restantes — 0 quand l'origine peut encore essayer."""
+        """The remaining block seconds — 0 when the origin may try again."""
         until = self._blocked_until.get(origin, 0.0)
         now = time.time()
         if until <= now:
@@ -174,7 +174,7 @@ class AuthGuard:
         return round(until - now, 1)
 
     def fail(self, origin: str) -> float:
-        """Note un échec ; rend les secondes de blocage s'il vient d'atteindre le seuil."""
+        """Record a failure; return the block seconds if the threshold was just reached."""
         now = time.time()
         recent = [at for at in self._failures.get(origin, []) if now - at < self.window]
         recent.append(now)
@@ -189,15 +189,15 @@ class AuthGuard:
         self._failures.pop(origin, None)
 
     def remaining(self, origin: str) -> int:
-        """Combien d'essais il reste à cette origine avant la mise au coin."""
+        """How many attempts this origin has left before being put in the corner."""
         return max(0, self.max_failures - len(self._failures.get(origin, [])))
 
 
-# ----------------------------------------------------------------------------- écran
+# ----------------------------------------------------------------------------- screen
 
 
 class Screen:
-    """Taille de l'affichage X et géométrie de l'image envoyée à l'app."""
+    """Size of the X display and geometry of the frame sent to the app."""
 
     def __init__(self, display: str, max_width: int) -> None:
         from Xlib import display as xdisplay
@@ -208,18 +208,18 @@ class Screen:
         self.height = self.x.screen().height_in_pixels
         self.max_width = max_width
         self.view_width = min(max_width, self.width)
-        # Hauteur paire : les encodeurs vidéo n'aiment pas les tailles impaires.
+        # Even height: video encoders dislike odd sizes.
         self.view_height = int(round(self.height * self.view_width / self.width)) // 2 * 2
 
     def set_view_width(self, width: int) -> int:
-        """Choisit la largeur de l'image envoyée, **dans les bornes du pont**.
+        """Choose the width of the frame sent, **within the bridge's bounds**.
 
-        Le client annonce la largeur de son volet : envoyer 1280 pixels de large à un aperçu de
-        1080 en fait 200 qui seront encodés, transmis puis jetés. Le pont **borne** quand même —
-        jamais moins de `MIN_VIEW_WIDTH` (illisible), jamais plus que son `--max-width`, jamais plus
-        que l'écran lui-même, et toujours pair.
+        The client announces the width of its pane: sending 1280 pixels wide to a 1080 preview
+        means 200 that will be encoded, transmitted and then discarded. The bridge **clamps** anyway —
+        never less than `MIN_VIEW_WIDTH` (illegible), never more than its `--max-width`, never more
+        than the screen itself, and always even.
 
-        Rend la largeur finalement retenue (l'appelant s'en sert pour répondre au client).
+        Returns the width finally retained (the caller uses it to reply to the client).
         """
         ceiling = max(MIN_VIEW_WIDTH, min(self.max_width, self.width))
         wanted = max(MIN_VIEW_WIDTH, min(int(width or 0), ceiling))
@@ -231,14 +231,14 @@ class Screen:
         return self.view_width
 
     def to_screen(self, x: float, y: float) -> tuple[int, int]:
-        """Des pixels de l'image reçue par l'app vers les pixels de l'écran du PC."""
+        """From pixels of the frame received by the app to pixels of the PC screen."""
         sx = int(round(x * self.width / self.view_width))
         sy = int(round(y * self.height / self.view_height))
         return max(0, min(self.width - 1, sx)), max(0, min(self.height - 1, sy))
 
 
 class Input:
-    """Le pointeur et le clavier du PC, par XTest — de vrais événements, pas des simulacres."""
+    """The PC's pointer and keyboard, via XTest — real events, not simulations."""
 
     def __init__(self, screen: Screen) -> None:
         from Xlib import X, XK
@@ -249,11 +249,11 @@ class Input:
         self.keysym = XK
         self.xtest = xtest
         self.lock = threading.Lock()
-        # L'extension XTest est ce qui permet de frapper du vrai pointeur et du vrai clavier.
-        # `get_version` échoue (bad-request) quand elle manque : on ne peut alors rien piloter.
+        # The XTest extension is what allows emitting a real pointer and a real keyboard.
+        # `get_version` fails (bad-request) when it is missing: nothing can then be driven.
         try:
             xtest.get_version(self.x, 2, 2)
-        except Exception as error:  # pragma: no cover - dépend de l'affichage
+        except Exception as error:  # pragma: no cover - depends on the display
             raise RuntimeError(f"l'extension XTest manque sur cet affichage : {error}") from error
 
     def _sync(self) -> None:
@@ -264,7 +264,7 @@ class Input:
         self._sync()
 
     def _button(self, number: int, press: bool) -> None:
-        # XTest veut 1 pour l'appui et 0 pour le relâchement.
+        # XTest wants 1 for the press and 0 for the release.
         self.xtest.fake_input(self.x, self.kind.ButtonPress if press else self.kind.ButtonRelease, number)
         self._sync()
 
@@ -297,7 +297,7 @@ class Input:
                 self._button(number, False)
 
     def _stroke(self, name: str, shift: bool) -> None:
-        """Un nom de touche X11 (`Return`, `a`, `Escape`…) appuyé puis relâché."""
+        """An X11 key name (`Return`, `a`, `Escape`…) pressed then released."""
         code = self.x.keysym_to_keycode(self.keysym.string_to_keysym(name))
         if code == 0:
             raise ValueError(f"touche inconnue : {name}")
@@ -316,10 +316,10 @@ class Input:
         self._sync()
 
     def _keystroke_for(self, char: str) -> tuple[int, bool]:
-        """Le code de touche et l'éventuel Maj, en lisant la disposition réelle du clavier.
+        """The keycode and the optional Shift, by reading the actual keyboard layout.
 
-        On ne code pas la table AZERTY/QWERTY en dur : on demande au serveur X quel code et quel
-        niveau portent ce caractère. C'est ce qui fait arriver « é à ç » tels quels.
+        We do not hardcode the AZERTY/QWERTY table: we ask the X server which code and which
+        level carry this character. That is what makes "é à ç" arrive as such.
         """
         codepoint = ord(char)
         target = codepoint if codepoint < 0x100 else 0x01000000 + codepoint
@@ -349,7 +349,7 @@ class Input:
                 time.sleep(0.008)
 
     def combo(self, keys: str) -> None:
-        """`ctrl+c`, `alt+F4`, `Return` : les modifications se nomment comme dans l'app."""
+        """`ctrl+c`, `alt+F4`, `Return`: modifiers are named as in the app."""
         parts = [p.strip() for p in keys.split("+") if p.strip()]
         if not parts:
             raise ValueError("raccourci vide")
@@ -386,13 +386,13 @@ class Input:
 
 
 class Frames:
-    """Un ffmpeg pour tous les clients : il tourne tant qu'il y a quelqu'un pour regarder."""
+    """A single ffmpeg for all clients: it runs as long as there is someone watching."""
 
     def __init__(self, screen: Screen, fps: int, quality: int, ffmpeg: str,
                  max_fps: int = 24) -> None:
         self.screen = screen
         self.fps = max(1, min(max_fps, fps))
-        #: Le plafond de cadence : un client ne décide pas de brûler le processeur du PC.
+        #: The frame rate ceiling: a client does not decide to burn the PC's CPU.
         self.max_fps = max(1, max_fps)
         self.quality = quality
         self.ffmpeg = ffmpeg
@@ -406,19 +406,19 @@ class Frames:
 
     def configure(self, fps: int | None = None, view_width: int | None = None,
                   quality: int | None = None) -> bool:
-        """Change la cadence, la taille ou la qualité de la capture — et dit si elle a repris.
+        """Change the frame rate, size or quality of the capture — and say whether it restarted.
 
-        Un seul `ffmpeg` sert tous les clients : on ne peut pas lui donner deux cadences. La
-        demande la plus récente gagne, ce qui est exactement ce qu'on veut ici (un seul client, le
-        téléphone du propriétaire). On ne redémarre **que** si quelque chose a réellement changé :
-        une session qui se reconnecte ne doit pas faire clignoter la capture.
+        A single `ffmpeg` serves all clients: it cannot be given two frame rates. The
+        most recent request wins, which is exactly what we want here (a single client, the
+        owner's phone). We restart **only** if something actually changed:
+        a session that reconnects must not make the capture flicker.
         """
         changed = False
         if fps is not None and int(fps) != self.fps:
             self.fps = max(1, int(fps))
             changed = True
         if quality is not None and int(quality) != self.quality:
-            # Le quantificateur JPEG de ffmpeg va de 2 (fin) à 31 (grossier).
+            # ffmpeg's JPEG quantizer ranges from 2 (fine) to 31 (coarse).
             self.quality = max(2, min(31, int(quality)))
             changed = True
         if view_width is not None and self.screen.set_view_width(view_width) != self._view_width:
@@ -430,10 +430,10 @@ class Frames:
         return self._process is not None
 
     def restart(self) -> None:
-        """Relance la capture avec les réglages courants.
+        """Restart the capture with the current settings.
 
-        L'image déjà reçue reste en mémoire : un redémarrage ne doit pas vider l'écran de
-        l'utilisateur ni lui montrer un trou noir le temps que le premier JPEG arrive.
+        The frame already received stays in memory: a restart must not clear the
+        user's screen or show them a black hole while the first JPEG arrives.
         """
         loop = self._loop
         self.stop()
@@ -507,11 +507,11 @@ class Frames:
             self._process = None
 
 
-# ----------------------------------------------------------------------------- état
+# ----------------------------------------------------------------------------- state
 
 
 class Lease:
-    """Qui a la main : l'agent (personne ne pilote) ou un humain (une connexion de l'app)."""
+    """Who has control: the agent (nobody is driving) or a human (an app connection)."""
 
     def __init__(self) -> None:
         self.holder = "agent"
@@ -573,18 +573,18 @@ class Bridge:
         self.inputs = inputs
         self.token = token
         self.shell_timeout = shell_timeout
-        #: La cadence au repos et celle d'un geste. Le client dit « je bouge », le pont décide
-        #: combien d'images cela vaut — c'est lui qui connaît son processeur et son plafond.
+        #: The idle frame rate and that of a gesture. The client says "I am moving", the bridge decides
+        #: how many frames that is worth — it is the one that knows its CPU and its ceiling.
         self.base_fps = frames.fps
         self.turbo_fps = max(self.base_fps, min(frames.max_fps, turbo_fps))
         self.lease = Lease()
         self.clients: set = set()
 
     def hello_payload(self, viewer: str) -> dict:
-        """Ce que le pont annonce en s'ouvrant — et **de nouveau** quand la taille change.
+        """What the bridge announces when opening — and **again** when the size changes.
 
-        Passe par une seule fonction : deux endroits qui annoncent la taille finiraient par se
-        contredire, et l'app croirait décoder une image qui n'existe plus.
+        Goes through a single function: two places announcing the size would eventually
+        contradict each other, and the app would believe it is decoding a frame that no longer exists.
         """
         return {
             "t": "hello",
@@ -596,12 +596,12 @@ class Bridge:
         }
 
     def _point(self, message: dict) -> tuple[int, int]:
-        """Un point reçu, ramené aux pixels de l'écran du PC.
+        """A received point, converted back to pixels of the PC screen.
 
-        Deux espaces, et le client dit lequel il emploie : `view` (les pixels de l'image qu'il
-        reçoit, que le pont agrandit) ou `screen` (déjà des pixels de l'écran du PC, comme le fait
-        l'app, qui a mesuré l'image affichée chez elle). Sans cette précision, une app qui a déjà
-        mis à l'échelle serait mise à l'échelle **deux fois** — et le clic partirait ailleurs.
+        Two spaces, and the client says which one it uses: `view` (the pixels of the frame it
+        receives, which the bridge scales up) or `screen` (already pixels of the PC screen, as the
+        app does, which measured the displayed frame locally). Without this precision, an app that already
+        scaled would be scaled **twice** — and the click would go elsewhere.
         """
         x, y = float(message["x"]), float(message["y"])
         if str(message.get("space") or "view") == "screen":
@@ -609,14 +609,14 @@ class Bridge:
                     max(0, min(self.screen.height - 1, int(round(y)))))
         return self.screen.to_screen(x, y)
 
-    # -- diffusion d'état -------------------------------------------------------------
+    # -- state broadcast --------------------------------------------------------------
 
     async def broadcast(self, payload: dict) -> None:
         text = json.dumps(payload, ensure_ascii=False)
         for client in list(self.clients):
             try:
                 await client.send(text)
-            except Exception:  # un client parti ne doit pas interrompre la diffusion
+            except Exception:  # a departed client must not interrupt the broadcast
                 pass
 
     async def bump(self) -> None:
@@ -639,10 +639,10 @@ class Bridge:
             await client.send(json.dumps({"t": "pong", "echo": echo}))
             return
 
-        # Ce que le client veut **recevoir** n'est pas une entrée sur le PC : la taille d'image et
-        # la cadence se règlent sans la main (on regarde avant de piloter, et un invité qui regarde
-        # ne doit pas être obligé de prendre la main pour lire son écran). Le pont borne tout : la
-        # largeur par `--max-width` et par l'écran, la cadence par `--max-fps`.
+        # What the client wants to **receive** is not input on the PC: frame size and
+        # frame rate are set without control (you watch before you drive, and a guest watching
+        # must not be forced to take control to read their screen). The bridge clamps everything: the
+        # width by `--max-width` and by the screen, the frame rate by `--max-fps`.
         if kind == "stream":
             width = int(message.get("width") or 0)
             quality = int(message.get("quality") or 0)
@@ -652,8 +652,8 @@ class Bridge:
             )
             log_line("stream_changed", view=[self.screen.view_width, self.screen.view_height],
                      fps=self.frames.fps, quality=self.frames.quality, origin=origin)
-            # L'image reçue n'a plus la taille annoncée : on la réannonce, sinon l'app place ses
-            # clics dans une géométrie qui n'existe plus.
+            # The received frame no longer has the announced size: we announce it again, otherwise the app places its
+            # clicks in a geometry that no longer exists.
             await client.send(json.dumps(self.hello_payload(viewer)))
             await self._ack(client, echo, True,
                             f"view {self.screen.view_width}x{self.screen.view_height}")
@@ -685,7 +685,7 @@ class Bridge:
             await client.send(json.dumps(self.lease.state()))
             return
 
-        # Tout le reste est une entrée : il faut la main.
+        # Everything else is input: control is required.
         if not self.lease.may_send_input(viewer):
             log_line("denied", reason="not_holder", kind=kind, viewer=viewer,
                      holder=self.lease.holder, origin=origin)
@@ -696,7 +696,7 @@ class Bridge:
             sx, sy = self._point(message)
             button = int(message.get("button") or 1)
             self.inputs.click(sx, sy, button)
-            self.lease.note("click", f"bouton {button}", sx, sy, origin=origin)  # pixels de l'écran du PC
+            self.lease.note("click", f"bouton {button}", sx, sy, origin=origin)  # PC screen pixels
             await self._ack(client, echo, True, f"clicked {sx},{sy}")
             await self.bump()
             return
@@ -722,11 +722,11 @@ class Bridge:
             await self.bump()
             return
 
-        # Le pointeur **sans clic** : le doigt déplace le curseur, il ne clique pas. Message
-        # **additif** — une app plus ancienne ne l'envoie pas ; une app plus récente que ce pont le
-        # verra refusé (`unknown_action:motion`) sans que rien ne casse, car le curseur que l'app
-        # dessine bouge de toute façon. On n'annonce pas d'état ici : le pointeur bouge trop souvent
-        # pour un rafraîchissement par trame, et l'app borne déjà sa cadence. Juste un accusé.
+        # The pointer **without a click**: the finger moves the cursor, it does not click. An
+        # **additive** message — an older app does not send it; an app newer than this bridge will
+        # see it refused (`unknown_action:motion`) without anything breaking, because the cursor the app
+        # draws moves anyway. No state is announced here: the pointer moves too often
+        # for a per-frame refresh, and the app already bounds its rate. Just an ack.
         if kind == "motion":
             sx, sy = self._point(message)
             self.inputs.move(sx, sy)
@@ -777,7 +777,7 @@ class Bridge:
             await self._deny(client, echo, "empty_command")
             return
         if not bool(message.get("approved")):
-            # Le pont ne demande pas : il refuse, et l'app le dit à l'utilisateur.
+            # The bridge does not ask: it refuses, and the app tells the user.
             log_line("denied", reason="needs_approval", kind="run", command=command,
                      viewer=viewer, origin=origin)
             await self._deny(client, echo, "needs_approval")
@@ -822,7 +822,7 @@ class Bridge:
 
 
 async def _messages(connection):
-    """Les trames texte d'une connexion. La fermeture n'est pas une erreur : on s'arrête, c'est tout."""
+    """The text frames of a connection. Closing is not an error: we stop, that is all."""
     from websockets.exceptions import ConnectionClosed
 
     try:
@@ -834,16 +834,16 @@ async def _messages(connection):
 
 
 def _clean_token(candidate: str) -> str:
-    """Le jeton tel qu'il arrive, ramené à sa valeur.
+    """The token as it arrives, reduced to its value.
 
-    Un jeton se colle : il garde des espaces, un retour à la ligne du terminal, des guillemets,
-    parfois le préfixe qu'on vient de lire dans la documentation (`Bearer `, `token=`) ou la
-    valeur entière recollée deux fois. Rien de tout cela n'est le jeton ; le refuser pour un
-    espace serait une panne inventée par le pont.
+    A token gets pasted: it keeps spaces, a terminal newline, quotes,
+    sometimes the prefix that was just read in the documentation (`Bearer `, `token=`) or the
+    entire value pasted twice. None of that is the token; refusing it over a
+    space would be an outage invented by the bridge.
     """
     value = (candidate or "").replace("\u200b", "").replace("\ufeff", "").strip().strip('"').strip("'").strip()
-    # Un préfixe recollé devant le jeton — et parfois deux fois : l'app en ajoute un, l'utilisateur
-    # en avait déjà tapé un. On les enlève tant qu'il en reste quelque chose.
+    # A prefix pasted in front of the token — and sometimes twice: the app adds one, the user
+    # had already typed one. We remove them as long as something remains.
     for _ in range(3):
         for prefix in ("bearer ", "token=", "token ", "jeton=", "jeton "):
             if value.lower().startswith(prefix) and len(value) > len(prefix):
@@ -855,10 +855,10 @@ def _clean_token(candidate: str) -> str:
 
 
 def arrived_token(request) -> str:
-    """Le jeton présenté par le client, quel que soit l'endroit où il l'a mis.
+    """The token presented by the client, wherever it put it.
 
-    Trois chemins acceptés (l'app envoie un `Bearer`) : l'en-tête `Authorization`, l'en-tête
-    `X-Onyx-Token`, et `?token=` en paramètre.
+    Three accepted paths (the app sends a `Bearer`): the `Authorization` header, the
+    `X-Onyx-Token` header, and the `?token=` parameter.
     """
     headers = getattr(request, "headers", None)
     candidate = ""
@@ -877,11 +877,11 @@ def arrived_token(request) -> str:
 
 
 def token_verdict(request, token: str) -> tuple[str, int]:
-    """Le jeton présenté est-il le bon, et sinon **pourquoi** — sans jamais le journaliser.
+    """Is the presented token the right one, and if not **why** — without ever logging it.
 
-    Rend `("ok", longueur)` ou un motif que le journal et l'app peuvent citer :
-    `missing` (aucun jeton), `len` (bonne valeur mais longueur différente : un collage tronqué ou
-    un jeton d'une autre époque), `mismatch` (même longueur, autre valeur).
+    Returns `("ok", length)` or a reason the log and the app can cite:
+    `missing` (no token), `len` (right value but different length: a truncated paste or
+    a token from another era), `mismatch` (same length, other value).
     """
     arrived = arrived_token(request)
     if not arrived:
@@ -960,11 +960,11 @@ def main(argv: list[str] | None = None) -> int:
         verdict, arrived_len = token_verdict(request, bridge.token)
         if verdict != "ok":
             blocked = guard.fail(origin)
-            # Le **chemin seul** : une URL ne doit jamais traîner un jeton dans le journal.
-            # On journalise la **longueur** reçue et celle attendue : c'est ce qui distingue un
-            # jeton tronqué au collage d'un jeton d'une autre époque, sans écrire le secret.
-            # (Une empreinte SHA-256, même tronquée, se force hors ligne — 20 caractères de
-            # jeton contre 8 caractères hexadécimaux, ce n'est plus un secret.)
+            # The **path alone**: a URL must never carry a token into the log.
+            # We log the **length** received and the expected one: that is what distinguishes a
+            # token truncated while pasting from a token of another era, without writing the secret.
+            # (A SHA-256 digest, even truncated, is brute-forceable offline — 20 characters of
+            # token against 8 hexadecimal characters is no longer a secret.)
             log_line("token_rejected", origin=origin, path=path, reason=verdict,
                      token_len=arrived_len, expected_len=len(bridge.token),
                      attempts_left=(0 if blocked else guard.remaining(origin)))
@@ -1005,7 +1005,7 @@ def main(argv: list[str] | None = None) -> int:
                     message.setdefault("viewer", viewer)
                     try:
                         await bridge.handle(connection, message)
-                    except Exception as error:  # une action ratée ne coupe pas la session
+                    except Exception as error:  # a failed action does not cut the session
                         log_line("action_failed", kind=str(message.get("t")), error=repr(error))
                         await connection.send(json.dumps(
                             {"t": "denied", "id": message.get("id"), "reason": "failed"}))
@@ -1021,8 +1021,8 @@ def main(argv: list[str] | None = None) -> int:
             frames.unsubscribe(event)
             bridge.clients.discard(connection)
             bridge.lease.release(viewer, "disconnected")
-            # Plus personne ne regarde : la cadence retombe au repos, comme la main revient à
-            # l'agent. Une capture montée en cadence pour un geste ne doit pas rester en l'air.
+            # Nobody is watching anymore: the frame rate drops back to idle, as control returns to
+            # the agent. A capture sped up for a gesture must not stay up in the air.
             if not bridge.clients:
                 bridge.frames.configure(fps=bridge.base_fps)
             await bridge.bump()
@@ -1040,16 +1040,16 @@ def main(argv: list[str] | None = None) -> int:
         frames.start(loop)
         log_line("bridge_listening", host=args.host, port=args.port,
                  display=screen.display_name, screen=[screen.width, screen.height])
-        # Ce que le pont attend, sans le dire : la **longueur** suffit à reconnaître un jeton
-        # tronqué au collage quand l'app présente le sien (`token_len` d'un `token_rejected`).
+        # What the bridge expects, without saying so: the **length** is enough to recognize a
+        # token truncated while pasting when the app presents its own (`token_len` of a `token_rejected`).
         log_line("token_ready", path=str(args.token_file), length=len(bridge.token))
-        # **Pas de keepalive WebSocket.** Le pont envoie déjà des images 6 fois par seconde : le
-        # flux est le battement de cœur, et une socket morte se voit à l'envoi suivant. Un ping
-        # de contrôle ajoute au contraire une façon de tuer une session saine : son pong fait la
-        # queue derrière des dizaines de kilo-octets d'image, et un aller-retour de 20 s sur un
-        # réseau mobile suffit à faire fermer la session (« keepalive ping timeout », code 1011)
-        # alors que le client, lui, va très bien. La preuve est dans le journal : un client qui
-        # ne répond pas aux pings est coupé en 40 s, ce qui n'a aucune valeur ici.
+        # **No WebSocket keepalive.** The bridge already sends frames 6 times per second: the
+        # stream is the heartbeat, and a dead socket is seen on the next send. A control ping
+        # on the contrary adds a way to kill a healthy session: its pong queues
+        # behind tens of kilobytes of frame, and a 20 s round trip on a
+        # mobile network is enough to make the session close ("keepalive ping timeout", code 1011)
+        # while the client is doing just fine. The proof is in the log: a client that
+        # does not answer pings is cut in 40 s, which has no value here.
         async with serve(handler, args.host, args.port, process_request=process_request,
                          max_size=None, ping_interval=None, ping_timeout=None):
             await asyncio.Future()

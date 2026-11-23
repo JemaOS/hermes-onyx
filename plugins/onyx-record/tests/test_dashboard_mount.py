@@ -1,22 +1,22 @@
-"""Preuve d'intégration : le vrai Dashboard Hermes monte le plugin et le sert.
+"""Integration proof: the real Hermes Dashboard mounts the plugin and serves it.
 
-Le Dashboard tourne dans un interpréteur neuf avec un ``HERMES_HOME`` jetable
-(``tests/_mount_child.py``) : aucun accès au serveur de production, aucune
-écriture dans ``~/.hermes``. Deux scénarios, deux processus :
+The Dashboard runs in a fresh interpreter with a throwaway ``HERMES_HOME``
+(``tests/_mount_child.py``): no access to the production server, no
+writes into ``~/.hermes``. Two scenarios, two processes:
 
-* ``enabled``  — installé **et** activé avant l'import : le montage au démarrage
-  pose les cinq routes, sans jeton c'est ``401``, avec jeton ``start`` / ``stop``
-  / ``draft`` répondent, un journal secret rend ``422`` sans le recopier, et
-  désactiver à chaud rend ``404 Plugin not found`` ;
-* ``disabled`` — installé mais absent de ``plugins.enabled`` : aucune route.
+* ``enabled``  — installed **and** enabled before the import: mounting at startup
+  sets the five routes, without token it is ``401``, with token ``start`` / ``stop``
+  / ``draft`` answer, a secret journal returns ``422`` without copying it, and
+  deactivating hot returns ``404 Plugin not found``;
+* ``disabled`` — installed but absent from ``plugins.enabled``: no route.
 
-Pourquoi deux processus plutôt qu'un ``TestClient`` in-process (méthode du
-plugin du coffre) : mesuré ici, un montage appelé *après* l'import du serveur
-atterrit derrière le repli ``/api/plugins/{name}/{path:path}``, qui répond
-``404 {"detail":"Not Found"}``. Le processus neuf reproduit le seul ordre que la
-production connaisse.
+Why two processes rather than an in-process ``TestClient`` (the
+vault plugin's method): measured here, a mount called *after* the server import
+lands behind the ``/api/plugins/{name}/{path:path}`` fallback, which answers
+``404 {"detail":"Not Found"}``. The fresh process reproduces the only order production
+knows.
 
-Lancer (le venv Hermes n'est pas sur le PATH) :
+Run (the Hermes venv is not on the PATH):
     PY=$(ls -d ~/.hermes/tools/python-3.14.7*/bin/python3 | head -1)
     cd ~/.hermes/hermes-agent
     PYTHONPATH=/home/john/.hermes/hermes-agent "$PY" \\
@@ -104,7 +104,7 @@ def setUpModule() -> None:
         _state["enabled"] = _run(agent_dir, _home(root, enabled=True), "enabled")
         _state["disabled"] = _run(agent_dir, _home(root, enabled=False), "disabled")
     finally:
-        # On garde les rapports, pas les foyers.
+        # We keep the reports, not the homes.
         _state["tmp"] = tmp
     print("\n[montage] enabled :", json.dumps(_state["enabled"], ensure_ascii=False)[:400])
     print("[montage] disabled :", json.dumps(_state["disabled"], ensure_ascii=False)[:200])
@@ -128,7 +128,7 @@ class TestDashboardMount(unittest.TestCase):
     def _routes(self, report: dict) -> list:
         return report["routes_after_start"]
 
-    # -- découverte / activation ------------------------------------------
+    # -- discovery / activation ------------------------------------------
     def test_01_installed_but_not_enabled_means_no_route(self):
         self.assertEqual(
             self._routes(self.disabled), [], "un plugin non activé ne doit monter aucune route"
@@ -148,7 +148,7 @@ class TestDashboardMount(unittest.TestCase):
             self.assertIn(f"/api/plugins/{PLUGIN_NAME}{suffix}", routes)
         self.assertEqual(routes, report["routes_after_mount_call"], "montage idempotent")
 
-    # -- authentification --------------------------------------------------
+    # -- authentication --------------------------------------------------
     def test_03_unauthenticated_is_401(self):
         self.assertEqual(self.enabled["no_token"]["status"], 401)
         self.assertIn("Unauthorized", self.enabled["no_token"]["body"])
@@ -217,7 +217,7 @@ class TestDashboardMount(unittest.TestCase):
         self.assertEqual(abort["body"]["end_reason"], "discarded")
         self.assertNotIn("journal", abort["body"])
 
-    # -- health / porte de consentement -----------------------------------
+    # -- health / consent gate -----------------------------------
     def test_07_health_has_no_journal_and_no_session(self):
         health = self.enabled["health"]
         self.assertEqual(health["status"], 200)

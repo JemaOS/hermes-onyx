@@ -1,11 +1,11 @@
-"""La machine à états du serveur et les bornes du journal, sans HTTP.
+"""The server's state machine and the journal bounds, without HTTP.
 
-La spec (§7) décrit deux états côté serveur : ``recording`` (bail ouvert) et
-``journal_pending`` (journal canonique gardé 120 s). Les transitions invalides
-ont chacune **un code et une phrase** (§7.2) : c'est ce que ce fichier vérifie,
-avec une horloge factice pour ne pas attendre dix minutes.
+The spec (§7) describes two server-side states: ``recording`` (open lease) and
+``journal_pending`` (canonical journal kept 120 s). Invalid transitions
+each have **a code and a sentence** (§7.2): this is what this file checks,
+with a fake clock so as not to wait ten minutes.
 
-Lancer depuis la racine du plugin :
+Run from the plugin root:
     python -m unittest discover -s tests -t tests -v
 """
 
@@ -64,7 +64,7 @@ class StoreCase(unittest.TestCase):
 
 class TestStart(StoreCase):
     def test_start_opens_a_lease_with_the_spec_fields(self):
-        body = self.store.start  # déjà ouvert par setUp : on vérifie la forme
+        body = self.store.start  # already opened by setUp: we check the shape
         with self.assertRaises(core.RecordError):
             body({"bridge": {"endpoint": "h:1", "session": "s"}})
         lease = self.store.lease()
@@ -148,8 +148,8 @@ class TestStart(StoreCase):
 class TestStop(StoreCase):
     def test_full_stop_returns_the_canonical_journal(self):
         journal = self._journal(self.session)
-        journal["events"][1]["target"]["label"] = "L" * 260  # tronqué à 200
-        journal["events"][2]["ms"] = 40  # relevé à 100
+        journal["events"][1]["target"]["label"] = "L" * 260  # truncated to 200
+        journal["events"][2]["ms"] = 40  # raised to 100
         journal["unknown_field"] = "jeté"
         journal["events"][0]["unknown"] = "jeté aussi"
 
@@ -218,7 +218,7 @@ class TestStop(StoreCase):
         )
         self.assertNotIn(SECRET, json.dumps(exc.payload()))
         self.assertIsNotNone(self.store.lease())
-        # Le bon journal passe ensuite : le refus n'a rien coûté.
+        # The right journal then passes: the refusal cost nothing.
         closed = self.store.stop({"session_id": self.session, "journal": self._journal(self.session)})
         self.assertEqual(closed["end_reason"], "stopped")
 
@@ -259,7 +259,7 @@ class TestExpiration(StoreCase):
             {"seq": 12, "at_ms": 650000, "kind": "tap", "target": {"label": "Trop tard", "window": "F",
                                                                    "x_pct": 0.5, "y_pct": 0.5}}
         )
-        self.clock.advance(700)  # 100 s après l'échéance
+        self.clock.advance(700)  # 100 s after the deadline
         closed = self.store.stop({"session_id": self.session, "journal": journal})
         self.assertEqual(closed["end_reason"], "expired")
         self.assertEqual(closed["duration_ms"], 600000)
@@ -288,8 +288,8 @@ class TestExpiration(StoreCase):
     def test_pending_journal_vanishes_after_120_seconds(self):
         self.store.stop({"session_id": self.session, "journal": self._journal(self.session)})
         self.clock.advance(121)
-        # Passé 120 s, le serveur ne garde plus rien : il répond 410, car il a
-        # bien connu ce bail (voir ECARTS.md §5).
+        # Past 120 s, the server keeps nothing anymore: it answers 410, because it
+        # did know this lease (see ECARTS.md §5).
         self.assertRefused("session_expired", 410, self.store.stop, {"session_id": self.session})
         self.assertIsNone(self.store.pending())
 
@@ -357,7 +357,7 @@ class TestJournalRules(StoreCase):
         self._refuse("bad_journal", mutate)
 
     def test_tap_without_position_is_accepted(self):
-        """La position est facultative : un appui nommé n'en a pas besoin."""
+        """The position is optional: a named tap does not need one."""
         journal = self._journal(self.session)
         journal["events"].append(
             {"seq": 12, "at_ms": 7000, "kind": "tap", "target": {"label": "OK", "window": "F"}}
@@ -389,7 +389,7 @@ class TestJournalRules(StoreCase):
 
 class TestBounds(StoreCase):
     def test_client_duration_is_capped_at_600_seconds(self):
-        """`stop` garde la durée du serveur ; `draft` borne celle du client."""
+        """`stop` keeps the server's duration; `draft` bounds the client's."""
         validated = core.validate(self._journal(self.session, duration_ms=10**9))
         self.assertEqual(validated.journal["duration_ms"], 600000)
         closed = self.store.stop({"session_id": self.session, "journal": self._journal(self.session)})
@@ -409,9 +409,9 @@ class TestBounds(StoreCase):
         self.assertIn("events_dropped", closed["warnings"])
 
     def test_byte_bound_drops_from_the_front(self):
-        # La route refuse d'abord un journal brut > 262144 octets (413) ; la
-        # borne de taille reste donc une garde du **canonique** : on la teste là
-        # où elle vit, dans ``validate`` (voir ECARTS.md §4).
+        # The route first refuses a raw journal > 262144 bytes (413); the
+        # size bound therefore remains a guard of the **canonical** form: we test it where
+        # it lives, in ``validate`` (see ECARTS.md §4).
         journal = self._journal(self.session)
         journal["events"] = [
             {
