@@ -220,10 +220,10 @@ class ModelSheetWiringTest {
     @Test
     fun `la feuille monte au-dessus du clavier`() {
         assertTrue("rien ne passe sous le clavier", sheet.contains("imePadding()"))
-        // La feuille est **bornée** à une part de l'écran, et la liste prend ce qui reste : c'est ce
+        // La feuille est **bornée** à une part de l'écran, et les contrôles et résultats défilent ensemble : c'est ce
         // qui garantit qu'aucune rangée n'est coupée par le bas.
         assertTrue("la feuille garde une hauteur bornée", sheet.contains("heightIn(max = sheetCap)"))
-        assertTrue("la liste défile dans la feuille", sheet.contains("weight(1f, fill = false)"))
+        assertTrue("la liste défile dans la feuille", sheet.contains("LazyColumn(") && sheet.contains("item(key = \"controls\")"))
     }
 
     @Test

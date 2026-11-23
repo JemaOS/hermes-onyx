@@ -18,6 +18,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    testOptions.unitTests.isIncludeAndroidResources = true
+
     buildFeatures {
         compose = true
     }
@@ -69,5 +71,8 @@ dependencies {
     api(libs.kyant.backdrop)
 
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.18.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation(libs.mockwebserver)
 }

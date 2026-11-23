@@ -61,7 +61,7 @@ class BotMenuAnchoredTest {
         // Au-dessus ou en dessous selon la place, et jamais hors de l'écran.
         assertTrue("la place en dessous se calcule", menu.contains("val below = r.bottom.roundToInt() + gapPx"))
         assertTrue("et celle au-dessus", menu.contains("val above = r.top.roundToInt() - gapPx - heightPx"))
-        assertTrue("rien ne sort de l'écran", menu.contains("coerceIn(marginPx"))
+        assertTrue("rien ne sort de l'écran", menu.contains("coerceIn(limits.top, limits.bottom - heightPx)"))
         assertTrue("le panneau attend d'être placé", menu.contains(".alpha(if (placed == null || replacingPanel) 0f else 1f)"))
 
         // L'écran des bots donne la tuile de ce qu'on a touché, et la rangée du volet donne la

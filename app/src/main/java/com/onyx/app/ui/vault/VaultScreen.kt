@@ -57,6 +57,12 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 
+/** A successful read is required before accepting secret entry or mutations. */
+internal enum class VaultAvailability { LOADING, READY, UNAVAILABLE }
+
+internal fun canWriteVault(availability: VaultAvailability, busy: Boolean): Boolean =
+    availability == VaultAvailability.READY && !busy
+
 /**
  * **Les trois états d'une lecture du coffre** — et l'état d'erreur n'est jamais un écran vide.
  *
@@ -165,6 +171,7 @@ fun VaultScreen(
     val theme = LocalOnyxTheme.current
     val scope = rememberCoroutineScope()
 
+    var availability by remember(server.id, server.configSignature) { mutableStateOf(VaultAvailability.LOADING) }
     var secrets by remember(server.id) { mutableStateOf<List<VaultSecret>?>(null) }
     var problem by remember(server.id) { mutableStateOf<String?>(null) }
     var reloadKey by remember(server.id) { mutableIntStateOf(0) }
@@ -187,16 +194,25 @@ fun VaultScreen(
     }
 
     suspend fun read(clearFirst: Boolean) {
+        availability = VaultAvailability.LOADING
+        value = ""
         if (clearFirst) secrets = null
         problem = null
         runCatching { api.list() }
-            .onSuccess { secrets = it }
-            .onFailure { problem = message(it) }
+            .onSuccess {
+                secrets = it
+                availability = VaultAvailability.READY
+            }
+            .onFailure {
+                problem = message(it)
+                availability = VaultAvailability.UNAVAILABLE
+            }
     }
 
     LaunchedEffect(server.id, server.configSignature, reloadKey) { read(clearFirst = true) }
 
     fun write() {
+        if (!canWriteVault(availability, writing || revoking)) return
         val trimmed = name.trim()
         if (trimmed.isEmpty() || value.isEmpty()) {
             writeProblem = OnyxLocalization["A name and a value are both required."]
@@ -221,6 +237,7 @@ fun VaultScreen(
     }
 
     fun revoke(target: VaultSecret) {
+        if (!canWriteVault(availability, writing || revoking)) return
         revoking = true
         revokeProblem = null
         scope.launch {
@@ -327,59 +344,61 @@ fun VaultScreen(
                 }
             }
 
-            // ---- L'écriture ---------------------------------------------------------------
-            OnyxFormSection(
-                header = "Add a secret",
-                footer = "The value is written to the vault and never shown again.",
-            ) {
-                VaultField(
-                    label = "Name",
-                    value = name,
-                    placeholder = "openai",
-                    onValueChange = { name = it },
-                    imeAction = ImeAction.Next,
-                )
-                OnyxRowDivider()
-                VaultField(
-                    label = "Value",
-                    value = value,
-                    // **Jamais lisible** : le champ est masqué, il ne montre ni le début ni la fin.
-                    secret = true,
-                    onValueChange = { value = it },
-                    imeAction = ImeAction.Done,
-                )
-            }
+            if (availability == VaultAvailability.READY) {
+                // ---- L'écriture ---------------------------------------------------------------
+                OnyxFormSection(
+                    header = "Add a secret",
+                    footer = "The value is written to the vault and never shown again.",
+                ) {
+                    VaultField(
+                        label = "Name",
+                        value = name,
+                        placeholder = "openai",
+                        onValueChange = { name = it },
+                        imeAction = ImeAction.Next,
+                    )
+                    OnyxRowDivider()
+                    VaultField(
+                        label = "Value",
+                        value = value,
+                        // **Jamais lisible** : le champ est masqué, il ne montre ni le début ni la fin.
+                        secret = true,
+                        onValueChange = { value = it },
+                        imeAction = ImeAction.Done,
+                    )
+                }
 
-            writeProblem?.let {
-                OnyxFormSection {
-                    OnyxRow {
-                        FailureBanner(text = it)
+                writeProblem?.let {
+                    OnyxFormSection {
+                        OnyxRow {
+                            FailureBanner(text = it)
+                        }
                     }
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = OnyxSpace.ScreenMargin, vertical = OnyxSpace.Half),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ContentPill(
-                    text = if (writing) "Saving…" else "Save",
-                    localize = true,
-                    onClick = { write() },
-                    enabled = !writing && name.isNotBlank() && value.isNotEmpty(),
-                    variant = PillVariant.Primary,
-                    size = PillSize.Medium,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = OnyxSpace.ScreenMargin, vertical = OnyxSpace.Half),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContentPill(
+                        text = if (writing) "Saving…" else "Save",
+                        localize = true,
+                        onClick = { write() },
+                        enabled = canWriteVault(availability, writing || revoking) && name.isNotBlank() && value.isNotEmpty(),
+                        variant = PillVariant.Primary,
+                        size = PillSize.Medium,
+                    )
+                }
             }
         }
     }
 
     // ---- La confirmation de révocation, qui **nomme** le secret ---------------------------
     val target = pendingRevoke
-    if (target != null) {
+    if (target != null && availability == VaultAvailability.READY) {
         HouseSheet(
             onDismiss = { if (!revoking) pendingRevoke = null },
             title = "Revoke this secret?",
@@ -394,7 +413,7 @@ fun VaultScreen(
                 symbol = Symbols.Trash,
                 destructive = true,
                 description = target.name,
-                onClick = { if (!revoking) revoke(target) },
+                onClick = { if (canWriteVault(availability, revoking)) revoke(target) },
             )
             revokeProblem?.let {
                 BasicText(

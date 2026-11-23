@@ -274,7 +274,7 @@ fun ModelSheet(
                 // **Aucune rangée coupée** : la feuille ne prend jamais toute la hauteur de l'écran
                 // (le voile reste visible en tête) et sa liste défile **dedans**.
                 val sheetCap = maxHeight * ModelSheetHeightFraction
-                Column(
+                LazyColumn(
                     modifier = modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
@@ -307,134 +307,129 @@ fun ModelSheet(
                         .onyxTappable(onClick = {})
                         .navigationBarsPadding(),
                 ) {
-                    // ---- 1. La poignée et le titre : le seul endroit où la feuille se glisse ----
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures(
-                                    onDragEnd = {
-                                        if (offset.value > dragThreshold) {
-                                            onDismiss()
-                                        } else {
-                                            coroutines.launch { offset.animateTo(0f, settleSpec) }
-                                        }
-                                    },
-                                ) { _, dragAmount ->
-                                    coroutines.launch {
-                                        offset.snapTo((offset.value + dragAmount).coerceAtLeast(0f))
-                                    }
-                                }
-                            },
-                    ) {
-                        ModelSheetHandle()
-                        ModelSheetTitleRow(
-                            title = "Model",
-                            mention = scope.labelKey,
-                            onDismiss = onDismiss,
-                        )
-                    }
-
-                    // ---- 2 bis. Le repli : **dit**, jamais masqué -------------------------------
-                    // Le modèle configuré a échoué et la passerelle a basculé ; le tour est servi
-                    // par un autre modèle. On le nomme, avec son fournisseur réel, et on dit que son
-                    // tarif par million ne s'applique pas.
-                    if (fallback != null) {
-                        BasicText(
-                            text = OnyxLocalization.format(
-                                "This turn is served by a fallback model: %1\$s. The configured model is %2\$s.",
-                                fallback.servedLine(),
-                                fallback.configuredModel,
-                            ),
-                            style = theme.caption.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(
-                                start = OnyxBase.CardPadding,
-                                end = OnyxBase.CardPadding,
-                                top = OnyxBase.Tight,
-                            ),
-                        )
-                        BasicText(
-                            text = OnyxLocalization["Served locally by the fallback — no price per million tokens."],
-                            style = theme.caption.copy(color = theme.tertiaryText),
-                            modifier = Modifier.padding(
-                                start = OnyxBase.CardPadding,
-                                end = OnyxBase.CardPadding,
-                            ),
-                        )
-                    }
-
-                    // ---- 3. « Réflexion » : les crans du serveur, en rangée fluide -----------------
-                    SectionLabel("Reasoning level")
-                    ChipFlow(
-                        labels = reasoningPlan.row.map { (value, label) -> ChipFace(value, label, true) },
-                        selected = reasoning,
-                        onPick = onPickReasoning,
-                    )
-                    // Ce que le serveur ne propose pas, **dit utilement** : le compte des crans, pas
-                    // le nom d'un cran absent (une note de développement). Un repli local ne propose
-                    // aucun cran : on le dit, et aucun n'est montré comme actif.
-                    if (fallbackLocal) {
-                        BasicText(
-                            text = OnyxLocalization.format(
-                                "The fallback model (%1\$s) does not offer the reasoning levels; none is shown as active.",
-                                fallback?.servedLabel.orEmpty(),
-                            ),
-                            style = theme.caption.copy(color = theme.tertiaryText),
-                            modifier = Modifier.padding(
-                                start = OnyxBase.CardPadding,
-                                end = OnyxBase.CardPadding,
-                                top = OnyxBase.Tight,
-                            ),
-                        )
-                    } else reasoningCountLine(reasoningPlan)?.let { line ->
-                        BasicText(
-                            text = line,
-                            localize = false,
-                            style = theme.caption.copy(color = theme.tertiaryText),
-                            modifier = Modifier.padding(
-                                start = OnyxBase.CardPadding,
-                                end = OnyxBase.CardPadding,
-                                top = OnyxBase.Tight,
-                            ),
-                        )
-                    }
-
-                    // ---- 3 bis. « Mode rapide » — seulement si le serveur l'expose ----
-                    // Rien de peint quand `fastMode` est nul : c'est le cas d'un endpoint
-                    // OpenAI-compatible nu, qui n'a pas de notion de niveau accéléré.
-                    fastMode?.let { FastModeRow(it) }
-
-                    // ---- 4. Le filet en retrait, puis le champ de recherche de la maison ---------
-                    Spacer(Modifier.height(OnyxBase.Loose))
-                    OnyxRowDivider(inset = SheetInsetDp, endInset = SheetInsetDp)
-                    ModelSearchField(query = query, onQuery = { query = it })
-
-                    // ---- 5. Les pastilles de fournisseur, même rangée fluide ----------------------
-                    if (facets.isNotEmpty()) {
-                        ChipFlow(
-                            labels = listOf(ChipFace(ModelSelection.AllProviders, "All", true)) +
-                                facets.map { ChipFace(it.provider, it.providerName, false) },
-                            selected = providerFilter,
-                            onPick = { providerFilter = it },
-                            modifier = Modifier.padding(top = OnyxBase.Tight),
-                        )
-                    }
-
-                    // ---- 6. et 7. La liste : favoris, récents, puis un profil après l'autre -------
-                    when {
-                        loading -> SheetNote("Loading models…")
-                        problem != null -> SheetNote(problem)
-                        models.isEmpty() && shownProfiles.isEmpty() -> SheetNote("This server lists no model.")
-                        shown.isEmpty() -> SheetNote("No model matches.")
-                        else -> LazyColumn(
+                    // Controls share the result viewport so IME/small windows cannot starve rows.
+                    item(key = "controls") {
+                        // ---- 1. La poignée et le titre : le seul endroit où la feuille se glisse ----
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                // La liste prend la place qui reste et **défile dedans** : la
-                                // dernière rangée est atteignable, rien n'est coupé par le bas.
-                                .weight(1f, fill = false)
-                                .padding(top = OnyxBase.Tight),
-                            contentPadding = PaddingValues(bottom = OnyxBase.Tight),
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures(
+                                        onDragEnd = {
+                                            if (offset.value > dragThreshold) {
+                                                onDismiss()
+                                            } else {
+                                                coroutines.launch { offset.animateTo(0f, settleSpec) }
+                                            }
+                                        },
+                                    ) { _, dragAmount ->
+                                        coroutines.launch {
+                                            offset.snapTo((offset.value + dragAmount).coerceAtLeast(0f))
+                                        }
+                                    }
+                                },
                         ) {
+                            ModelSheetHandle()
+                            ModelSheetTitleRow(
+                                title = "Model",
+                                mention = scope.labelKey,
+                                onDismiss = onDismiss,
+                            )
+                        }
+
+                        // ---- 2 bis. Le repli : **dit**, jamais masqué -------------------------------
+                        // Le modèle configuré a échoué et la passerelle a basculé ; le tour est servi
+                        // par un autre modèle. On le nomme, avec son fournisseur réel, et on dit que son
+                        // tarif par million ne s'applique pas.
+                        if (fallback != null) {
+                            BasicText(
+                                text = OnyxLocalization.format(
+                                    "This turn is served by a fallback model: %1\$s. The configured model is %2\$s.",
+                                    fallback.servedLine(),
+                                    fallback.configuredModel,
+                                ),
+                                style = theme.caption.copy(color = theme.accent, fontWeight = FontWeight.SemiBold),
+                                modifier = Modifier.padding(
+                                    start = OnyxBase.CardPadding,
+                                    end = OnyxBase.CardPadding,
+                                    top = OnyxBase.Tight,
+                                ),
+                            )
+                            BasicText(
+                                text = OnyxLocalization["Served locally by the fallback — no price per million tokens."],
+                                style = theme.caption.copy(color = theme.tertiaryText),
+                                modifier = Modifier.padding(
+                                    start = OnyxBase.CardPadding,
+                                    end = OnyxBase.CardPadding,
+                                ),
+                            )
+                        }
+
+                        // ---- 3. « Réflexion » : les crans du serveur, en rangée fluide -----------------
+                        SectionLabel("Reasoning level")
+                        ChipFlow(
+                            labels = reasoningPlan.row.map { (value, label) -> ChipFace(value, label, true) },
+                            selected = reasoning,
+                            onPick = onPickReasoning,
+                        )
+                        // Ce que le serveur ne propose pas, **dit utilement** : le compte des crans, pas
+                        // le nom d'un cran absent (une note de développement). Un repli local ne propose
+                        // aucun cran : on le dit, et aucun n'est montré comme actif.
+                        if (fallbackLocal) {
+                            BasicText(
+                                text = OnyxLocalization.format(
+                                    "The fallback model (%1\$s) does not offer the reasoning levels; none is shown as active.",
+                                    fallback?.servedLabel.orEmpty(),
+                                ),
+                                style = theme.caption.copy(color = theme.tertiaryText),
+                                modifier = Modifier.padding(
+                                    start = OnyxBase.CardPadding,
+                                    end = OnyxBase.CardPadding,
+                                    top = OnyxBase.Tight,
+                                ),
+                            )
+                        } else reasoningCountLine(reasoningPlan)?.let { line ->
+                            BasicText(
+                                text = line,
+                                localize = false,
+                                style = theme.caption.copy(color = theme.tertiaryText),
+                                modifier = Modifier.padding(
+                                    start = OnyxBase.CardPadding,
+                                    end = OnyxBase.CardPadding,
+                                    top = OnyxBase.Tight,
+                                ),
+                            )
+                        }
+
+                        // ---- 3 bis. « Mode rapide » — seulement si le serveur l'expose ----
+                        // Rien de peint quand `fastMode` est nul : c'est le cas d'un endpoint
+                        // OpenAI-compatible nu, qui n'a pas de notion de niveau accéléré.
+                        fastMode?.let { FastModeRow(it) }
+
+                        // ---- 4. Le filet en retrait, puis le champ de recherche de la maison ---------
+                        Spacer(Modifier.height(OnyxBase.Loose))
+                        OnyxRowDivider(inset = SheetInsetDp, endInset = SheetInsetDp)
+                        ModelSearchField(query = query, onQuery = { query = it })
+
+                        // ---- 5. Les pastilles de fournisseur, même rangée fluide ----------------------
+                        if (facets.isNotEmpty()) {
+                            ChipFlow(
+                                labels = listOf(ChipFace(ModelSelection.AllProviders, "All", true)) +
+                                    facets.map { ChipFace(it.provider, it.providerName, false) },
+                                selected = providerFilter,
+                                onPick = { providerFilter = it },
+                                modifier = Modifier.padding(top = OnyxBase.Tight),
+                            )
+                        }
+
+                    }
+                    // ---- 6. et 7. La liste : favoris, récents, puis un profil après l'autre -------
+                    when {
+                        loading -> item { SheetNote("Loading models…") }
+                        problem != null -> item { SheetNote(problem) }
+                        models.isEmpty() && shownProfiles.isEmpty() -> item { SheetNote("This server lists no model.") }
+                        shown.isEmpty() -> item { SheetNote("No model matches.") }
+                        else -> {
                             // ---- ÉPINGLÉS ---- (le titre est mis en petites capitales par
                             // `SectionHeader` ; le mot vient de la table de langue)
                             if (sections.favourites.isNotEmpty()) {

@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import com.onyx.app.ui.localization.BasicText
@@ -27,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -51,8 +58,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ResolvedTheme
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Une entrée du menu « … » : son libellé, son icône, son sous-menu, et s'il est destructeur. */
@@ -91,9 +96,6 @@ private val MenuChevronSize = 13.dp
 /** L'écart entre la rangée touchée et le panneau, et la marge qu'il garde au bord de l'écran. */
 private val MenuGap = OnyxSpace.Hair
 private val MenuMargin = OnyxSpace.Snug
-
-/** La marge du panneau centré (les menus qui ne sont pas ancrés à une rangée). */
-private val MenuCenteredInset = 32.dp
 
 /** Le voile : léger, il laisse voir l'écran et se ferme quand on appuie à côté du panneau. */
 private val MenuScrim = Color.Black.copy(alpha = 0.18f)
@@ -169,6 +171,7 @@ private fun MenuOverlay(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .onGloballyPositioned { placed = it.boundsInWindow().topLeft }
             .background(MenuScrim)
             // Un appui hors du panneau referme le menu, comme celui du modèle : sans ça le voile
@@ -196,26 +199,22 @@ private fun MenuOverlay(
         }
         val marginPx = with(density) { MenuMargin.roundToPx() }
         val gapPx = with(density) { MenuGap.roundToPx() }
-        val widthPx = with(density) {
-            if (row == null) {
-                (constraints.maxWidth - MenuCenteredInset.roundToPx() * 2).coerceAtLeast(0)
-            } else {
-                min(MenuWidth.roundToPx(), (constraints.maxWidth - marginPx * 2).coerceAtLeast(0))
-            }
-        }
-        // La hauteur du panneau avant sa première mesure : ses lignes, ses filets, sa marge.
-        val heightPx = if (panelSize.height > 0) panelSize.height else estimateMenuHeight(items, density)
-        val x = row
-            ?.let { it.left.roundToInt().coerceIn(marginPx, max(marginPx, constraints.maxWidth - widthPx - marginPx)) }
+        val limits = menuViewportBounds(
+            constraints.maxWidth, constraints.maxHeight,
+            with(density) { MenuWidth.roundToPx() }, marginPx,
+        )
+        val widthPx = limits.width
+        val maxHeightPx = limits.height
+        val heightPx = (if (panelSize.height > 0) panelSize.height else estimateMenuHeight(items, density))
+            .coerceAtMost(maxHeightPx)
+        val x = row?.left?.roundToInt()?.coerceIn(limits.left, limits.right - widthPx)
             ?: ((constraints.maxWidth - widthPx) / 2)
-        val y = row
-            ?.let { r ->
-                val below = r.bottom.roundToInt() + gapPx
-                val above = r.top.roundToInt() - gapPx - heightPx
-                val chosen = if (below + heightPx + marginPx <= constraints.maxHeight) below else above
-                chosen.coerceIn(marginPx, max(marginPx, constraints.maxHeight - heightPx - marginPx))
-            }
-            ?: ((constraints.maxHeight - heightPx) / 2)
+        val y = row?.let { r ->
+            val below = r.bottom.roundToInt() + gapPx
+            val above = r.top.roundToInt() - gapPx - heightPx
+            (if (below + heightPx <= limits.bottom) below else above)
+                .coerceIn(limits.top, limits.bottom - heightPx)
+        } ?: ((constraints.maxHeight - heightPx) / 2)
 
         // Où va un sous-menu : à droite du panneau, à gauche s'il n'y a plus de place, et à sa
         // place quand deux panneaux ne tiennent pas côte à côte (un téléphone).
@@ -229,6 +228,7 @@ private fun MenuOverlay(
             modifier = Modifier
                 .offset { IntOffset(x, y) }
                 .width(with(density) { widthPx.toDp() })
+                .heightIn(max = with(density) { maxHeightPx.toDp() })
                 // Le panneau attend d'être placé : il ne se montre pas une image au mauvais endroit.
                 // Il s'efface aussi quand un sous-menu prend sa place, faute de largeur.
                 .alpha(if (placed == null || replacingPanel) 0f else 1f)
@@ -237,7 +237,8 @@ private fun MenuOverlay(
         )
 
         submenu?.let { (subItems, bounds) ->
-            val subHeightPx = if (submenuSize.height > 0) submenuSize.height else estimateMenuHeight(subItems, density)
+            val subHeightPx = (if (submenuSize.height > 0) submenuSize.height else estimateMenuHeight(subItems, density))
+                .coerceAtMost(maxHeightPx)
             val right = x + widthPx + gapPx
             // À droite du panneau quand il y a la place, à gauche sinon : le sous-menu ne sort pas
             // de l'écran. Trop étroit pour deux panneaux — un téléphone —, il prend la place du
@@ -247,18 +248,15 @@ private fun MenuOverlay(
                 leftOf -> x - gapPx - widthPx
                 else -> x
             }
-            val subY = if (beside) {
-                (bounds.top - offset.y).roundToInt()
-                    .coerceIn(marginPx, max(marginPx, constraints.maxHeight - subHeightPx - marginPx))
-            } else {
-                y
-            }
+            val subY = (if (beside || leftOf) (bounds.top - offset.y).roundToInt() else y)
+                .coerceIn(limits.top, limits.bottom - subHeightPx)
             MenuPanel(
                 items = subItems,
                 theme = theme,
                 modifier = Modifier
                     .offset { IntOffset(subX, subY) }
                     .width(with(density) { widthPx.toDp() })
+                    .heightIn(max = with(density) { maxHeightPx.toDp() })
                     .onSizeChanged { submenuSize = it },
             )
         }
@@ -272,7 +270,10 @@ private fun estimateMenuHeight(items: List<MenuItem>, density: Density): Int = w
     rows + OnyxSpace.Half.roundToPx() * 2 + dividers
 }
 
-/** Le panneau : une ligne par entrée, l'une sous l'autre, un filet là où le groupe change. */
+// Use the same opaque floating-surface rung as action sheets; never sample the live page.
+internal fun menuSurface(theme: ResolvedTheme): Color =
+    OnyxSurfaces.surfaceHigh(theme).copy(alpha = 1f)
+
 @Composable
 private fun MenuPanel(
     items: List<MenuItem>,
@@ -286,33 +287,13 @@ private fun MenuPanel(
             // Le panneau lui-même n'est pas une zone de fermeture : appuyer entre deux lignes ne
             // doit rien faire (l'appui est avalé ici, pas transmis au voile).
             .onyxTappable(onClick = {})
-            // **Le verre du panneau**, et non plus un voile.
-            //
-            // Avant, le fond était peint par `frostedBar` : un **voile plat** — aucun calque flouté,
-            // aucune lentille. Le contenu dessous restait lisible (mesuré : contraste 179 → 30, les
-            // arêtes du texte restaient des marches nettes) et le panneau n'avait ni lumière ni
-            // arête : c'était du **lavis**, pas du verre.
-            //
-            // Ici le panneau prend la surface de la **table du verre** ([GlassSurface.MENU]) : le fond
-            // est le contenu réel, flouté et courbé par la lentille, et la finition de la maison
-            // (lumière de tête, ombre de pied, liseré, reflet de tranche) se pose par-dessus.
-            //
-            // **Pas de `masking`**, et c'est délibéré : le panneau ancré se pose sur une **rangée**,
-            // pas sur un fil qui défile sous une plaque. Il doit **laisser voir** ce qu'il recouvre —
-            // c'est le verre qu'on cherche. `masking` remonterait le voile jusqu'à 0,92 et le
-            // panneau redeviendrait l'**aplat** qu'on voulait supprimer (mesuré : fond uniforme, plus
-            // aucune forme derrière). La lisibilité, ici, c'est le **flou** qui la porte, pas
-            // l'opacité.
-            // **Le chemin de Haze, pas celui de la lentille.** Mesuré : le chemin de la lentille
-            // peint une **teinte** mais n'échantillonne **rien** (la texture enregistrée rend vide) —
-            // le panneau laissait alors passer le texte dessous net (corrélation 0,99 avec l'image
-            // non floutée). Le chemin de Haze, lui, échantillonne vraiment (le volet lit la source à
-            // `count=1`) : c'est lui qui donne le fond **flouté** du verre.
-            .liquidGlass(
-                GlassSurface.MENU,
-                RoundedCornerShape(MenuCorner),
-                lens = false,
-            )
+            // The lens path resamples unblurred page pixels; Haze also remains translucent.
+            // Menus must occlude titles/dividers regardless of glass quality or backdrop state.
+            .shadow(12.dp, RoundedCornerShape(MenuCorner))
+            .clip(RoundedCornerShape(MenuCorner))
+            .background(menuSurface(theme))
+            .border(1.dp, theme.separator, RoundedCornerShape(MenuCorner))
+            .verticalScroll(rememberScrollState())
             .padding(vertical = OnyxSpace.Half),
     ) {
         items.forEachIndexed { index, item ->
