@@ -74,14 +74,15 @@ class ServeFileDownload(private val config: ServerConfig) {
             .header("User-Agent", OnyxHttp.USER_AGENT)
             .build()
 
-        stream(request, destination, onProgress)
+        stream(request, destination, onProgress, authenticated = true)
     }
 
     /** Le corps d'une requête déjà construite, écrit en `.part` puis renommé **à la fin**. */
-    private fun stream(
+    private suspend fun stream(
         request: Request,
         destination: File,
         onProgress: (received: Long, total: Long?) -> Unit,
+        authenticated: Boolean = false,
     ): File {
         val parent = destination.parentFile
         if (parent != null && !parent.exists()) parent.mkdirs()
@@ -89,7 +90,12 @@ class ServeFileDownload(private val config: ServerConfig) {
         if (partial.exists()) partial.delete()
 
         try {
-            ServeClient.clientFor(config).newCall(request).execute().use { response ->
+            val response = if (authenticated) {
+                ServeClient(config).executeAuthenticated(request)
+            } else {
+                ServeClient.clientFor(config).newCall(request).execute()
+            }
+            response.use { response ->
                 if (!response.isSuccessful) throw TransportError.Http(response.code, "")
                 val body = response.body ?: throw TransportError.Malformed(OnyxLocalization["empty body"])
                 val total = body.contentLength().takeIf { it >= 0L }
