@@ -521,6 +521,14 @@ Issues and pull requests are welcome. Four rules keep the tree healthy:
 3. New user-visible text goes through the localization catalogs.
 4. No secret, key, token or personal address lands in the tree.
 
+## Contributors
+
+- **[schergr](https://github.com/schergr)** (Greg) — hardened Dashboard credential scoping, proxy
+  request intake and installer file permissions, and the cloudflared archive extraction; coordinated
+  Dashboard authentication and mixed gateway credentials; fixed foldable overlays and gated
+  unavailable vault editing; made the sidebar content-first; and repaired the group-send and
+  opaque-menu regression gates.
+
 ## License
 
 [Functional Source License 1.1, MIT Future License](LICENSE) (**FSL-1.1-MIT**). It is
