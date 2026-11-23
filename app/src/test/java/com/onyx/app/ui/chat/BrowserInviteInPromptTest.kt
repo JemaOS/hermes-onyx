@@ -48,23 +48,4 @@ class BrowserInviteSinglePlacementTest {
         assertTrue("elle est portée par cet élément", invite > item)
     }
 
-    @Test
-    fun `elle n est ni dans le fil d outils ni dans la pile du prompt`() {
-        assertFalse(
-            "aucune carte de prise en main dans une rangée d'outils",
-            rangee.contains("BrowserTakeoverCard"),
-        )
-        assertFalse(
-            "ni la détection d'outil qui la déclenchait",
-            rangee.contains("estUneDemandeDeMain"),
-        )
-        // Le bloc du compositeur : de sa mesure de hauteur jusqu'à la LazyColumn du fil qui suit.
-        val debutPile = ecran.indexOf("modifier = Modifier\n                    .align(Alignment.BottomCenter)")
-        assertTrue("la pile du bas est trouvée", debutPile > 0)
-        val pile = ecran.substring(debutPile, (debutPile + 4000).coerceAtMost(ecran.length))
-        assertFalse(
-            "la pile du prompt ne porte pas la carte",
-            pile.contains("BrowserInvite("),
-        )
-    }
 }

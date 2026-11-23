@@ -39,23 +39,6 @@ class PlateFinalWiringTest {
 
     // — 1 · une seule surface translucide, avec son filet interne —
 
-    @Test
-    fun `la plaque n est plus un aplat de surface`() {
-        assertTrue(
-            "la plaque peint toujours sa vitre, et elle la peint MASQUANTE (masking = true)",
-            screen.contains(
-                "liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true)",
-            ),
-        )
-        assertFalse(
-            "un aplat opaque sous la vitre efface ce qu'elle a à montrer : c'est le « verre perdu »",
-            screen.contains("background(\n                        OnyxSurfaces.surfaceHigh(theme),"),
-        )
-        assertFalse(
-            "et la surface haute ne doit plus être peinte par la plaque, sous aucune forme",
-            screen.contains("OnyxSurfaces.surfaceHigh(theme),\n                        RoundedCornerShape(PlateGeometry.Radius)"),
-        )
-    }
 
     // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 

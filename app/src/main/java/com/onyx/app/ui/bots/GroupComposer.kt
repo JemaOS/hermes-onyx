@@ -212,6 +212,8 @@ fun GroupComposer(
      * plus sa propre carte, la plaque s'en charge. Faux : la carte d'origine.
      */
     plate: Boolean = false,
+    compact: Boolean = false,
+    roomName: String = GroupComposerTitle,
     /**
      * La marge système du bas est-elle prise par le compositeur ? `false` quand l'écran la prend
      * **lui-même, une seule fois**, pour toute la pile du bas (compositeur **et** barre d'onglets) —
@@ -379,7 +381,9 @@ fun GroupComposer(
             draft = draft,
             onDraftChange = { draft = it },
             isStreaming = isStreaming,
-            title = GroupComposerTitle,
+            title = roomName,
+            groupConversation = true,
+            compact = compact,
             attachments = attachments,
             onRemoveAttachment = { id -> attachments = attachments.filterNot { it.id == id } },
             onPasteImages = { uris -> addAttachments(uris) },

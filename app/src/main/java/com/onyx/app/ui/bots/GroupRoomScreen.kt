@@ -11,7 +11,6 @@ import com.onyx.app.ui.design.OnyxSpace
 import com.onyx.app.ui.design.onyxPage
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +24,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.activity.compose.BackHandler
+import com.onyx.app.ui.chat.components.CompactComposerDock
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,18 +35,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import com.onyx.app.ui.localization.BasicText
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -89,17 +91,11 @@ import com.onyx.app.ui.design.SurfaceRole
 import com.onyx.app.ui.design.glassBarShell
 import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.design.onyxHazeSource
-import com.onyx.app.ui.design.LocalGlassSourcePresence
-import com.onyx.app.ui.design.OnyxLens
 import com.onyx.app.ui.design.onyxClickable
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.voice.SpeechEngine
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.draw.drawBehind
 import com.onyx.app.data.local.ChatPanelStore
 import com.onyx.app.ui.chat.ChatFeed
 import com.onyx.app.ui.chat.ChatFiles
@@ -107,20 +103,13 @@ import com.onyx.app.ui.chat.ChatFilesPane
 import com.onyx.app.ui.chat.ChatFeedPane
 import com.onyx.app.ui.chat.FileViewers
 import com.onyx.app.ui.design.ChatTab
-import com.onyx.app.ui.design.ChatTabBar
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
-import com.onyx.app.ui.design.TabFace
 import com.onyx.app.ui.design.botFaceColour
 import com.onyx.app.ui.design.rememberTabFaceCycleIndex
 import com.onyx.app.ui.design.GlassSurface
-import com.onyx.app.ui.design.PlateGeometry
 import com.onyx.app.ui.design.onyxLensPage
-import com.onyx.app.ui.design.OnyxBase
-import com.onyx.app.ui.design.OnyxSurfaces
-import com.onyx.app.ui.design.composerBottomInsets
 import com.onyx.app.ui.design.liquidGlass
-import com.onyx.app.ui.design.socleShadow
 import kotlinx.coroutines.launch
 
 /**
@@ -187,6 +176,7 @@ fun GroupRoomScreen(
     chatTextScale: Float = 1f,
 ) {
     val theme = LocalOnyxTheme.current
+    val focusManager = LocalFocusManager.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     // **Le meneur de la salle** : un destinataire par défaut, gardé sur ce téléphone. Le menu le
     // coche, et l'envoi le lit — sans meneur, la salle se comporte exactement comme avant.
@@ -224,29 +214,11 @@ fun GroupRoomScreen(
     // repère garde son visage unique. C'est la règle, pas un cas particulier ajouté ici.
     val roomMembers = room.members
     val faceCycleIndex = rememberTabFaceCycleIndex(roomMembers.size)
-    val faceCycleFaces = remember(roomMembers, faceResolver, theme) {
-        roomMembers.map { member ->
-            TabFace(
-                key = member.profile,
-                accent = botFaceColour(member.profile, face(member.profile), theme),
-                content = {
-                    BotLook(
-                        name = member.profile,
-                        faceCode = face(member.profile),
-                        size = PlateGeometry.TabCell,
-                    )
-                },
-            )
-        }
-    }
-    // La teinte de la salle suit le visage montré (l'accent des onglets, du flux et des fichiers) :
-    // c'est `botFaceColour` de ce bot, donc l'identité ne se contredit pas. Sans membres, l'accent
-    // du thème reste — une salle vide n'a pas de visage à teinter.
-    val tabAccent = faceCycleFaces.getOrNull(faceCycleIndex)?.accent ?: theme.accent
+    val tabAccent = roomMembers.getOrNull(faceCycleIndex)?.let {
+        botFaceColour(it.profile, face(it.profile), theme)
+    } ?: theme.accent
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
     var feedFeedback by remember(panelKey) { mutableStateOf(panels.feedbackFor(panelKey)) }
-    // Le sujet qu'un « Discuter » du flux écrit dans le champ : le brouillon vit dans le
-    // compositeur, la salle ne fait que lui passer le sujet **une fois**.
     var pendingDraft by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pagerState, panelKey) {
@@ -311,6 +283,15 @@ fun GroupRoomScreen(
         if (itemCount > 0 && wasAtEnd) listState.animateScrollToItem(itemCount - 1)
     }
 
+    BackHandler(enabled = pagerState.currentPage != 0 && !findOpen) {
+        scope.launch { pagerState.scrollToPage(0) }
+    }
+    BackHandler(enabled = findOpen) {
+        findOpen = false
+        findText = ""
+        findIndex = 0
+    }
+
     LaunchedEffect(findText) {
         findIndex = 0
         if (matches.isNotEmpty()) findGoTo(matches.first(), page, shownFrom)?.let { shownFrom = it }
@@ -367,9 +348,7 @@ fun GroupRoomScreen(
         Box(Modifier.matchParentSize().onyxPage(theme))
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(bottom = SafeBarSpacing.GapDp.dp),
+                .fillMaxSize(),
         ) {
             Box(
                 // **Le fil, plein écran, décalé de la hauteur des barres.** C'est **lui**, la texture que
@@ -575,20 +554,22 @@ fun GroupRoomScreen(
     }
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            // La zone du système d'abord, puis l'espace visuel de la maison : la barre
-            // d'écriture de la salle ne peut plus être enterrée sous la barre de navigation,
-            // ni paraître collée au bord.
-            .navigationBarsPadding()
-            .padding(bottom = SafeBarSpacing.GapDp.dp),
+            .fillMaxSize(),
     ) {
         Box(Modifier.onSizeChanged { topInsetPx = it.height }) {
         RoomHeader(
             room = room,
             face = face,
-            onBack = onBack,
-            sidebarToggle = sidebarToggle,
-            onMenu = { showingMenu = true },
+            onBack = {
+                if (pagerState.currentPage != 0) scope.launch { pagerState.scrollToPage(0) }
+                else onBack()
+            },
+            sidebarToggle = sidebarToggle.takeIf { pagerState.currentPage == 0 },
+            onMenu = {
+                focusManager.clearFocus()
+                keyboard?.hide()
+                showingMenu = true
+            },
             onNewConversation = onNewConversation,
         )
 
@@ -614,34 +595,17 @@ fun GroupRoomScreen(
 
         Box(Modifier.onSizeChanged { bottomInsetPx = it.height }) {
         if (room.inDesktop) {
-            DesktopNote()
+            Box(Modifier.navigationBarsPadding().padding(bottom = SafeBarSpacing.GapDp.dp)) {
+                DesktopNote()
+            }
         } else {
-            // **La même pile du bas qu'une conversation à un bot** : le compositeur de la maison,
-            // puis la barre d'onglets, dans **une seule** plaque et avec **une seule** marge
-            // système (`composerBottomInsets`) — les deux ne s'additionnent jamais.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .composerBottomInsets()
-                    .padding(
-                        start = PlateGeometry.SideMargin,
-                        end = PlateGeometry.SideMargin,
-                        bottom = OnyxSpace.Half,
-                    )
-                    .socleShadow(OnyxBase.ShadowFar, PlateGeometry.Radius, theme.dark)
-                    .clip(RoundedCornerShape(PlateGeometry.Radius))
-                    .border(
-                        PlateGeometry.Outline,
-                        OnyxSurfaces.hairline(theme),
-                        RoundedCornerShape(PlateGeometry.Radius),
-                    )
-                    // **La lentille de la maison**, la même que dans un fil de bot — désormais découpée à la
-                    // forme (voir `LiquidGlass`), donc plus de rectangle au milieu de la plaque.
-                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true),
-            ) {
+            CompactComposerDock {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     GroupComposer(
                         bots = room.composerBots(face),
+                        roomName = room.name,
+                        compact = true,
+                        leadLabel = room.members.firstOrNull { it.profile == lead }?.label,
                         isStreaming = state.busy,
                         onSend = { text, files -> viewModel.send(text, files) },
                         onStop = { viewModel.stop() },
@@ -657,58 +621,7 @@ fun GroupRoomScreen(
                         onPrefillConsumed = { pendingDraft = null },
                     )
                 }
-                // Le filet interne de la plaque : la frontière entre le champ et la rangée d'onglets
-                // (`.ask{border-bottom}` de la planche), peint et non mesuré.
-                val separatorColour = OnyxSurfaces.hairline(theme)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(PlateGeometry.TabRowHeight)
-                        .drawBehind {
-                            drawRect(
-                                color = separatorColour,
-                                topLeft = Offset.Zero,
-                                size = Size(size.width, PlateGeometry.Separator.toPx()),
-                            )
-                        },
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    // **La barre est celle de la maison**, avec ses quatre repères : Chat, Flux,
-                    // Fichiers, puis le repère-visage — ici les visages des membres de la salle.
-                    val faceIndex = ChatTab.drawn.lastIndex
-                    ChatTabBar(
-                        selectedIndex = pagerState.currentPage,
-                        tabs = ChatTab.drawn,
-                        accent = tabAccent,
-                        badges = List(chatTabCount) { 0 },
-                        plate = true,
-                        faceIndex = faceIndex,
-                        faceLabel = room.name,
-                        // **Les visages des membres défilent** sur le repère, un bot après l'autre
-                        // (`faceCycle`), et l'index courant — une seule boucle — donne aussi la
-                        // teinte. `face` reste le repli d'une salle sans membre : rien à faire
-                        // défiler, donc le repère ne peint qu'un visage.
-                        faceCycle = faceCycleFaces,
-                        faceCycleIndex = faceCycleIndex,
-                        face = {
-                            RoomFaceStack(
-                                members = room.members,
-                                face = face,
-                                size = PlateGeometry.TabCell,
-                            )
-                        },
-                        onSelect = { index ->
-                            when {
-                                // Le repère-visage de la salle ouvre son menu (son identité).
-                                index == faceIndex -> showingMenu = true
-                                index in 0 until chatTabCount -> scope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                                else -> Unit
-                            }
-                        },
-                    )
-                }
+
             }
         }
         }
@@ -718,6 +631,12 @@ fun GroupRoomScreen(
     if (showingMenu) {
         OnyxMenu(
             items = buildList {
+                ChatTab.paged.forEachIndexed { index, tab ->
+                    add(MenuItem(tab.label, tab.symbol) {
+                        showingMenu = false
+                        scope.launch { pagerState.scrollToPage(index) }
+                    })
+                }
                 add(MenuItem(label = "Find in Chat", symbol = Symbols.MagnifyingGlass) {
                     showingMenu = false
                     findOpen = true

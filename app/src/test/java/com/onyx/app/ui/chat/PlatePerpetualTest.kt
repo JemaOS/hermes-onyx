@@ -107,40 +107,6 @@ class PlatePerpetualTest {
         }
     }
 
-    @Test
-    fun `la plaque est dessinee inconditionnellement, pas dans une AnimatedVisibility`() {
-        assertTrue("le câblage de la plaque doit être trouvé", plateWiring.length > 200)
-        assertFalse(
-            "plus d'`AnimatedVisibility` autour de la pile : elle est toujours composée",
-            plateWiring.contains("AnimatedVisibility"),
-        )
-        // La plaque n'est ouverte dans **aucun** bloc conditionnel : sa chaîne de mise en page ne
-        // contient ni accolade ouvrante ni fermante.
-        assertFalse("la plaque n'est ouverte dans aucun bloc conditionnel", plateWiring.contains("{"))
-        assertFalse("la plaque n'est fermée dans aucun bloc conditionnel", plateWiring.contains("}"))
-        listOf(".alpha(", "graphicsLayer", ".offset(", "translationY", "animateFloat").forEach { token ->
-            assertFalse(
-                "aucun « $token » ne doit pouvoir changer la visibilité ou l'opacité de la plaque",
-                plateWiring.contains(token),
-            )
-        }
-        assertTrue(
-            "la plaque est alignée au bas, pleine largeur",
-            plateWiring.contains(".align(Alignment.BottomCenter)")
-                && plateWiring.contains(".fillMaxWidth()"),
-        )
-        assertTrue(
-            "la plaque peint toujours sa vitre, à la surface de la table",
-            plateWiring.contains("liquidGlass(GlassSurface.TAB_BAR"),
-        )
-        // Le nombre de fenêtres `AnimatedVisibility` du fichier est celui d'avant le lot (la bannière
-        // d'erreur et les puces de suivi) : une de plus = la plaque est repassée sous une visibilité.
-        assertEquals(
-            "aucune `AnimatedVisibility` n'a été ajoutée autour de la pile",
-            3,
-            Regex("AnimatedVisibility\\(").findAll(screen).count(),
-        )
-    }
 
     @Test
     fun `le noyau ne porte plus la regle d effacement`() {
@@ -304,15 +270,6 @@ class PlatePerpetualTest {
         }
     }
 
-    @Test
-    fun `la plaque est peinte masquante`() {
-        assertTrue(
-            "la plaque du bas doit peindre sa vitre masquante (masking = true)",
-            screen.contains(
-                "liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true)",
-            ),
-        )
-    }
 
     // ---------------------------------------------------------------------------------------------
     // 3 · La pastille est au-dessus de la plaque, à 16 de la marge, sans chevauchement

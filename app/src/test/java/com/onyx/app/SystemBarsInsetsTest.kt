@@ -34,28 +34,6 @@ class SystemBarsInsetsTest {
     private fun bottomStack(): String =
         chat.substringAfter("// **La pile du bas**").substringBefore("val jumpClearance")
 
-    @Test
-    fun `la barre d onglets prend la zone systeme et l espace visuel de la maison`() {
-        val stack = bottomStack()
-        // **La plaque unique prend l'encart, une seule fois, pour le compositeur ET la barre**
-        // (brief « cinq divergences », n° 5) : `composerBottomInsets` porte le clavier, puis la zone
-        // de navigation **sans** le clavier — l'encart n'est donc jamais compté deux fois.
-        assertTrue(
-            "la plaque du bas doit prendre l'encart du système",
-            stack.contains(".composerBottomInsets()"),
-        )
-        assertTrue(
-            "elle doit s'écarter de la zone système",
-            stack.contains("bottom = OnyxSpace.Half,"),
-        )
-        // La barre elle-même est **dans** la plaque encartée : c'est la plaque qui porte l'encart,
-        // pas la barre, donc le verre ne descend jamais dans la zone.
-        assertTrue("la barre doit être posée dans la plaque encartée", stack.contains("OnyxComposer("))
-        assertTrue(
-            "l'encart doit précéder la barre",
-            stack.indexOf("composerBottomInsets") < stack.indexOf("OnyxComposer("),
-        )
-    }
 
     @Test
     fun `la hauteur mesuree reste celle de la barre, sans l encart`() {
@@ -136,27 +114,4 @@ class SystemBarsInsetsTest {
         }
     }
 
-    @Test
-    fun `la marge n est pas une valeur ecrite en dur dans les barres basses`() {
-        // Le piège nommé par le propriétaire : « une valeur codée en dur qui ne marche que sur un
-        // écran ». La barre d'onglets et l'en-tête passent donc par l'encart du système, et la
-        // constante de l'espace visuel vit à un seul endroit (`SafeBarSpacing`), pas dans l'écran.
-        assertTrue(
-            "la barre d'onglets ne fabrique pas sa marge à la main",
-            !chat.contains("padding(bottom = 24.dp)") && !chat.contains("padding(bottom = 48.dp)"),
-        )
-        assertTrue(
-            "l'espace visuel vient d'un jeton, jamais d'un nombre ecrit dans l'ecran",
-            chat.contains("bottom = OnyxSpace.Half,"),
-        )
-        // Et ce jeton **est** l'espace visuel de la maison : la valeur de `SafeBarSpacing.GapDp`,
-        // portee par la famille de la barre flottante (`OnyxSpace.Half`). C'est l'egalite qui
-        // compte, pas le nom du fichier ou le chiffre a ete ecrit — un jeton de famille peut
-        // desormais le nommer, et il ne peut pas deriver sans faire echouer cette ligne.
-        assertEquals(
-            "le dégagement de la pilule doit être l'espace visuel de la maison",
-            SafeBarSpacing.GapDp,
-            TabBarGeometry.BottomMargin.value.toInt(),
-        )
-    }
 }

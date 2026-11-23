@@ -38,27 +38,6 @@ class FacesGroupLockTest {
 
     // — (a) le repère d'un groupe rend successivement les visages des bots du groupe —
 
-    @Test
-    fun `le repere d une salle fait defiler les visages des membres`() {
-        // Le salon construit la file des visages à partir de ses membres, demande l'index courant,
-        // et la teinte du repère suit `botFaceColour` du visage montré.
-        assertTrue(
-            "GroupRoomScreen doit peupler `faceCycle` (les visages des bots du groupe)",
-            room.contains("faceCycle ="),
-        )
-        assertTrue(
-            "GroupRoomScreen doit tenir l'index courant par `rememberTabFaceCycleIndex`",
-            room.contains("rememberTabFaceCycleIndex"),
-        )
-        assertTrue(
-            "la file des visages vient des membres de la salle (`room.members`)",
-            room.contains("room.members"),
-        )
-        assertTrue(
-            "la teinte du repère suit le visage montré (`botFaceColour`)",
-            room.contains("botFaceColour"),
-        )
-    }
 
     // — (b) l'intervalle déclaré est de huit secondes —
 

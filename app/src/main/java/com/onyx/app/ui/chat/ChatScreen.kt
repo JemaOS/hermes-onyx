@@ -21,12 +21,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,17 +32,16 @@ import com.onyx.app.ui.localization.BasicText
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -62,10 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.onyx.app.ui.design.AttachmentAction
 import com.onyx.app.ui.design.AttachmentSheet
-import com.onyx.app.ui.design.OnyxMenu
 import com.onyx.app.ui.design.MenuItem
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +80,7 @@ import com.onyx.app.ui.chat.components.BranchConfirmAlert
 import com.onyx.app.ui.common.ToastHost
 import com.onyx.app.ui.common.messageArrival
 import com.onyx.app.ui.chat.components.OnyxComposer
+import com.onyx.app.ui.chat.components.CompactComposerDock
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.derivedStateOf
@@ -107,7 +103,6 @@ import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxConfirm
 import com.onyx.app.ui.design.OnyxMotion
 import com.onyx.app.ui.design.OnyxSpace
-import com.onyx.app.ui.design.onyxPage
 import com.onyx.app.ui.design.matierePage
 import com.onyx.app.ui.design.ambientLoop
 import com.onyx.app.ui.design.Lucide
@@ -121,30 +116,19 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.onyx.app.data.local.ChatPanelStore
 import com.onyx.app.ui.design.ChatTab
-import com.onyx.app.ui.design.ChatTabBar
 import com.onyx.app.ui.design.OnyxBase
-import com.onyx.app.ui.design.OnyxSurfaces
-import com.onyx.app.ui.design.socleShadow
-import androidx.compose.foundation.border
 import com.onyx.app.ui.design.ComposerStacking
-import com.onyx.app.ui.design.TabBarGeometry
 import com.onyx.app.ui.design.LocalHazeState
 import com.onyx.app.ui.design.LocalReduceMotion
-import com.onyx.app.ui.design.composerBottomInsets
 import com.onyx.app.ui.design.threadBottomReserve
 import com.onyx.app.ui.design.threadFloatAnchor
 import com.onyx.app.ui.design.TabSwipeEdgeGuards
 import com.onyx.app.ui.design.botFaceColour
-import com.onyx.app.ui.design.BotLook
 import com.onyx.app.ui.design.PlateGeometry
 import com.onyx.app.ui.design.onyxLensPage
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
 import com.onyx.app.ui.design.GlassSurface
-import com.onyx.app.ui.design.liquidGlass
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import com.onyx.app.ui.design.glassWeldBehind
 import com.onyx.app.ui.design.onyxHazeSource
 import kotlinx.coroutines.launch
 
@@ -1545,81 +1529,9 @@ fun ChatScreen(
                 )
             }
 
-            // **La pile du bas** : le compositeur, puis la barre d'onglets. Une **seule** marge
-            // système pour les deux (`composerBottomInsets` : le clavier d'abord, puis la zone de
-            // navigation **sans** le clavier) — les deux marges ne s'additionnent plus, et la
-            // barre d'onglets ne peut plus être poussée sous le bord de la fenêtre, derrière le
-            // clavier, pendant que le compositeur occuperait sa place.
-            // La pile du bas, **par-dessus** le fil : le compositeur et les cinq onglets portent
-            // donc des vitres sur du contenu qui défile.
-            //
-            // **Elle ne s'efface plus, jamais.** L'`AnimatedVisibility` qui la fondait au défilement
-            // a été retirée : le `Column` ci-dessous est dessiné **inconditionnellement**, à la même
-            // place, à chaque position de défilement. La hauteur mesurée des deux morceaux
-            // (`composerHeightPx`, `tabBarHeightPx`) reste la même, donc la réserve du fil ne bouge
-            // pas — et rien ne peut plus faire disparaître la plaque.
-            // **La pile du bas ne porte que la plaque.** La carte de prise en main n'est ni ici
-            // ni dans le champ : elle est une **ligne du fil** (`item(key = "browser-invite")`),
-            // et c'est le seul endroit juste — posée au-dessus du prompt, elle recouvrait la
-            // première ligne du champ (« Guider la réponse… » passait dessous), et posée dedans
-            // elle faisait la même chose une ligne plus bas. Une invitation à prendre la main est
-            // un contenu de la conversation : elle défile avec le fil.
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    // **LA PLAQUE UNIQUE — compositeur et barre d'onglets dans UNE SEULE surface.**
-                    // Le point le plus visible de la planche (`hlib.py:491` `slab` : `ask` 64 px +
-                    // `navrow` 76 px = 140 px, largeur 379, rayon 28, marge 16, arête claire et
-                    // filet de 1 px — `hcss.py:226`). Les deux formes ne sont plus soudées par un
-                    // pont de matière : elles tiennent dans une seule plaque, et il n'y a donc plus
-                    // de soudure à faire.
-                    //
-                    // **Et elle est TRANSLUCIDE.** Elle peignait un aplat (`OnyxSurfaces.surfaceHigh`)
-                    // *sous* sa vitre : le verre n'avait plus rien à montrer, et la plaque se lisait
-                    // « un aplat gris qui ne se détache pas du bord » — c'était le premier des sept
-                    // écarts. L'aplat est retiré : la vitre peint désormais **seule** sa teinte
-                    // (mesurée à son plancher de lisibilité), et le fil qui défile passe au travers.
-                    // Le filet de la maison
-                    // ([OnyxSurfaces.hairline]) et l'arête claire du verre ([drawGlassFinish])
-                    // restent : ce sont eux qui détachent la plaque du bord, pas un remplissage.
-                    .composerBottomInsets()
-                    .padding(
-                        start = PlateGeometry.SideMargin,
-                        end = PlateGeometry.SideMargin,
-                        bottom = OnyxSpace.Half,
-                    )
-                    .socleShadow(OnyxBase.ShadowFar, PlateGeometry.Radius, theme.dark)
-                    .clip(RoundedCornerShape(PlateGeometry.Radius))
-                    .border(
-                        PlateGeometry.Outline,
-                        OnyxSurfaces.hairline(theme),
-                        RoundedCornerShape(PlateGeometry.Radius),
-                    )
-                    // **Et elle MASQUE ce qu'elle recouvre.** Le verre est mince par nature : au
-                    // plancher de lisibilité d'une encre dérivée (48 % en clair), le texte du fil
-                    // restait **lisible au travers** de la plaque (défaut relevé : « le texte passe
-                    // à travers et autour »). `masking = true` remonte le voile au **plancher de
-                    // masquage** ([glassMaskingFloor]) — l'opacité à partir de laquelle le contraste
-                    // du fil retombe sous le seuil de lisibilité — sans toucher au flou ni à la
-                    // finition du verre, qui restent peints **au-dessus**.
-                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true),
+            CompactComposerDock(
+                modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-            // **LA CARTE D'ACTIVITÉ A ÉTÉ RETIRÉE** — ordre du propriétaire : « supprime la barre de
-            // réflexion, encadrée en rouge, ça fait doublon ».
-            //
-            // Elle réaffichait au-dessus du champ ce que le fil dit déjà : la réflexion et sa durée
-            // (la rangée « Réflexion » dépliable, en tête de la réponse) **et** un second bouton
-            // d'arrêt pour le même geste que le carré du compositeur. Le fil est la **seule** source
-            // de la réflexion, et le compositeur le **seul** arrêt du tour.
-            //
-            // La pile du bas ne contient donc plus que le **puits du prompt** : la bande de
-            // prise en main, puis le champ. `composerHeightPx` mesure **les deux** (voir plus
-            // bas) : c'est ce qui garde la réserve du fil au-dessus de la plaque quand la bande
-            // paraît, au lieu de laisser la plaque recouvrir les dernières bulles.
-            // Le champ, mesuré seul : la carte de prise en main est une ligne du fil, donc la
-            // plaque n'a plus qu'un contenu — `composerHeightPx` est sa hauteur, et la réserve du
-            // fil (`threadBottomReserve`) plus la pilule « aller au dernier message » en dérivent.
             Box(
                 modifier = Modifier.onSizeChanged { composerHeightPx = it.height }
                     .onGloballyPositioned { composerWeldRect = it.boundsInParent() },

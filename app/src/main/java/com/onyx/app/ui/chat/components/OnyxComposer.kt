@@ -309,6 +309,8 @@ fun OnyxComposer(
     plate: Boolean = false,
     /** Compact single-conversation controls; independent of the shared surface treatment. */
     compact: Boolean = false,
+    /** Group identity is independent of its mutable display name. */
+    groupConversation: Boolean = title == "the group",
     /**
      * Vrai/faux quand le champ prend ou perd le focus : l'appelant sait qu'on est en train d'écrire.
      */
@@ -411,7 +413,7 @@ fun OnyxComposer(
         streaming = isStreaming,
         canSteer = canSteer,
         offline = offline,
-        group = title == "the group",
+        group = groupConversation,
     )
     /** Le mot de l'invite, ou `null` quand elle **cède** la place à un état. */
     val placeholder: String? = when (invite) {
@@ -715,7 +717,7 @@ fun OnyxComposer(
                     // dans la largeur que le champ offre réellement (`maxWidth`, rembourrage
                     // déduit) : jamais de coupure, et jamais une commande en moins. Les autres
                     // invites (dictée, pilotage) disent leur mot partout, plaque comme carte.
-                    compact && invite == ComposerFieldInvite.ASK ->
+                    compact && (invite == ComposerFieldInvite.ASK || invite == ComposerFieldInvite.GROUP) ->
                         OnyxLocalization.format("Message %1\$s", title)
                     plate && invite == ComposerFieldInvite.ASK ->
                         OnyxLocalization[PlaqueInvite.key(maxWidth.value, measureInvite)]
