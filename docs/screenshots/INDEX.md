@@ -1,90 +1,90 @@
-# Captures d'écran — app Onyx (Android)
+# Screenshots — Onyx app (Android)
 
-Captures réelles de l'APK **release signé** `onyx-1115-release.apk`
-(`versionName 1.0.0+1115`, `versionCode 1115`, package `com.onyx.app`), prises sur un
-émulateur Android 16 (AVD `onyxclair`, Pixel 7, 1080×2400, densité 420, x86_64, image
-Google APIs) avec rendu GPU de l'hôte
+Real screenshots of the **signed release** APK `onyx-1115-release.apk`
+(`versionName 1.0.0+1115`, `versionCode 1115`, package `com.onyx.app`), taken on an
+Android 16 emulator (AVD `onyxclair`, Pixel 7, 1080×2400, density 420, x86_64, Google
+APIs image) with host GPU rendering
 (`GLES: … NVIDIA GeForce RTX 4070 SUPER … OpenGL ES 3.1`).
 
-Chaque écran existe en **clair** et en **sombre**, obtenus par `adb shell cmd uimode night
-no|yes` sur le même appareil, dans la même session, sans redémarrage de l'app.
+Every screen exists in both **light** and **dark** mode, obtained with `adb shell cmd uimode night
+no|yes` on the same device, in the same session, without restarting the app.
 
-**Langue des captures : anglais** (voir « Langue » plus bas). **Aucun prénom n'est
-lisible** dans les quatorze images (voir « Confidentialité »).
+**Screenshot language: English** (see “Language” below). **No first name is
+legible** in the fourteen images (see “Privacy”).
 
-| # | Écran réellement affiché | Clair | Sombre |
+| # | Screen actually displayed | Light | Dark |
 |---|---|---|---|
-| 01 | Salle de chat : question envoyée + réponse de l'agent, barre d'onglets Chat/Feed/Files/Onyx | `01-salle-chat-clair.png` (2 623 Ko) | `01-salle-chat-sombre.png` (2 563 Ko) |
-| 02 | Onglet Feed de la même conversation (carte de réponse, pouces, Discuss) | `02-salle-flux-clair.png` (2 261 Ko) | `02-salle-flux-sombre.png` (2 213 Ko) |
-| 03 | Feuille « Add to message » du compositeur (bouton **+**) : Photo Library, Camera, Files, Paste | `03-composer-piece-jointe-clair.png` (1 558 Ko) | `03-composer-piece-jointe-sombre.png` (1 481 Ko) |
-| 04 | Liste des conversations (volet déroulant) : recherche, onglets Chats/Bots, raccourcis, filtres, 1 conversation | `04-liste-conversations-clair.png` (298 Ko) | `04-liste-conversations-sombre.png` (460 Ko) |
-| 05 | Réglages › Notifications (canaux Android : Approvals, Silent approvals, Answers, Calls, Reachable) | `05-reglages-notifications-clair.png` (176 Ko) | `05-reglages-notifications-sombre.png` (179 Ko) |
-| 06 | Réglages › Confidentialité › Lock (verrouillage activé, code de secours) | `06-reglages-verrouillage-clair.png` (179 Ko) | `06-reglages-verrouillage-sombre.png` (183 Ko) |
-| 07 | Écran de verrouillage de l'app (« Onyx is locked ») | `07-verrouillage-clair.png` (848 Ko) | `07-verrouillage-sombre.png` (710 Ko) |
+| 01 | Chat room: question sent + agent reply, Chat/Feed/Files/Onyx tab bar | `01-salle-chat-clair.png` (2,623 KB) | `01-salle-chat-sombre.png` (2,563 KB) |
+| 02 | Feed tab of the same conversation (reply card, thumbs, Discuss) | `02-salle-flux-clair.png` (2,261 KB) | `02-salle-flux-sombre.png` (2,213 KB) |
+| 03 | Composer “Add to message” sheet (**+** button): Photo Library, Camera, Files, Paste | `03-composer-piece-jointe-clair.png` (1,558 KB) | `03-composer-piece-jointe-sombre.png` (1,481 KB) |
+| 04 | Conversation list (slide-out panel): search, Chats/Bots tabs, shortcuts, filters, 1 conversation | `04-liste-conversations-clair.png` (298 KB) | `04-liste-conversations-sombre.png` (460 KB) |
+| 05 | Settings › Notifications (Android channels: Approvals, Silent approvals, Answers, Calls, Reachable) | `05-reglages-notifications-clair.png` (176 KB) | `05-reglages-notifications-sombre.png` (179 KB) |
+| 06 | Settings › Privacy › Lock (locking enabled, recovery code) | `06-reglages-verrouillage-clair.png` (179 KB) | `06-reglages-verrouillage-sombre.png` (183 KB) |
+| 07 | App lock screen (“Onyx is locked”) | `07-verrouillage-clair.png` (848 KB) | `07-verrouillage-sombre.png` (710 KB) |
 
-Toutes les images sont des PNG 1080×2400 (barre d'état comprise, aucun recadrage).
+All images are 1080×2400 PNGs (status bar included, no cropping).
 
-## Langue
+## Language
 
-**L'app sait-elle s'afficher en anglais ? Oui.** L'interface d'Onyx est en anglais sur les
-quatorze captures.
+**Can the app display in English? Yes.** The Onyx interface is in English in all
+fourteen screenshots.
 
-Onyx embarque son propre réglage de langue, indépendant de celle d'Android :
-**Réglages › Appearance › Language**, avec trois choix — *System*, *Français*, *English*.
-Le choix vit dans l'app (`app_language`, dans le DataStore `onyx_settings.preferences_pb`)
-et **ne touche jamais la langue d'Android** : le téléphone peut rester dans sa langue, les
-écrans, les feuilles, les menus et les notifications d'Onyx passent en anglais d'un coup.
+Onyx ships its own language setting, independent of Android's:
+**Settings › Appearance › Language**, with three choices — *System*, *Français*, *English*.
+The choice lives in the app (`app_language`, in the DataStore `onyx_settings.preferences_pb`)
+and **never touches Android's language**: the phone can stay in its own language, while
+Onyx's screens, sheets, menus and notifications switch to English in one step.
 
-Pour cette série, le réglage a été vérifié sur l'écran : **Language → English**. (L'appareil
-était de surcroît en `en-US`, donc les deux chemins mènent à l'anglais.) Le réglage *Voice*
-(voix de synthèse) reste sur `fr-FR` : c'est une option distincte, elle ne traduit aucun
-texte d'interface et n'apparaît sur aucun des écrans capturés.
+For this series, the setting was verified on screen: **Language → English**. (The device
+was also set to `en-US`, so both paths lead to English.) The *Voice* setting
+(speech-synthesis voice) remains on `fr-FR`: it is a separate option, it translates no
+interface text and does not appear on any of the captured screens.
 
-## Contexte des captures
+## Screenshot context
 
-- Le gateway Hermes de test écoute sur `127.0.0.1:8642` ; l'app y accède par `10.0.2.2:8642`
-  (l'adresse affichée dans la liste des conversations est donc celle de l'émulateur, pas une
-  adresse réelle). Le bouton **Check** de l'écran *Settings* répond **« 1 model »** (point
-  vert), et le modèle affiché est `hermes-agent`, routé par `api_server.model_routes` vers
-  `deepseek/deepseek-v4.1-flash-1017` (fournisseur `kilocode`).
-- La conversation visible est un **vrai aller-retour** avec le gateway, pas une donnée
-  injectée : question « Which models are you on? », réponse de l'agent
-  (« deepseek/deepseek-v4.1-flash-1017, served through kilocode — that's the api_server's
-  model_routes mapping for the "hermes-agent" model… »), 5,1 s, 29,5 k tokens ↓.
-- La liste des conversations ne montre qu'une entrée (« Which models are you on? ») : les
-  discussions de démonstration qui avaient servi à la série précédente ont été retirées.
+- The test Hermes gateway listens on `127.0.0.1:8642`; the app reaches it via `10.0.2.2:8642`
+  (so the address shown in the conversation list is the emulator's, not a
+  real address). The **Check** button on the *Settings* screen returns **“1 model”** (green
+  dot), and the displayed model is `hermes-agent`, routed by `api_server.model_routes` to
+  `deepseek/deepseek-v4.1-flash-1017` (provider `kilocode`).
+- The visible conversation is a **real round trip** with the gateway, not injected
+  data: question “Which models are you on?”, agent reply
+  (“deepseek/deepseek-v4.1-flash-1017, served through kilocode — that's the api_server's
+  model_routes mapping for the "hermes-agent" model…”), 5.1 s, 29.5 k tokens ↓.
+- The conversation list shows only one entry (“Which models are you on?”): the
+  demo discussions used for the previous series have been removed.
 
-## Confidentialité
+## Privacy
 
-- **Aucune image ne contient le prénom « John » lisible.** Vérifié deux fois : passage OCR
-  (Tesseract) sur les quatorze PNG — zéro occurrence — et relecture visuelle de chaque image.
-- La conversation de démonstration est volontairement neutre et sans nom propre ; l'agent ne
-  s'adresse pas à la personne par son prénom dans la réponse retenue.
-- **Aucune zone floutée** : il n'y a rien à flouter, la mise en sourdine n'a pas été
-  nécessaire.
-- La barre d'état ne contient que l'heure, la réseau et la batterie — aucun nom de personne.
+- **No image contains the legible first name “John”.** Verified twice: an OCR pass
+  (Tesseract) over the fourteen PNGs — zero occurrences — and a visual review of each image.
+- The demo conversation is deliberately neutral and contains no proper name; the agent does
+  not address the person by their first name in the retained reply.
+- **No blurred areas**: there is nothing to blur, muting was not
+  necessary.
+- The status bar contains only the time, the network and the battery — no person's name.
 
-## Écarts connus
+## Known deviations
 
-- Les deux fichiers `06-reglages-verrouillage-*.png` sont les captures brutes
-  (`adb exec-out screencap -p`), **ré-encodées sans perte** (pixels strictement identiques,
-  vérifié par empreinte SHA-256 du tampon RVBA) : l'écran est presque uniformément clair,
-  la compression PNG par défaut le ramenait à ~105 Ko, sous le seuil de 150 Ko attendu. Le
-  ré-encodage utilise simplement un niveau de compression plus faible (deflate `Z_FIXED`),
-  sans toucher à un seul pixel. Tous les autres fichiers sont les captures brutes telles
-  quelles.
-- L'écran de verrouillage (07) affiche ses deux avertissements réels — aucune biométrie n'est
-  enrôlée sur cet émulateur — et propose donc le **code de secours** à la place du bouton
-  visage/empreinte. C'est l'état que produit un appareil neuf sans biométrie enrollée ; ce
-  n'est pas une erreur de capture. Le code lui-même n'apparaît nulle part à l'écran.
-- Sur l'écran 06, le verrouillage est **activé** et un code de secours est défini ; la série
-  précédente montrait un verrouillage désactivé et aucun code. L'état actuel est celui du
-  poste de capture, pas une mise en scène.
-- L'autorisation Android `POST_NOTIFICATIONS` a été accordée sur l'émulateur pour que
-  l'écran 05 affiche « Notification settings — **On** », comme sur la série précédente ; sans
-  elle, Android bloque les notifications d'Onyx et l'écran affiche « Off ».
+- The two files `06-reglages-verrouillage-*.png` are the raw screenshots
+  (`adb exec-out screencap -p`), **re-encoded losslessly** (pixels strictly identical,
+  verified by SHA-256 hash of the RGBA buffer): the screen is almost uniformly light,
+  and default PNG compression brought it down to ~105 KB, below the expected 150 KB threshold. The
+  re-encoding simply uses a lower compression level (deflate `Z_FIXED`),
+  without touching a single pixel. All other files are the raw screenshots as
+  is.
+- The lock screen (07) shows its two real warnings — no biometrics are
+  enrolled on this emulator — and therefore offers the **recovery code** instead of the
+  face/fingerprint button. This is the state produced by a new device with no biometrics enrolled; it
+  is not a capture error. The code itself does not appear anywhere on screen.
+- On screen 06, locking is **enabled** and a recovery code is set; the previous
+  series showed locking disabled and no code. The current state is that of the
+  capture machine, not a staged setup.
+- The Android `POST_NOTIFICATIONS` permission was granted on the emulator so that
+  screen 05 shows “Notification settings — **On**”, as in the previous series; without
+  it, Android blocks Onyx notifications and the screen shows “Off”.
 
-## Relancer l'émulateur
+## Restarting the emulator
 
 ```bash
 export JAVA_HOME=/home/john/android-toolchain/jdk-21
@@ -97,9 +97,9 @@ adb wait-for-device
 until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 2; done
 adb install -r /home/john/.hermes/profiles/kilo/cache/scratch/onyx-1115-release.apk
 
-adb shell cmd uimode night no   # ou : night yes
+adb shell cmd uimode night no   # or: night yes
 adb exec-out screencap -p > docs/captures/<nom>-clair.png
 ```
 
-Le gateway doit tourner sur `127.0.0.1:8642` : l'app l'atteint par `10.0.2.2:8642`
-(réglage *Settings › Connection*, bouton **Check** → « 1 model »).
+The gateway must be running on `127.0.0.1:8642`: the app reaches it via `10.0.2.2:8642`
+(*Settings › Connection* setting, **Check** button → “1 model”).
