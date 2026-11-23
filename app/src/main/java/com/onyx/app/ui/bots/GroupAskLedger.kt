@@ -66,7 +66,7 @@ internal class GroupAskLedger(
 
         // 1. The same sentence, as is.
         if (normalised == lastText && now - lastAt <= repeatWindowMs) {
-            return GroupAskDecision.Again(lastId, "the same sentence comes back")
+            return GroupAskDecision.Again(lastId, "la même phrase revient")
         }
 
         // 2. A transcription that grows (or is trimmed): it is the same question.

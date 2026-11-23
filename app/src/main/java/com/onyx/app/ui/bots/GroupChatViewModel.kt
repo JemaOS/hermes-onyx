@@ -211,7 +211,7 @@ class GroupChatViewModel(
     override fun ask(question: String, askId: String) {
         // The same question is not asked again: its identifier already said it.
         if (!askedIds.add(askId)) {
-            VoiceDiagnostics.note("voice (local room): question already asked — it is not sent again ($askId)")
+            VoiceDiagnostics.note("voice (salle locale): question déjà posée — elle ne repart pas ($askId)")
             return
         }
         if (_state.value.asking) stop()
