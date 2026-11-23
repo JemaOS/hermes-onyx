@@ -3,39 +3,39 @@ package com.onyx.app.data.local
 import android.content.Context
 
 /**
- * **La marque des conversations supprimées** : les identifiants que ce téléphone a retirés.
+ * **The mark of deleted conversations**: the identifiers this phone has removed.
  *
- * C'est ce qui rend une suppression **durable**. Le magasin local se contente de ne plus écrire la
- * conversation dans son fichier ; à lui seul, cela ne suffit pas : la même conversation peut être
- * réécrite plus tard par un chemin qui ne savait pas qu'elle avait été supprimée — la fin d'un tour
- * qui enregistre le fil (`ChatViewModel.persistCurrent`), un rattachement de bot relu du serveur, une
- * migration de profil. Avec la marque, ces chemins trouvent porte close : `save` refuse un
- * identifiant marqué, et aucune resynchronisation ne peut la ramener.
+ * This is what makes a deletion **durable**. The local store merely stops writing the
+ * conversation to its file; on its own, that is not enough: the same conversation can be
+ * rewritten later by a path that did not know it had been deleted — the end of a turn
+ * that records the feed (`ChatViewModel.persistCurrent`), a bot attachment read back from the server, a
+ * profile migration. With the mark, these paths find the door closed: `save` refuses a
+ * marked identifier, and no resync can bring it back.
  *
- * La marque vit **hors du fichier des conversations** (les préférences du téléphone) : elle survit
- * donc au redémarrage, et au « Tout effacer » qui vide le fichier.
+ * The mark lives **outside the conversations file** (the phone's preferences): it therefore survives
+ * restarts, and the "Erase everything" that empties the file.
  *
- * Seul le **retour en arrière du bandeau** défait une marque ([unmark]) : c'est la seule chose qui
- * remet vraiment une conversation que la personne venait de supprimer.
+ * Only the **banner's undo** undoes a mark ([unmark]): it is the only thing that
+ * truly brings back a conversation the person had just deleted.
  */
 interface DeletedConversations {
 
-    /** Les identifiants marqués comme supprimés. */
+    /** The identifiers marked as deleted. */
     fun marked(): Set<String>
 
-    /** Marque une conversation comme supprimée. */
+    /** Marks a conversation as deleted. */
     fun mark(id: String)
 
-    /** Défait la marque — le « Annuler » du bandeau, et lui seul. */
+    /** Undoes the mark — the banner's "Undo", and it alone. */
     fun unmark(id: String)
 
     companion object {
-        /** Un magasin sans disque : les tests, et les fenêtres sans dépôt. */
+        /** A store without disk: the tests, and windows without a repository. */
         val InMemory: DeletedConversations get() = InMemoryDeletedConversations()
     }
 }
 
-/** [DeletedConversations] en mémoire. */
+/** [DeletedConversations] in memory. */
 class InMemoryDeletedConversations(
     private val ids: MutableSet<String> = mutableSetOf(),
 ) : DeletedConversations {
@@ -52,16 +52,16 @@ class InMemoryDeletedConversations(
 }
 
 /**
- * [DeletedConversations] sur les **préférences du téléphone** : la marque survit au redémarrage de
- * l'app, comme les autres états que le serveur ne tient pas (l'activité vue, l'ordre des bots).
+ * [DeletedConversations] on the **phone's preferences**: the mark survives the app's restart,
+ * like the other states the server does not hold (the seen activity, the bots' order).
  */
 class SharedPreferencesDeletedConversations(context: Context) : DeletedConversations {
 
     private val prefs = context.applicationContext
         .getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    // `getStringSet` rend l'ensemble **vivant** du fichier : on le copie avant de s'en servir, sinon
-    // une écriture suivante le modifierait sous nos pieds.
+    // `getStringSet` returns the file's **live** set: it is copied before being used, otherwise
+    // a subsequent write would modify it under our feet.
     override fun marked(): Set<String> = prefs.getStringSet(KEY, emptySet()).orEmpty().toSet()
 
     override fun mark(id: String) {

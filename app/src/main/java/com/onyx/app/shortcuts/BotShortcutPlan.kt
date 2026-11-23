@@ -3,13 +3,13 @@ package com.onyx.app.shortcuts
 import com.onyx.app.data.model.serve.BotProfile
 
 /**
- * Un raccourci de bot, tel qu'il se publie : de quoi nommer la ligne, peindre sa tuile, et savoir
- * quelle conversation ouvrir.
+ * A bot shortcut, as it is published: enough to name the row, paint its tile, and know which
+ * conversation to open.
  *
- * [bot] est le **nom de profil** du bot — la clé que toutes les routes nomment ; [label] est ce
- * qu'on lit (son titre, sinon son nom) ; [chatId] est son `canonical_session`, celui qui relie la
- * conversation déjà gardée. Les trois voyagent dans l'intention du raccourci : l'app ouvre la
- * conversation du **même** bot, sans rien redemander au serveur.
+ * [bot] is the bot's **profile name** — the key every route names; [label] is what is read (its
+ * title, otherwise its name); [chatId] is its `canonical_session`, the one that links the
+ * conversation already kept. All three travel in the shortcut's intent: the app opens the
+ * conversation of the **same** bot, without asking the server anything again.
  */
 data class BotShortcut(
     val id: String,
@@ -18,82 +18,82 @@ data class BotShortcut(
     val chatId: String?,
     val isDefault: Boolean,
     /**
-     * Le **visage résolu** du bot, tel que la section le porte (`BotProfile.faceCode`) : c'est lui
-     * qui donne à la tuile sa couleur, la même que celle du visage montré partout ailleurs.
+     * The bot's **resolved face**, as the section carries it (`BotProfile.faceCode`): it is what
+     * gives the tile its colour, the same one as the face shown everywhere else.
      *
-     * Il vient du roster, **pas** d'un calcul sur le nom : la section répartit les visages des bots
-     * (`BotFace.faces`) pour que deux bots n'aient pas la même créature, si bien que la couleur
-     * déduite du seul nom ne serait pas celle que l'app montre. Un bot sans visage résolu garde
-     * `null` : la tuile retombe alors sur le visage de son nom.
+ * It comes from the roster, **not** from a computation on the name: the section distributes the
+ * bots' faces (`BotFace.faces`) so that two bots do not have the same creature, so that the
+ * colour deduced from the name alone would not be the one the app shows. A bot without a
+ * resolved face keeps `null`: the tile then falls back to the
+ * face of its name.
      */
     val faceCode: String? = null,
 )
 
 /**
- * La **règle de sélection** de la section des bots du menu d'appui long : quels bots, dans quel
- * ordre, et combien.
+ * The **selection rule** of the bots section of the long-press menu: which bots, in which order,
+ * and how many.
  *
- * L'appui long sur l'icône ouvre un menu où trois raccourcis d'action sont déclarés par le
- * manifeste (`ask`, `talk`, `note` — ils ne bougent pas) et où une tuile par bot vient ensuite.
- * La plateforme borne cette liste : un raccourci publié à l'exécution coûte une place
- * (`getMaxShortcutCountPerActivity`, la place des raccourcis épinglés et des trois actions
- * déduite), et le lanceur n'en montre qu'une partie. D'où une règle explicite, appliquée ici et
- * nulle part ailleurs :
+ * The long press on the icon opens a menu where three action shortcuts are declared by the
+ * manifest (`ask`, `talk`, `note` — they do not move) and where one tile per bot comes next.
+ * The platform bounds this list: a shortcut published at runtime costs a slot
+ * (`getMaxShortcutCountPerActivity`, the slot of pinned shortcuts and of the three actions
+ * deducted), and the launcher only shows part of it. Hence an explicit rule, applied here and
+ * nowhere else:
  *
- * 1. **Les bots que la personne a mis en tête** — l'ordre enregistré de la section (« Reorder
- *    Bots ») : c'est son choix, il passe avant tout le reste.
- * 2. **Puis les plus récemment actifs** (`lastActive`, le plus récent d'abord) : « les plus
- *    utilisés d'abord ».
- * 3. **Puis l'ordre du serveur**, tel quel.
+ * 1. **The bots the person put at the top** — the section's saved order ("Reorder Bots"): it is
+ *    their choice, it comes before everything else.
+ * 2. **Then the most recently active** (`lastActive`, most recent first): "most used first".
+ * 3. **Then the server order**, as is.
  *
- * Le nombre est borné par [MAX_BOTS] et par la place que la plateforme laisse ([schedule]).
+ * The number is bounded by [MAX_BOTS] and by the room the platform leaves ([schedule]).
  */
 object BotShortcutPlan {
 
     /**
-     * Le nombre de raccourcis de bots publiés.
+     * The number of published bot shortcuts.
      *
-     * Quatre, comme la section du menu de la référence (trois actions, puis les bots), et parce
-     * qu'au-delà le menu d'un lanceur devient un annuaire : la liste garde de la place pour ce
-     * qu'on y épingle.
+     * Four, like the menu section of the reference (three actions, then the bots), and because
+     * beyond that a launcher's menu becomes a directory: the list keeps room for what one pins
+     * there.
      */
     const val MAX_BOTS = 4
 
     /**
-     * Le rang du premier raccourci de bot : **après** les trois actions.
+     * The rank of the first bot shortcut: **after** the three actions.
      *
-     * Les trois raccourcis d'action sont déclarés dans `res/xml/shortcuts.xml` et prennent les rangs
-     * 0, 1 et 2 ; les bots sont donc demandés à partir de 3, dans l'ordre de la règle ci-dessus.
+     * The three action shortcuts are declared in `res/xml/shortcuts.xml` and take ranks 0, 1 and
+     * 2; the bots are therefore requested from 3 on, in the order of the rule above.
      *
-     * **Mesuré, et à savoir** : la plateforme **rebase** les rangs des raccourcis publiés sur
-     * `0…n-1` dans l'ordre où ils sont donnés (`dumpsys shortcut` le montre : demandés à 3, 4, 5,
-     * ils se relisent 0, 1, 2). C'est donc **l'ordre** de la liste publiée qui décide, et non la
-     * valeur écrite ici ; l'écart entre les rangs des actions et ceux des bots ne peut pas être
-     * obtenu. Ce que la plateforme montre ensuite est décrit dans le rapport du lot.
+     * **Measured, and worth knowing**: the platform **rebases** the ranks of published shortcuts
+     * onto `0…n-1` in the order they are given (`dumpsys shortcut` shows it: requested at 3, 4, 5,
+     * they read back as 0, 1, 2). It is therefore the **order** of the published list that
+     * decides, and not the value written here; the gap between the actions' ranks and the bots'
+     * cannot be obtained. What the platform shows next is described in the batch report.
      */
     const val FIRST_RANK = 3
 
-    /** Les identifiants des trois raccourcis d'action, déclarés par le manifeste. */
+    /** The identifiers of the three action shortcuts, declared by the manifest. */
     val ACTION_IDS = listOf("ask", "talk", "note")
 
     /**
-     * L'identifiant stable d'un raccourci de bot, dérivé du **nom de profil**.
+     * The stable identifier of a bot shortcut, derived from the **profile name**.
      *
-     * Le nom d'un profil peut porter des espaces, des points, des accents ; l'identifiant d'un
-     * raccourci, lui, sert de clé au lanceur (et d'identifiant d'épingle sur un écran d'accueil).
-     * Il est donc réduit aux lettres, chiffres, tirets et tirets bas, et suivi d'une empreinte de
-     * quatre chiffres hexadécimaux du nom **exact** : deux profils que le nettoyage rendrait
-     * identiques (`a b` et `a-b`) gardent ainsi des identifiants distincts.
+     * A profile's name can carry spaces, dots, accents; a shortcut's identifier, on the other
+     * hand, serves as a key for the launcher (and as a pin identifier on a home screen). It is
+     * therefore reduced to letters, digits, hyphens and underscores, and followed by a
+     * four-hex-digit fingerprint of the **exact** name: two profiles that the cleaning would make
+     * identical (`a b` and `a-b`) thus keep distinct identifiers.
      */
     fun id(bot: String): String = "bot-" + slug(bot) + "-" + fingerprint(bot)
 
-    /** L'ordre de la section, règle de sélection comprise (voir la documentation de l'objet). */
+    /** The order of the section, selection rule included (see the object's documentation). */
     fun arrange(bots: List<BotProfile>, order: List<String>): List<BotProfile> {
         if (bots.size <= 1) return bots
         val position = HashMap<String, Int>()
         order.forEachIndexed { index, line -> position.putIfAbsent(line, index) }
-        // Un bot suivi à travers un renommage par son ancien nom, comme `BotListItem.arranged` :
-        // l'ordre enregistré parle encore de l'ancien profil.
+        // A bot followed through a rename by its old name, like `BotListItem.arranged`:
+        // the saved order still speaks of the old profile.
         fun handPlace(bot: BotProfile): Int? {
             position["bot:" + bot.name]?.let { return it }
             bot.previousNames.forEach { old -> position["bot:$old"]?.let { return it } }
@@ -108,19 +108,19 @@ object BotShortcutPlan {
                 val byHand = ha - hb
                 when {
                     byHand != 0 -> byHand
-                    // Le plus récent d'abord, et une activité inconnue du serveur en dernier.
+                    // The most recent first, and an activity unknown to the server last.
                     (a.lastActive ?: Long.MIN_VALUE) != (b.lastActive ?: Long.MIN_VALUE) ->
                         if ((b.lastActive ?: Long.MIN_VALUE) > (a.lastActive ?: Long.MIN_VALUE)) 1 else -1
                     else -> rosterIndex.getValue(a.name) - rosterIndex.getValue(b.name)
                 }
             }
         }
-        // Sans ordre à la main, la section suit le plus récent ; sans activité connue du serveur
-        // (`lastActive` nul), l'ordre du roster ne bouge pas.
+        // Without a manual order, the section follows the most recent; without activity known to
+        // the server (`lastActive` null), the roster order does not move.
         return bots.sortedByDescending { it.lastActive ?: Long.MIN_VALUE }
     }
 
-    /** Les raccourcis à publier : la règle ci-dessus, bornée par [maxBots]. */
+    /** The shortcuts to publish: the rule above, bounded by [maxBots]. */
     fun schedule(
         bots: List<BotProfile>,
         order: List<String>,
@@ -140,7 +140,7 @@ object BotShortcutPlan {
         }
     }
 
-    /** Le libellé long d'un raccourci de bot. */
+    /** The long label of a bot shortcut. */
     fun longLabel(shortcut: BotShortcut): String = "Chat with " + shortcut.label
 
     private fun slug(raw: String): String {
@@ -154,8 +154,8 @@ object BotShortcutPlan {
     }
 
     private fun fingerprint(seed: String): String {
-        // FNV-1a 32 bits : le même calcul que le visage d'un profil, pour que l'identifiant d'un
-        // raccourci soit dérivé de son nom par une règle, jamais d'un compteur d'ordre.
+        // FNV-1a 32 bits: the same computation as a profile's face, so that a shortcut's identifier
+        // is derived from its name by a rule, never from an order counter.
         var hash = 2_166_136_261u
         for (byte in seed.toByteArray(Charsets.UTF_8)) {
             hash = (hash xor (byte.toInt() and 0xFF).toUInt()) * 16_777_619u

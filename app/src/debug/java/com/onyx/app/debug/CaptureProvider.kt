@@ -13,13 +13,13 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Capture l'écran de l'app dans un fichier PNG, pour comparer l'UI à celle de l'app de référence.
+ * Captures the app's screen into a PNG file, to compare the UI with the reference app's.
  *
- * Uniquement dans la variante debug : la capture système (`screencap`) passe par le compositeur,
- * que l'émulateur de cette machine ne sait pas servir (assertion DMA). Ici on dessine
- * directement la vue de la fenêtre dans un Bitmap — même pixels, autre chemin.
+ * Debug variant only: the system capture (`screencap`) goes through the compositor,
+ * which this machine's emulator cannot serve (DMA assertion). Here we draw
+ * the window's view directly into a Bitmap — same pixels, different path.
  *
- * Usage : adb shell content call --uri content://com.onyx.app.capture --method capture
+ * Usage: adb shell content call --uri content://com.onyx.app.capture --method capture
  */
 class CaptureProvider : ContentProvider() {
 
@@ -59,7 +59,7 @@ class CaptureProvider : ContentProvider() {
         return answer
     }
 
-    /** La vue de la première fenêtre, celle de l'activité au premier plan. */
+    /** The first window's view, that of the foreground activity. */
     private fun topRootView(): View? = runCatching {
         val global = Class.forName("android.view.WindowManagerGlobal")
         val instance = global.getMethod("getInstance").invoke(null)

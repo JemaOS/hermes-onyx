@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Un bot demandé depuis l'extérieur : le raccourci de son icône, pris dans le menu d'appui long.
+ * A bot requested from the outside: its icon's shortcut, taken from the long-press menu.
  *
- * Les trois valeurs voyagent avec l'intention du raccourci ([BotShortcut]) : l'app n'a donc rien à
- * redemander au serveur pour ouvrir la bonne conversation.
+ * The three values travel with the shortcut's intent ([BotShortcut]): the app therefore has nothing
+ * to ask the server again in order to open the right conversation.
  */
 data class BotShortcutRequest(
     val bot: String,
@@ -18,19 +18,19 @@ data class BotShortcutRequest(
 )
 
 /**
- * Ce qui entre dans l'app de l'extérieur **pour un bot précis** : le raccourci de son icône.
+ * What enters the app from the outside **for a specific bot**: its icon's shortcut.
  *
- * Même dépôt que [com.onyx.app.intake.ShareInbox] et même contrat — l'activité pose la demande à
- * la création ou sur un nouvel intent, et l'UI la consomme **une fois**. Le dépôt est distinct
- * parce que la demande ne suit pas le même chemin : un partage va au composeur, un raccourci de
- * bot **ouvre la conversation de ce bot**, et une demande déjà traitée ne doit pas se rejouer au
- * retour dans l'app.
+ * Same holder as [com.onyx.app.intake.ShareInbox] and same contract — the activity posts the request
+ * on creation or on a new intent, and the UI consumes it **once**. The holder is separate because
+ * the request does not follow the same path: a share goes to the composer, a bot shortcut **opens
+ * that bot's conversation**, and a request already handled must not be replayed on return to the
+ * app.
  */
 object BotShortcutInbox {
 
     private val _requested = MutableStateFlow<BotShortcutRequest?>(null)
 
-    /** La demande en attente, ou `null`. */
+    /** The pending request, or `null`. */
     val requested: StateFlow<BotShortcutRequest?> = _requested.asStateFlow()
 
     fun request(request: BotShortcutRequest) {

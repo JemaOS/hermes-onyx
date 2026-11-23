@@ -1,53 +1,53 @@
 package com.onyx.app.notifications
 
 /**
- * Le texte des notifications Onyx, en clairs, pour pouvoir le tester sans Android.
+ * The text of Onyx notifications, in plain terms, so it can be tested without Android.
  *
- * Les chaînes rendues sont les clés anglaises que [com.onyx.app.localization.OnyxLocalization]
- * traduit (identité en anglais, gabarits pour les parties variables). C'est le même contrat que le
- * reste de l'app : aucun libellé écrit en dur dans un écran ou dans une notification.
+ * The strings returned are the English keys that [com.onyx.app.localization.OnyxLocalization]
+ * translates (identity in English, templates for the variable parts). It is the same contract as the
+ * rest of the app: no label hard-coded in a screen or in a notification.
  */
 object NotificationCopy {
 
-    // —— Approbations ————————————————————————————————————————————————
+    // —— Approvals ————————————————————————————————————————————————
 
-    /** Le titre d'une demande d'approbation (`ApprovalNotifier`). */
+    /** The title of an approval request (`ApprovalNotifier`). */
     const val APPROVAL_TITLE = "Approval needed"
 
-    /** Les deux réponses, mot pour mot comme les boutons du gateway. */
+    /** The two answers, word for word like the gateway's buttons. */
     const val APPROVE = "Approve"
     const val DENY = "Deny"
 
-    /** Ce que dit la notification une fois la réponse passée. */
+    /** What the notification says once the answer has been sent. */
     fun resolvedTitle(approved: Boolean): String = if (approved) "Approved" else "Denied"
 
-    /** Une réponse qui n'a pas pu partir : la commande attend encore. */
+    /** An answer that could not be sent: the command is still waiting. */
     const val UNANSWERED_TITLE = "Couldn't answer"
     const val UNANSWERED_TEXT = "Open Onyx to answer from the conversation."
 
-    /** Ce que dit la notification d'une question une fois la réponse partie. */
+    /** What the notification of a question says once the answer has been sent. */
     const val ANSWERED_TITLE = "Answered"
 
-    /** Le texte de la notification après réponse : la commande, ou l'échec et sa marche à suivre. */
+    /** The notification text after an answer: the command, or the failure and what to do next. */
     fun answeredText(command: String, failed: Boolean): String =
         if (failed) UNANSWERED_TEXT else command.take(120)
 
-    // —— Questions de l'agent ————————————————————————————————————————
+    // —— Agent questions ————————————————————————————————————————
 
-    /** Les trois choses qui arrêtent un agent : une question, sudo, un secret. */
+    /** The three things that stop an agent: a question, sudo, a secret. */
     enum class QuestionKind { CLARIFY, SUDO, SECRET }
 
-    /** L'action « Répondre », commune aux trois. */
+    /** The "Reply" action ("Répondre"), shared by all three. */
     const val REPLY = "Reply"
 
-    /** L'action qui ouvre l'app quand la saisie en ligne n'est pas possible. */
+    /** The action that opens the app when inline input is not possible. */
     const val OPEN = "Open"
 
     /**
-     * Le titre d'une question, selon ce que l'agent demande.
+     * The title of a question, depending on what the agent asks.
      *
-     * [name] est le nom de qui pose la question : le bot dans son fil, sinon « Onyx ». Le titre
-     * nomme alors le bot — « writer has a question » — ce que le français rend par son motif.
+     * [name] is the name of whoever asks the question: the bot in its thread, otherwise "Onyx". The title
+     * then names the bot — "writer has a question" — which French renders with its own pattern.
      */
     fun questionTitle(kind: QuestionKind, name: String? = null): String = when (kind) {
         QuestionKind.CLARIFY -> name?.takeIf { it.isNotBlank() && it != "Onyx" }?.let { "$it has a question" }
@@ -56,24 +56,24 @@ object NotificationCopy {
         QuestionKind.SECRET -> "A secret is needed"
     }
 
-    /** Le corps d'une question : la question elle-même, ou la consigne du secret. */
+    /** The body of a question: the question itself, or the secret's instruction. */
     fun questionText(prompt: String): String = prompt.take(160)
 
     /**
-     * Une réponse en ligne est-elle possible ?
+     * Is an inline answer possible?
      *
-     * `sudo` et `secret` s'adressent à la session ouverte : sans son identifiant, la réponse ne
-     * peut pas partir depuis la notification, et l'action ouvre l'app. Une série de questions
-     * (`batch` de plus d'une question) ne peut pas non plus tenir dans un seul champ de saisie.
+     * `sudo` and `secret` are addressed to the open session: without its identifier, the answer cannot
+     * be sent from the notification, and the action opens the app. A series of questions
+     * (a `batch` of more than one question) cannot fit in a single input field either.
      */
     fun canAnswerInline(kind: QuestionKind, hasSession: Boolean, questionCount: Int): Boolean = when (kind) {
         QuestionKind.CLARIFY -> questionCount <= 1
         QuestionKind.SUDO, QuestionKind.SECRET -> hasSession
     }
 
-    // —— Tour en cours (Live Activity) ————————————————————————————————
+    // —— Turn in progress (Live Activity) ————————————————————————————————
 
-    /** La phrase du tour, avec l'outil en cours et la durée écoulée. */
+    /** The turn's sentence, with the current tool and the elapsed time. */
     fun turnPhase(prefillPercent: Int?, toolName: String?, elapsedSeconds: Long?): String {
         val base = when {
             !toolName.isNullOrBlank() -> "Running $toolName"
@@ -84,7 +84,7 @@ object NotificationCopy {
         return "$base · ${elapsed(seconds)}"
     }
 
-    /** Une durée courte et lisible : « 12s », « 1m 05s », « 1h 02m ». */
+    /** A short, readable duration: "12s", "1m 05s", "1h 02m". */
     fun elapsed(seconds: Long): String {
         val safe = seconds.coerceAtLeast(0)
         return when {
@@ -94,27 +94,27 @@ object NotificationCopy {
         }
     }
 
-    // —— Fin du travail d'un bot ————————————————————————————————————
+    // —— End of a bot's work ————————————————————————————————————
 
-    /** Le titre de la notification de fin : le résultat, en un mot. */
+    /** The title of the finished notification: the result, in one word. */
     const val FINISHED_TITLE = "Finished"
     const val FAILED_TITLE = "Failed"
 
-    /** Le titre qu'une notification d'avancement porte quand le fil n'a pas encore de nom. */
+    /** The title a progress notification carries when the thread has no name yet. */
     const val ONYX = "Onyx"
 
-    /** Ce que l'extrait garde de la réponse : de quoi reconnaître la réponse sans la lire en entier. */
+    /** How much of the answer the excerpt keeps: enough to recognize the answer without reading it whole. */
     const val EXCERPT_CHARS = 200
 
-    /** Le titre de la notification de fin, selon l'issue du tour. */
+    /** The title of the finished notification, depending on the turn's outcome. */
     fun finishedTitle(failed: Boolean): String = if (failed) FAILED_TITLE else FINISHED_TITLE
 
     /**
-     * L'extrait de la réponse : les premiers mots, sur une seule ligne.
+     * The excerpt of the answer: the first words, on a single line.
      *
-     * Une notification ne déroule pas un paragraphe — elle donne de quoi reconnaître la réponse,
-     * et c'est la conversation qui la porte entière. Les blancs sont repliés pour qu'aucun retour
-     * à la ligne du serveur ne découpe la notification en trois.
+     * A notification does not unfold a paragraph — it gives enough to recognize the answer,
+     * and the conversation carries it whole. Whitespace is collapsed so that no line break
+     * from the server splits the notification into three.
      */
     fun excerpt(reply: String, limit: Int = EXCERPT_CHARS): String =
         reply.trim().replace(WHITESPACE, " ").take(limit).trim()

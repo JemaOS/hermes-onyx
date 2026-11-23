@@ -11,43 +11,43 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * **Le dernier roster de bots connu, gardé sur ce téléphone — par connexion, et avec les visages
- * tels qu'ils sont affichés.**
+ * **The last known bot roster, kept on this phone — per connection, and with the faces
+ * as they are displayed.**
  *
- * Le roster est ce qui dit à quelle conversation appartient quel bot (`botOfConversation`). Il vient
- * du serveur — donc **après** la première frame : au redémarrage, l'app dessinait Onyx (visage bleu,
- * « @default ») puis sautait sur le vrai bot, parce que la liste était vide le temps du réseau.
+ * The roster is what says which conversation belongs to which bot (`botOfConversation`). It comes
+ * from the server — therefore **after** the first frame: on restart, the app drew Onyx (blue face,
+ * "@default") then jumped to the real bot, because the list was empty while the network was pending.
  *
- * Ce magasin est la copie du dernier roster **réussi**. Il ne remplace jamais le serveur : il le
- * précède d'une frame. Un bot supprimé côté serveur disparaît au premier rafraîchissement réussi —
- * le seul risque est de le voir une seconde de trop, jamais de le perdre.
+ * This store is the copy of the last **successful** roster. It never replaces the server: it
+ * precedes it by a frame. A bot deleted server-side disappears on the first successful refresh —
+ * the only risk is seeing it one second too long, never losing it.
  *
- * **Deux choses sont gardées, et toutes deux sont nécessaires.**
+ * **Two things are kept, and both are necessary.**
  *
- * - **Le roster, par connexion.** Un même téléphone peut parler à plusieurs serveurs : sans cette
- *   portée, le roster de l'un s'afficherait pour l'autre — le bot d'un serveur, avec le visage d'un
- *   autre, dans la conversation d'un troisième. La clé est celle de la connexion (la signature de la
- *   configuration), comme pour les salles gardées ([GroupRoomStore]).
- * - **Les visages *effectifs*, pas les codes bruts.** Ce que l'écran dessine n'est pas le
- *   `ui_meta.onyx.face` du serveur : c'est la répartition que [BotFace.faces] fait sur **tout** le
- *   roster, pour que deux bots n'aient jamais la même créature. Le nom seul ne la redonne pas (le
- *   nom `coder` tire la palette 4, alors que le vrai `coder` d'un roster de six bots porte la
- *   palette 6), et le code brut non plus. On garde donc le code **résolu**, celui qui a été
- *   dessiné — c'est le seul qui restitue la même créature au redémarrage.
+ * - **The roster, per connection.** The same phone may talk to several servers: without this
+ *   scope, one's roster would display for another — one server's bot, with another's face,
+ *   in a third's conversation. The key is the connection's (the configuration's
+ *   signature), as for the kept rooms ([GroupRoomStore]).
+ * - **The *effective* faces, not the raw codes.** What the screen draws is not the server's
+ *   `ui_meta.onyx.face`: it is the distribution [BotFace.faces] computes over **the whole**
+ *   roster, so that two bots never get the same creature. The name alone does not reproduce it (the
+ *   name `coder` draws palette 4, while the real `coder` of a six-bot roster carries
+ *   palette 6), and neither does the raw code. We keep the **resolved** code, the one that was
+ *   drawn — it is the only one that restores the same creature on restart.
  *
- * On ne garde que ce que l'en-tête et la liste lisent : nom, libellé, profil principal, identité de
- * chat, visage, et l'origine (`viaAPI`). Rien d'autre ne s'affiche sans le serveur.
+ * We only keep what the header and the list read: name, label, main profile, chat
+ * identity, face, and the origin (`viaAPI`). Nothing else displays without the server.
  */
 class BotRosterCache(private val text: TextStore) {
 
     constructor(context: Context) : this(PreferencesTextStore(context, PREFERENCES))
 
     /**
-     * Le roster retenu pour cette connexion : les bots **tels qu'ils sont affichés**, et la table
-     * de leurs visages.
+     * The roster kept for this connection: the bots **as they are displayed**, and the table
+     * of their faces.
      *
-     * `null` quand ce téléphone n'a jamais enregistré de roster pour cette connexion — et non pas
-     * une liste vide : le vide se distingue, parce qu'il ne faut pas effacer ce qui est su.
+     * `null` when this phone has never recorded a roster for this connection — and not
+     * an empty list: emptiness is distinguished, because what is known must not be erased.
      */
     fun load(server: String): CachedRoster? {
         val raw = text.get(KEY)?.takeIf { it.isNotBlank() } ?: return null
@@ -64,16 +64,16 @@ class BotRosterCache(private val text: TextStore) {
             }
             ?.toMap()
             .orEmpty()
-        // **La table fait foi.** Le bot porte son visage dans la table, pas à côté d'elle : les
-        // deux disent la même chose à l'écran — la créature de l'en-tête et celle de la liste —
-        // et c'est la table qui a été gardée. Un bot sans entrée dans la table garde le sien.
+        // **The table prevails.** The bot carries its face in the table, not beside it: both
+        // say the same thing on screen — the header's creature and the list's —
+        // and it is the table that was kept. A bot without an entry in the table keeps its own.
         val restored = bots.map { bot -> faces[bot.name]?.let { bot.copy(faceCode = it) } ?: bot }
         return CachedRoster(bots = restored, faces = faces)
     }
 
     /**
-     * Enregistre le roster **affiché** de cette connexion. Un roster vide n'efface rien : sans
-     * serveur, on garde.
+     * Records the **displayed** roster of this connection. An empty roster erases nothing: without a
+     * server, we keep.
      */
     fun save(server: String, roster: CachedRoster) {
         if (roster.bots.isEmpty()) return
@@ -87,12 +87,12 @@ class BotRosterCache(private val text: TextStore) {
         write(kept)
     }
 
-    /** « Erase everything » : plus aucun roster gardé, pour aucune connexion. */
+    /** "Erase everything": no roster kept anymore, for any connection. */
     fun clearAll() {
         text.put(KEY, EMPTY)
     }
 
-    // — Ce qui est écrit sur le disque —
+    // — What is written to disk —
 
     private fun all(): Map<String, JsonObject> {
         val raw = text.get(KEY)?.takeIf { it.isNotBlank() } ?: return emptyMap()
@@ -107,8 +107,8 @@ class BotRosterCache(private val text: TextStore) {
     private fun encode(bot: BotProfile): JsonObject = buildJsonObject {
         put("name", JsonPrimitive(bot.name))
         bot.title?.let { put("title", JsonPrimitive(it)) }
-        // Le libellé du profil (`display_name`) décide du nom affiché d'un bot ; sans lui, le lien
-        // d'une conversation à son bot par le titre ne tient plus au redémarrage.
+        // The profile label (`display_name`) decides a bot's displayed name; without it, the link
+        // from a conversation to its bot by title no longer holds on restart.
         bot.displayName?.let { put("displayName", JsonPrimitive(it)) }
         bot.chatId?.let { put("chatId", JsonPrimitive(it)) }
         bot.faceCode?.let { put("faceCode", JsonPrimitive(it)) }
@@ -135,17 +135,17 @@ class BotRosterCache(private val text: TextStore) {
     private companion object {
         const val PREFERENCES = "onyx_bot_roster"
 
-        /** La clé unique sous laquelle tous les rosters sont écrits, un par connexion. */
+        /** The single key under which all rosters are written, one per connection. */
         const val KEY = "rosters"
         const val EMPTY = "{}"
     }
 }
 
 /**
- * **Le roster d'une connexion, tel qu'il a été affiché.**
+ * **A connection's roster, as it was displayed.**
  *
- * [bots] porte le visage résolu de chaque bot (son code effectif), [faces] la table de ces visages
- * — celle que l'écran et les raccourcis lisent pour rendre la même créature partout.
+ * [bots] carries each bot's resolved face (its effective code), [faces] the table of those faces
+ * — the one the screen and the shortcuts read to render the same creature everywhere.
  */
 data class CachedRoster(
     val bots: List<BotProfile>,

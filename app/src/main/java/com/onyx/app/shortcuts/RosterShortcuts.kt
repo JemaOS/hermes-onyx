@@ -19,53 +19,53 @@ import com.onyx.app.ui.theme.OnyxFonts
 import com.onyx.app.ui.theme.ResolvedTheme
 
 /**
- * La **section des bots** du menu qui s'ouvre sur un appui long sur l'icône.
+ * The **bots section** of the menu that opens on a long press on the icon.
  *
- * Un raccourci par bot, portant sa **couleur** et sa **tuile** ([BotTileArtwork]), et ouvrant une
- * conversation **avec ce bot** ([ACTION_BOT] → `BotShortcutInbox` → le chat du bot).
+ * One shortcut per bot, carrying its **colour** and its **tile** ([BotTileArtwork]), and opening a
+ * conversation **with that bot** ([ACTION_BOT] → `BotShortcutInbox` → the bot's chat).
  *
- * Publiée à l'exécution, parce que la liste des bots vient du serveur : c'est la seule partie du
- * menu qui ne peut pas être déclarée dans `res/xml/shortcuts.xml`. Les trois raccourcis d'action
- * (`ask`, `talk`, `note`) y sont déclarés et **ne bougent pas** : ici on n'ajoute que la section.
+ * Published at runtime, because the list of bots comes from the server: it is the only part of the
+ * menu that cannot be declared in `res/xml/shortcuts.xml`. The three action shortcuts
+ * (`ask`, `talk`, `note`) are declared there and **do not move**: here only the section is added.
  *
- * **Cohérence** : [publish] est rappelée à chaque lecture du roster par la section des bots, et
- * `setDynamicShortcuts` **remplace l'ensemble** — donc :
- * - un bot qui apparaît reçoit sa tuile ;
- * - un bot qui disparaît perd la sienne (aucun raccourci ne survit au roster) ;
- * - un bot renommé change d'identifiant (il est dérivé du nom de profil) : l'ancien s'efface ;
- * - un bot qui change de visage est republié avec sa nouvelle couleur.
+ * **Consistency**: [publish] is called again on each read of the roster by the bots section, and
+ * `setDynamicShortcuts` **replaces the whole set** — therefore:
+ * - a bot that appears receives its tile;
+ * - a bot that disappears loses its own (no shortcut survives the roster);
+ * - a renamed bot changes identifier (it is derived from the profile name): the old one is erased;
+ * - a bot that changes face is republished with its new colour.
  */
 object RosterShortcuts {
 
-    /** L'action d'un raccourci de bot : « ouvre la conversation de ce bot ». */
+    /** The action of a bot shortcut: "opens this bot's conversation". */
     const val ACTION_BOT = "com.onyx.app.action.BOT"
 
-    /** Le nom de profil du bot. */
+    /** The bot's profile name. */
     const val EXTRA_BOT = "onyx.shortcut.bot"
 
-    /** Son libellé, tel qu'il s'écrit dans le menu. */
+    /** Its label, as it is written in the menu. */
     const val EXTRA_BOT_LABEL = "onyx.shortcut.botLabel"
 
-    /** Son `canonical_session` : la conversation déjà gardée pour lui. */
+    /** Its `canonical_session`: the conversation already kept for it. */
     const val EXTRA_BOT_CHAT = "onyx.shortcut.botChat"
 
-    /** Vrai pour le profil principal (son libellé par défaut vient du serveur, pas du profil). */
+    /** True for the main profile (its default label comes from the server, not from the profile). */
     const val EXTRA_BOT_MAIN = "onyx.shortcut.botMain"
 
     /**
-     * Republie la section des bots.
+     * Republishes the bots section.
      *
-     * [bots] est la section telle qu'elle s'affiche (déjà dans l'ordre enregistré, salles
-     * écartées) ; [order] est l'ordre mis à la main (« Reorder Bots »), qui prime dans la règle de
-     * sélection ; [pictures] porte les photos du roster quand elles sont chargées.
+     * [bots] is the section as it is displayed (already in the saved order, rooms excluded);
+     * [order] is the hand-set order ("Reorder Bots"), which takes precedence in the selection
+     * rule; [pictures] carries the roster's photos when they are loaded.
      *
-     * La place laissée par les trois actions et par ce qui est épinglé est déduite de
-     * [ShortcutManager.getMaxShortcutCountPerActivity] : rien n'est publié au-delà.
+     * The room left by the three actions and by what is pinned is deduced from
+     * [ShortcutManager.getMaxShortcutCountPerActivity]: nothing is published beyond it.
      *
-     * [faceResolver] est **la résolution unique** du visage (`BotFaceResolver`, la table du
-     * roster) : la tuile ne relit jamais le magasin local pour dessiner. Un raccourci dont le profil
-     * porte déjà son code n'a même pas besoin d'elle ; le résolveur ne sert qu'au nom qu'il ne
-     * connaît pas, et un résolveur vide (`BotFaceResolver.none`) laisse alors le nom décider.
+     * [faceResolver] is **the single resolution** of the face (`BotFaceResolver`, the roster
+     * table): the tile never rereads the local store to draw. A shortcut whose profile already
+     * carries its code does not even need it; the resolver is only used for a name it does not
+     * know, and an empty resolver (`BotFaceResolver.none`) then lets the name decide.
      */
     fun publish(
         context: Context,
@@ -75,8 +75,8 @@ object RosterShortcuts {
         pictures: Map<String, ImageBitmap> = emptyMap(),
         faceResolver: BotFaceResolver = BotFaceResolver.none,
     ) {
-        // Ce que le téléphone sait des bots, pour ce qui n'a pas d'écran (le widget) : publié ici
-        // parce que c'est ici que le roster arrive, à chaque lecture.
+        // What the phone knows about the bots, for what has no screen (the widget): published here
+        // because this is where the roster arrives, on every read.
         runCatching { BotPresenceIndex(context).publish(bots, mainName) }
         val manager = context.getSystemService(ShortcutManager::class.java) ?: return
         val stored = manager.maxShortcutCountPerActivity
@@ -93,10 +93,10 @@ object RosterShortcuts {
         val side = minOf(manager.iconMaxWidth, manager.iconMaxHeight, BotTileArtwork.SIZE).coerceAtLeast(48)
         val infos = planned.mapIndexed { index, shortcut ->
             val picture = pictures[shortcut.bot] ?: pictures[shortcut.label]
-            // La couleur vient du **visage résolu du roster** (`BotProfile.faceCode`, réparti par la
-            // section) : c'est celle que l'app montre partout. À défaut, celle que la **résolution
-            // unique** rend pour ce nom ([faceResolver]) — plus jamais une seconde lecture du
-            // magasin local, qui faisait de la tuile un chemin de visage à part.
+            // The colour comes from the **resolved face of the roster** (`BotProfile.faceCode`,
+            // distributed by the section): it is the one the app shows everywhere. Failing that,
+            // the one the **single resolution** returns for this name ([faceResolver]) — never
+            // again a second read of the local store, which made the tile a separate face path.
             val faceCode = shortcut.faceCode ?: faceResolver.codeOf(shortcut.bot)
             val bitmap: Bitmap = if (picture != null) {
                 BotTileArtwork.photoTile(
@@ -123,16 +123,16 @@ object RosterShortcuts {
                 .setCategories(setOf(CATEGORY_CONVERSATION))
                 .build()
         }
-        // `setDynamicShortcuts` remplace **tout** l'ensemble publié : un bot qui n'est plus là
-        // n'a plus de raccourci. La limite de débit de la plateforme (une app en arrière-plan)
-        // fait échouer l'appel : la prochaine lecture du roster republie.
+        // `setDynamicShortcuts` replaces **the whole** published set: a bot that is no longer there
+        // has no shortcut any more. The platform rate limit (an app in the background)
+        // makes the call fail: the next read of the roster republishes.
         runCatching { manager.setDynamicShortcuts(infos) }
     }
 
-    /** La catégorie des raccourcis de conversation — celle des trois actions, pour la même tenue. */
+    /** The conversation shortcuts' category — the three actions' one, for the same garb. */
     const val CATEGORY_CONVERSATION = "android.shortcut.conversation"
 
-    /** L'intention d'un raccourci de bot : la demande, portée jusqu'au dépôt de l'app. */
+    /** The intent of a bot shortcut: the request, carried all the way to the app's holder. */
     fun intent(context: Context, shortcut: BotShortcut): Intent {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = ACTION_BOT
@@ -140,38 +140,38 @@ object RosterShortcuts {
             putExtra(EXTRA_BOT_LABEL, shortcut.label)
             putExtra(EXTRA_BOT_MAIN, shortcut.isDefault)
             shortcut.chatId?.let { putExtra(EXTRA_BOT_CHAT, it) }
-            // Un lanceur réveille l'app en **tête de tâche** : la conversation demandée s'ouvre
-            // sur une route neuve (le fil), plutôt que de retomber sur l'écran quitté la dernière
-            // fois (un raccourci pris depuis l'écran des réglages ouvrirait les réglages).
+            // A launcher wakes the app as **task root**: the requested conversation opens
+            // on a fresh route (the thread), instead of falling back on the screen left the last
+            // time (a shortcut taken from the settings screen would open the settings).
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         return intent
     }
 
     /**
-     * Le composant **lanceur** du raccourci.
+     * The shortcut's **launcher** component.
      *
-     * Les raccourcis d'un appui long appartiennent au composant que le lanceur interroge : l'alias
-     * d'icône actif, pas `MainActivity` (l'icône de l'écran d'accueil est un alias, et un raccourci
-     * publié sur un autre composant n'apparaît sous **aucune** icône).
+     * A long press's shortcuts belong to the component the launcher queries: the active icon
+     * alias, not `MainActivity` (the home screen's icon is an alias, and a shortcut published on
+     * another component appears under **no** icon).
      */
     fun launcherComponent(context: Context): ComponentName {
         val choice = AppIconController(context.applicationContext).current()
         return ComponentName(context.packageName, context.packageName + choice.aliasName)
     }
 
-    /** Le lanceur a raconté qu'un raccourci a été pris : la plateforme tient le compte. */
+    /** The launcher reported that a shortcut was taken: the platform keeps the count. */
     fun reportUsed(context: Context, shortcutId: String) {
         runCatching {
             context.getSystemService(ShortcutManager::class.java)?.reportShortcutUsed(shortcutId)
         }
     }
 
-    /** Les identifiants des raccourcis de bots publiés pour un roster (pour les essais). */
+    /** The identifiers of the bot shortcuts published for a roster (for the tests). */
     fun ids(bots: List<BotProfile>, order: List<String>, mainName: String): List<String> =
         BotShortcutPlan.schedule(bots, order, mainName).map { it.id }
 
-    /** Le thème tel que l'app le rend, pour la couleur d'un visage « thème ». */
+    /** The theme as the app renders it, for a "theme" face's colour. */
     private fun resolvedTheme(): ResolvedTheme {
         if (!AppContainer.isInstalled) return ResolvedTheme.fallback()
         return runCatching {

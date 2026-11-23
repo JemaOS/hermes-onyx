@@ -1,26 +1,26 @@
 package com.onyx.app.notifications
 
 /**
- * Les canaux de notification qu'Android garde pour Onyx, et l'état que le système en rapporte.
+ * The notification channels Android keeps for Onyx, and the state the system reports for them.
  *
- * C'est le pendant Android de la liste des appairages de `PushSettingsView` : là où référence
- * énumère les Hermes appairés et laisse en retirer un, Android énumère ses canaux et laisse
- * Android décider de chacun (son, importance) dans ses propres réglages. Chaque canal joue donc
- * le rôle qu'y joue un appairage : une destination à l'état suivi, que l'on vient régler.
+ * This is the Android counterpart of the pairing list in `PushSettingsView`: where the reference
+ * enumerates paired Hermes and lets you remove one, Android enumerates its channels and lets
+ * Android decide on each of them (sound, importance) in its own settings. Each channel therefore
+ * plays the role a pairing plays there: a destination with tracked state, that you come to adjust.
  *
- * Les identifiants viennent des deux objets qui publient réellement les alertes
- * ([ApprovalNotifier] et `TurnService`) : la liste ne peut donc pas dériver d'eux.
+ * The identifiers come from the two objects that actually publish the alerts
+ * ([ApprovalNotifier] and `TurnService`): the list therefore cannot drift from them.
  */
 object NotificationChannels {
 
-    /** Un canal Onyx : son identifiant Android, son libellé localisé et sa description. */
+    /** An Onyx channel: its Android identifier, its localized label and its description. */
     data class Channel(val id: String, val label: String, val description: String)
 
-    /** Le canal des tours : il porte l'avancement **et** la fin du travail d'un bot. */
+    /** The turns channel: it carries the progress **and** the end of a bot's work. */
     const val ANSWERS_LABEL = "Answers"
     const val ANSWERS_DESCRIPTION = "Shows while a bot is working, and when its answer is ready."
 
-    /** Les trois canaux que Onyx enregistre, dans l'ordre où l'écran les présente. */
+    /** The channels Onyx registers, in the order the screen presents them. */
     val all: List<Channel> = listOf(
         Channel(
             id = ApprovalNotifier.CHANNEL_ID,
@@ -50,17 +50,17 @@ object NotificationChannels {
     )
 
     /**
-     * Comment Android traite un canal, d'après son importance.
+     * How Android treats a channel, according to its importance.
      *
-     * `ABSENT` est le pendant Android de « Waiting for its first notification » de la référence : Android
-     * ne crée un canal qu'à la première publication — un canal jamais créé n'a pas encore d'état.
+     * `ABSENT` is the Android counterpart of the reference's "Waiting for its first notification": Android
+     * only creates a channel on first publication — a channel never created has no state yet.
      */
     enum class State { ABSENT, OFF, ON }
 
-    /** `NotificationManager.IMPORTANCE_NONE` : le canal est réglé sur « aucun ». */
+    /** `NotificationManager.IMPORTANCE_NONE`: the channel is set to "none" ("aucun"). */
     const val IMPORTANCE_NONE = 0
 
-    /** `importance` vient de `NotificationChannel.getImportance()` ; `null` : le canal n'existe pas. */
+    /** `importance` comes from `NotificationChannel.getImportance()`; `null`: the channel does not exist. */
     fun state(importance: Int?): State = when {
         importance == null -> State.ABSENT
         importance == IMPORTANCE_NONE -> State.OFF

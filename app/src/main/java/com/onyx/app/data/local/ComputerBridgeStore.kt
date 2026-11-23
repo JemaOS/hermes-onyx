@@ -3,11 +3,11 @@ package com.onyx.app.data.local
 import android.content.Context
 
 /**
- * Où joindre le pont « Ordinateur », et avec quel jeton.
+ * Where to reach the "Computer" ("Ordinateur") bridge, and with which token.
  *
- * L'adresse n'est pas un secret : elle vit dans les préférences, comme l'adresse du serveur TTS.
- * Le **jeton**, lui, est un mot de passe pour le PC : il passe par [SecretStore], donc par le
- * Keystore, et il n'est jamais réécrit ailleurs. Un jeton vide efface l'entrée.
+ * The address is not a secret: it lives in the preferences, like the TTS server address.
+ * The **token**, however, is a password for the PC: it goes through [SecretStore], hence through the
+ * Keystore, and it is never rewritten elsewhere. An empty token erases the entry.
  */
 class ComputerBridgeStore(context: Context) {
 
@@ -16,32 +16,32 @@ class ComputerBridgeStore(context: Context) {
     private val secrets = SecretStore(context)
 
     /**
-     * Le jeton gardé **en mémoire** quand le trousseau a refusé de le garder.
+     * The token kept **in memory** when the keystore refused to keep it.
      *
-     * Un Keystore peut être indisponible ou perdre sa clé (et `SecretStore` efface alors l'entrée
-     * devenue illisible, exprès). Perdre le jeton en silence obligerait à le retaper sans savoir
-     * pourquoi : il reste donc en mémoire pour la session, et l'écran le dit.
+     * A Keystore can be unavailable or lose its key (and `SecretStore` then erases the entry
+     * that became unreadable, on purpose). Losing the token silently would force retyping it without knowing
+     * why: it therefore stays in memory for the session, and the screen says so.
      */
     private var memoryToken: String = ""
 
-    /** Vrai quand le trousseau a refusé le jeton à l'enregistrement. */
+    /** True when the keystore refused the token on save. */
     private var refusedAtSave: Boolean = false
 
     /**
-     * Vrai quand le trousseau ne tient pas le jeton — à l'enregistrement, ou plus tard : une clé
-     * de Keystore perdue rend l'entrée illisible, et le magasin l'efface alors. Dans les deux cas
-     * l'écran le dit, plutôt que de laisser croire à une adresse oubliée.
+     * True when the keystore does not hold the token — on save, or later: a lost Keystore
+     * key makes the entry unreadable, and the store then erases it. In both cases
+     * the screen says so, rather than letting one believe the address was forgotten.
      */
     val keystoreRefused: Boolean
         get() = refusedAtSave ||
             (prefs.getBoolean(KEY_HAD_TOKEN, false) && secrets.get(KEY_TOKEN).isEmpty() && memoryToken.isEmpty())
 
-    /** L'adresse du pont, telle que saisie (« http://10.0.2.2:8795 »). */
+    /** The bridge address, as entered ("http://10.0.2.2:8795"). */
     var address: String
         get() = prefs.getString(KEY_ADDRESS, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_ADDRESS, value.trim()).apply()
 
-    /** Le jeton du pont — dans le Keystore, jamais dans les préférences. */
+    /** The bridge token — in the Keystore, never in the preferences. */
     var token: String
         get() = secrets.get(KEY_TOKEN).ifEmpty { memoryToken }
         set(value) {
@@ -59,10 +59,10 @@ class ComputerBridgeStore(context: Context) {
             prefs.edit().putBoolean(KEY_HAD_TOKEN, true).apply()
         }
 
-    /** Vrai quand les deux sont là : il ne manque plus que la connexion. */
+    /** True when both are there: only the connection is missing. */
     val configured: Boolean get() = address.isNotBlank() && token.isNotEmpty()
 
-    /** Le jeton tel qu'il se montre : jamais en clair, et on sait seulement s'il y en a un. */
+    /** The token as it is displayed: never in clear, and all one knows is whether there is one. */
     val maskedToken: String get() = if (token.isEmpty()) "" else MASK
 
     fun clear() {
@@ -75,7 +75,7 @@ class ComputerBridgeStore(context: Context) {
     private companion object {
         const val KEY_ADDRESS = "bridge_address"
         const val KEY_TOKEN = "computer-bridge-token"
-        /** Un jeton a été enregistré : s'il ne se relit plus, c'est le trousseau, pas la mémoire. */
+        /** A token was saved: if it no longer reads back, it is the keystore, not memory. */
         const val KEY_HAD_TOKEN = "bridge_had_token"
         const val MASK = "••••••••"
     }

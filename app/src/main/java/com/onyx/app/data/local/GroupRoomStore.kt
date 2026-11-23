@@ -16,15 +16,15 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Un endroit où l'on écrit du texte par clé : les préférences d'Android, ou une carte en mémoire
- * quand on éprouve ce qui est gardé sans appareil.
+ * A place where one writes text by key: Android's preferences, or an in-memory map
+ * when exercising what is kept without a device.
  */
 interface TextStore {
     fun get(key: String): String?
     fun put(key: String, value: String)
 }
 
-/** [TextStore] sur les préférences d'Android : ce qui est écrit là survit à une relance. */
+/** [TextStore] on Android's preferences: what is written there survives a restart. */
 class PreferencesTextStore(context: Context, name: String) : TextStore {
     private val prefs = context.applicationContext.getSharedPreferences(name, Context.MODE_PRIVATE)
     override fun get(key: String): String? = prefs.getString(key, null)
@@ -34,27 +34,27 @@ class PreferencesTextStore(context: Context, name: String) : TextStore {
 }
 
 /**
- * Le magasin des salles gardées **sur ce téléphone**.
+ * The store of rooms kept **on this phone**.
  *
- * Un « New Group Chat » fait sans Dashboard n'a pas de serveur pour tenir sa salle : celle-ci est
- * donc écrite ici, avec son nom et ses membres, sous la connexion qui l'a demandée. Elle réapparaît
- * dans la liste au prochain lancement — la même promesse qu'une salle que le serveur tient, sans le
- * serveur.
+ * A "New Group Chat" made without Dashboard has no server to hold its room: it is
+ * therefore written here, with its name and its members, under the connection that requested it. It reappears
+ * in the list on the next launch — the same promise as a room the server holds, without the
+ * server.
  *
- * Même nom, même salle : redemander deux fois le même nom n'en garde qu'une (idempotence). Tout
- * tient sous une seule clé, un objet JSON `{"<connexion>": [ salle, … ]}`.
+ * Same name, same room: requesting the same name twice keeps only one (idempotence). Everything
+ * fits under a single key, a JSON object `{"<connection>": [ room, … ]}`.
  */
 class GroupRoomStore(private val text: TextStore) {
 
     constructor(context: Context) : this(PreferencesTextStore(context, PREFERENCES))
 
-    /** Les salles gardées pour cette connexion, la plus récente d'abord. */
+    /** The rooms kept for this connection, most recent first. */
     fun rooms(server: String): List<GroupRoom> =
         all()[server].orEmpty().sortedByDescending { it.updatedAtMillis ?: Long.MIN_VALUE }
 
     /**
-     * Garde une salle neuve et la rend telle que la liste la montrera. Une salle du même nom déjà
-     * gardée revient telle quelle : rien n'est écrit deux fois.
+     * Saves a new room and returns it as the list will show it. A room of the same name already
+     * kept comes back as is: nothing is written twice.
      */
     fun save(server: String, draft: GroupRoomDraft): GroupRoom {
         val kept = all()
@@ -72,7 +72,7 @@ class GroupRoomStore(private val text: TextStore) {
         return room
     }
 
-    /** Une salle de cette connexion s'en va (terminée, ou retirée). */
+    /** A room of this connection goes away (ended, or removed). */
     fun remove(server: String, id: String) {
         val kept = all()
         val here = kept[server].orEmpty().filterNot { it.id == id }
@@ -80,12 +80,12 @@ class GroupRoomStore(private val text: TextStore) {
         write(kept)
     }
 
-    /** « Erase everything » : plus aucune salle gardée ici. */
+    /** "Erase everything": no room kept here anymore. */
     fun clearAll() {
         text.put(KEY, EMPTY)
     }
 
-    // — Ce qui est écrit sur le disque —
+    // — What is written to disk —
 
     private fun all(): MutableMap<String, List<GroupRoom>> =
         decode(text.get(KEY)).toMutableMap()
@@ -153,10 +153,10 @@ class GroupRoomStore(private val text: TextStore) {
     }
 
     private companion object {
-        /** Le nom des préférences où les salles gardées vivent. */
+        /** The name of the preferences where the kept rooms live. */
         const val PREFERENCES = "onyx_group_rooms"
 
-        /** La clé unique sous laquelle tout est écrit, et sa valeur quand il n'y a rien. */
+        /** The single key under which everything is written, and its value when there is nothing. */
         const val KEY = "rooms"
         const val EMPTY = "{}"
     }

@@ -10,41 +10,41 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * **Le dernier plantage, écrit sur le téléphone.**
+ * **The last crash, written on the phone.**
  *
- * Un plantage qu'on ne peut pas lire ne se corrige pas : les rapports du propriétaire décrivent des
- * symptômes (« ça crash souvent avec beaucoup de conversations ») et, sans la pile, chaque
- * correction n'est qu'une hypothèse. Cette classe installe un gestionnaire d'exceptions non
- * rattrapées qui écrit la trace **complète** (cause incluse) dans un fichier, puis laisse Android
- * faire son travail : l'app se ferme comme avant, le dialogue système s'affiche comme avant.
+ * A crash you cannot read cannot be fixed: the owner's reports describe
+ * symptoms ("it crashes often with a lot of conversations" — French UI string « ça crash souvent avec beaucoup de conversations ») and, without the stack, every
+ * fix is only a hypothesis. This class installs an uncaught-exception handler
+ * that writes the **full** trace (cause included) to a file, then lets Android
+ * do its job: the app closes as before, the system dialog shows as before.
  *
- * Les fichiers vivent dans `Android/data/com.onyx.app/files/crashes/` — lisibles depuis un
- * gestionnaire de fichiers, donc envoyables sans câble ni ordinateur. Cinq au maximum : le dernier
- * écrase le plus ancien, un plantage en boucle ne remplit pas le téléphone.
+ * The files live in `Android/data/com.onyx.app/files/crashes/` — readable from a
+ * file manager, so they can be sent without a cable or a computer. Five at most: the latest
+ * overwrites the oldest, a crash loop does not fill up the phone.
  *
- * Rien n'y est inventé : la version de l'app, le modèle et la version d'Android viennent du
- * système, la pile vient de l'exception elle-même.
+ * Nothing in them is invented: the app version, the model and the Android version come from the
+ * system, the stack comes from the exception itself.
  */
 object CrashLog {
 
-    /** Ce que le gestionnaire précédent faisait — on lui rend la main après avoir écrit. */
+    /** What the previous handler did — we hand control back to it after writing. */
     private var previous: Thread.UncaughtExceptionHandler? = null
 
-    /** Le dossier des traces, ou `null` quand le stockage externe n'est pas monté. */
+    /** The traces folder, or `null` when external storage is not mounted. */
     fun directory(context: Context): File? {
         val base = context.getExternalFilesDir(null) ?: context.filesDir
         return File(base, "crashes").apply { if (!exists()) mkdirs() }
     }
 
-    /** Les traces enregistrées, la plus récente d'abord. */
+    /** The recorded traces, most recent first. */
     fun reports(context: Context): List<File> =
         directory(context)?.listFiles { file -> file.extension == "txt" }
             ?.sortedByDescending { it.name }
             .orEmpty()
 
     /**
-     * Installe le gestionnaire. **Idempotent** : un second appel ne pose pas deux fois le même
-     * crochet (et ne perd pas le gestionnaire d'origine).
+     * Installs the handler. **Idempotent**: a second call does not install the same
+     * hook twice (and does not lose the original handler).
      */
     fun install(context: Context) {
         if (previous != null) return
@@ -53,12 +53,12 @@ object CrashLog {
         previous = existing
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { write(app, thread, error) }
-            // La main revient au système : le dialogue « Onyx s'est arrêté » reste le sien.
+            // Control returns to the system: the "Onyx s'est arrêté" (Onyx has stopped) dialog stays its own.
             if (existing != null) existing.uncaughtException(thread, error)
         }
     }
 
-    /** Écrit la trace pour [error], et rend le fichier écrit (pour un test, ou un partage). */
+    /** Writes the trace for [error], and returns the written file (for a test, or a share). */
     fun write(context: Context, thread: Thread, error: Throwable): File? {
         val dir = directory(context) ?: return null
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
@@ -79,7 +79,7 @@ object CrashLog {
 
         return runCatching {
             file.writeText(trace)
-            // Cinq traces au plus : le plus ancien part.
+            // Five traces at most: the oldest goes.
             dir.listFiles { f -> f.extension == "txt" }
                 ?.sortedByDescending { it.name }
                 ?.drop(MAX_REPORTS)
@@ -88,6 +88,6 @@ object CrashLog {
         }.getOrNull()
     }
 
-    /** Le nombre de traces gardées. */
+    /** The number of traces kept. */
     private const val MAX_REPORTS = 5
 }

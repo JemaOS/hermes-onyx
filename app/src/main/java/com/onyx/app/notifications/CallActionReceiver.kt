@@ -6,11 +6,11 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Les boutons de l'appel, quand on n'ouvre pas l'écran : « Refuser » depuis la notification.
+ * The call buttons, when the screen is not opened: "Decline" from the notification.
  *
- * « Décrocher » n'est pas ici : il ouvre [IncomingCallActivity] (déverrouillage compris), comme dans
- * la référence. « Refuser » n'a besoin que de retirer l'appel et de laisser le repli republier la
- * notification habituelle — d'où un `BroadcastReceiver`, qui n'a aucun écran à ouvrir.
+ * "Answer" is not here: it opens [IncomingCallActivity] (unlock included), as in
+ * the reference. "Decline" only needs to remove the call and let the fallback republish the
+ * usual notification — hence a `BroadcastReceiver`, which has no screen to open.
  */
 class CallActionReceiver : BroadcastReceiver() {
 
@@ -24,7 +24,7 @@ class CallActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_DECLINE = "com.onyx.app.action.DECLINE_CALL"
 
-        /** L'intention du bouton « Refuser », portée par la notification d'appel. */
+        /** The intent of the "Decline" button, carried by the call notification. */
         fun declinePendingIntent(context: Context, callId: String): PendingIntent {
             val intent = Intent(context, CallActionReceiver::class.java).apply {
                 action = ACTION_DECLINE

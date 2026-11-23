@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Un fichier venu d'une autre app : son adresse (`content://`), son type, et son nom si on l'a. */
+/** A file coming from another app: its address (`content://`), its type, and its name if available. */
 data class SharedFile(
     val uri: String,
     val mimeType: String,
@@ -12,12 +12,12 @@ data class SharedFile(
 )
 
 /**
- * Ce qui entre dans l'app de l'extérieur : un partage (`ACTION_SEND`, texte ou fichier), une
- * question posée par l'assistant du téléphone (`ACTION_ASSIST`) ou par une App Action de Gemini,
- * et un fichier ouvert depuis une autre app (`ACTION_VIEW`).
+ * What enters the app from outside: a share (`ACTION_SEND`, text or file), a
+ * question asked by the phone assistant (`ACTION_ASSIST`) or by a Gemini App Action,
+ * and a file opened from another app (`ACTION_VIEW`).
  *
- * L'activité dépose le texte ici à la création ou sur un nouvel intent, et l'UI le consomme une
- * fois — c'est ce qui évite de perdre le partage quand l'activité était déjà ouverte.
+ * The activity drops the text here on creation or on a new intent, and the UI consumes it
+ * once — that is what avoids losing the share when the activity was already open.
  */
 object ShareInbox {
 
@@ -25,18 +25,18 @@ object ShareInbox {
     val pending: StateFlow<String?> = _pending.asStateFlow()
 
     private val _pendingFile = MutableStateFlow<SharedFile?>(null)
-    /** Le fichier partagé, en attente d'être joint au prochain message. */
+    /** The shared file, waiting to be attached to the next message. */
     val pendingFile: StateFlow<SharedFile?> = _pendingFile.asStateFlow()
 
     private val _voiceRequested = MutableStateFlow(false)
-    /** Vrai quand l'entrée vient d'un raccourci « parler à Onyx ». */
+    /** True when the entry comes from a "talk to Onyx" shortcut. */
     val voiceRequested: StateFlow<Boolean> = _voiceRequested.asStateFlow()
 
     private val _captureRequested = MutableStateFlow(false)
     /**
-     * Vrai quand l'entrée vient d'un raccourci « prendre une note » : l'app s'ouvre sur l'écran
-     * de la note, sans toucher à la conversation ouverte (c'est le `LaunchFlag.requestCapture`
-     * de la référence, par lequel un pilotage du téléphone demande la capture).
+     * True when the entry comes from a "take a note" shortcut: the app opens on the note
+     * screen, without touching the open conversation (this is the `LaunchFlag.requestCapture`
+     * of the reference, through which a phone drive requests the capture).
      */
     val captureRequested: StateFlow<Boolean> = _captureRequested.asStateFlow()
 
@@ -46,8 +46,8 @@ object ShareInbox {
     }
 
     /**
-     * Un fichier partagé — ou ouvert — depuis une autre app. Un partage sans adresse ne dit rien :
-     * il est ignoré plutôt que de joindre un fichier vide au message suivant.
+     * A file shared — or opened — from another app. A share without an address says nothing:
+     * it is ignored rather than attaching an empty file to the next message.
      */
     fun offerFile(uri: String?, mimeType: String?, name: String = "") {
         val clean = uri?.trim().orEmpty()
@@ -55,41 +55,41 @@ object ShareInbox {
         _pendingFile.value = SharedFile(uri = clean, mimeType = mimeType.orEmpty(), name = name)
     }
 
-    /** Le raccourci « parler à Onyx » : l'app s'ouvre en mode vocal. */
+    /** The "talk to Onyx" shortcut: the app opens in voice mode. */
     fun requestVoice(question: String? = null) {
         _voiceRequested.value = true
         question?.let(::offer)
     }
 
-    /** Le raccourci « prendre une note » : l'app s'ouvre sur la capture rapide. */
+    /** The "take a note" shortcut: the app opens on quick capture. */
     fun requestCapture() {
         _captureRequested.value = true
     }
 
-    /** Le raccourci « coffre de secrets » : l'app s'ouvre sur le coffre. */
+    /** The "secrets vault" shortcut: the app opens on the vault. */
     fun requestVault() {
         _vaultRequested.value = true
     }
 
     private val _vaultRequested = MutableStateFlow(false)
     /**
-     * Vrai quand l'entrée vient du raccourci **« Coffre de secrets »** de l'icône : l'app s'ouvre
-     * sur le coffre, **sans toucher à la conversation ouverte** — même contrat que « prendre une
-     * note », et la tuile n'existe que sur un serveur qui sert le greffon (`VaultShortcut`).
+     * True when the entry comes from the icon's **"Secrets Vault"** shortcut: the app opens
+     * on the vault, **without touching the open conversation** — same contract as "take a
+     * note", and the tile only exists on a server that serves the plugin (`VaultShortcut`).
      */
     val vaultRequested: StateFlow<Boolean> = _vaultRequested.asStateFlow()
 
     private val _pendingTemplate = MutableStateFlow<String?>(null)
     /**
-     * Un **lien de modèle de bot** reçu de l'extérieur (`onyx://bot?v=1&t=…`) : ouvert depuis un
-     * navigateur, une autre app, ou partagé comme texte.
+     * A **bot template link** received from outside (`onyx://bot?v=1&t=…`): opened from a
+     * browser, another app, or shared as text.
      *
-     * Il ne passe **pas** par le composeur : un lien de modèle n'est pas un message à envoyer, c'est
-     * un bot à regarder avant de l'ajouter. L'UI ouvre donc l'aperçu, une fois.
+     * It does **not** go through the composer: a template link is not a message to send, it is
+     * a bot to look at before adding it. The UI therefore opens the preview, once.
      */
     val pendingTemplate: StateFlow<String?> = _pendingTemplate.asStateFlow()
 
-    /** Un lien de modèle de bot, déposé pour l'aperçu. Un texte vide ne dit rien : il est ignoré. */
+    /** A bot template link, dropped for the preview. Empty text says nothing: it is ignored. */
     fun offerTemplate(link: String?) {
         val clean = link?.trim().orEmpty()
         if (clean.isEmpty()) return

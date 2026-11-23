@@ -26,17 +26,17 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.voice.VoiceFace
 
 /**
- * La planche des états d'un bot, **debug seulement**.
+ * The plate of a bot's states, **debug only**.
  *
- * Elle dessine, côte à côte et en grand, le même visage dans chacun des cinq états qu'un bot prend
- * pendant une conversation — ÉCOUTE, RÉFLEXION, PAROLE, SUCCÈS, ERREUR — pour que la recette
- * visuelle porte sur le **dessin** de chaque état, pas sur un parcours serveur qu'un émulateur nu ne
- * peut pas jouer. C'est un **état injecté**, et le rapport le dit : « PAROLE » passe par la vraie
- * [`VoiceFace`] (celle de la scène vocale, bouche ouverte par la pose), les quatre autres par
- * l'humeur ([BotMood]) que les écrans — la liste des bots, le fil d'une salle, la scène vocale —
- * passent réellement à `BotLook`.
+ * It draws, side by side and large, the same face in each of the five states a bot takes
+ * during a conversation — LISTENING, THINKING, SPEAKING, SUCCESS, ERROR — so that the visual
+ * acceptance focuses on the **drawing** of each state, not on a server path that a bare emulator
+ * cannot play. It is an **injected state**, and the report says so: "SPEAKING" (French UI string "PAROLE") goes through the real
+ * [`VoiceFace`] (the one from the voice scene, mouth open via the pose), the other four through
+ * the mood ([BotMood]) that the screens — the bot list, a room's thread, the voice scene —
+ * actually pass to `BotLook`.
  *
- * Rien de ceci n'existe dans l'APK signé : l'activité vit dans le jeu de sources `debug`.
+ * None of this exists in the signed APK: the activity lives in the `debug` source set.
  */
 class BotExpressionsActivity : FragmentActivity() {
 
@@ -78,7 +78,7 @@ class BotExpressionsActivity : FragmentActivity() {
         }
     }
 
-    /** Un état : le visage du bot dans cet état, et son nom dessous. */
+    /** A state: the bot's face in that state, and its name below. */
     @Composable
     private fun StateFace(label: String, mood: BotMood = BotMood.IDLE, speaking: Boolean = false) {
         val theme = LocalOnyxTheme.current
@@ -88,8 +88,8 @@ class BotExpressionsActivity : FragmentActivity() {
         ) {
             Box(modifier = Modifier.size(132.dp), contentAlignment = Alignment.Center) {
                 if (speaking) {
-                    // La vraie scène vocale : son visage, sa pose de parole (bouche ouverte, un
-                    // soupçon de sourcils et de respiration), au repos de phase.
+                    // The real voice scene: its face, its speaking pose (mouth open, a
+                    // hint of eyebrows and breathing), at phase rest.
                     VoiceFace(
                         name = QUILL,
                         faceCode = QUILL_FACE,
@@ -115,8 +115,8 @@ class BotExpressionsActivity : FragmentActivity() {
         const val QUILL = "quill"
 
         /**
-         * Un visage **neutre** pour la planche (yeux ronds, sourire, sans marque) : les cinq états
-         * se distinguent alors par ce que l'humeur y ajoute, et non par les traits déjà présents.
+         * A **neutral** face for the plate (round eyes, smile, no mark): the five states
+         * are then distinguished by what the mood adds to it, and not by traits already present.
          */
         const val QUILL_FACE = "1:blob:round:smile:none:4:0:0"
     }

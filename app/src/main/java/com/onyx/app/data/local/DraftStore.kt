@@ -6,11 +6,11 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 /**
- * Le brouillon de chaque conversation.
+ * Each conversation's draft.
  *
- * Miroir de `Drafts` côté référence : le texte en cours est gardé par conversation — donc quand
- * on en rouvre une, ce qu'on était en train d'écrire est encore là. Les plus anciens brouillons
- * s'effacent au-delà de [limit], comme sur la référence.
+ * Mirror of `Drafts` on the reference: the text in progress is kept per conversation — so when
+ * one reopens one, what one was writing is still there. The oldest drafts
+ * are erased beyond [limit], as on the reference.
  */
 class DraftStore(context: Context) {
 
@@ -18,20 +18,20 @@ class DraftStore(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * La carte des brouillons, décodée **une fois**.
+     * The drafts map, decoded **once**.
      *
-     * `put` est appelé à chaque caractère tapé : refaire un `getString` + un décodage JSON de tous
-     * les brouillons par frappe faisait payer au clavier plusieurs dizaines de Ko de lecture et
-     * d'allocation à chaque touche. La carte reste ici ; le disque ne voit que l'encodage.
+     * `put` is called on every typed character: redoing a `getString` + a JSON decoding of all
+     * the drafts per keystroke made the keyboard pay several tens of KB of reads and
+     * allocations per key. The map stays here; the disk only sees the encoding.
      */
     private var cache: MutableMap<String, String>? = null
 
     private fun all(): MutableMap<String, String> = cache ?: load().toMutableMap().also { cache = it }
 
-    /** Le brouillon d'une conversation, ou `""`. */
+    /** A conversation's draft, or `""`. */
     fun get(conversationId: String): String = all()[conversationId].orEmpty()
 
-    /** Enregistre (ou efface, si vide) le brouillon d'une conversation. */
+    /** Saves (or erases, if empty) a conversation's draft. */
     fun put(conversationId: String, text: String) {
         val drafts = all()
         if (text.isEmpty()) drafts.remove(conversationId) else drafts[conversationId] = text
@@ -42,7 +42,7 @@ class DraftStore(context: Context) {
         put(conversationId, "")
     }
 
-    /** Efface tous les brouillons de ce téléphone (le « Erase everything » des Réglages). */
+    /** Erases all drafts on this phone (the Settings' "Erase everything"). */
     fun clearAll() {
         cache = null
         prefs.edit().remove(KEY).apply()
@@ -54,8 +54,8 @@ class DraftStore(context: Context) {
     }
 
     private fun store(drafts: Map<String, String>) {
-        // Au-delà de la limite, on garde les derniers écrits : la carte n'a pas d'ordre, on
-        // élague donc arbitrairement — un brouillon oublié n'est pas une perte.
+        // Beyond the limit, the latest writes are kept: the map has no order, so it is
+        // pruned arbitrarily — a forgotten draft is not a loss.
         val capped = if (drafts.size <= limit) {
             drafts
         } else {

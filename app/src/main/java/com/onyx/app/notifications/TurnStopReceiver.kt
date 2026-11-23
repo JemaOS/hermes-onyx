@@ -6,21 +6,21 @@ import android.content.Intent
 import com.onyx.app.di.AppContainer
 
 /**
- * « Arrêter » depuis la notification d'avancement, sans ouvrir l'app.
+ * "Arrêter" ("Stop") from the progress notification, without opening the app.
  *
- * Le geste part d'un récepteur : il n'a aucun écran pour le confirmer, donc c'est la notification
- * qui le dit — elle s'efface tout de suite, et le tour est **vraiment** arrêté chez l'hôte
- * (`TurnStore.stop`, qui interrompt le flux et prévient le serveur).
+ * The gesture goes through a receiver: it has no screen to confirm it, so it is the notification
+ * that says so — it clears right away, and the turn is **really** stopped on the host
+ * (`TurnStore.stop`, which interrupts the stream and notifies the server).
  *
- * Sans ce récepteur, l'action d'une notification ne ferait que disparaître : c'est le cas exact
- * que le propriétaire rapporte comme « ça marche pas ».
+ * Without this receiver, a notification's action would only make it disappear: that is the exact
+ * case the owner reports as "ça marche pas" ("it doesn't work").
  */
 class TurnStopReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val conversationId = intent.getStringExtra(EXTRA_CONVERSATION_ID)
-        // Le tour est arrêté dans le magasin du processus : c'est lui qui tient le tour, pas
-        // l'écran — la conversation peut très bien ne pas être ouverte.
+        // The turn is stopped in the process store: that is what holds the turn, not
+        // the screen — the conversation may very well not be open.
         if (!conversationId.isNullOrEmpty() && AppContainer.isInstalled) {
             AppContainer.turns.stop(conversationId)
         }

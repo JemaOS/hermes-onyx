@@ -12,22 +12,22 @@ import com.onyx.app.data.net.ServeSessionMessages
 import com.onyx.app.di.AppContainer
 
 /**
- * « Me prévenir quand une réponse arrive, app fermée » — sans service de push.
+ * "Notify me when a reply arrives, with the app closed" — without a push service.
  *
- * **Le manque qu'il comble** : un bot finit son tour dans son coin, l'app est fermée, et personne
- * ne l'apprend avant de la rouvrir. Le gateway, lui, a déjà écrit la réponse dans la session
- * (`GET /api/sessions/{id}/messages`, la route du rattrapage d'une bulle vide). Ce travail relit
- * donc ce journal à intervalles réguliers — toutes les quinze minutes, réseau présent — et publie
- * la notification de fin sur le canal des réponses ([TurnService.CHANNEL_ID]) quand quelque chose
- * de **nouveau** y est apparu.
+ * **The gap it fills**: a bot finishes its turn on its own, the app is closed, and nobody
+ * learns about it before reopening it. The gateway, for its part, has already written the reply into the
+ * session (`GET /api/sessions/{id}/messages`, the route the empty-bubble catch-up uses). This job therefore
+ * rereads that log at regular intervals — every fifteen minutes, network present — and publishes
+ * the finished notification on the replies channel ([TurnService.CHANNEL_ID]) when something
+ * **new** has appeared there.
  *
- * Rien ne passe par un relais ni par un service payant : c'est une lecture HTTP directe vers le
- * serveur configuré dans Réglages, avec la clé de ce serveur, depuis ce téléphone.
+ * Nothing goes through a relay or a paid service: it is a direct HTTP read to the
+ * server configured in Settings, with that server's key, from this phone.
  *
- * **Ce qu'il n'invente pas** : la décision « est-ce nouveau ? » est entièrement dans [ReplyWatch],
- * une règle pure testée sur la JVM. Ici il n'y a que le transport, le disque et la notification —
- * et aucune de leurs pannes ne doit faire échouer le travail en boucle : un passage raté est
- * simplement un passage sans nouvelle, le suivant rattrapera.
+ * **What it does not invent**: the "is this new?" decision lives entirely in [ReplyWatch],
+ * a pure rule tested on the JVM. Here there is only the transport, the disk and the notification —
+ * and none of their failures must make the job fail in a loop: a missed pass is
+ * simply a pass without news, the next one will catch up.
  */
 class ReplyWatcher(
     appContext: Context,
@@ -35,8 +35,8 @@ class ReplyWatcher(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        // Un travail périodique ne « réessaie » pas utilement : `Result.success()` dans tous les
-        // cas, et le passage suivant (quinze minutes plus tard) fait le travail.
+        // A periodic job does not usefully "retry": `Result.success()` in every
+        // case, and the next pass (fifteen minutes later) does the work.
         runCatching { watch() }
             .onFailure { Log.w(TAG, "le surveillant de réponses a échoué sur ce passage", it) }
         return Result.success()
@@ -45,23 +45,23 @@ class ReplyWatcher(
     private suspend fun watch() {
         val context = applicationContext
 
-        // Le processus du travail peut être neuf : le conteneur se réinstalle sans rien refaire
-        // s'il l'était déjà (l'`Application` passe en premier, mais on ne s'appuie pas dessus).
+        // The job's process may be new: the container reinstalls itself without redoing anything
+        // if it was already installed (the `Application` runs first, but we do not rely on it).
         if (!AppContainer.isInstalled) AppContainer.install(context)
 
         val settings = AppContainer.settings
-        // Les réglages peuvent n'être pas encore lus quand Android démarre le processus pour ce
-        // travail : sans cette lecture, un interrupteur éteint se lirait comme son défaut.
+        // Settings may not have been read yet when Android starts the process for this
+        // job: without this read, a switched-off toggle would read as its default.
         if (!settings.loaded.value) settings.load()
 
-        // Le réglage peut avoir été éteint alors qu'un passage était déjà en file : le travail
-        // s'arrête et se désinscrit, plutôt que de publier une alerte qu'on ne veut plus.
+        // The setting may have been turned off while a pass was already queued: the job
+        // stops and unregisters itself, rather than publishing an alert that is no longer wanted.
         if (!settings.replyWatch.value) {
             ReplyWatchScheduler.cancel(context)
             return
         }
-        // Sans la permission Android, il n'y a rien à publier — et avancer les mesures ferait
-        // manquer la première réponse une fois la permission accordée.
+        // Without the Android permission, there is nothing to publish — and advancing the marks would
+        // make the first reply be missed once the permission is granted.
         if (!ApprovalNotifier.canNotify(context)) return
 
         val config = activeConfig() ?: return
@@ -74,24 +74,24 @@ class ReplyWatcher(
         for (conversation in conversations) {
             val sessionId = conversation.serverSessionId?.trim().orEmpty()
             if (sessionId.isEmpty()) continue
-            // **Une fenêtre, pas le journal entier.** Mesuré sur cette machine : le veilleur tirait
-            // 7,8 Mo toutes les seize minutes (3,4 + 4,4 Mo pour deux sessions) sur un téléphone en
-            // 4G, parce qu'il demandait la page par défaut de 500 messages. La règle ne consomme que
-            // la fin du journal (`ReplyWatch.trailingOf` + la dernière réponse) : vingt lignes
-            // suffisent, et la mesure reste la même.
+            // **A window, not the whole log.** Measured on this machine: the watcher was pulling
+            // 7.8 MB every sixteen minutes (3.4 + 4.4 MB for two sessions) on a phone on
+            // 4G, because it asked for the default page of 500 messages. The rule only consumes
+            // the end of the log (`ReplyWatch.trailingOf` + the last reply): twenty lines
+            // are enough, and the measurement stays the same.
             val rows = sessions.rows(
                 sessionId,
                 conversation.botProfile,
                 limit = com.onyx.app.data.net.ReplyWatch.WATCH_TAIL,
             )
-            // Journal vide : rien n'a été lu (réseau, refus du serveur, session vide). On ne touche
-            // pas à la mesure — sinon un passage hors ligne ferait croire, au suivant, que tout est
-            // neuf, et la conversation sonnerait pour des réponses déjà lues.
+            // Empty log: nothing was read (network, server refusal, empty session). We do not touch
+            // the mark — otherwise an offline pass would make the next one believe everything is
+            // new, and the conversation would ring for replies already read.
             if (rows.isEmpty()) continue
             val current = ReplyWatch.snapshotOf(rows)
             val previous = store.read(sessionId)
-            // La réponse que ce téléphone tient déjà : si c'est la même, l'app l'a suivie (le suivi
-            // du travail l'a annoncée) et le surveillant n'a rien à ajouter.
+            // The reply this phone already holds: if it is the same, the app has followed it (the turn
+            // tracking announced it) and the watcher has nothing to add.
             val alreadyHere = conversation.messages
                 .lastOrNull { it.role == Role.ASSISTANT && it.text.isNotBlank() }
                 ?.let { ReplyWatch.fingerprintOf(it.text) }
@@ -110,10 +110,10 @@ class ReplyWatcher(
     }
 
     /**
-     * Le serveur en cours d'emploi, ou `null` quand rien n'est configuré.
+     * The server in use, or `null` when nothing is configured.
      *
-     * La lecture n'est faite que si le conteneur n'a pas encore de quoi parler au serveur : un
-     * processus démarré par le travail n'a pas fini son chargement au moment où l'on passe.
+     * The read is only done if the container does not yet have what it needs to talk to the server: a
+     * process started by the job has not finished its loading by the time we run.
      */
     private suspend fun activeConfig(): ServerConfig? {
         val servers = AppContainer.servers
@@ -122,11 +122,11 @@ class ReplyWatcher(
     }
 
     /**
-     * Les conversations suivies : celles du serveur actif qui ont une session côté gateway, la
-     * plus récente d'abord, et pas plus de [MAX_SESSIONS].
+     * The watched conversations: those of the active server that have a session on the gateway side, the
+     * most recent first, and no more than [MAX_SESSIONS].
      *
-     * La borne est volontaire : chaque session est une requête HTTP, et le passage doit rester
-     * court. Une conversation ancienne ne reçoit plus de réponse de toute façon.
+     * The bound is deliberate: each session is an HTTP request, and the pass must stay
+     * short. An old conversation no longer receives replies anyway.
      */
     private suspend fun conversationsToWatch(config: ServerConfig): List<Conversation> {
         val repository = AppContainer.conversations
@@ -141,17 +141,17 @@ class ReplyWatcher(
     }
 
     /**
-     * La conversation est-elle sous les yeux de l'utilisateur ?
+     * Is the conversation in front of the user's eyes?
      *
-     * Dans ce cas la réponse s'écrit à l'écran : une notification par-dessus serait du bruit —
-     * c'est la règle que suit déjà le suivi du travail ([TurnWorkNotifier]).
+     * In that case the reply is being written on screen: a notification on top would be noise —
+     * it is the rule the turn tracking already follows ([TurnWorkNotifier]).
      */
     private fun onScreen(conversationId: String): Boolean {
         val work = AppContainer.work
         return work.appInForeground && work.visibleConversationId == conversationId
     }
 
-    /** Les mesures d'un passage à l'autre, gardées sur le téléphone. */
+    /** The marks from one pass to the next, kept on the phone. */
     private class ReplyWatchStore(context: Context) {
 
         private val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -168,7 +168,7 @@ class ReplyWatcher(
         private fun key(sessionId: String): String = "session." + sessionId
 
         private companion object {
-            /** Un fichier à part : la mesure d'une session n'est pas un réglage de l'app. */
+            /** A separate file: a session's measurement is not an app setting. */
             const val FILE = "onyx_reply_watch"
         }
     }
@@ -177,8 +177,8 @@ class ReplyWatcher(
         const val TAG = "OnyxReplyWatch"
 
         /**
-         * Combien de sessions un passage relit : les cinq conversations les plus récentes.
-         * Au-delà, les requêtes s'empileraient pour des fils que personne ne rouvre.
+         * How many sessions one pass rereads: the five most recent conversations.
+         * Beyond that, requests would pile up for threads nobody reopens.
          */
         const val MAX_SESSIONS = 5
     }

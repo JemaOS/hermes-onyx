@@ -3,7 +3,7 @@ package com.onyx.app.data.local
 import com.onyx.app.localization.OnyxLanguage
 import android.content.Context
 
-/** Une famille d'outils que l'agent peut demander à utiliser sur le téléphone. */
+/** A family of tools the agent may ask to use on the phone. */
 enum class PhoneArea(
     val id: String,
     val label: String,
@@ -25,7 +25,7 @@ enum class PhoneArea(
     }
 }
 
-/** Ce que l'utilisateur autorise pour une famille d'outils. */
+/** What the user authorizes for a family of tools. */
 enum class PhonePolicy(val id: String, val label: String) {
     OFF("off", "Off"),
     ASK("ask", "Ask each time"),
@@ -38,10 +38,10 @@ enum class PhonePolicy(val id: String, val label: String) {
 }
 
 /**
- * Réglages → Outils téléphone.
+ * Settings → Phone tools.
  *
- * Miroir de `PhoneToolsSettingsView` : un interrupteur maître, puis une politique par
- * famille. Ce que l'agent peut faire — et ce qu'il doit demander avant — se règle ici.
+ * Mirrors `PhoneToolsSettingsView`: a master switch, then a policy per
+ * family. What the agent may do — and what it must ask first — is set here.
  */
 class PhoneToolsStore(context: Context) {
 
@@ -58,12 +58,12 @@ class PhoneToolsStore(context: Context) {
         prefs.edit().putString("policy_${area.id}", policy.id).apply()
     }
 
-    /** Les lignes que l'agent a écrites sur le widget. */
+    /** The lines the agent has written on the widget. */
     var agentWidgetText: String
         get() = prefs.getString(KEY_WIDGET, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_WIDGET, value).apply()
 
-    /** Ce que l'agent a demandé récemment, du plus récent au plus ancien. */
+    /** What the agent requested recently, from most recent to oldest. */
     fun recent(): List<String> =
         prefs.getString(KEY_LOG, "").orEmpty().lineSequence().filter { it.isNotBlank() }.toList()
 

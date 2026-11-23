@@ -14,14 +14,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Ce qu'il y a à faire d'un tour, décidé **sans Android** — donc vérifiable.
+ * What there is to do with a turn, decided **without Android** — hence verifiable.
  *
- * Le tri est explicite parce que c'est lui qui porte les deux promesses du suivi : une seule
- * notification d'avancement (la barre d'état n'a qu'une place), et **une seule** notification de
- * fin par tour, quelle que soit la fréquence à laquelle la décision est repassée.
+ * The sorting is explicit because it carries the two promises of tracking: a single
+ * progress notification (the status bar has only one place), and **a single** finished
+ * notification per turn, whatever the frequency at which the decision is run again.
  */
 sealed interface TurnNotice {
-    /** La barre d'état suit ce tour : étape, durée, progression, bouton Arrêter. */
+    /** The status bar tracks this turn: step, duration, progress, Stop button. */
     data class Keep(
         val conversationId: String,
         val title: String,
@@ -29,7 +29,7 @@ sealed interface TurnNotice {
         val percent: Int?,
     ) : TurnNotice
 
-    /** Le tour est fini : un mot sur le résultat, et l'extrait de la réponse. */
+    /** The turn is finished: a word on the result, and the excerpt of the answer. */
     data class Finish(
         val conversationId: String,
         val title: String,
@@ -38,20 +38,20 @@ sealed interface TurnNotice {
         val sound: Boolean,
     ) : TurnNotice
 
-    /** Le tour est arrêté ou oublié : sa notification s'efface. */
+    /** The turn is stopped or forgotten: its notification clears. */
     data class Drop(val conversationId: String) : TurnNotice
 
-    /** Plus rien à suivre : la notification d'avancement disparaît. */
+    /** Nothing left to track: the progress notification disappears. */
     data object Idle : TurnNotice
 }
 
 /**
- * L'état du suivi : ce qui a déjà été annoncé, et ce qu'il reste à dire.
+ * The state of tracking: what has already been announced, and what remains to be said.
  *
- * Séparé des appels Android pour deux raisons, toutes deux vérifiables : la décision se teste sur
- * la JVM, et « une seule notification de fin » se prouve en repassant la décision plusieurs fois —
- * c'est exactement ce qui produisait trois notifications quand la boucle d'une seconde republiat
- * chaque passage.
+ * Separated from the Android calls for two reasons, both verifiable: the decision can be tested on
+ * the JVM, and "a single finished notification" is proven by running the decision several times —
+ * which is exactly what was producing three notifications when the one-second loop republished
+ * on each pass.
  */
 class TurnNoticePlanner(
     private val tracking: () -> WorkTracking,
@@ -60,13 +60,13 @@ class TurnNoticePlanner(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
-    /** Les tours dont la fin a déjà été dite — ou volontairement passée sous silence. */
+    /** The turns whose finish has already been said — or deliberately left unsaid. */
     private val announcedFinish = mutableSetOf<String>()
 
-    /** Le choix en cours : c'est lui qui décide si le travail se suit pendant le tour. */
+    /** The current choice: it is what decides whether the work is tracked during the turn. */
     fun trackingNow(): WorkTracking = tracking()
 
-    /** Ce qu'il y a à faire pour ces sessions. */
+    /** What there is to do for these sessions. */
     fun plan(
         sessions: Map<String, TurnSession>,
         appInForeground: Boolean,
@@ -75,10 +75,10 @@ class TurnNoticePlanner(
         val choice = tracking()
         val notices = mutableListOf<TurnNotice>()
 
-        // Le service tient le processus, et il est **tied au tour** : il démarre quand le tour
-        // commence — l'app est visible, c'est le seul moment où Android permet de lancer un
-        // service de premier plan — et il vit jusqu'à la fin du tour. La politique décide *ce
-        // qu'on montre*, pas *si le travail survit*.
+        // The service holds the process, and it is **tied to the turn**: it starts when the turn
+        // begins — the app is visible, the only moment when Android allows launching a
+        // foreground service — and it lives until the end of the turn. The policy decides *what
+        // is shown*, not *whether the work survives*.
         val held = WorkTrackingPolicy.holding(sessions.values, choice)
         notices += if (held == null) {
             TurnNotice.Idle
@@ -87,8 +87,8 @@ class TurnNoticePlanner(
                 conversationId = held.conversationId,
                 title = titleOf(held.conversationId),
                 text = progressText(held),
-                // Le suivi visible montre la progression ; le simple maintien du processus s'en
-                // passe — un mot, pas un bandeau qui compte.
+                // Visible tracking shows the progress; simply holding the process does
+                // without it — a word, not a counting banner.
                 percent = if (choice.live) percentOf(held) else null,
             )
         }
@@ -97,15 +97,15 @@ class TurnNoticePlanner(
             if (session.assistantId in announcedFinish) return@forEach
             val finish = WorkTrackingPolicy.finishOf(session.live.value)
             if (finish == null) {
-                // Encore en cours, ou arrêté : rien à dire. Un tour arrêté voit sa notification
-                // s'effacer — l'utilisateur sait qu'il vient d'arrêter.
+                // Still running, or stopped: nothing to say. A stopped turn sees its notification
+                // clear — the user knows they have just stopped it.
                 if (session.live.value.phase.step == TurnStep.STOPPED) {
                     notices += TurnNotice.Drop(session.conversationId)
                 }
                 return@forEach
             }
             announcedFinish += session.assistantId
-            // L'utilisateur avait la conversation sous les yeux : il a déjà lu la réponse.
+            // The user had the conversation before their eyes: they have already read the answer.
             if (!WorkTrackingPolicy.tracks(choice, appInForeground, visibleConversationId, session.conversationId)) {
                 return@forEach
             }
@@ -120,32 +120,32 @@ class TurnNoticePlanner(
         return notices
     }
 
-    /** La phrase d'avancement : l'outil qui tourne, la lecture, et la durée écoulée. */
+    /** The progress phrase: the tool that is running, the reading, and the elapsed duration. */
     fun progressText(session: TurnSession): String = NotificationCopy.turnPhase(
         prefillPercent = percentOf(session),
         toolName = session.live.value.message.tools.lastOrNull { it.isRunning }?.name,
         elapsedSeconds = elapsedOf(session),
     )
 
-    /** Le remplissage du contexte, quand le tour en a un — c'est la progression connue. */
+    /** The context prefill, when the turn has one — that is the known progress. */
     fun percentOf(session: TurnSession): Int? =
         session.live.value.phase.prefill?.let { (it.fraction * 100).toInt() }
 
-    /** Secondes écoulées depuis l'envoi du message. */
+    /** Seconds elapsed since the message was sent. */
     fun elapsedOf(session: TurnSession): Long =
         ((clock() - session.startedAt) / 1_000L).coerceAtLeast(0)
 }
 
 /**
- * Le suivi d'un tour dans la barre d'état, tenu par le **processus**, pas par l'écran.
+ * The tracking of a turn in the status bar, held by the **process**, not by the screen.
  *
- * Le magasin du processus ([TurnStore]) porte déjà ce qu'un tour devient — l'étape connue, la
- * durée, la réponse qui s'écrit — même quand aucun écran ne le regarde. Le suivi s'y branche donc
- * **là**, et non sur un état d'écran : quitter la conversation, changer de route ou détruire
- * l'activité ne l'interrompt pas.
+ * The process store ([TurnStore]) already carries what a turn becomes — the known step, the
+ * duration, the answer being written — even when no screen is watching it. Tracking therefore
+ * plugs in **there**, and not on a screen state: leaving the conversation, changing route or
+ * destroying the activity does not interrupt it.
  *
- * L'app dit seulement ce que l'utilisateur a **sous les yeux** ([watching]) : sur la conversation
- * concernée, au premier plan, elle ne notifie rien.
+ * The app only says what the user has **before their eyes** ([watching]): on the conversation
+ * concerned, in the foreground, it notifies nothing.
  */
 class TurnWorkNotifier(
     private val context: Context,
@@ -162,25 +162,25 @@ class TurnWorkNotifier(
         clock = clock,
     )
 
-    /** L'app est-elle au premier plan ? */
+    /** Is the app in the foreground? */
     @Volatile
     var appInForeground: Boolean = true
 
-    /** La conversation ouverte à l'écran, quand il y en a une. */
+    /** The conversation open on screen, when there is one. */
     @Volatile
     var visibleConversationId: String? = null
 
-    /** La conversation que le service tient à l'écran, pour ne pas le démarrer deux fois. */
+    /** The conversation the service holds on screen, so as not to start it twice. */
     private var servedConversationId: String? = null
     private var lastPublishedKeep: TurnNotice.Keep? = null
 
-    /** Ce que l'écran a sous les yeux : le suivi ne notifie pas ce que l'utilisateur voit. */
+    /** What the screen has before its eyes: tracking does not notify what the user sees. */
     fun watching(conversationId: String?, foreground: Boolean) {
         visibleConversationId = conversationId
         appInForeground = foreground
     }
 
-    /** Branche le suivi sur la portée du processus. À appeler une fois. */
+    /** Plugs tracking into the process scope. To be called once. */
     fun start(scope: CoroutineScope) {
         scope.launch {
             while (currentCoroutineContext().isActive) {
@@ -188,24 +188,24 @@ class TurnWorkNotifier(
                 try {
                     apply(planner.plan(sessions, appInForeground, visibleConversationId))
                 } catch (error: Exception) {
-                    // Une notification ne doit jamais pouvoir tuer le suivi d'un tour.
+                    // A notification must never be able to kill a turn's tracking.
                     android.util.Log.w("OnyxTurn", "le suivi du travail a échoué sur ce passage", error)
                     runCatching { TurnService.stop(context) }
                 }
-                // On égrène tant qu'un tour **tourne**, même s'il n'est pas (encore) celui qu'on
-                // montre : la conversation ouverte change (retour, autre onglet, écran éteint), et
-                // un tour fini doit s'annoncer dans la seconde.
+                // We tick as long as a turn is **running**, even if it is not (yet) the one being
+                // shown: the open conversation changes (back, another tab, screen off), and
+                // a finished turn must be announced within the second.
                 if (WorkTrackingPolicy.keepsTicking(sessions.values, planner.trackingNow())) {
                     delay(TICK_MS)
                 } else {
-                    // Plus rien ne tourne : on attend qu'un tour commence, sans rester bloqué.
+                    // Nothing is running anymore: we wait for a turn to start, without getting stuck.
                     withTimeoutOrNull(IDLE_WAIT_MS) { turns.sessions.first { it != sessions } }
                 }
             }
         }
     }
 
-    /** Les appels Android de la décision. */
+    /** The Android calls of the decision. */
     fun apply(notices: List<TurnNotice>) {
         notices.forEach { notice ->
             when (notice) {
@@ -226,8 +226,8 @@ class TurnWorkNotifier(
                         )
                         servedConversationId = notice.conversationId
                         if (!held) {
-                            // Android a refusé le service de fond : la même notification est
-                            // publiée directement, le suivi tient quand même.
+                            // Android refused the background service: the same notification is
+                            // published directly, tracking holds anyway.
                             TurnNotifier.notifyProgress(
                                 context = context,
                                 conversationId = notice.conversationId,
@@ -253,7 +253,7 @@ class TurnWorkNotifier(
                 TurnNotice.Idle -> {
                     if (servedConversationId != null || lastPublishedKeep != null) {
                         TurnService.stop(context)
-                        // Le repli a pu publier la notification sans service : on l'efface aussi.
+                        // The fallback may have published the notification without a service: it is cleared too.
                         TurnNotifier.clearProgress(context)
                         servedConversationId = null
                         lastPublishedKeep = null
@@ -264,10 +264,10 @@ class TurnWorkNotifier(
     }
 
     private companion object {
-        /** Le battement du chronomètre affiché. */
+        /** The beat of the displayed timer. */
         const val TICK_MS = 1_000L
 
-        /** Sans tour en cours, on attend un changement du magasin — avec un filet de sécurité. */
+        /** With no turn in progress, we wait for a change in the store — with a safety net. */
         const val IDLE_WAIT_MS = 10_000L
     }
 }

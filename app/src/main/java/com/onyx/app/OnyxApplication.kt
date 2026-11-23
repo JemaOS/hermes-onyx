@@ -6,37 +6,37 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Installe les singletons de l'app. Rien d'autre n'est fait ici : les services (voix, widgets)
- * arrivent à leurs étapes et se brancheront sur le même conteneur.
+ * Installs the app's singletons. Nothing else is done here: the services (voice, widgets)
+ * arrive at their own stages and will plug into the same container.
  */
 class OnyxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        // **Avant tout le reste** : un plantage pendant l'installation des singletons doit laisser
-        // une trace, sinon il ne reste qu'un « l'app s'est arrêtée » sans explication.
+        // **Before everything else**: a crash during the singleton installation must leave
+        // a trace, otherwise only an « l'app s'est arrêtée » (the app has stopped) remains, without explanation.
         runCatching { CrashLog.install(this) }
         AppContainer.install(this)
-        // La boîte des notes de « capture rapide » : une note est écrite sur le disque au moment
-        // où elle est prise, et remise dès que le serveur répond — même si l'écran est fermé.
+        // The "quick capture" note box: a note is written to disk at the moment
+        // it is taken, and handed over as soon as the server answers — even if the screen is closed.
         com.onyx.app.data.capture.QuickCapture.install(this)
-        // **Les canaux existent dès le premier lancement.** Android ne crée un canal qu'à la
-        // première publication : « Réponses » et « Joignable » restaient donc « Pas encore créée »
-        // dans l'écran Notifications, invisibles dans les réglages du système, et rien ne pouvait y
-        // être activé par défaut. On les enregistre ici, tous, avec leur importance par défaut :
-        // une fois créés, Android les affiche et la personne peut les régler — et Android conserve
-        // les réglages qu'elle a déjà faits (une app ne peut pas les modifier ensuite).
+        // **The channels exist from the first launch.** Android only creates a channel on
+        // first publication: "Replies" and "Reachable" (French UI strings « Réponses » and « Joignable ») thus stayed "Not created yet" (French UI string « Pas encore créée »)
+        // in the Notifications screen, invisible in the system settings, and nothing could be
+        // enabled there by default. We register them here, all of them, with their default importance:
+        // once created, Android shows them and the person can adjust them — and Android keeps
+        // the settings they already made (an app cannot change them afterwards).
         runCatching {
             com.onyx.app.notifications.ApprovalNotifier.ensureChannel(this)
             com.onyx.app.notifications.TurnNotification.ensureChannel(this)
             com.onyx.app.notifications.CallRinger.ensureChannel(this)
             com.onyx.app.notifications.AgentCallService.ensureChannel(this)
         }
-        // « Me prévenir quand une réponse arrive, app fermée » : le travail périodique suit le
-        // réglage — au démarrage (un téléphone redémarré le retrouve planifié sans qu'aucun écran
-        // n'ait été ouvert) comme à chaque bascule de l'interrupteur. `apply` est idempotent :
-        // planifier un travail déjà planifié ne recule pas son échéance.
+        // "Notify me when a reply arrives, app closed" (French UI string « Me prévenir quand une réponse arrive, app fermée »): the periodic work follows the
+        // setting — at startup (a restarted phone finds it scheduled without any screen
+        // having been opened) as well as on every toggle of the switch. `apply` is idempotent:
+        // scheduling already scheduled work does not push back its deadline.
         AppContainer.processScope.launch {
-            // On attend la lecture du disque : avant elle, le flux porte son défaut, pas le choix.
+            // We wait for the disk read: before it, the flow carries its default, not the choice.
             AppContainer.settings.loaded.first { it }
             AppContainer.settings.replyWatch.collect { enabled ->
                 com.onyx.app.notifications.ReplyWatchScheduler.apply(this@OnyxApplication, enabled)

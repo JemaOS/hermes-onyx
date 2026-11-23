@@ -15,29 +15,29 @@ import com.onyx.app.core.R
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * La notification d'une question de l'agent : il attend une réponse, l'app n'est pas au premier plan.
+ * The notification of an agent question: it is waiting for an answer, the app is not in the foreground.
  *
- * Pendant Android de la question référence : une question, un mot de passe sudo ou un secret arrive dans
- * la même conversation, et Onyx le dit sans qu'on ouvre l'app. L'action « Reply » porte un
- * `RemoteInput` : on répond depuis la notification elle-même. Quand la saisie en ligne n'est pas
- * possible — un secret qui ne doit pas traîner dans un champ de notification, une série de
- * questions — l'action ouvre l'app sur la carte, qui reste le seul lieu de saisie.
+ * Android counterpart of the reference question: a question, a sudo password or a secret arrives in
+ * the same conversation, and Onyx says so without anyone opening the app. The "Reply" action carries a
+ * `RemoteInput`: you answer from the notification itself. When inline input is not
+ * possible — a secret that must not linger in a notification field, a series of
+ * questions — the action opens the app on the card, which remains the only place to type.
  *
- * La réponse part par [QuestionActionReceiver], qui appelle le même gateway que la carte : le
- * choix est réel, pas une simple ouverture de l'écran.
+ * The answer goes through [QuestionActionReceiver], which calls the same gateway as the card: the
+ * choice is real, not just an opening of the screen.
  */
 object QuestionNotifier {
 
-    /** La clé du champ de saisie de la notification. */
+    /** The key of the notification's input field. */
     const val REPLY_KEY = "onyx.reply"
 
     /**
-     * Publie une question, avec son action « Reply » quand la saisie en ligne est possible.
+     * Publishes a question, with its "Reply" action when inline input is possible.
      *
-     * @param kind la sorte d'interruption (question, sudo, secret).
-     * @param requestId l'identifiant que le gateway attend dans la réponse.
-     * @param questionId la question précise, pour une série (`clarify.lock`).
-     * @param sessionId la session ouverte, pour sudo et secret.
+     * @param kind the kind of interrupt (question, sudo, secret).
+     * @param requestId the identifier the gateway expects in the answer.
+     * @param questionId the specific question, for a series (`clarify.lock`).
+     * @param sessionId the open session, for sudo and secret.
      */
     fun notifyQuestion(
         context: Context,
@@ -47,7 +47,7 @@ object QuestionNotifier {
         requestId: String,
         questionId: String? = null,
         sessionId: String? = null,
-        /** Le nom de qui pose la question : le bot dans son fil, sinon « Onyx ». */
+        /** The name of whoever asks the question: the bot in its thread, otherwise "Onyx". */
         name: String? = null,
         canReplyInline: Boolean = true,
         enabled: Boolean = true,
@@ -74,14 +74,14 @@ object QuestionNotifier {
                 replyAction(context, id, kind, requestId, questionId, sessionId, prompt, sound),
             )
         } else {
-            // Sans saisie en ligne, l'action ouvre l'app : c'est là que la carte attend.
+            // Without inline input, the action opens the app: that is where the card waits.
             builder.addAction(0, OnyxLocalization[NotificationCopy.OPEN], open)
         }
 
         post(context, id, builder)
     }
 
-    /** La question a reçu sa réponse : la notification le dit, ou avoue l'échec. */
+    /** The question received its answer: the notification says so, or admits the failure. */
     fun notifyResolved(context: Context, id: String, prompt: String, failed: Boolean) {
         ApprovalNotifier.ensureChannel(context)
         if (!ApprovalNotifier.canNotify(context)) return

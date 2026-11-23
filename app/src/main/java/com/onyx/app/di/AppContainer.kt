@@ -17,20 +17,20 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Les singletons de l'application — pas de framework d'injection, juste un conteneur installé
- * par [com.onyx.app.OnyxApplication].
+ * The application singletons — no injection framework, just a container installed
+ * by [com.onyx.app.OnyxApplication].
  *
- * L'ordre compte : les dépôts se remplissent depuis le disque dès le démarrage, et les écrans
- * observent des `StateFlow` déjà chargés.
+ * Order matters: repositories fill from disk at startup, and screens
+ * observe already-loaded `StateFlow`s.
  */
 object AppContainer {
 
     private lateinit var applicationContext: Context
 
-    /** Portée du processus : les lectures disque au démarrage n'appartiennent à aucun écran. */
+    /** Process scope: startup disk reads belong to no screen. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    /** La portée du processus, pour ce qui doit vivre au-delà d'un écran (le pont d'appel). */
+    /** The process scope, for what must outlive a screen (the call bridge). */
     val processScope: CoroutineScope get() = scope
 
     lateinit var servers: ServerRepository
@@ -45,79 +45,79 @@ object AppContainer {
     lateinit var drafts: DraftStore
         private set
 
-    /** Les visages et les profils ajoutés à la main : « Erase everything » les efface aussi. */
+    /** Hand-added faces and profiles: "Erase everything" wipes them too. */
     lateinit var botFaces: com.onyx.app.ui.bots.BotFaceStore
         private set
 
     /**
-     * Les tours de conversation en cours, **au-dessus des écrans**.
+     * The conversation turns in progress, **above the screens**.
      *
-     * Sa portée est celle du processus : quitter la conversation, détruire l'activité ou éteindre
-     * l'écran n'interrompt plus le travail, et le fil le retrouve au retour.
+     * Its scope is the process scope: leaving the conversation, destroying the activity or turning
+     * off the screen no longer interrupts the work, and the thread finds it again on return.
      */
     lateinit var turns: com.onyx.app.ui.chat.TurnStore
         private set
 
     /**
-     * Le suivi du travail des bots : la notification d'avancement et la notification de fin.
+     * Bot work tracking: the progress notification and the completion notification.
      *
-     * Tenu par le processus, comme les tours qu'il regarde — c'est ce qui lui permet d'annoncer
-     * une réponse arrivée alors qu'aucun écran ne l'attendait.
+     * Held by the process, like the turns it watches — that is what lets it announce
+     * a reply that arrived while no screen was waiting for it.
      */
     lateinit var work: com.onyx.app.notifications.TurnWorkNotifier
         private set
 
     /**
-     * Le pont de l'**appel de l'agent vers le téléphone** (`phone_call_me`).
+     * The bridge for the **agent calling the phone** (`phone_call_me`).
      *
-     * Tenu par le processus, comme le suivi du travail : un appel qui arrive alors qu'aucun écran
-     * ne l'attend doit quand même sonner, et son issue doit remonter à l'agent.
+     * Held by the process, like work tracking: a call that arrives while no screen
+     * is waiting must still ring, and its outcome must be reported back to the agent.
      */
     lateinit var agentCalls: com.onyx.app.calls.AgentCallBridge
         private set
 
-    /** Les salles de groupe gardées sur ce téléphone (un « New Group Chat » sans Dashboard). */
+    /** The group rooms kept on this phone (a "New Group Chat" without a Dashboard). */
     lateinit var groupRooms: com.onyx.app.data.local.GroupRoomStore
         private set
 
-    /** Où joindre le pont « Ordinateur » et son jeton : l'adresse ici, le jeton dans le Keystore. */
+    /** Where to reach the "Computer" bridge and its token: the address here, the token in the Keystore. */
     lateinit var computer: com.onyx.app.data.local.ComputerBridgeStore
         private set
 
     /**
-     * La session « Ordinateur », gardée par le processus et non par l'écran : quitter l'aperçu et
-     * y revenir retrouve la même connexion, la même image et la même main.
+     * The "Computer" session, held by the process and not by the screen: leaving the preview and
+     * coming back finds the same connection, the same image and the same hand.
      */
     lateinit var computerSession: com.onyx.app.ui.computer.ComputerSession
         private set
 
-    /** Vrai une fois [install] passé : le widget s'en sert pour attendre le dépôt. */
+    /** True once [install] has run: the widget uses it to wait for the repository. */
     val isInstalled: Boolean get() = ::servers.isInitialized
 
     /**
-     * Le contexte de l'application, une fois [install] passé.
+     * The application context, once [install] has run.
      *
-     * Ce que lisent les services qui n'ont pas d'écran : les raccourcis de l'icône
-     * ([com.onyx.app.shortcuts.RosterShortcuts]) sont republiés depuis la section des bots, un
-     * `ViewModel` — et un `ViewModel` n'a pas de contexte.
+     * What services without a screen read: the icon shortcuts
+     * ([com.onyx.app.shortcuts.RosterShortcuts]) are republished from the bots section, a
+     * `ViewModel` — and a `ViewModel` has no context.
      */
     val appContext: Context get() = applicationContext
 
-    /** À appeler une fois, depuis `Application.onCreate`. */
+    /** To be called once, from `Application.onCreate`. */
     fun install(context: Context) {
         if (isInstalled) return
         applicationContext = context.applicationContext
         val preferences = applicationContext.onyxStore
         val secrets = SecretStore(applicationContext)
         settings = SettingsRepository(preferences)
-        // La langue choisie est posée **avant** la première composition : sans cela l'interface
-        // s'afficherait une fraction de seconde dans la langue d'Android avant de suivre le choix.
-        // La lecture est synchrone (un petit fichier) et ne retarde que le démarrage du processus.
+        // The chosen language is applied **before** the first composition: otherwise the UI
+        // would show for a fraction of a second in the Android language before following the choice.
+        // The read is synchronous (a small file) and only delays process startup.
         //
-        // **Le thème et l'apparence suivent le même chemin, et doivent le suivre** : `load()` est
-        // asynchrone, si bien que sans cette lecture-ci la première image serait rendue avec le
-        // défaut `AppearanceMode.SYSTEM`. Sur un téléphone en clair, l'utilisateur qui a choisi
-        // « Sombre » rouvrait donc l'app en clair jusqu'à la fin de `load()`.
+        // **Theme and appearance take the same path, and must take it**: `load()` is
+        // asynchronous, so without this read the first frame would be rendered with the
+        // `AppearanceMode.SYSTEM` default. On a light phone, a user who chose
+        // "Dark" would reopen the app in light mode until `load()` finished.
         kotlinx.coroutines.runBlocking {
             settings.applyStoredLanguage()
             settings.applyStoredTheme()
@@ -125,8 +125,8 @@ object AppContainer {
         servers = ServerRepository(preferences, secrets)
         conversations = ConversationRepository(
             conversationsDataStore(applicationContext),
-            // La marque des conversations supprimées : sur les préférences du téléphone, pour
-            // qu'une suppression ne revienne ni au redémarrage ni par un chemin qui réécrit le fil.
+            // The deleted-conversations marker: in the phone preferences, so that
+            // a deletion comes back neither on restart nor through a path that rewrites the thread.
             SharedPreferencesDeletedConversations(applicationContext),
         )
         com.onyx.app.ui.rich.WebBlockHeights.install(applicationContext)
@@ -134,8 +134,8 @@ object AppContainer {
         drafts = DraftStore(applicationContext)
         botFaces = com.onyx.app.ui.bots.BotFaceStore(applicationContext)
         groupRooms = com.onyx.app.data.local.GroupRoomStore(applicationContext)
-        // Les tours tournent dans la portée du processus : leur réponse s'écrit sur disque même
-        // quand aucun écran ne la regarde (l'app est en arrière-plan, l'activité est détruite).
+        // Turns run in the process scope: their reply is written to disk even
+        // when no screen is watching it (the app is in the background, the activity is destroyed).
         turns = com.onyx.app.ui.chat.TurnStore(
             scope = scope,
             journal = object : com.onyx.app.ui.chat.TurnJournal {
@@ -148,8 +148,8 @@ object AppContainer {
                 }
             },
         )
-        // Le suivi du travail : la notification d'avancement et celle de fin, tenues par le
-        // processus et branchées sur le magasin de tours. Le nom du fil vient des conversations.
+        // Work tracking: the progress and completion notifications, held by the
+        // process and wired to the turn store. The thread name comes from the conversations.
         work = com.onyx.app.notifications.TurnWorkNotifier(
             context = applicationContext,
             turns = turns,
@@ -162,9 +162,9 @@ object AppContainer {
             },
         )
         work.start(scope)
-        // Le pont de l'appel de l'agent : la boucle qui attend un `phone_call_me` et le fait
-        // sonner. Sa portée est celle du processus (comme le suivi du travail) ; il démarre quand
-        // « Appels pour une réponse » est allumé, et s'arrête quand il est éteint.
+        // The agent-call bridge: the loop that waits for a `phone_call_me` and makes it
+        // ring. Its scope is the process scope (like work tracking); it starts when
+        // "Calls for a reply" is on, and stops when it is off.
         agentCalls = com.onyx.app.calls.AgentCallBridge(
             context = applicationContext,
             settings = settings,
@@ -177,8 +177,8 @@ object AppContainer {
             settings.phoneRings.collect { on ->
                 if (on) {
                     agentCalls.start(scope)
-                    // « La ligne reste ouverte » : le service de premier plan garde le processus
-                    // vivant pour qu'un appel qui arrive écran éteint sonne quand même.
+                    // "The line stays open": the foreground service keeps the process
+                    // alive so that a call arriving with the screen off still rings.
                     runCatching { com.onyx.app.notifications.AgentCallService.start(applicationContext) }
                 } else {
                     agentCalls.stop()
@@ -186,7 +186,7 @@ object AppContainer {
                 }
             }
         }
-        // L'écran Ordinateur : le pont compagnon vit sur le poste, l'app s'y rattache par son adresse.
+        // The Computer screen: the companion bridge lives on the desktop, the app attaches to it by its address.
         computer = com.onyx.app.data.local.ComputerBridgeStore(applicationContext)
         computerSession = com.onyx.app.ui.computer.ComputerSession(computer)
         scope.launch {
@@ -197,26 +197,26 @@ object AppContainer {
     }
 
     /**
-     * « Erase everything », le `eraseEverything()` de `ResetSettings` (SettingsSections:707) :
-     * les conversations et leurs brouillons, les serveurs avec leurs clés et leurs identifiants, les
-     * visages des bots, et les réglages remis à leurs valeurs d'origine.
+     * "Erase everything", the `eraseEverything()` of `ResetSettings` (SettingsSections:707):
+     * the conversations and their drafts, the servers with their keys and credentials, the
+     * bot faces, and the settings restored to their original values.
      *
-     * Rien n'est touché sur les serveurs : leurs conversations et leurs fichiers y restent, comme
-     * le dit le pied de page de la référence.
+     * Nothing on the servers is touched: their conversations and files stay there, as
+     * the reference footer says.
      */
     suspend fun eraseEverything() {
         if (!isInstalled) return
         conversations.eraseAll()
         drafts.clearAll()
         botFaces.clearAll()
-        // Le roster gardé fait partie de ce que le téléphone sait des bots : il est effacé avec
-        // eux, sinon un serveur effacé laisserait les visages de l'ancien encore affichés.
+        // The cached roster is part of what the phone knows about bots: it is erased with
+        // them, otherwise an erased server would leave the old faces still displayed.
         com.onyx.app.data.local.BotRosterCache(applicationContext).clearAll()
         com.onyx.app.data.local.BotPresenceIndex(applicationContext).clear()
         groupRooms.clearAll()
         com.onyx.app.data.link.LinkPreviews.shared.clear()
-        // Les réglages d'abord : ils partagent le même fichier de préférences, et les vider
-        // effacerait le serveur d'usine qu'on vient d'y écrire.
+        // Settings first: they share the same preferences file, and clearing them
+        // would erase the factory server just written there.
         settings.reset()
         servers.eraseAll()
         applicationContext.onyxStore.edit { preferences ->
@@ -226,7 +226,7 @@ object AppContainer {
         reload()
     }
 
-    /** Garde le remplissage du contexte pour le widget, qui ne lit pas la conversation. */
+    /** Keeps the context fill for the widget, which does not read the conversation. */
     fun publishContext(used: Int?, window: Int?) {
         if (!isInstalled) return
         if (used == null || window == null || window <= 0) return
@@ -238,7 +238,7 @@ object AppContainer {
         }
     }
 
-    /** Relit tout depuis le disque — après une restauration, ou pour le widget. */
+    /** Re-reads everything from disk — after a restore, or for the widget. */
     fun reload() {
         if (!isInstalled) return
         scope.launch {
@@ -248,12 +248,12 @@ object AppContainer {
         }
     }
 
-    /** Les préférences brutes, pour ce qui n'a pas de dépôt (le widget lit deux entiers). */
+    /** The raw preferences, for what has no repository (the widget reads two integers). */
     val preferences: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>
         get() = applicationContext.onyxStore
 
     private val Context.onyxStore by preferencesDataStore(name = "onyx_settings")
 
-    /** Clés de réglages, exposées pour les écrans qui les lisent directement. */
+    /** Settings keys, exposed for screens that read them directly. */
     val settingsKeys = SettingsKeys
 }

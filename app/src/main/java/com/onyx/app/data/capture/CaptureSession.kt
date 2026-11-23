@@ -25,15 +25,15 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * La boîte des notes de « capture rapide », posée sur ce téléphone.
+ * The "quick capture" note box, kept on this phone (French UI string « capture rapide »).
  *
- * Les notes sont écrites **au moment où elles sont prises** (elles ne dépendent ni du réseau ni
- * d'un écran ouvert) et remises dès que le serveur répond. La remise elle-même vit dans
- * [CaptureFiler] ; ici, seulement la boîte et son disque.
+ * Notes are written **at the moment they are taken** (they depend neither on the network nor
+ * on an open screen) and handed over as soon as the server answers. The delivery itself lives in
+ * [CaptureFiler]; here, only the box and its disk.
  */
 object QuickCapture {
 
-    /** La plus vieille tentative : une note qui n'arrive pas reste et repart plus tard. */
+    /** Oldest attempt first: a note that does not arrive stays and leaves again later. */
     private val retryDelaysMillis = listOf(15_000L, 60_000L, 180_000L, 600_000L)
 
     private const val PreferencesName = "onyx_capture"
@@ -48,18 +48,18 @@ object QuickCapture {
 
     private val _waiting = MutableStateFlow<List<CaptureNote>>(emptyList())
 
-    /** Les notes pas encore classées, la plus ancienne d'abord. */
+    /** The notes not yet filed, oldest first. */
     val waiting: StateFlow<List<CaptureNote>> = _waiting.asStateFlow()
 
-    /** Vrai quand une remise est en cours : l'écran le dit au lieu de rester muet. */
+    /** True when a delivery is in progress: the screen says so instead of staying silent. */
     private val _filing = MutableStateFlow(false)
     val filing: StateFlow<Boolean> = _filing.asStateFlow()
 
-    /** La dernière issue connue, pour que l'écran montre quelque chose après un appui. */
+    /** The last known outcome, so that the screen shows something after a tap. */
     private val _outcome = MutableStateFlow<CaptureOutcome?>(null)
     val outcome: StateFlow<CaptureOutcome?> = _outcome.asStateFlow()
 
-    /** À appeler une fois, depuis `OnyxApplication`, avec le contexte de l'application. */
+    /** To be called once, from `OnyxApplication`, with the application context. */
     fun install(context: Context) {
         if (inbox != null) return
         val preferences = context.applicationContext.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
@@ -74,10 +74,10 @@ object QuickCapture {
     }
 
     /**
-     * Prend une note. Faux pour un texte vide : rien n'est gardé pour rien.
+     * Takes a note. False for an empty text: nothing is kept for nothing.
      *
-     * La remise part tout de suite ; si le serveur ne répond pas, la note reste dans la boîte et
-     * une nouvelle tentative est programmée.
+     * The delivery leaves right away; if the server does not answer, the note stays in the box and
+     * a new attempt is scheduled.
      */
     fun add(text: String): Boolean {
         val box = inbox ?: return false
@@ -88,20 +88,20 @@ object QuickCapture {
         return true
     }
 
-    /** Efface une note à la main : elle n'est jamais remise. */
+    /** Erases a note by hand: it is never handed over. */
     fun remove(id: String) {
         val box = inbox ?: return
         box.remove(id)
         _waiting.value = box.waiting
     }
 
-    /** Une tentative de remise, tout de suite (à l'ouverture de l'app, ou au retour du réseau). */
+    /** A delivery attempt, right away (when the app opens, or when the network returns). */
     fun fileNow() {
         val box = inbox ?: return
         scope.launch { file(box, activeServer(), activeProfile()) }
     }
 
-    /** Ce qui peut partir pour le serveur et le profil en service. */
+    /** What can leave for the server and profile in service. */
     fun ready(): List<CaptureNote> {
         val box = inbox ?: return emptyList()
         return box.ready(activeServerId(), activeProfile())
@@ -109,7 +109,7 @@ object QuickCapture {
 
     private suspend fun file(box: CaptureInbox, server: ServerConfig?, profile: String?) {
         if (server == null) {
-            // Rien n'est configuré : la note attend un serveur, elle n'est pas perdue.
+            // Nothing is configured: the note waits for a server, it is not lost.
             _outcome.value = CaptureOutcome.WAITING
             return
         }
@@ -154,7 +154,7 @@ object QuickCapture {
     private fun activeProfile(): String? =
         if (AppContainer.isInstalled) AppContainer.servers.activeServer.value.hermesProfile.ifEmpty { null } else null
 
-    /** La date d'une note, comme la référence l'écrit dans le message : « lundi 26 octobre à 09:12 ». */
+    /** A note's date, as the reference writes it in the message: « lundi 26 octobre à 09:12 » (Monday 26 October at 09:12). */
     fun whenLabel(at: Long): String =
         SimpleDateFormat("EEEE d MMMM 'à' HH:mm", OnyxLanguage.preferred).format(Date(at))
 
@@ -193,11 +193,11 @@ object QuickCapture {
 }
 
 /**
- * La remise : les notes partent **en un seul message** dans un tour que personne ne regarde.
+ * The delivery: notes leave **in a single message** in a turn no one watches.
  *
- * C'est le `CaptureFiler` de la référence : l'agent range la note avec ce qu'il a (sa mémoire, une
- * liste, un rappel, le calendrier), répond en quelques mots, et **rien n'est lu à voix haute** —
- * la réponse n'est simplement pas affichée dans la conversation ouverte.
+ * It is the reference's `CaptureFiler`: the agent files the note with what it has (its memory, a
+ * list, a reminder, the calendar), answers in a few words, and **nothing is read aloud** —
+ * the answer is simply not shown in the open conversation.
  */
 object CaptureFiler {
 
@@ -215,7 +215,7 @@ object CaptureFiler {
             provider = server.effectiveProvider,
         )
         when (server.transport) {
-            // Le Dashboard : un canal à nous, refermé en sortant, comme le tour d'un intent.
+            // The Dashboard: a channel of our own, closed on the way out, like an intent's turn.
             Transport.HERMES_SERVE -> HermesServeChat(server).stream(request).collect { }
             else -> ChatCompletionsClient(server).stream(request).collect { }
         }

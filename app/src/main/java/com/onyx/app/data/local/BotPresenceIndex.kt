@@ -5,40 +5,40 @@ import com.onyx.app.data.model.Conversation
 import com.onyx.app.data.model.serve.BotProfile
 
 /**
- * Ce que le téléphone retient d'un bot pour ce qui ne lit pas le roster : **le widget**.
+ * What the phone remembers about a bot for what does not read the roster: **the widget**.
  *
- * Le widget d'écran d'accueil ne compose pas l'app : il lit ses données à froid, hors de tout
- * écran, et n'a donc ni `BotsViewModel` ni table de visages sous la main. Il lui manquait le nom
- * du bot : une réponse de bot s'y lisait sous « Onyx », en dur.
+ * The home screen widget does not compose the app: it reads its data cold, outside of any
+ * screen, and therefore has neither `BotsViewModel` nor a faces table at hand. It was missing the bot's
+ * name: a bot reply there read under "Onyx", hardcoded.
  *
- * Cette table est **publiée au même moment que les raccourcis** ([com.onyx.app.shortcuts.
- * RosterShortcuts.publish], rappelée à chaque lecture du roster) : le nom, le libellé et le
- * `canonical_session` de chaque profil y sont écrits, et le widget y retrouve le bot d'une
- * conversation par le **même lien** que l'app : le chat serveur du bot
- * ([BotProfile.chatId]), puis le titre que la conversation porte quand il n'y en a pas.
+ * This table is **published at the same time as the shortcuts** ([com.onyx.app.shortcuts.
+ * RosterShortcuts.publish], replayed on every roster read): the name, the label and the
+ * `canonical_session` of each profile are written there, and the widget finds a conversation's bot
+ * through the **same link** as the app: the bot's server chat
+ * ([BotProfile.chatId]), then the title the conversation carries when there is none.
  *
- * Elle ne décide de **rien** : le visage reste la résolution unique (`BotFaceResolver`), le
- * modèle reste `BotsViewModel.modelOf`. Ici, il n'y a qu'un libellé à rendre à un écran qui n'en
- * a pas d'autre.
+ * It decides **nothing**: the face remains the single resolution (`BotFaceResolver`), the
+ * model remains `BotsViewModel.modelOf`. Here there is only a label to return to a screen that has
+ * no other.
  */
 data class BotPresence(
-    /** Le nom de profil du bot. */
+    /** The bot's profile name. */
     val name: String,
-    /** Ce qu'il est appelé (le libellé du fil). */
+    /** What it is called (the thread's label). */
     val label: String,
-    /** Son `canonical_session`, quand le roster le nomme. */
+    /** Its `canonical_session`, when the roster names it. */
     val chatId: String?,
 )
 
-/** La table des bots telle que le widget la lit, gardée sur le téléphone. */
+/** The bots table as the widget reads it, kept on the phone. */
 class BotPresenceIndex(context: Context) {
 
     private val prefs = context.applicationContext
         .getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     /**
-     * Republie la table depuis le roster. Un bot sans libellé n'y entre pas : mieux vaut le repli
-     * du widget que le nom d'un bot vide.
+     * Republishes the table from the roster. A bot without a label does not enter it: the widget's
+     * fallback is better than the name of an empty bot.
      */
     fun publish(bots: List<BotProfile>, mainName: String) {
         val lines = bots.distinctBy { it.name }.mapNotNull { bot ->
@@ -49,7 +49,7 @@ class BotPresenceIndex(context: Context) {
         prefs.edit().putString(KEY, lines.joinToString(LINE)).apply()
     }
 
-    /** La table publiée ; vide tant que le roster n'a pas été lu. */
+    /** The published table; empty until the roster has been read. */
     fun entries(): List<BotPresence> = prefs.getString(KEY, null).orEmpty()
         .split(LINE)
         .filter { it.isNotBlank() }
@@ -62,7 +62,7 @@ class BotPresenceIndex(context: Context) {
         }
 
     /**
-     * « Erase everything » : le téléphone ne garde plus de nom de bot pour le widget.
+     * "Erase everything": the phone no longer keeps any bot name for the widget.
      */
     fun clear() {
         prefs.edit().remove(KEY).apply()
@@ -77,13 +77,13 @@ class BotPresenceIndex(context: Context) {
         private const val LINE = "\n"
 
         /**
-         * Le libellé du bot dont c'est la conversation, ou `null` quand aucun ne la revendique —
-         * le widget garde alors son repli.
+         * The label of the bot whose conversation this is, or `null` when none claims it —
+         * the widget then keeps its fallback.
          *
-         * Les deux liens sont ceux de [com.onyx.app.ui.bots.botOfConversation] : le **chat serveur
-         * du bot** d'abord, puis le **titre posé** par l'ouverture de son chat, qui ne compte que
-         * s'il ne désigne qu'un seul bot. Le nom comparé est [Conversation.botName] : le titre
-         * **sans** le suffixe de branche — une branche garde le bot de son originale.
+         * The two links are those of [com.onyx.app.ui.bots.botOfConversation]: the **bot's server
+         * chat** first, then the **title set** by opening its chat, which only counts
+         * if it designates a single bot. The compared name is [Conversation.botName]: the title
+         * **without** the branch suffix — a branch keeps the bot of its original.
          */
         fun labelOf(conversation: Conversation, entries: List<BotPresence>): String? {
             val byChat = entries.filter { presence ->
@@ -91,10 +91,10 @@ class BotPresenceIndex(context: Context) {
                     (presence.chatId == conversation.serverSessionId || presence.chatId == conversation.id)
             }
             val name = conversation.botName()
-            // **Une session partagée ne désigne personne.** Un bot cloné hérite du
-            // `canonical_session` de son original : deux bots la revendiquent, et `firstOrNull`
-            // donnait le premier aux deux conversations (même libellé, donc même visage dans le
-            // widget). Le titre tranche entre eux, comme dans [com.onyx.app.ui.bots.botOfConversation].
+            // **A shared session designates no one.** A cloned bot inherits its original's
+            // `canonical_session`: two bots claim it, and `firstOrNull`
+            // gave the first one to both conversations (same label, hence same face in the
+            // widget). The title decides between them, as in [com.onyx.app.ui.bots.botOfConversation].
             if (byChat.size == 1) return byChat.first().label
             if (byChat.size > 1) {
                 return name?.let { wanted ->

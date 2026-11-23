@@ -5,21 +5,21 @@ import com.onyx.app.ui.chat.TurnSession
 import com.onyx.app.ui.chat.TurnStep
 
 /**
- * Qui se notifie, et quand — décidé **sans Android**, donc vérifiable.
+ * Who gets notified, and when — decided **without Android**, hence verifiable.
  *
- * Trois règles, et rien d'autre :
+ * Three rules, and nothing else:
  *
- *  1. le choix « Jamais » ne notifie rien, jamais ;
- *  2. l'app ouverte **sur la conversation concernée** ne notifie pas : l'utilisateur a le travail
- *     sous les yeux (même règle que pour une approbation ou une question) ;
- *  3. un tour **arrêté** ne se raconte pas : sa notification s'efface, il ne reçoit pas de
- *     notification de fin — l'utilisateur sait qu'il vient d'arrêter.
+ *  1. the "Jamais" ("Never") choice notifies nothing, ever;
+ *  2. the app open **on the conversation concerned** does not notify: the user has the work
+ *     before their eyes (same rule as for an approval or a question);
+ *  3. a **stopped** turn is not recounted: its notification clears, it does not get a
+ *     finished notification — the user knows they have just stopped it.
  *
- * Ce qui reste est l'issue d'un tour : « Terminé » ou « Échec », une seule fois.
+ * What remains is the outcome of a turn: "Terminé" ("Done") or "Échec" ("Failed"), once only.
  */
 object WorkTrackingPolicy {
 
-    /** Faut-il notifier ce tour-ci (sa fin, et son avancement s'il se suit en direct) ? */
+    /** Should this turn be notified (its finish, and its progress if it is tracked live)? */
     fun tracks(
         tracking: WorkTracking,
         appInForeground: Boolean,
@@ -31,32 +31,32 @@ object WorkTrackingPolicy {
         return true
     }
 
-    /** L'issue d'un tour fini, quand elle mérite une notification de fin. */
+    /** The outcome of a finished turn, when it deserves a finished notification. */
     fun finishOf(live: TurnLive): TurnFinish? = when (live.phase.step) {
         TurnStep.DONE -> TurnFinish(failed = false)
         TurnStep.FAILED -> TurnFinish(failed = true)
-        // Arrêté : l'utilisateur l'a fait, il le sait.
+        // Stopped: the user did it, they know it.
         TurnStep.STOPPED -> null
         TurnStep.STARTING, TurnStep.THINKING, TurnStep.TOOL, TurnStep.WRITING -> null
     }
 
     /**
-     * Le tour que le service doit **tenir**.
+     * The turn the service must **hold**.
      *
-     * Indépendant de la politique de notification : une politique dit *ce qu'on montre*, pas
-     * *si le travail survit*. Un tour qui tourne pendant que l'app s'endort, ça doit tenir —
-     * sinon Android endort le processus, le canal meurt, et le tour est perdu au moment précis
-     * où la personne l'attendait.
+     * Independent of the notification policy: a policy says *what is shown*, not
+     * *whether the work survives*. A turn running while the app falls asleep must hold —
+     * otherwise Android puts the process to sleep, the channel dies, and the turn is lost at the exact
+     * moment the person was expecting it.
      *
-     * Le service est **tied au tour**, pas à l'arrière-plan : il démarre quand le tour commence et
-     * vit jusqu'à sa fin. C'est une contrainte d'Android, pas un goût : depuis l'API 31, un
-     * service de premier plan ne peut pas être lancé depuis l'arrière-plan (seule une brève
-     * fenêtre existe juste après le bouton accueil — trop courte pour un battement d'une
-     * seconde). Le démarrer au moment où le tour commence, c'est le mettre au premier plan
-     * pendant que l'app est **visible** : c'est permis, et c'est le seul moment fiable.
+     * The service is **tied to the turn**, not to the background: it starts when the turn begins and
+     * lives until its end. This is an Android constraint, not a taste: since API 31, a
+     * foreground service cannot be launched from the background (only a brief
+     * window exists right after the home button — too short for a one-second
+     * beat). Starting it at the moment the turn begins is putting it in the foreground
+     * while the app is **visible**: that is allowed, and it is the only reliable moment.
      *
-     * Le choix « jamais » est respecté : c'est une demande explicite de ne rien montrer, et un
-     * service de premier plan se voit forcément dans la barre d'état.
+     * The "never" choice is respected: it is an explicit request to show nothing, and a
+     * foreground service is inevitably visible in the status bar.
      */
     fun holding(
         sessions: Collection<TurnSession>,
@@ -67,11 +67,11 @@ object WorkTrackingPolicy {
     }
 
     /**
-     * Le tour que la barre d'état suit pendant son travail : le plus récent en cours.
+     * The turn the status bar tracks during its work: the most recent one in progress.
      *
-     * `null` quand le choix ne demande pas de suivi en direct (« à la fin seulement »), quand
-     * l'app le montre déjà, ou quand plus rien ne tourne. Un seul tour à la fois : la barre d'état
-     * n'a qu'une place pour ce genre de suivi, et deux bandeaux se lisent comme du bruit.
+     * `null` when the choice does not ask for live tracking ("at the end only"), when
+     * the app already shows it, or when nothing is running anymore. One turn at a time: the status bar
+     * has only one place for this kind of tracking, and two banners read as noise.
      */
     fun tracked(
         sessions: Collection<TurnSession>,
@@ -87,16 +87,16 @@ object WorkTrackingPolicy {
     }
 
     /**
-     * Le suivi doit-il égrener (un battement par seconde) ?
+     * Must tracking tick (one beat per second)?
      *
-     * Oui dès qu'un tour **tourne**, même s'il n'est pas celui qu'on montre : la conversation
-     * ouverte change (retour, autre onglet, écran éteint), et un tour qui finit doit s'annoncer
-     * dans la seconde. Se réveiller seulement sur un changement du magasin de tours fait dormir
-     * pendant tout le tour — et le suivi le manque entièrement.
+     * Yes as soon as a turn is **running**, even if it is not the one being shown: the open
+     * conversation changes (back, another tab, screen off), and a turn that finishes must be announced
+     * within the second. Waking up only on a change of the turn store makes it sleep
+     * during the whole turn — and tracking misses it entirely.
      */
     fun keepsTicking(sessions: Collection<TurnSession>, tracking: WorkTracking): Boolean =
         tracking.notifies && sessions.any { !it.isFinished }
 
-    /** L'issue d'un tour fini : succès, ou échec. */
+    /** The outcome of a finished turn: success, or failure. */
     data class TurnFinish(val failed: Boolean)
 }

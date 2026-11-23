@@ -12,47 +12,47 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Ce que les onglets d'une conversation gardent localement, par conversation :
+ * What a conversation's tabs keep locally, per conversation:
  *
- * - l'**onglet choisi** — revenir dans une conversation rouvre le dernier onglet ;
- * - le **retour** sur une carte du fil (pouce haut / pouce bas), par carte : aucune route serveur
- *   n'existe pour l'envoyer, donc il ne quitte pas le téléphone, et l'app le dit à l'écran ;
- * - ce qui a été **vu** du fil, pour la pastille de non-lu de l'onglet Feed.
+ * - the **chosen tab** — returning to a conversation reopens the last tab;
+ * - the **feedback** on a feed card (thumbs up / thumbs down), per card: no server route
+ *   exists to send it, so it does not leave the phone, and the app says so on screen;
+ * - what has been **seen** of the feed, for the Feed tab's unread badge.
  *
- * Les **listes locales Idées et Objectifs** ont été **supprimées** (demande explicite du
- * propriétaire) : leur stockage et leurs opérations ne vivent plus ici.
+ * The **local Ideas and Goals lists** have been **removed** (explicit request from the
+ * owner): their storage and their operations no longer live here.
  *
- * Tout tient sous une seule clé, un objet JSON ; un magasin en mémoire ([TextStore]) suffit donc à
- * éprouver les règles sans appareil.
+ * Everything fits under a single key, a JSON object; an in-memory store ([TextStore]) is therefore enough
+ * to exercise the rules without a device.
  */
 class ChatPanelStore(private val text: TextStore) {
 
     constructor(context: Context) : this(PreferencesTextStore(context, PREFERENCES))
 
-    // — L'onglet choisi, par conversation —
+    // — The chosen tab, per conversation —
 
-    /** La clé de l'onglet gardé pour cette conversation, ou `null` si aucune n'a été choisie. */
+    /** The key of the tab kept for this conversation, or `null` if none has been chosen. */
     fun selectedTab(conversation: String): String? = group("tabs")[conversation]?.asString()
 
-    /** Garde l'onglet choisi de cette conversation. */
+    /** Keeps the chosen tab of this conversation. */
     fun setSelectedTab(conversation: String, tab: String) {
         putInGroup("tabs", conversation, JsonPrimitive(tab))
     }
 
-    // — Le retour sur une carte, par conversation et par carte —
+    // — The feedback on a card, per conversation and per card —
 
-    /** Ce qui a été répondu à une carte : `"up"`, `"down"`, ou rien. */
+    /** What was answered to a card: `"up"`, `"down"`, or nothing. */
     fun feedback(conversation: String, cardId: String): String? = feedbackFor(conversation)[cardId]
 
-    /** Tout le retour d'une conversation, carte par carte (une seule lecture pour l'écran). */
+    /** All the feedback of a conversation, card by card (a single read for the screen). */
     fun feedbackFor(conversation: String): Map<String, String> =
         group("feedback")[conversation]?.asObject()?.mapNotNull { (id, value) ->
             value.asString()?.let { id to it }
         }?.toMap().orEmpty()
 
     /**
-     * Garde le retour d'une carte. Reposer le **même** pouce l'efface, comme un interrupteur : c'est
-     * le seul moyen de défaire un choix sans laisser un état que rien ne peut changer.
+     * Keeps a card's feedback. Pressing the **same** thumb again erases it, like a toggle: it is
+     * the only way to undo a choice without leaving a state nothing can change.
      */
     fun setFeedback(conversation: String, cardId: String, value: String): Map<String, String> {
         val here = feedbackFor(conversation).toMutableMap()
@@ -65,13 +65,13 @@ class ChatPanelStore(private val text: TextStore) {
         return here
     }
 
-    // — Ce qui a été vu du fil, pour la pastille de non-lu —
+    // — What has been seen of the feed, for the unread badge —
 
-    /** Les cartes du fil déjà vues dans cette conversation. */
+    /** The feed cards already seen in this conversation. */
     fun seenCards(conversation: String): Set<String> =
         group("seen")[conversation]?.asArray()?.mapNotNull { it.asString() }?.toSet().orEmpty()
 
-    /** Marque des cartes comme vues (l'onglet ouvert : la pastille s'éteint). */
+    /** Marks cards as seen (the open tab: the badge turns off). */
     fun markSeen(conversation: String, ids: Collection<String>): Set<String> {
         val all = seenCards(conversation) + ids
         putInGroup(
@@ -82,14 +82,14 @@ class ChatPanelStore(private val text: TextStore) {
         return all
     }
 
-    /** « Erase everything » : plus rien de gardé ici. */
+    /** "Erase everything": nothing kept here anymore. */
     fun clearAll() {
         text.put(KEY, EMPTY)
     }
 
-    // — Ce qui est écrit sur le disque —
+    // — What is written to disk —
 
-    /** Un groupe du document (`tabs`, `tabs_hidden`, `feedback`, `seen`). */
+    /** A group of the document (`tabs`, `tabs_hidden`, `feedback`, `seen`). */
     private fun group(name: String): Map<String, JsonElement> =
         root()[name]?.asObject().orEmpty()
 
@@ -119,20 +119,20 @@ class ChatPanelStore(private val text: TextStore) {
     }
 
     private companion object {
-        /** Le nom des préférences où tout cela vit. */
+        /** The name of the preferences where all this lives. */
         const val PREFERENCES = "onyx_chat_panels"
 
-        /** La clé unique sous laquelle tout est écrit, et sa valeur quand il n'y a rien. */
+        /** The single key under which everything is written, and its value when there is nothing. */
         const val KEY = "panels"
         const val EMPTY = "{}"
     }
 }
 
-/** Un objet JSON, ou rien : un document abîmé ne fait jamais tomber l'écran. */
+/** A JSON object, or nothing: a damaged document never brings the screen down. */
 private fun JsonElement.asObject(): JsonObject? = runCatching { jsonObject }.getOrNull()
 
-/** Un tableau JSON, ou rien. */
+/** A JSON array, or nothing. */
 private fun JsonElement.asArray(): JsonArray? = runCatching { jsonArray }.getOrNull()
 
-/** La valeur texte d'une primitive JSON. */
+/** The text value of a JSON primitive. */
 private fun JsonElement.asString(): String? = runCatching { jsonPrimitive.content }.getOrNull()

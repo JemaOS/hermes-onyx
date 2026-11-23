@@ -18,17 +18,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * L'écran **plein** d'un appel entrant : sur l'écran verrouillé, avec l'écran éteint, un tour qui
- * attend une décision prend tout l'écran — comme un vrai appel.
+ * The **full** screen of an incoming call: on the lock screen, with the screen off, a turn
+ * waiting for a decision takes the whole screen — like a real call.
  *
- * Reprend `IncomingCallActivity` de la référence (`androidApp/.../notify/IncomingCallActivity.kt`) :
- * fermé dès que l'appel disparaît (décroché ailleurs, retiré, sonnerie finie), **Décrocher** demande
- * le déverrouillage d'abord — sur un téléphone verrouillé, une approbation serait sinon prise par
- * qui tient l'appareil — puis ouvre le mode vocal (ou l'app). **Refuser** retire l'appel et laisse
- * la notification habituelle prendre sa place.
+ * Reproduces the reference `IncomingCallActivity` (`androidApp/.../notify/IncomingCallActivity.kt`):
+ * closed as soon as the call disappears (answered elsewhere, removed, ringing finished), **Answer** asks
+ * for the unlock first — on a locked phone, an approval would otherwise be taken by
+ * whoever holds the device — then opens voice mode (or the app). **Decline** removes the call and lets
+ * the usual notification take its place.
  *
- * L'écran est dans le thème d'Onyx : clair ou sombre selon le réglage, police mise à l'échelle,
- * aucun composant Material.
+ * The screen uses the Onyx theme: light or dark per the setting, scaled font,
+ * no Material components.
  */
 class IncomingCallActivity : ComponentActivity() {
 
@@ -67,20 +67,20 @@ class IncomingCallActivity : ComponentActivity() {
                 )
             }
         }
-        // L'appel a disparu (décroché ailleurs, retiré, sonnerie finie) : l'écran s'efface avec lui.
+        // The call has disappeared (answered elsewhere, removed, ringing finished): the screen fades with it.
         lifecycleScope.launch {
             CallRinger.ringing.first { call.id !in it }
             if (!isFinishing && !isDestroyed) finish()
         }
     }
 
-    /** Un second appel pendant celui-ci : le plus récent prend l'écran. */
+    /** A second call during this one: the most recent takes the screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (CallRinger.current(intent.getStringExtra(CallRinger.EXTRA_CALL_ID).orEmpty()) != null) recreate()
     }
 
-    /** Décrocher : on déverrouille d'abord (l'approbation vaut pour qui tient le téléphone). */
+    /** Answer: the unlock comes first (the approval is valid for whoever holds the phone). */
     private fun answer(call: CallRinger.Ringing) {
         val keyguard = getSystemService(KeyguardManager::class.java)
         if (keyguard?.isKeyguardLocked != true) {
@@ -91,12 +91,12 @@ class IncomingCallActivity : ComponentActivity() {
             this,
             object : KeyguardManager.KeyguardDismissCallback() {
                 override fun onDismissSucceeded() = talk(call)
-                // Refusé de déverrouiller : l'appel continue de sonner et finira en notification.
+                // Unlock refused: the call keeps ringing and will end up as a notification.
             },
         )
     }
 
-    /** Hermes en ligne : l'appel se retire (sans repli), puis le mode vocal s'ouvre. */
+    /** Hermes online: the call is removed (without fallback), then voice mode opens. */
     private fun talk(call: CallRinger.Ringing) {
         if (isFinishing || isDestroyed) return
         CallRinger.answered(this, call.id)
@@ -104,7 +104,7 @@ class IncomingCallActivity : ComponentActivity() {
         finish()
     }
 
-    /** Plein écran sur l'écran verrouillé, et l'écran s'allume pour montrer qui appelle. */
+    /** Full screen on the lock screen, and the screen turns on to show who is calling. */
     private fun showOverLockScreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)

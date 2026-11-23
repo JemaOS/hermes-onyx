@@ -13,22 +13,22 @@ import com.onyx.app.MainActivity
 import com.onyx.app.core.R
 
 /**
- * La notification de fin : un bot a fini son travail, l'app n'est pas ouverte sur sa conversation.
+ * The finished notification: a bot has finished its work, the app is not open on its conversation.
  *
- * C'est le pendant Android de ce que la référence annonce à la fin d'un tour : un mot sur le
- * résultat — « Terminé » ou « Échec » — et de quoi reconnaître la réponse, sans l'ouvrir. Un tap
- * ramène à la conversation, là où tout est écrit.
+ * This is the Android counterpart of what the reference announces at the end of a turn: a word on
+ * the result — "Terminé" ("Done") or "Échec" ("Failed") — and enough to recognize the answer,
+ * without opening it. A tap brings you back to the conversation, where everything is written.
  *
- * **Un tour, une notification.** L'identifiant est dérivé de la conversation : republier la même
- * fin remplace la notification au lieu d'en empiler une deuxième, et c'est la même clé qui la fait
- * disparaître ([clear]).
+ * **One turn, one notification.** The identifier is derived from the conversation: republishing the
+ * same finish replaces the notification instead of stacking a second one, and it is the same key
+ * that makes it disappear ([clear]).
  */
 object TurnNotifier {
 
-    /** Le canal des tours : le même que l'avancement, décrit comme « Réponses ». */
+    /** The turns channel: the same as the progress one, described as "Réponses" ("Answers"). */
     const val CHANNEL_ID = TurnService.CHANNEL_ID
 
-    /** L'identifiant d'une fin de tour, stable par conversation. */
+    /** The identifier of a finished turn, stable per conversation. */
     fun id(conversationId: String): Int = ("onyx.turn." + conversationId).hashCode()
 
     fun notifyFinished(
@@ -72,16 +72,16 @@ object TurnNotifier {
         }
     }
 
-    /** Le tour est arrêté ou oublié : sa fin ne doit pas rester à l'écran. */
+    /** The turn is stopped or forgotten: its finished notification must not stay on screen. */
     fun clear(context: Context, conversationId: String) {
         runCatching { NotificationManagerCompat.from(context).cancel(id(conversationId)) }
     }
 
     /**
-     * Le repli quand Android refuse le service de fond (une app en arrière-plan n'a pas le droit
-     * d'en démarrer un) : la **même** notification est publiée directement, pour que le suivi
-     * tienne quand même. Même identifiant, donc elle remplace celle du service au lieu de
-     * s'empiler.
+     * The fallback when Android refuses the foreground service (a background app has no right
+     * to start one): the **same** notification is published directly, so that tracking holds
+     * anyway. Same identifier, so it replaces the service's notification instead of
+     * stacking up.
      */
     fun notifyProgress(
         context: Context,
@@ -96,15 +96,15 @@ object TurnNotifier {
         runCatching { NotificationManagerCompat.from(context).notify(TurnNotification.PROGRESS_ID, notification) }
     }
 
-    /** Le tour est fini ou arrêté : la notification d'avancement s'efface, quel que soit son auteur. */
+    /** The turn is finished or stopped: the progress notification clears, whoever published it. */
     fun clearProgress(context: Context) {
         runCatching { NotificationManagerCompat.from(context).cancel(TurnNotification.PROGRESS_ID) }
     }
 
     /**
-     * Android 13+ : sans POST_NOTIFICATIONS accordée, `notify` lève une SecurityException — on
-     * vérifie donc la permission au lieu de compter sur un `runCatching` (même règle que
-     * [ApprovalNotifier], que lint fait respecter).
+     * Android 13+: without POST_NOTIFICATIONS granted, `notify` throws a SecurityException — so
+     * the permission is checked instead of relying on a `runCatching` (same rule as
+     * [ApprovalNotifier], which lint enforces).
      */
     private fun canPost(context: Context): Boolean =
         (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
