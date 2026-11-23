@@ -73,7 +73,7 @@ internal class GroupAskLedger(
         if (lastText.isNotEmpty() && now - lastAt <= growthWindowMs && grows(lastText, normalised)) {
             lastText = normalised
             lastAt = now
-            return GroupAskDecision.Again(lastId, "the transcription has grown")
+            return GroupAskDecision.Again(lastId, "la transcription a grandi")
         }
 
         // 3. The same sentence recognised with one fewer (or one more) word: the engine swallowed
@@ -84,7 +84,7 @@ internal class GroupAskLedger(
             lastText = normalised
             lastId = near.id
             lastAt = now
-            return GroupAskDecision.Again(near.id, "a nearly identical sentence was just asked")
+            return GroupAskDecision.Again(near.id, "une phrase quasi identique vient d'être posée")
         }
 
         val id = newId()
