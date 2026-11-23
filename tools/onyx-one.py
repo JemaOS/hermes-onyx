@@ -21,10 +21,13 @@ Un relais qui répond **200** à ces routes, même avec une liste vide, la laiss
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import os
 import re
+import socket
 import sys
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -281,6 +284,89 @@ def _cle() -> str:
 
 CLE = _cle()
 
+MAX_BODY_BYTES = 16 * 1024 * 1024
+REQUEST_TIMEOUT = 15.0
+MAX_WORKERS = 64
+
+
+def _redact_log(value: object) -> str:
+    # Drop all query values, including tickets and encoded credentials.
+    text = re.sub(r"\?\S*", "?[REDACTED]", str(value))
+    from urllib.parse import quote
+    for name in ("CLE", "CLE_API", "JETON_DASHBOARD"):
+        secret = globals().get(name, "")
+        for candidate in (secret, quote(secret, safe="")):
+            if candidate:
+                text = text.replace(candidate, "[REDACTED]")
+    return text
+
+
+class IntakeSocket(socket.socket):
+    """Carry the acceptance deadline into the handler without global state."""
+
+    intake_deadline: float
+
+
+class IntakeReader(io.RawIOBase):
+    def __init__(self, connection):
+        super().__init__()
+        self.connection = connection
+        self.deadline = connection.intake_deadline
+
+    def readable(self):
+        return True
+
+    def check_deadline(self):
+        if self.deadline is not None:
+            remaining = self.deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Request intake deadline exceeded")
+            self.connection.settimeout(remaining)
+
+    def readinto(self, buffer):
+        # Buffered readline may perform many receives; bound every receive.
+        self.check_deadline()
+        return self.connection.recv_into(buffer)
+
+
+class BoundedHTTPServer(ThreadingHTTPServer):
+    max_workers = MAX_WORKERS
+    request_timeout = REQUEST_TIMEOUT
+    daemon_threads = True
+
+    def __init__(self, *args, **kwargs):
+        self._workers = threading.BoundedSemaphore(self.max_workers)
+        super().__init__(*args, **kwargs)
+
+    def get_request(self):
+        connection, address = super().get_request()
+        deadline = time.monotonic() + self.request_timeout
+        connection = IntakeSocket(fileno=connection.detach())
+        connection.intake_deadline = deadline
+        connection.settimeout(self.request_timeout)
+        return connection, address
+
+    def process_request(self, request, client_address):
+        # Reject excess sockets instead of queueing unbounded threads or work.
+        if not self._workers.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._workers.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._workers.release()
+
+    def handle_error(self, request, client_address):
+        import traceback
+        sys.stderr.write(_redact_log(traceback.format_exc()))
+
 
 def _jeton_dashboard() -> str:
     """Le jeton de session du dashboard local (`hermes serve`), quand il tourne.
@@ -481,8 +567,67 @@ def manifeste() -> dict:
 class Relais(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def setup(self):
+        super().setup()
+        self.rfile.close()
+        self._intake_reader = IntakeReader(self.connection)
+        self.rfile = io.BufferedReader(self._intake_reader)
+
     def log_message(self, fmt, *args):
-        return
+        print(_redact_log(fmt % args), flush=True)
+
+    def _body_length(self):
+        if self.headers.get_all("Transfer-Encoding") is not None:
+            self.send_error(400, "Unsupported transfer framing")
+            return None
+        lengths = self.headers.get_all("Content-Length", [])
+        if not lengths:
+            return 0
+        if len(lengths) != 1 or not re.fullmatch(r"[0-9]+", lengths[0]):
+            self.send_error(400, "Invalid Content-Length")
+            return None
+        # Bound before int conversion, including adversarial huge numerals.
+        digits = lengths[0].lstrip("0") or "0"
+        limit = str(MAX_BODY_BYTES)
+        if len(digits) > len(limit) or (len(digits) == len(limit) and digits > limit):
+            self.send_error(413, "Request body too large")
+            return None
+        return int(digits)
+
+    def _public(self):
+        return urlsplit(self.path).path in ("/health", "/healthz", "/api/status")
+
+    def _unauthenticated(self):
+        self.close_connection = True
+        self._repondre(401, {"error": "unauthenticated", "detail": "Unauthorized"})
+
+    def handle_expect_100(self):
+        if not self._public() and not self._autorise():
+            self._unauthenticated()
+            return False
+        if self._body_length() is None:
+            return False
+        return super().handle_expect_100()
+
+    def _read_body(self, length):
+        data = bytearray()
+        try:
+            self._intake_reader.check_deadline()
+            while len(data) < length:
+                self._intake_reader.check_deadline()
+                chunk = self.rfile.read1(min(length - len(data), 65536))
+                if not chunk:
+                    self.send_error(400, "Incomplete request body")
+                    return None
+                data.extend(chunk)
+            self._intake_reader.check_deadline()
+        except (TimeoutError, OSError):
+            self.send_error(408, "Request body timeout")
+            return None
+        # Only intake is bounded: SSE and WebSockets can outlive this deadline.
+        self._intake_reader.deadline = None
+        self.connection.settimeout(None)
+        return bytes(data)
 
     # -- utilitaires --
 
@@ -499,7 +644,7 @@ class Relais(BaseHTTPRequestHandler):
         arrive et échoue » se ressemblent : les deux laissent un écran vide et aucune trace."""
         try:
             chemin = self.path.split("?")[0]
-            print(f"HTTP {self.command} {chemin} -> {statut or '-'}", flush=True)
+            self.log_message("HTTP %s %s -> %s", self.command, chemin, statut or "-")
         except Exception:
             pass
 
@@ -610,10 +755,10 @@ class Relais(BaseHTTPRequestHandler):
     # -- routage --
 
     def _servir(self) -> None:
+        # Do not reuse sockets with unread or ambiguously framed request bodies.
+        self.close_connection = True
         self._trace()
         chemin = urlsplit(self.path).path
-        longueur = int(self.headers.get("Content-Length") or 0)
-        corps = self.rfile.read(longueur) if longueur else None
 
         # **Toute requête navigateur est tracée, même refusée.** Le refus d'identité (401)
         # rendait la réponse muette : rien dans le journal ne montrait que l'app avait
@@ -624,22 +769,28 @@ class Relais(BaseHTTPRequestHandler):
             brut = (self.headers.get("Authorization") or "").strip()
             if brut[:7].lower() == "bearer ":
                 brut = brut[7:].strip()
-            print(
+            self.log_message("%s",
                 f"BROWSER REQ {self.command} {self.path} "
                 f"ident={'oui' if brut else 'non'} "
                 f"identok={_constant(brut, CLE) if brut else False} "
                 f"maj={(self.headers.get('Upgrade') or '-')} "
                 f"ua={(self.headers.get('User-Agent') or '-')[:24]}",
-                flush=True,
             )
+
+        if not self._public() and not self._autorise():
+            return self._unauthenticated()
+        longueur = self._body_length()
+        if longueur is None:
+            return
+        corps = self._read_body(longueur)
+        if corps is None:
+            return
 
         if chemin in ("/health", "/healthz"):
             return self._repondre(200, {"status": "ok"})
         if chemin == "/api/status":
             return self._repondre(200, {"version": "0.22.3", "auth_required": True,
                                         "gateway_running": True, "onyx_one": True})
-        if not self._autorise():
-            return self._repondre(401, {"error": "unauthenticated", "detail": "Unauthorized"})
 
         if chemin == "/api/onyx/endpoints":
             return self._repondre(200, manifeste())
@@ -680,7 +831,7 @@ class Relais(BaseHTTPRequestHandler):
                 # **Ce que l'app demande vraiment.** Le plugin ignore ces appels : seul le relais
                 # les voit. Sans cette trace, un écran noir ne dit pas si la sonde est partie
                 # (et a échoué) ou si elle n'a jamais été envoyée — deux diagnostics opposés.
-                print(f"BROWSER {self.command} {chemin} -> {statut} (port {port_nav})", flush=True)
+                self.log_message("BROWSER %s %s -> %s (port %s)", self.command, chemin, statut, port_nav)
                 # **Le plugin refuse le ticket quand la page est chez un autre processus.** On
                 # ne renvoie pas ce refus à l'app : on réessaie ailleurs, dans l'ordre des
                 # candidats, jusqu'à trouver celui qui a la page. L'app reçoit alors un ticket
@@ -696,7 +847,7 @@ class Relais(BaseHTTPRequestHandler):
                             s2, e2, c2 = self._vers_amont(hote_nav, autre, {}, corps)
                         except OSError:
                             continue
-                        print(f"BROWSER POST {chemin} -> {s2} (port {autre}, reroute)", flush=True)
+                        self.log_message("BROWSER POST %s -> %s (port %s, reroute)", chemin, s2, autre)
                         if s2 == 200:
                             statut, entetes, charge = s2, e2, c2
                             port_nav = autre
@@ -783,7 +934,7 @@ class Relais(BaseHTTPRequestHandler):
                     continue
                 lignes.append(f"{nom}: {valeur}")
             amont.sendall(("\r\n".join(lignes) + "\r\n\r\n").encode())
-            print(f"WS -> {hote}:{port}{chemin_amont}", flush=True)
+            self.log_message("WS -> %s:%s%s", hote, port, chemin_amont)
 
             client = self.connection
             client.setblocking(False)
@@ -829,7 +980,7 @@ def _constant(a: str, b: str) -> bool:
 
 
 if __name__ == "__main__":
-    srv = ThreadingHTTPServer((HOTE, PORT), Relais)
+    srv = BoundedHTTPServer((HOTE, PORT), Relais)
     srv.daemon_threads = True
     print(f"onyx-one sur {HOTE}:{PORT} -> api_server {API_HOTE}:{API_PORT}", flush=True)
     srv.serve_forever()
