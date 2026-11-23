@@ -50,32 +50,32 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Les fichiers que l'agent a livrés dans sa réponse.
+ * The files the agent delivered in its reply.
  *
- * C'est ce que `DeliveredFiles` fait : les chemins du serveur qu'une réponse nomme, et, sur
- * un tap, le fichier récupéré par le Dashboard puis ouvert. On ne prend que les chemins absolus
- * avec une extension connue, pour ne pas transformer une phrase en bouton.
+ * That is what `DeliveredFiles` does: the server paths a reply names, and, on
+ * a tap, the file fetched through the Dashboard then opened. We only take absolute paths
+ * with a known extension, so as not to turn a sentence into a button.
  *
- * S'y ajoutent ce que le fichier lui-même a de montrable avant de l'ouvrir : une vignette pour une
- * image (décodée depuis le cache), un aperçu pour un fichier texte, et, quand ça échoue, la raison
- * en mots sous sa pastille (`DeliveredFileChip`).
+ * Added to that is what the file itself can show before being opened: a thumbnail for an
+ * image (decoded from the cache), a preview for a text file, and, when it fails, the reason
+ * in words under its chip (`DeliveredFileChip`).
  */
 object DeliveredFiles {
 
     /**
-     * Les extensions qu'une réponse peut nommer et que l'onglet **Fichiers** sait montrer.
+     * The extensions a reply can name and that the **Files** tab knows how to show.
      *
-     * La liste couvre **toutes** les familles — image, vidéo, son, document, archive — parce que
-     * c'est d'elle que dépend l'apparition d'un fichier dans l'onglet : une réponse qui livre un
-     * son (`.mp3`) ou une archive (`.tar.gz`) le nomme aussi clairement qu'une image, et l'oublier
-     * ici ferait disparaître ces familles de l'onglet et des pastilles du fil.
+     * The list covers **all** families — image, video, sound, document, archive — because
+     * it is on it that a file's appearance in the tab depends: a reply that delivers a
+     * sound (`.mp3`) or an archive (`.tar.gz`) names it as clearly as an image, and forgetting it
+     * here would make those families disappear from the tab and from the thread's chips.
      */
     private val extensions = listOf(
         // Images.
         "png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "tif", "tiff", "avif", "svg",
-        // Vidéos.
+        // Videos.
         "mp4", "m4v", "mov", "webm", "mkv", "avi", "3gp", "3g2", "mpg", "mpeg", "ogv",
-        // Sons.
+        // Sounds.
         "mp3", "m4a", "m4b", "aac", "wav", "ogg", "oga", "opus", "flac", "amr", "aiff", "aif", "wma",
         // Documents.
         "pdf", "md", "markdown", "csv", "tsv", "json", "yaml", "yml", "xml", "txt", "text", "log",
@@ -83,44 +83,44 @@ object DeliveredFiles {
         "xlsx", "ods", "epub",
         // Archives.
         "zip", "jar", "apk", "gz", "tgz", "tar", "bz2", "xz", "zst", "7z", "rar",
-        // Ce qui n'a pas de famille connue : l'onglet le montre quand même et le passe au système.
+        // What has no known family: the tab still shows it and hands it to the system.
         "bin", "dat",
     )
 
     private val pattern = Regex(
-        // Deux formes, et **une seule prise** sur chacune :
+        // Two shapes, and **a single capture** on each:
         //
-        //  * une **adresse absolue** (`https://hôte/chemin/fichier.json`) est gardée **entière** :
-        //    c'est elle qui se demande, telle quelle. Avant, le motif ne partait que du premier
-        //    `/` et rendait `//hôte/chemin/fichier.json` — ni l'adresse, ni un chemin du serveur :
-        //    la carte nommait bien « me.json », mais pointait un chemin que personne n'a jamais
-        //    servi, et la réponse était toujours « il est introuvable à l'emplacement indiqué ».
-        //  * un **chemin du serveur** (`/home/onyx/…/fichier.pdf`) reste ce qu'il est.
+        //  * an **absolute address** (`https://hôte/chemin/fichier.json` / `https://host/path/file.json`) is kept **whole**:
+        //    it is what gets requested, as is. Before, the pattern only started from the first
+        //    `/` and returned `//hôte/chemin/fichier.json` (`//host/path/file.json`) — neither the address nor a server path:
+        //    the card did name "me.json", but pointed at a path that no one has ever
+        //    served, and the answer was always "it cannot be found at the indicated location".
+        //  * a **server path** (`/home/onyx/…/fichier.pdf` / `…/file.pdf`) stays what it is.
         //
-        // Les extensions les plus longues d'abord (« docx » avant « doc »), et une **frontière**
-        // après l'extension : sans elle, « rapport.docx » se coupait en « rapport.doc » — le nom
-        // perdait sa fin, et le poids du fichier n'était plus retrouvé auprès du serveur.
+        // Longest extensions first ("docx" before "doc"), and a **boundary**
+        // after the extension: without it, "rapport.docx" ("report.docx") was cut into "rapport.doc" — the name
+        // lost its ending, and the file's weight was no longer found on the server.
         """(?:https?://[^\s"'<>()\[\]]+|/[^\s"'<>()\[\]]+)\.(""" +
             extensions.sortedByDescending { it.length }.joinToString("|") +
             """)(?![A-Za-z0-9])""",
         RegexOption.IGNORE_CASE,
     )
 
-    /** Ce qui se montre d'un fichier sans l'ouvrir. */
+    /** What shows of a file without opening it. */
     sealed interface Preview {
-        /** Rien à montrer : la pastille suffit (PDF, archive, vidéo…). */
+        /** Nothing to show: the chip is enough (PDF, archive, video…). */
         data object None : Preview
 
-        /** En cours de récupération. */
+        /** Being fetched. */
         data object Loading : Preview
 
-        /** Une vignette, pour une image. */
+        /** A thumbnail, for an image. */
         data class Thumbnail(val bitmap: Bitmap) : Preview
 
-        /** Un aperçu des premières lignes, pour un fichier texte. */
+        /** A preview of the first lines, for a text file. */
         data class Text(val text: String) : Preview
 
-        /** La raison en mots, quand le fichier ne peut pas être montré. */
+        /** The reason in words, when the file cannot be shown. */
         data class Failure(val text: String) : Preview
     }
 
@@ -132,10 +132,10 @@ object DeliveredFiles {
     )
 
     /**
-     * Les fichiers nommés par les outils d'un message, sans doublon.
+     * The files named by a message's tools, without duplicates.
      *
-     * [limit] borne ce qu'on garde. Le fil garde les quelques premiers (une pastille par fichier,
-     * pas une liste) ; l'onglet **Fichiers**, lui, demande la liste entière — c'est son sujet.
+     * [limit] bounds what is kept. The thread keeps the first few (one chip per file,
+     * not a list); the **Files** tab, however, asks for the whole list — that is its subject.
      */
     fun of(texts: List<String?>, limit: Int = 6): List<DeliveredFile> =
         texts.filterNotNull()
@@ -149,15 +149,15 @@ object DeliveredFiles {
                 )
             }
 
-    /** Vrai si le nom a l'extension d'une image (`UTType.conforms(to: .image)`). */
+    /** True if the name has an image extension (`UTType.conforms(to: .image)`). */
     fun isImage(name: String): Boolean = name.substringAfterLast('.', "").lowercase() in imageExtensions
 
-    /** Vrai si le nom a l'extension d'un fichier qu'on sait lire en texte. */
+    /** True if the name has the extension of a file that can be read as text. */
     fun isText(name: String): Boolean = name.substringAfterLast('.', "").lowercase() in textExtensions
 
     /**
-     * Le symbole d'un fichier selon son type, comme `DeliveredFileChip.symbol` : photo, film,
-     * son, PDF, page, archive, sinon document.
+     * A file's symbol according to its type, like `DeliveredFileChip.symbol`: photo, film,
+     * sound, PDF, page, archive, otherwise document.
      */
     fun symbolFor(name: String): Int = when (name.substringAfterLast('.', "").lowercase()) {
         "png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "avif", "tif", "tiff" -> Symbols.Photo
@@ -171,8 +171,8 @@ object DeliveredFiles {
     }
 
     /**
-     * Télécharge un fichier livré et le confie au système, comme le fait `DeliveredFileChip` :
-     * les fichiers de l'agent passent par le Dashboard.
+     * Downloads a delivered file and hands it to the system, as `DeliveredFileChip` does:
+     * the agent's files go through the Dashboard.
      */
     suspend fun open(context: Context, config: ServerConfig, file: DeliveredFile): Result<Unit> =
         runCatching {
@@ -186,15 +186,15 @@ object DeliveredFiles {
         }
 
     /**
-     * Le fichier livré, récupéré dans le cache du téléphone : ce qu'un lecteur de l'app — le
-     * lecteur de PDF, le visualiseur d'images — a besoin pour le montrer lui-même.
+     * The delivered file, fetched into the phone's cache: what an app reader — the
+     * PDF reader, the image viewer — needs to show it itself.
      */
     suspend fun local(context: Context, config: ServerConfig, file: DeliveredFile): Result<File> =
         runCatching { cached(context, config, file) }
 
     /**
-     * Ce qu'on peut montrer d'un fichier sans l'ouvrir : sa vignette s'il est image, ses premières
-     * lignes s'il est texte, sinon rien — et la raison en mots quand la récupération a échoué.
+     * What can be shown of a file without opening it: its thumbnail if it is an image, its first
+     * lines if it is text, otherwise nothing — and the reason in words when the fetch failed.
      */
     suspend fun preview(context: Context, config: ServerConfig, file: DeliveredFile): Preview =
         try {
@@ -215,12 +215,12 @@ object DeliveredFiles {
         }
 
     /**
-     * Vrai pour une pièce jointe de **cet appareil** : ce n'est pas un chemin du serveur. Un
-     * `content://` (galerie, sélecteur, partage) ou un `file://` ne se demande jamais au Dashboard :
-     * il s'ouvre sur place. Le serveur, lui, répond `400 Path must be absolute` à un tel chemin.
+     * True for an attachment from **this device**: it is not a server path. A
+     * `content://` (gallery, picker, share) or a `file://` is never requested from the Dashboard:
+     * it opens on the spot. The server, for its part, answers `400 Path must be absolute` to such a path.
      *
-     * Une **adresse absolue** (`http://`, `https://`) n'est ni l'un ni l'autre : elle se demande
-     * **à elle-même**, et la dire « locale » ferait ouvrir un `content://` qui n'existe pas.
+     * An **absolute address** (`http://`, `https://`) is neither of the two: it is requested
+     * **from itself**, and calling it "local" would open a `content://` that does not exist.
      */
     fun isLocalPath(path: String): Boolean =
         !isRemoteUrl(path) &&
@@ -231,22 +231,22 @@ object DeliveredFiles {
                 )
 
     /**
-     * Vrai pour une **adresse absolue** nommée par une réponse : `http://…` ou `https://…`.
+     * True for an **absolute address** named by a reply: `http://…` or `https://…`.
      *
-     * C'est la cible « distante » de l'onglet Fichiers : elle n'a pas à passer par le Dashboard,
-     * et la demander à `api/files/download` ne pouvait **jamais** aboutir — l'adresse n'était
-     * alors jamais servie.
+     * It is the Files tab's "remote" target: it does not have to go through the Dashboard,
+     * and requesting it from `api/files/download` could **never** succeed — the address was
+     * then never served.
      */
     fun isRemoteUrl(path: String): Boolean =
         path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)
 
-    /** Pourquoi un fichier nommé par une réponse ne s'ouvre pas, en mots (`Problem` de la référence). */
+    /** Why a file named by a reply does not open, in words (the reference's `Problem`). */
     fun failureText(error: Throwable, file: DeliveredFile? = null): String = when {
         error is TransportError.MissingApiKey || error is TransportError.SignInRequired ||
             error is TransportError.Http && error.status == 401 ->
             OnyxLocalization["Files your agent sends come through the Hermes Dashboard. Add its login in Settings → Connection details."]
 
-        // Un code nu (« http_400 ») ne dit rien à personne : chaque refus dit le geste à faire.
+        // A bare code ("http_400") tells no one anything: every refusal says the gesture to make.
         error is TransportError.Http && error.status == 400 ->
             OnyxLocalization["The server refused this request (400). It may be too heavy, or in a shape it doesn't take."]
 
@@ -262,9 +262,9 @@ object DeliveredFiles {
         error is TransportError.Http && error.status == 404 -> {
             val relative = file != null && !file.path.startsWith("/") && !file.path.startsWith("~")
             when {
-                // Une **adresse** nommée par la réponse : c'est elle qui devait répondre, et elle
-                // n'a rien rendu. Le dire ainsi, plutôt que « pas sur le serveur », qui envoie
-                // chercher au mauvais endroit un fichier qui n'y a jamais été.
+                // An **address** named by the reply: it is what should have answered, and it
+                // returned nothing. Say it that way, rather than "not on the server", which sends
+                // you looking in the wrong place for a file that was never there.
                 file != null && isRemoteUrl(file.path) ->
                     OnyxLocalization["The address the reply named answers nothing (404): the file is gone from there, or it was never served."]
 
@@ -273,27 +273,27 @@ object DeliveredFiles {
             }
         }
 
-        // Serveur jamais joint : rien n'a été écrit, un nouvel essai a du sens — et `userMessage()`
-        // le dit déjà en mots, dans la langue de l'app.
+        // Server never reached: nothing was written, a new attempt makes sense — and `userMessage()`
+        // already says it in words, in the app's language.
         error is TransportError -> error.userMessage()
 
         else -> OnyxLocalization["Couldn't fetch it:"] + " " +
             com.onyx.app.data.net.humanFailure(error, OnyxLocalization["unknown error"])
     }
 
-    /** Vrai quand rejouer la même demande a une chance d'aboutir (le bouton « Réessayer »). */
+    /** True when replaying the same request has a chance to succeed (the "Réessayer" button, i.e. "Retry"). */
     fun isRetryable(error: Throwable): Boolean =
         error is TransportError &&
             (error.isConnectivity || error is TransportError.StreamLost || error.isTransient)
 
     /**
-     * Vrai quand ce que le serveur a rendu est un **accusé** (`{"ok": true}`, douze octets) et non
-     * le fichier.
+     * True when what the server returned is an **acknowledgement** (`{"ok": true}`, twelve bytes) and not
+     * the file.
      *
-     * La route peut répondre 200 avec un reçu : la ligne de l'onglet Fichiers annonçait alors
-     * « Disponible, 12 o » et le lecteur s'ouvrait tout noir. Un fichier texte ou JSON peut
-     * légitimement commencer par une accolade : la vérification ne s'applique donc qu'aux
-     * familles binaires, et seulement sous quelques centaines d'octets.
+     * The route may answer 200 with a receipt: the Files tab's row then announced
+     * "Available, 12 B" and the reader opened entirely black. A text or JSON file may
+     * legitimately start with a brace: the check therefore only applies to
+     * binary families, and only under a few hundred bytes.
      */
     fun looksLikeAck(local: File, name: String): Boolean = runCatching {
         val length = local.length()
@@ -316,17 +316,17 @@ object DeliveredFiles {
         text.startsWith("{") && text.contains("\"ok\"")
     }.getOrDefault(false)
 
-    /** Pourquoi une pièce jointe de l'appareil ne s'ouvre pas : elle se lit sur place, pas au serveur. */
+    /** Why a device attachment does not open: it is read on the spot, not from the server. */
     fun localProblemText(error: Throwable): String =
         OnyxLocalization["The file is still on this device, not on the server: it opens from here."] +
             " " + (error as? TransportError)?.userMessage().orEmpty()
 
     /**
-     * Ce qui a **changé**, pour une cible que personne ne sert plus.
+     * What **changed**, for a target that no one serves any more.
      *
-     * C'est la phrase de l'écran qui ne ment pas : le nom et la date sont déjà sur la carte, et
-     * celle-ci dit le reste — le fichier a été retiré, ou il a été écrit dans un dossier de travail
-     * qui a été nettoyé. Aucun geste n'est proposé avec, parce qu'aucun geste ne peut le rapporter.
+     * It is the screen's sentence that does not lie: the name and date are already on the card, and
+     * it says the rest — the file was removed, or it was written in a working folder
+     * that has been cleaned up. No gesture is offered with it, because no gesture can bring it back.
      */
     fun goneText(file: DeliveredFile): String =
         OnyxLocalization.format(
@@ -334,20 +334,20 @@ object DeliveredFiles {
             file.path,
         )
 
-    /** La raison d'un échec, en mots, et si un nouvel essai vaut le coup. */
+    /** The reason for a failure, in words, and whether a new attempt is worth it. */
     fun problem(error: Throwable, file: DeliveredFile? = null): Problem =
         Problem(text = failureText(error, file), retryable = isRetryable(error))
 
-    /** Un échec de fichier livré : ce qu'on lit, et s'il faut proposer « Réessayer ». */
+    /** A delivered-file failure: what is read, and whether to offer "Réessayer" ("Retry"). */
     data class Problem(val text: String, val retryable: Boolean)
 
-    /** Le fichier livré, dans les fichiers de l'app, téléchargé une seule fois. */
+    /** The delivered file, in the app's files, downloaded only once. */
     private suspend fun cached(context: Context, config: ServerConfig, file: DeliveredFile): File =
         withContext(Dispatchers.IO) {
-            // **`filesDir`, pas `cacheDir`** : le cache se purge, et un fichier revu une fois ne
-            // l'était plus après. Les fichiers de l'agent passent par le Dashboard ; une **adresse**
-            // nommée par la réponse se demande à elle-même. Sans ses identifiants, le Dashboard ne
-            // rend rien, et `failureText` dit quoi faire.
+            // **`filesDir`, not `cacheDir`**: the cache is purged, and a file seen once was no longer
+            // seen after. The agent's files go through the Dashboard; an **address**
+            // named by the reply is requested from itself. Without its credentials, the Dashboard returns
+            // nothing, and `failureText` says what to do.
             val target = File(context.filesDir, "delivered").apply { mkdirs() }
             val local = File(target, file.name)
             if (local.exists() && local.length() > 0L) return@withContext local
@@ -360,24 +360,24 @@ object DeliveredFiles {
         }
 
     /**
-     * Décode une vignette bornée, jamais l'image entière : un livrable peut être énorme.
+     * Decodes a bounded thumbnail, never the whole image: a deliverable can be huge.
      *
-     * Le calcul est celui de [BoundedImages] — un seul endroit décide de la réduction, et il
-     * revérifie le `Bitmap` obtenu. `null` (fichier absent, coupé, illisible) devient une carte
-     * d'échec nommée chez l'appelant, jamais une exception.
+     * The computation is that of [BoundedImages] — a single place decides the shrink, and it
+     * re-checks the resulting `Bitmap`. `null` (missing, truncated, unreadable file) becomes a named
+     * failure card at the caller, never an exception.
      */
     private suspend fun decodeThumbnail(local: File, maxPx: Int = BoundedImages.PREVIEW_PX): Bitmap? =
-        // Hors du fil principal : un TIFF (le seul format que le système ne décode pas) se lit en
-        // entier avant d'être réduit, et personne ne doit attendre ça à l'image.
+        // Off the main thread: a TIFF (the only format the system does not decode) is read in
+        // full before being shrunk, and no one should wait for that on the image.
         withContext(Dispatchers.IO) { BoundedImages.decodeFile(local, maxPx) }
 
-    /** Les premières lignes d'un fichier texte, comme l'aperçu d'un `MarkdownDocument`. */
+    /** A text file's first lines, like a `MarkdownDocument` preview. */
     private fun readPreview(local: File, maxLines: Int = 12): String =
         local.useLines { lines -> lines.take(maxLines).joinToString("\n") }
 
     /**
-     * Charge, hors recomposition, ce qu'on peut montrer d'un fichier livré. Un fichier ni image ni
-     * texte reste à l'état [Preview.None] : sa pastille suffit.
+     * Loads, outside recomposition, what can be shown of a delivered file. A file that is neither image nor
+     * text stays in the [Preview.None] state: its chip is enough.
      */
     @Composable
     fun rememberPreview(
@@ -398,9 +398,9 @@ object DeliveredFiles {
 }
 
 /**
- * La pastille d'un fichier livré (`DeliveredFileChip`) : son symbole — ou sa vignette, ou sa
- * raison d'échec — puis son nom ; au tap, il est récupéré et ouvert. Un aperçu texte s'affiche en
- * dessous, et l'échec, en mots, sous la pastille.
+ * A delivered file's chip (`DeliveredFileChip`): its symbol — or its thumbnail, or its
+ * failure reason — then its name; on tap, it is fetched and opened. A text preview is shown
+ * below, and the failure, in words, under the chip.
  */
 @Composable
 fun DeliveredFileChip(
@@ -442,8 +442,8 @@ fun DeliveredFileChip(
             )
         }
 
-        // L'aperçu texte : les premières lignes, comme le rend `MarkdownDocument`. Sélectionnable
-        // comme le reste du fil : c'est du texte à lire, donc à reprendre.
+        // The text preview: the first lines, as `MarkdownDocument` renders them. Selectable
+        // like the rest of the thread: it is text to read, therefore to reuse.
         if (preview is DeliveredFiles.Preview.Text && preview.text.isNotBlank()) {
             Box(
                 modifier = Modifier
@@ -461,7 +461,7 @@ fun DeliveredFileChip(
             }
         }
 
-        // L'état d'échec : pourquoi il ne s'ouvre pas, sous la pastille.
+        // The failure state: why it does not open, under the chip.
         if (preview is DeliveredFiles.Preview.Failure) {
             SelectableText(text = preview.text, localize = false, style = theme.caption.copy(color = theme.secondaryText))
         }

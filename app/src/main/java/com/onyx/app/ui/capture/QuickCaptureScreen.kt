@@ -42,15 +42,14 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * « Capture rapide » : une note prise en passant, que l'agent range.
+ * "Quick capture" (« Capture rapide »): a note taken on the fly, which the agent files.
  *
- * C'est l'écran de la capture de la référence : on écrit une note (deux gestes depuis n'importe
- * où — le raccourci de l'illustration, ou le menu de la liste), la note est **gardée tout de
- * suite**, et classée par Hermes dans sa mémoire, une liste, un rappel ou le calendrier. **Rien ne
- * se dit en retour** : la réponse de l'agent n'est pas lue à voix haute et ne s'invite pas dans la
- * conversation ouverte.
+ * This is the capture screen of the reference: you write a note (two gestures from anywhere —
+ * the shortcut of the illustration, or the list menu), the note is **kept at once**, and filed
+ * by Hermes into its memory, a list, a reminder or the calendar. **Nothing is said back**:
+ * the agent's answer is not read aloud and does not intrude on the open conversation.
  *
- * Les notes pas encore classées restent là, visibles, avec leur heure.
+ * The notes not yet filed stay there, visible, with their time.
  */
 @Composable
 fun QuickCaptureScreen(
@@ -99,7 +98,7 @@ fun QuickCaptureScreen(
                     )
                 }
                 OnyxRowDivider(inset = 0.dp)
-                // Le bouton de la note : un appui, et elle est prise.
+                // The note button: one press, and it is taken.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -125,7 +124,7 @@ fun QuickCaptureScreen(
                 }
             }
 
-            // L'issue du dernier appui : jamais muet, comme le veut le contrat de l'app.
+            // The outcome of the last press: never silent, as the app's contract requires.
             val line = when {
                 filing -> OnyxLocalization["Filing…"]
                 outcome == CaptureOutcome.FILED -> OnyxLocalization["Filed."]

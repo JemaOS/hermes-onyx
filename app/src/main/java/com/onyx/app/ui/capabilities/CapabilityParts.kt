@@ -48,17 +48,17 @@ import com.onyx.app.ui.design.signalInk
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Les pièces communes aux trois familles de « Capacités ».
+ * The pieces shared by the three "Capabilities" families.
  *
- * Elles sont ici **une seule fois** parce que les trois onglets posent les mêmes questions :
- * une ligne à interrupteur, un mot qui se touche, un champ de recherche, un état vide, un bandeau
- * d'échec. Trois copies auraient divergé sur les contrastes et sur les hauteurs tactiles.
+ * They are here **only once** because the three tabs ask the same questions:
+ * a row with a switch, a tappable word, a search field, an empty state, a failure
+ * banner. Three copies would have diverged on contrasts and on touch heights.
  *
- * Aucune animation : un dépli, un interrupteur et un bandeau apparaissent d'un coup, ce qui rend
- * la préférence « réduire les animations » vraie sans exception à surveiller.
+ * No animation: a disclosure, a switch and a banner appear at once, which makes
+ * the "reduce motion" preference true without any exception to watch.
  */
 
-/** Un mot sous le titre, discret, qui dit ce que la famille engage. */
+/** A word under the title, discreet, that says what the family commits to. */
 @Composable
 internal fun Note(text: String) {
     val theme = LocalOnyxTheme.current
@@ -69,7 +69,7 @@ internal fun Note(text: String) {
     )
 }
 
-/** Le compte de la famille : « 24 compétences · 12 allumées », ou « 3 sur 24 … » pendant une recherche. */
+/** The family's count: "24 skills · 12 on", or "3 of 24 …" during a search. */
 @Composable
 internal fun CountLine(text: String) {
     val theme = LocalOnyxTheme.current
@@ -82,11 +82,11 @@ internal fun CountLine(text: String) {
 }
 
 /**
- * Le bandeau d'un échec de chargement.
+ * The banner for a load failure.
  *
- * Une famille qui n'a pas pu être lue **le dit** et laisse « Réessayer » à portée : l'écran reste
- * utilisable, les deux autres familles restent lisibles, et rien n'est remplacé par une page vide
- * sans explication. Le mot du serveur est rendu tel quel ([localize] à faux pour un message brut).
+ * A family that could not be read **says so** and keeps "Try again" within reach: the screen stays
+ * usable, the two other families stay readable, and nothing is replaced by an empty page
+ * without explanation. The server's word is rendered as is ([localize] set to false for a raw message).
  */
 @Composable
 internal fun FailureBanner(text: String, retry: String = "Try again", onRetry: (() -> Unit)? = null) {
@@ -117,7 +117,7 @@ internal fun FailureBanner(text: String, retry: String = "Try again", onRetry: (
     }
 }
 
-/** Une ligne d'attente, tant que la liste n'est pas arrivée. */
+/** A waiting line, as long as the list has not arrived. */
 @Composable
 internal fun LoadingLine(what: String) {
     val theme = LocalOnyxTheme.current
@@ -129,7 +129,7 @@ internal fun LoadingLine(what: String) {
     }
 }
 
-/** Un état vide d'une famille : une phrase, pas une page d'illustration. */
+/** An empty state of a family: one sentence, not an illustration page. */
 @Composable
 internal fun EmptyLine(text: String) {
     val theme = LocalOnyxTheme.current
@@ -142,8 +142,8 @@ internal fun EmptyLine(text: String) {
 }
 
 /**
- * Le titre d'un groupe (une famille de compétences) — **le libellé de section de la référence** :
- * 11 sp SemiBold, interlettrage +0,08 em, en majuscules, en gris (voir `ContentSectionLabel`).
+ * A group's title (a skill family) — **the reference's section label**:
+ * 11 sp SemiBold, +0.08 em letter spacing, uppercase, in grey (see `ContentSectionLabel`).
  */
 @Composable
 internal fun GroupHeading(text: String) {
@@ -154,12 +154,12 @@ internal fun GroupHeading(text: String) {
 }
 
 /**
- * Le petit badge de provenance d'une compétence, à côté de son nom — « appris », « hub »,
- * « externe ».
+ * The small provenance badge of a skill, next to its name — "learned", "hub",
+ * "external".
  *
- * LOT organisation-fil-competences : repris de la référence. « appris » (une compétence qu'écrit
- * l'agent lui-même) prend le ton de l'accent ; les autres restent discrets — c'est une **source**,
- * pas un état.
+ * LOT skill-thread-organization: taken from the reference. "learned" (a skill the agent writes
+ * itself) takes the accent tone; the others stay discreet — it is a **source**,
+ * not a state.
  */
 @Composable
 internal fun ProvenanceBadge(text: String, accent: Boolean) {
@@ -174,20 +174,20 @@ internal fun ProvenanceBadge(text: String, accent: Boolean) {
         maxLines = 1,
         modifier = Modifier
             .background(if (accent) theme.accent.copy(alpha = 0.14f) else theme.fill, CircleShape)
-            // **Le rembourrage vertical du compteur de la maison** : 2 dp, jamais 1. À 1 dp, la
-            // boîte du texte venait au contact de la boîte peinte et le stade passait dans les
-            // jambages (« appris », le « p »). La valeur vient de [BadgeGeometry], comme la barre
-            // d'onglets et le volet — une seule source pour un seul geste de lecture.
+            // **The house counter's vertical padding**: 2 dp, never 1. At 1 dp, the
+            // text box came into contact with the painted box and the stage ran into the
+            // descenders ("learned", the "p"). The value comes from [BadgeGeometry], like the tab bar
+            // and the panel — a single source for a single reading gesture.
             .padding(horizontal = 7.dp, vertical = BadgeGeometry.PadVertical),
     )
 }
 
 /**
- * Une ligne de capacité : son nom, ce qu'elle engage sur **deux lignes** au plus, et son interrupteur.
+ * A capability row: its name, what it commits to on **two lines** at most, and its switch.
  *
- * Toute la ligne est la cible tactile (≥ 44 dp de haut, l'interrupteur n'étant lui que 31 dp) ; elle
- * porte l'état et le rôle d'un interrupteur pour les lecteurs d'écran, et une ligne qui ne se règle
- * pas ici le dit ([lockedNote]).
+ * The whole row is the touch target (≥ 44 dp high, the switch itself being only 31 dp); it
+ * carries the state and role of a switch for screen readers, and a row that is not set
+ * here says so ([lockedNote]).
  */
 @Composable
 internal fun CapabilityRow(
@@ -257,11 +257,11 @@ internal fun CapabilityRow(
 }
 
 /**
- * Un mot qui se touche (« Tester », « Installer », « Ouvrir »), teinté de l'accent.
+ * A tappable word ("Test", "Install", "Open"), tinted with the accent.
  *
- * L'encre est calculée contre **la surface où le mot repose** ([surface]) : le même mot posé sur une
- * section de formulaire n'a pas le même fond que sur la page, et un accent lisible sur l'un peut
- * tomber sous 4,5:1 sur l'autre.
+ * The ink is computed against **the surface the word rests on** ([surface]): the same word placed on a
+ * form section does not have the same background as on the page, and an accent readable on one can
+ * fall below 4.5:1 on the other.
  */
 @Composable
 internal fun ActionLine(
@@ -291,10 +291,10 @@ internal fun ActionLine(
 }
 
 /**
- * « Parcourir le catalogue » : un bouton pleine largeur sous le champ de recherche.
+ * "Browse the catalogue": a full-width button under the search field.
  *
- * Un mot teinté ne se distingue pas assez d'une ligne d'action pour être le seul chemin vers le
- * catalogue : c'est une surface, avec un dessin et un chevron.
+ * A tinted word is not distinct enough from an action row to be the only path to the
+ * catalogue: it is a surface, with a drawing and a chevron.
  */
 @Composable
 internal fun CatalogueButton(
@@ -324,22 +324,22 @@ internal fun CatalogueButton(
     }
 }
 
-/** Le champ de recherche : la loupe, la valeur, et la croix qui l'efface. */
+/** The search field: the magnifier, the value, and the cross that clears it. */
 @Composable
 internal fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
     val theme = LocalOnyxTheme.current
-    // **Le rôle « champ »** ([SurfaceRole.Field]) : le creux de la famille **et le filet**, avec le
-    // coin de champ (`FieldCorner`, 14 dp). C'était `RoundedCornerShape(OnyxSpace.ControlCorner)`
-    // — le coin d'un **petit contrôle** (une touche, un badge) — sur un fond de carte, sans filet :
-    // un champ de 44 dp de haut qui prenait la forme d'un bouton, et qui, sur la carte blanche d'un
-    // écran clair, se lisait comme une pilule au liseré épais. Un seul rôle pour tous les champs de
-    // l'app : celui-ci et celui du compositeur sont maintenant la même forme.
+    // **The "field" role** ([SurfaceRole.Field]): the family's well **and the hairline**, with the field's
+    // corner (`FieldCorner`, 14 dp). It used to be `RoundedCornerShape(OnyxSpace.ControlCorner)`
+    // — the corner of a **small control** (a key, a badge) — on a card background, without a hairline:
+    // a 44 dp high field that took the shape of a button, and that, on the white card of a
+    // light screen, read as a pill with a thick outline. A single role for all the fields of
+    // the app: this one and the composer's are now the same shape.
     val shape = SurfaceRole.Field.shape
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // **La cible tactile de 48 dp** : un champ de 44 dp était sous le plancher du brief ET
-            // sous celui de la source (`TextField.kt:145` : 52 dp).
+            // **The 48 dp touch target**: a 44 dp field was below the brief's floor AND
+            // below the source's (`TextField.kt:145`: 52 dp).
             .heightIn(min = OnyxSpace.TouchTarget)
             .clip(shape)
             .background(OnyxSurfaces.well(theme), shape)
@@ -379,10 +379,10 @@ internal fun SearchField(value: String, onValueChange: (String) -> Unit, placeho
 }
 
 /**
- * Un dépli : le titre et son compte, le chevron qui tourne d'un quart de tour.
+ * A disclosure: the title and its count, the chevron that turns a quarter turn.
  *
- * Le chevron pointe vers le bas quand c'est ouvert — l'état se lit au dessin, pas seulement au mot,
- * et la ligne porte « déplié » / « plié » pour les lecteurs d'écran.
+ * The chevron points down when open — the state reads from the drawing, not only from the word,
+ * and the row carries "expanded" / "collapsed" for screen readers.
  */
 @Composable
 internal fun DisclosureRow(

@@ -47,19 +47,19 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.delay
 
-/** Le son à lire : son adresse (le cache du téléphone, ou la pièce jointe) et son nom. */
+/** The sound to play: its address (the phone's cache, or the attachment) and its name. */
 data class SoundSource(val uri: Uri, val name: String)
 
 /**
- * Le lecteur d'un son joint.
+ * The player for an attached sound.
  *
- * Le même contrat que le lecteur de vidéo : rien du système à l'écran (`MediaPlayer` n'en dessine
- * aucun contrôle), le nom en tête, puis la **position** — la piste qu'on fait glisser, le temps
- * écoulé sur la durée — et le rond **lecture/pause**. Le son se lit sur le fond de la page, sans
- * l'écran noir de la vidéo : il n'y a pas d'image à mettre en valeur, seulement un titre.
+ * The same contract as the video player: nothing of the system on screen (`MediaPlayer` draws
+ * none of its controls), the name at the top, then the **position** — the track you drag, the
+ * time elapsed over the duration — and the **play/pause** circle. The sound plays on the page
+ * background, without the black screen of video: there is no image to showcase, only a title.
  *
- * Le lecteur est tenu par l'écran et libéré en partant ([DisposableEffect]) : aucun son ne continue
- * après la fermeture.
+ * The player is owned by the screen and released on leaving ([DisposableEffect]): no sound keeps
+ * playing after closing.
  */
 @Composable
 fun AudioPlayerScreen(
@@ -78,7 +78,7 @@ fun AudioPlayerScreen(
     var dragFraction by remember(source.uri) { mutableStateOf(0f) }
     var track by remember { mutableStateOf(IntSize.Zero) }
 
-    // Le lecteur se prépare en arrivant : la durée s'affiche sans qu'on ait à appuyer.
+    // The player is prepared on arrival: the duration shows without having to press.
     DisposableEffect(source.uri) {
         var created: MediaPlayer? = null
         runCatching {
@@ -118,7 +118,7 @@ fun AudioPlayerScreen(
         }
     }
 
-    // Le temps avance tout seul pendant la lecture.
+    // Time advances on its own during playback.
     LaunchedEffect(playing, player) {
         while (playing) {
             player?.let { position.intValue = runCatching { it.currentPosition }.getOrDefault(position.intValue) }
@@ -173,7 +173,7 @@ fun AudioPlayerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    // Le disque du son : la pastille de la maison, avec l'onde au centre.
+                    // The sound disc: the house badge, with the wave at the centre.
                     Box(
                         modifier = Modifier
                             .size(148.dp)
@@ -237,7 +237,7 @@ fun AudioPlayerScreen(
     }
 }
 
-/** La barre du bas du son : le rond lecture/pause, le temps écoulé, la piste, et la durée. */
+/** The sound's bottom bar: the play/pause circle, the elapsed time, the track, and the duration. */
 @Composable
 private fun AudioTransport(
     position: Int,

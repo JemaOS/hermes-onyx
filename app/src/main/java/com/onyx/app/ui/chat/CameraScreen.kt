@@ -46,11 +46,11 @@ import com.onyx.app.ui.design.tapLabel
 import com.onyx.app.ui.localization.resolveOnyxText
 
 /**
- * L'appareil photo de Onyx (`CameraPicker`).
+ * The Onyx camera (`CameraPicker`).
  *
- * L'image en plein écran, l'obturateur au centre en bas, et la sortie à gauche. La bascule
- * avant/arrière est à droite, la torche en haut à droite quand l'objectif en a une, et la grille
- * des tiers se pose sur l'image. La photo prise est rendue à l'appelant comme une pièce jointe.
+ * The full-screen image, the shutter at the bottom centre, and the exit on the left. The
+ * front/back flip is on the right, the torch at the top right when the lens has one, and the
+ * thirds grid is laid over the image. The photo taken is returned to the caller as an attachment.
  */
 @Composable
 fun CameraScreen(
@@ -72,7 +72,7 @@ fun CameraScreen(
     val previewView = remember { PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER } }
     val capture = remember { ImageCapture.Builder().build() }
 
-    // L'objectif, la torche et ce que cet appareil sait faire.
+    // The lens, the torch, and what this device can do.
     var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var hasFrontCamera by remember { mutableStateOf(true) }
     var hasFlash by remember { mutableStateOf(false) }
@@ -97,7 +97,7 @@ fun CameraScreen(
                     .getOrDefault(false)
                 hasFlash = camera.cameraInfo.hasFlashUnit()
                 cameraControl = camera.cameraControl
-                // La torche reprend son état à chaque changement d'objectif.
+                // The torch resumes its state on each lens change.
                 runCatching { camera.cameraControl.enableTorch(torchOn) }
             }
         }
@@ -109,8 +109,8 @@ fun CameraScreen(
         }
     }
 
-    // La bascule avant/arrière : l'objectif change, la torche s'éteint (l'objectif avant en a
-    // rarement une).
+    // The front/back flip: the lens changes, the torch goes off (the front lens rarely
+    // has one).
     val flip: () -> Unit = {
         torchOn = false
         lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
@@ -120,7 +120,7 @@ fun CameraScreen(
         }
     }
 
-    // La torche : on l'allume et on l'éteint sur l'objectif courant.
+    // The torch: we turn it on and off on the current lens.
     val toggleTorch: () -> Unit = {
         val next = !torchOn
         torchOn = next
@@ -136,18 +136,18 @@ fun CameraScreen(
         Box(
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp).fillMaxSize(),
         ) {
-            // L'obturateur.
+            // The shutter.
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .size(72.dp)
                     .background(Color.White.copy(alpha = 0.9f), CircleShape)
                     .onyxClickable(pressedScale = 0.9f) { takePhoto(context, capture, onCapture) }
-                    // L'obturateur est un rond **sans texte** : son nom est le seul moyen de savoir
-                    // ce qu'il fait (relevé d'arbre : zone cliquable muette).
+                    // The shutter is a **text-free** circle: its name is the only way to know
+                    // what it does (tree dump: a silent clickable area).
                     .tapLabel(resolveOnyxText("Take photo")),
             )
-            // La sortie.
+            // The exit.
             OnyxIcon(
                 symbol = Symbols.Xmark,
                 tint = Color.White,
@@ -156,11 +156,11 @@ fun CameraScreen(
                     .align(Alignment.BottomStart)
                     .padding(start = 28.dp, bottom = 48.dp)
                     .onyxClickable(onClick = onClose)
-                    // Le libellé est porté par la **zone**, l'icône devient décorative : le porter
-                    // deux fois ferait deux annonces pour un seul bouton.
+                    // The label is carried by the **area**, the icon becomes decorative: carrying it
+                    // twice would make two announcements for a single button.
                     .tapLabel(resolveOnyxText("Close")),
             )
-            // La bascule avant/arrière, quand il y a un objectif avant.
+            // The front/back flip, when there is a front lens.
             if (granted && hasFrontCamera) {
                 CameraRoundControl(
                     modifier = Modifier
@@ -178,15 +178,15 @@ fun CameraScreen(
             }
         }
 
-        // La torche : le même « bolt.fill » que l'appareil photo de la référence, allumé en orangé.
+        // The torch: the same "bolt.fill" as the reference camera, lit in orange.
         if (granted && hasFlash) {
             CameraRoundControl(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(16.dp),
-                // La lampe est **un** contrôle dont le nom dit ce que le prochain appui fera —
-                // comme le contrôle du volet (« Replier » / « Déplier »).
+                // The lamp is **one** control whose name says what the next press will do —
+                // like the drawer control ("Collapse" / "Expand", « Replier » / « Déplier »).
                 label = resolveOnyxText(if (torchOn) "Turn off the light" else "Turn on the light"),
                 onClick = toggleTorch,
             ) {
@@ -207,8 +207,8 @@ fun CameraScreen(
 }
 
 /**
- * La grille des tiers, comme le quadrillage de l'appareil photo de la référence : deux traits verticaux et
- * deux traits horizontaux, fins et translucides, posés sur l'image.
+ * The thirds grid, like the grid of the reference camera: two vertical lines and
+ * two horizontal lines, thin and translucent, laid over the image.
  */
 @Composable
 private fun ThirdsGrid(modifier: Modifier = Modifier) {
@@ -224,11 +224,11 @@ private fun ThirdsGrid(modifier: Modifier = Modifier) {
     }
 }
 
-/** Un contrôle rond de l'appareil photo, posé sur l'image (bascule, torche). */
+/** A round camera control, laid over the image (flip, torch). */
 @Composable
 private fun CameraRoundControl(
     modifier: Modifier = Modifier,
-    /** Le nom du contrôle : le rond n'a qu'une icône, et une icône seule ne se annonce pas. */
+    /** The control's name: the circle has only an icon, and an icon alone is not announced. */
     label: String,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
@@ -246,11 +246,11 @@ private fun CameraRoundControl(
 }
 
 /**
- * Prend la photo, l'écrit dans le **stockage privé durable** et la rend à l'appelant
+ * Takes the photo, writes it to **durable private storage** and returns it to the caller
  * (`CameraPicker.onCapture`).
  *
- * L'écrire dans `cacheDir` (ce que faisait ce code) la condamnait : le système purge le cache, et
- * la bulle du fil — qui se décode depuis cette URI — devenait « Illisible » après fermeture.
+ * Writing it to `cacheDir` (what this code used to do) condemned it: the system purges the cache,
+ * and the feed bubble — which decodes from that URI — became "Unreadable" (« Illisible ») after closing.
  */
 private fun takePhoto(context: Context, capture: ImageCapture, onCapture: (android.net.Uri) -> Unit) {
     val folder = File(context.filesDir, "photos").apply { mkdirs() }

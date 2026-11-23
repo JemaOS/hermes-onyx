@@ -20,65 +20,65 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Le seul chemin par lequel une image entre en mémoire dans l'app.
+ * The only path by which an image enters memory in the app.
  *
- * Chaque appel passe par deux temps : on lit d'abord **l'en-tête seul** (`inJustDecodeBounds`)
- * pour connaître les dimensions, on demande à [BoundedImage] le facteur de réduction, puis on
- * décode une fois avec ce facteur. L'image pleine résolution n'est donc jamais construite.
+ * Each call goes through two steps: we first read **the header alone** (`inJustDecodeBounds`)
+ * to know the dimensions, we ask [BoundedImage] for the downscale factor, then we
+ * decode once with that factor. The full-resolution image is therefore never built.
  *
- * Trois règles, et une image qui ne les tient pas devient `null` — jamais une exception :
- * 1. le plan vient de [BoundedImage.plan], borné en pixels **et** en octets ;
- * 2. le `Bitmap` obtenu est revérifié ([BoundedImage.canDraw]) : un fichier peut annoncer des
- *    dimensions et en livrer d'autres ;
- * 3. tout ce qui touche au disque, à un `Uri` ou au décodeur est sous `runCatching`.
+ * Three rules, and an image that does not satisfy them becomes `null` — never an exception:
+ * 1. the plan comes from [BoundedImage.plan], bounded in pixels **and** in bytes;
+ * 2. the resulting `Bitmap` is re-checked ([BoundedImage.canDraw]): a file can announce one set of
+ *    dimensions and deliver another;
+ * 3. everything that touches the disk, a `Uri` or the decoder is under `runCatching`.
  *
- * Un `null` est un état normal : l'appelant affiche alors une carte d'erreur ou son symbole.
+ * A `null` is a normal state: the caller then shows an error card or its symbol.
  */
 object BoundedImages {
 
-    /** Le côté le plus long d'une vignette de fil (64 dp à 3× de densité). */
+    /** The longest side of a feed thumbnail (64 dp at 3× density). */
     const val THUMB_PX = 192
 
-    /** Le côté le plus long d'une ligne de l'onglet Fichiers (46 dp à 3×). */
+    /** The longest side of a row in the Files tab (46 dp at 3×). */
     const val ROW_PX = 160
 
-    /** Le côté le plus long d'un aperçu de fichier livré. */
+    /** The longest side of a delivered file preview. */
     const val PREVIEW_PX = 512
 
-    /** Le côté le plus long du lecteur d'image : au-delà, l'écran ne montre rien de plus. */
+    /** The longest side of the image viewer: beyond it, the screen shows nothing more. */
     const val VIEWER_PX = 2048
 
     /**
-     * Le budget du lecteur : plus large que celui d'une vignette (on zoome jusqu'à 2,5×), mais
-     * toujours sous le plafond de dessin du moteur de rendu.
+     * The viewer's budget: wider than a thumbnail's (you zoom up to 2.5×), but
+     * always under the render engine's drawing ceiling.
      */
     const val VIEWER_BYTES = 24 * 1024 * 1024
 
     /**
-     * Le plus gros TIFF qu'on accepte de charger d'un coup.
+     * The largest TIFF we agree to load in one go.
      *
-     * Le décodeur de la maison travaille sur les octets entiers (le format n'offre pas de lecture
-     * partielle comme `BitmapFactory`), donc la borne est posée **avant** la lecture : au-delà, on
-     * rend `null` plutôt que de charger un fichier arbitrairement gros en mémoire.
+     * The house decoder works on whole bytes (the format offers no partial reading
+     * like `BitmapFactory`), so the bound is set **before** reading: beyond it, we
+     * return `null` rather than loading an arbitrarily large file into memory.
      */
     const val MAX_TIFF_BYTES = 64L * 1024 * 1024
 
     /**
-     * Ce qu'on accepte de lire **en entier** pour les formats qui l'exigent (le TIFF de la maison,
-     * et le repli `ImageDecoder` du système pour le HEIC / l'AVIF qu'une version refuse).
+     * What we agree to read **in full** for the formats that require it (the house TIFF,
+     * and the system `ImageDecoder` fallback for HEIC / AVIF that a given version refuses).
      */
     private const val MAX_READ_BYTES = 96 * 1024 * 1024
 
-    /** Décode un fichier du téléphone, borné. */
+    /** Decodes a file from the phone, bounded. */
     fun decodeFile(
         file: File,
         maxPx: Int = THUMB_PX,
         maxBytes: Int = BoundedImage.MAX_BYTES,
     ): Bitmap? = runCatching {
         if (!file.exists() || file.length() <= 0L) return null
-        // Un TIFF ne passe pas par `BitmapFactory` : la signature décide, et le décodeur de la
-        // maison s'en charge, avec ses propres bornes (plafond de pixels lu dans l'en-tête, puis
-        // réduction par moyenne jusqu'au bord demandé).
+        // A TIFF does not go through `BitmapFactory`: the signature decides, and the house
+        // decoder handles it, with its own bounds (pixel ceiling read from the header, then
+        // reduction by averaging down to the requested edge).
         if (fileLooksLikeTiff(file)) return decodeTiffFile(file, maxPx, maxBytes)
         val format = sniffFile(file)
         val plan = planOfFile(file, maxPx, maxBytes) ?: return null
@@ -86,21 +86,21 @@ object BoundedImages {
         val bitmap = BitmapFactory.decodeFile(file.absolutePath, options)
         accept(bitmap, maxBytes, plan)?.let { return it }
 
-        // HEIC / AVIF que `BitmapFactory` ne sait pas lire sur cette version : le décodeur système.
+        // HEIC / AVIF that `BitmapFactory` cannot read on this version: the system decoder.
         if (format == ImageFormat.HEIF || format == ImageFormat.AVIF) {
             return decodeWithImageDecoder({ file.inputStream() }, maxPx, maxBytes)
         }
         null
     }.getOrNull()
 
-    /** Décode un flux rouvert à chaque temps (un `content://` se relit, il ne se rembobine pas). */
+    /** Decodes a stream reopened at each step (a `content://` is re-read, it cannot be rewound). */
     fun decodeStream(
         open: () -> InputStream?,
         maxPx: Int = THUMB_PX,
         maxBytes: Int = BoundedImage.MAX_BYTES,
     ): Bitmap? = runCatching {
-        // La signature se lit sur les premiers octets ; le flux est ensuite rouvert pour la suite.
-        // Un TIFF se lit d'un bloc (borné) ; les autres formats repassent par l'en-tête seul.
+        // The signature is read on the first bytes; the stream is then reopened for the rest.
+        // A TIFF is read in one go (bounded); the other formats go back through the header alone.
         val format = sniffStream(open)
         if (format == ImageFormat.TIFF || streamLooksLikeTiff(open)) {
             val bytes = readBounded(open) ?: return null
@@ -111,14 +111,14 @@ object BoundedImages {
         val bitmap = open()?.use { BitmapFactory.decodeStream(it, null, options) }
         accept(bitmap, maxBytes, plan)?.let { return it }
 
-        // HEIC / AVIF que `BitmapFactory` ne sait pas lire sur cette version : le décodeur système.
+        // HEIC / AVIF that `BitmapFactory` cannot read on this version: the system decoder.
         if (format == ImageFormat.HEIF || format == ImageFormat.AVIF) {
             return decodeWithImageDecoder(open, maxPx, maxBytes)
         }
         null
     }.getOrNull()
 
-    /** Décode des octets déjà en mémoire (photo d'un profil, réponse du serveur), borné. */
+    /** Decodes bytes already in memory (a profile photo, a server response), bounded. */
     fun decodeBytes(
         bytes: ByteArray,
         maxPx: Int = THUMB_PX,
@@ -129,7 +129,7 @@ object BoundedImages {
         decodeStream({ bytes.inputStream() }, maxPx, maxBytes)
     }.getOrNull()
 
-    /** Décode l'image d'un `Uri` du téléphone (galerie, sélecteur, partage), borné. */
+    /** Decodes the image of a phone `Uri` (gallery, picker, share sheet), bounded. */
     fun decodeUri(
         context: Context,
         uri: Uri,
@@ -141,8 +141,8 @@ object BoundedImages {
     }.getOrNull()
 
     /**
-     * Décode hors du fil principal : une image de galerie peut peser lourd, et un `Uri` distant
-     * se lit lentement. L'annulation d'un écran qui part n'est pas une erreur, elle remonte.
+     * Decodes off the main thread: a gallery image can be heavy, and a remote `Uri`
+     * reads slowly. Cancellation of a screen that goes away is not an error, it propagates.
      */
     suspend fun decodeUriOffMain(
         context: Context,
@@ -158,21 +158,21 @@ object BoundedImages {
     }
 
     // -----------------------------------------------------------------------------------------
-    // Le TIFF : le seul format d'image que le système ne décode pas
+    // TIFF: the only image format the system does not decode
     // -----------------------------------------------------------------------------------------
 
-    /** Vrai quand le fichier commence par une signature TIFF. */
+    /** True when the file starts with a TIFF signature. */
     private fun fileLooksLikeTiff(file: File): Boolean = runCatching {
         if (file.length() > MAX_TIFF_BYTES) return false
         file.inputStream().use { stream -> isTiff(stream.readHead()) }
     }.getOrDefault(false)
 
-    /** Vrai quand le flux commence par une signature TIFF (le flux est rouvert par l'appelant). */
+    /** True when the stream starts with a TIFF signature (the stream is reopened by the caller). */
     private fun streamLooksLikeTiff(open: () -> InputStream?): Boolean = runCatching {
         open()?.use { stream -> isTiff(stream.readHead()) } == true
     }.getOrDefault(false)
 
-    /** Les quatre premiers octets d'un flux : de quoi lire une signature, et rien de plus. */
+    /** The first four bytes of a stream: enough to read a signature, and nothing more. */
     private fun InputStream.readHead(): ByteArray {
         val head = ByteArray(4)
         var read = 0
@@ -185,10 +185,10 @@ object BoundedImages {
     }
 
     /**
-     * Le contenu d'un flux, refusé au-delà de [MAX_TIFF_BYTES].
+     * The content of a stream, refused beyond [MAX_TIFF_BYTES].
      *
-     * On lit par blocs et on s'arrête **dès** que le plafond est franchi : un fichier annoncé petit
-     * mais interminable ne peut pas remplir la mémoire, il rend `null`.
+     * We read in blocks and stop **as soon as** the ceiling is crossed: a file announced as small
+     * but endless cannot fill memory, it returns `null`.
      */
     private fun readBounded(open: () -> InputStream?): ByteArray? = runCatching {
         open()?.use { stream ->
@@ -206,7 +206,7 @@ object BoundedImages {
         }
     }.getOrNull()
 
-    /** Le fichier TIFF : lu d'un bloc (borné), puis décodé sous les mêmes plafonds que le reste. */
+    /** The TIFF file: read in one go (bounded), then decoded under the same ceilings as the rest. */
     private fun decodeTiffFile(file: File, maxPx: Int, maxBytes: Int): Bitmap? {
         if (file.length() > MAX_TIFF_BYTES) return null
         val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
@@ -214,11 +214,11 @@ object BoundedImages {
     }
 
     /**
-     * Le TIFF décodé en `Bitmap`, borné **deux fois**.
+     * The TIFF decoded into a `Bitmap`, bounded **twice**.
      *
-     * Le décodeur a déjà réduit l'image à [maxPx] sur son plus grand côté (son propre
-     * sous-échantillonnage, appliqué pendant la lecture) ; le poids obtenu est ensuite confronté au
-     * budget d'octets et au plafond de dessin du moteur, comme pour n'importe quel autre format.
+     * The decoder has already reduced the image to [maxPx] on its longest side (its own
+     * subsampling, applied during reading); the resulting weight is then checked against the
+     * byte budget and the engine's drawing ceiling, as for any other format.
      */
     private fun tiffToBitmap(bytes: ByteArray, maxPx: Int, maxBytes: Int): Bitmap? {
         val image = decodeTiff(bytes, maxPx.coerceAtLeast(1)) ?: return null
@@ -231,11 +231,11 @@ object BoundedImages {
     }
 
     /**
-     * Le tag `Orientation` du TIFF appliqué au `Bitmap` (1–8, comme EXIF les numérote).
+     * The TIFF `Orientation` tag applied to the `Bitmap` (1–8, as EXIF numbers them).
      *
-     * `BitmapFactory` n'applique pas non plus l'orientation EXIF : le comportement reste le même des
-     * deux côtés — mais un TIFF marqué « tourné » (un scanner, par exemple) est fréquent, et le
-     * montrer de travers pour n'avoir pas écrit dix lignes serait un défaut visible.
+     * `BitmapFactory` does not apply the EXIF orientation either: the behaviour stays the same on
+     * both sides — but a TIFF marked as "rotated" (a scanner, for example) is common, and
+     * showing it sideways for want of ten lines would be a visible defect.
      */
     private fun oriented(bitmap: Bitmap, orientation: Int): Bitmap {
         if (orientation !in 2..8) return bitmap
@@ -256,14 +256,14 @@ object BoundedImages {
         }.getOrDefault(bitmap)
     }
 
-    /** Le plan d'un fichier, calculé sur son seul en-tête. */
+    /** The plan of a file, computed from its header alone. */
     private fun planOfFile(file: File, maxPx: Int, maxBytes: Int): BoundedImage.Plan? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, bounds)
         return BoundedImage.plan(bounds.outWidth, bounds.outHeight, maxPx, maxBytes)
     }
 
-    /** Le plan d'un flux, calculé sur son seul en-tête. */
+    /** The plan of a stream, computed from its header alone. */
     private fun planOfStream(open: () -> InputStream?, maxPx: Int, maxBytes: Int): BoundedImage.Plan? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         open()?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -271,9 +271,9 @@ object BoundedImages {
     }
 
     /**
-     * Le dernier contrôle, celui qui empêche le dessin de lever : un `Bitmap` plus lourd que le
-     * budget est libéré et refusé. C'est la ceinture après les bretelles du plan — un JPEG qui
-     * annonce 512×512 et en livre 8000×6000 s'arrête ici.
+     * The final check, the one that keeps drawing from throwing: a `Bitmap` heavier than the
+     * budget is freed and refused. This is the belt after the plan's braces — a JPEG that
+     * announces 512×512 and delivers 8000×6000 stops here.
      */
     private fun accept(bitmap: Bitmap?, maxBytes: Int, plan: BoundedImage.Plan?): Bitmap? {
         if (bitmap == null) return null
@@ -282,10 +282,10 @@ object BoundedImages {
             bitmap.recycle()
             return null
         }
-        // Un JPEG tronqué ne lève pas : le décodeur rend les bandes qu'il a pu lire, et la
-        // vignette montrait une image à moitié dessinée (constaté sur une photo coupée aux deux
-        // tiers). Quand les dimensions obtenues sont nettement sous celles annoncées par
-        // l'en-tête, le fichier est incomplet — on préfère la carte d'erreur à un aperçu menteur.
+        // A truncated JPEG does not throw: the decoder returns the bands it could read, and the
+        // thumbnail showed a half-drawn image (observed on a photo cut at two
+        // thirds). When the dimensions obtained are clearly below those announced by
+        // the header, the file is incomplete — we prefer the error card to a lying preview.
         if (plan != null && isTruncated(bitmap, plan)) {
             bitmap.recycle()
             return null
@@ -293,15 +293,15 @@ object BoundedImages {
         return bitmap
     }
 
-    /** Vrai quand le décodage a rendu beaucoup moins de pixels que l'en-tête n'en annonçait. */
+    /** True when decoding produced far fewer pixels than the header announced. */
     private fun isTruncated(bitmap: Bitmap, plan: BoundedImage.Plan): Boolean =
         BoundedImage.isTruncated(plan.width, plan.height, bitmap.width, bitmap.height)
 
     // -----------------------------------------------------------------------------------------
-    // La reconnaissance de format, et le repli du système (HEIC / AVIF)
+    // Format detection, and the system fallback (HEIC / AVIF)
     // -----------------------------------------------------------------------------------------
 
-    /** Reconnaît le format sur les premiers octets du flux (relecture), sans le charger entier. */
+    /** Recognises the format from the first bytes of the stream (re-read), without loading it whole. */
     private fun sniffStream(open: () -> InputStream?): ImageFormat = runCatching {
         open()?.use { stream ->
             val head = ByteArray(16)
@@ -310,7 +310,7 @@ object BoundedImages {
         } ?: ImageFormat.UNKNOWN
     }.getOrDefault(ImageFormat.UNKNOWN)
 
-    /** Le même relevé, sur les premiers octets d'un fichier. */
+    /** The same reading, on the first bytes of a file. */
     private fun sniffFile(file: File): ImageFormat = runCatching {
         file.inputStream().use { stream ->
             val head = ByteArray(16)
@@ -320,8 +320,8 @@ object BoundedImages {
     }.getOrDefault(ImageFormat.UNKNOWN)
 
     /**
-     * Le HEIC / AVIF par le décodeur du système (`ImageDecoder`, API 28+). Le sous-échantillonnage
-     * suit le même plan borné que le reste ; sur une version sans `ImageDecoder`, rien à faire.
+     * HEIC / AVIF through the system decoder (`ImageDecoder`, API 28+). Subsampling
+     * follows the same bounded plan as the rest; on a version without `ImageDecoder`, nothing to do.
      */
     private fun decodeWithImageDecoder(open: () -> InputStream?, maxPx: Int, maxBytes: Int): Bitmap? = runCatching {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
@@ -334,7 +334,7 @@ object BoundedImages {
         accept(bitmap, maxBytes, plan = null)
     }.getOrNull()
 
-    /** Lit le flux entier, borné : au-delà du plafond de lecture, on refuse plutôt que de gonfler. */
+    /** Reads the whole stream, bounded: beyond the read ceiling, we refuse rather than bloat. */
     private fun readAllBounded(open: () -> InputStream?): ByteArray? = runCatching {
         open()?.use { stream ->
             val out = java.io.ByteArrayOutputStream()

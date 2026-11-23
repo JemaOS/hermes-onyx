@@ -10,131 +10,131 @@ import com.onyx.app.data.model.SubagentActivity
 import com.onyx.app.data.model.SubagentStatus
 
 /**
- * Tout ce que l'écran de chat doit rendre.
+ * Everything the chat screen must render.
  *
- * Immuable : le ViewModel publie une nouvelle valeur à chaque événement du flux.
+ * Immutable: the ViewModel publishes a new value on every stream event.
  */
 data class ChatUiState(
     val server: ServerConfig,
-    /** Conversation locale affichée : la liste large surligne exactement cette rangée. */
+    /** Local conversation displayed: the wide list highlights exactly this row. */
     val conversationId: String? = null,
-    /** Identifiant de session serveur utilisé par les projets et réglages de conversation. */
+    /** Server session identifier used by the conversation projects and settings. */
     val serverSessionId: String? = null,
-    /** Le nom donné à la conversation par « Renommer » (`Conversation.name` de la référence) ; `null` tant
-     *  qu'aucun nom n'a été donné, auquel cas l'en-tête montre la première question. */
+    /** The name given to the conversation by "Rename" (`Conversation.name` of the reference); `null`
+     *  as long as no name has been given, in which case the header shows the first question. */
     val conversationName: String? = null,
     val messages: List<ChatMessage> = emptyList(),
     /**
-     * Le fil ouvert ne portait que sa **dernière page** et le serveur en garde d'autres :
-     * « messages précédents » a quelque chose à demander. Voir
+     * The open thread carried only its **last page** and the server keeps others: "older messages"
+     * has something to ask for. See
      * [com.onyx.app.data.net.ServeSessionMessages.THREAD_PAGE].
      */
     val earlierAvailable: Boolean = false,
-    /** La page plus ancienne est en vol : la ligne du haut dit « chargement » au lieu de mentir. */
+    /** The older page is in flight: the top line says "loading" instead of lying. */
     val loadingEarlier: Boolean = false,
     val input: String = "",
     val isStreaming: Boolean = false,
     /**
-     * L'état honnête du tour en cours de cette conversation : l'étape connue et les horaires.
-     * Le fil s'en sert pour dire ce qui se passe (le serveur n'envoie pas toujours de quoi le
-     * montrer), et il est le même après un retour dans la conversation.
+     * The honest state of the current turn of this conversation: the known step and the timings.
+     * The thread uses it to say what is happening (the server does not always send enough to show
+     * it), and it is the same after returning to the conversation.
      */
     val live: TurnPhase? = null,
-    /** Progression du préremplissage, quand le serveur la remonte (llama.cpp). */
+    /** Prefill progress, when the server reports it (llama.cpp). */
     val prefill: PrefillProgress? = null,
-    /** Statut du gateway/provider pendant le tour (ex. « provider indisponible, réessai »). */
+    /** Gateway/provider status during the turn (e.g. "provider unavailable, retrying"). */
     val providerStatus: String? = null,
     /**
-     * Ce qu'a répondu le serveur à une note de pilotage (« steer queued », « steer rejected… »).
-     * La ligne de statut de la référence (`Conversation.statusLine`) ; elle s'efface à la fin du tour.
+     * What the server answered to a steering note ("steer queued", "steer rejected…").
+     * The reference's status line (`Conversation.statusLine`); it clears at the end of the turn.
      */
     val steerStatus: String? = null,
-    /** Dernière erreur à afficher en bandeau, ou `null`. */
+    /** Last error to show in a banner, or `null`. */
     val error: String? = null,
-    /** Vrai si l'erreur peut être rejouée avec le même message. */
+    /** True if the error can be replayed with the same message. */
     val canRetry: Boolean = false,
-    /** Serveur injoignable : utile pour proposer les réglages. */
+    /** Server unreachable: useful to offer the settings. */
     val isConnectionProblem: Boolean = false,
-    /** Messages écrits pendant une réponse ou retenus par une coupure, avec leurs pièces jointes. */
+    /** Messages written during a reply or held back by a dropout, with their attachments. */
     val queued: List<com.onyx.app.data.model.OutboxItem> = emptyList(),
-    /** Ce qui est joint au message en cours d'écriture. */
+    /** What is attached to the message being written. */
     val attachments: List<PendingAttachment> = emptyList(),
     /**
-     * Ce qu'on a refusé à l'ajout d'une pièce jointe, et pourquoi (le poids et le plafond, en
-     * chiffres) — affiché sous le champ, à la place du problème de dictée. `null` quand rien n'a
-     * été refusé.
+     * What was refused when adding an attachment, and why (the weight and the cap, in figures) —
+     * shown under the field, in place of the dictation problem. `null` when nothing was refused.
      */
     val attachmentProblem: String? = null,
-    /** La recherche dans le fil est ouverte, et ce qu'elle a trouvé. */
+    /** The in-thread search is open, and what it found. */
     val searchOpen: Boolean = false,
     val searchQuery: String = "",
     val followUps: List<String> = emptyList(),
-    /** Le menu « / » du composeur, quand le brouillon commence par une barre oblique. */
+    /** The composer's "/" menu, when the draft starts with a slash. */
     val slashItems: List<SlashItem> = emptyList(),
-    /** Un `/model` nu a été envoyé : l'écran ouvre le sélecteur de modèle (une seule fois). */
+    /** A bare `/model` was sent: the screen opens the model picker (only once). */
     val modelPickerRequested: Boolean = false,
     /**
-     * Le modèle réellement employé par le dernier envoi, une fois résolu contre le serveur : c'est
-     * lui que la seconde ligne de la barre du haut nomme, à côté du « @handle » du bot
-     * (`ContentView` : `modelChipLabel`).
+     * The model actually used by the last send, once resolved against the server: it is the one the
+     * second line of the top bar names, next to the bot's "@handle" (`ContentView`:
+     * `modelChipLabel`).
      */
     val modelInUse: String? = null,
     /**
-     * Le modèle posé pour le **bot** dont c'est la conversation, ou `null` pour une conversation
-     * simple. C'est **le même souvenir** que celui qu'écrit la feuille de modèle
-     * ([com.onyx.app.ui.bots.BotsViewModel.setModel] → `FaceKeys.model`) : la pilule du haut nomme
-     * donc immédiatement ce que la personne vient de choisir, et l'envoi porte ce même modèle.
+     * The model set for the **bot** whose conversation this is, or `null` for a plain
+     * conversation. It is **the same memory** as the one written by the model sheet
+     * ([com.onyx.app.ui.bots.BotsViewModel.setModel] → `FaceKeys.model`): the top pill therefore
+     * immediately names what the person has just chosen, and the send carries that same model.
      */
     val botModel: String? = null,
     /**
-     * Le **profil du bot** dont c'est la conversation, ou `null` pour une conversation simple.
+     * The **bot profile** whose conversation this is, or `null` for a plain conversation.
      *
-     * C'est lui qui décide du profil réellement **en force** ([profileInForce]) et du `profile`
-     * porté au tour : la liaison bot → profil. Sans lui, la conversation d'un bot tournait dans le
-     * profil du serveur (souvent `default`) alors que le bot était annoncé sur son propre profil.
-     * `""` (le profil principal) et `null` (conversation simple) ne sont pas la même chose.
+     * It is what decides the profile actually **in force** ([profileInForce]) and the `profile`
+     * carried on the turn: the bot → profile binding. Without it, a bot's conversation ran in the
+     * server profile (often `default`) while the bot was announced on its own profile. `""` (the
+     * main profile) and `null` (plain conversation) are not the same thing.
      */
     val botProfile: String? = null,
     /**
-     * Le **repli déclaré** du tour : la passerelle a basculé du modèle configuré vers un autre
-     * (souvent le modèle **local**) parce que le premier a échoué, et elle l'a dit sur le flux.
-     * C'est lui qui fait que [modelInForce] nomme le modèle **en force** et que l'en-tête, le
-     * sélecteur et la consommation **disent** le repli au lieu d'annoncer le configuré.
+     * The turn's **declared fallback**: the gateway switched from the configured model to another
+     * (often the **local** model) because the first one failed, and it said so on the stream. It is
+     * what makes [modelInForce] name the model **in force** and the header, the picker and the
+     * usage **say** the fallback instead of announcing the configured one.
      */
     val fallback: com.onyx.app.ui.design.FallbackDeclaration? = null,
     /**
-     * La commande « / » que l'app doit encore exécuter (ouvrir le sélecteur de modèle, une
-     * nouvelle conversation…). L'écran la consomme puis appelle [ChatViewModel.consumeSlash] :
-     * une commande ne doit pas se rejouer à la recomposition suivante.
+     * The "/" command the app must still execute (open the model picker, a new conversation…).
+     * The screen consumes it then calls [ChatViewModel.consumeSlash]: a command must not replay on
+     * the next recomposition.
      */
     val pendingSlash: SlashAction? = null,
     val searchHits: List<String> = emptyList(),
     val searchCurrent: Int = 0,
     /**
-     * Le roster des sous-agents vivants, tel que `subagent.list` le rend (Dashboard seulement).
+     * The roster of live subagents, as `subagent.list` returns it (Dashboard only).
      *
-     * Il comble ce que le fil ne sait pas : la **date de départ** et le **dernier outil** d'un
-     * enfant lancé avant que l'app regarde, ou pendant une reconnexion. Les lignes du fil restent
-     * la source vive ; le roster les complète.
+     * It fills in what the thread does not know: the **start date** and the **last tool** of a
+     * child launched before the app looked, or during a reconnection. The thread's lines remain
+     * the live source; the roster completes them.
      */
     val subagentRoster: List<SubagentActivity> = emptyList(),
 
     /**
-     * **Le roster a été lu au moins une fois.** Tant qu'il ne l'a pas été, une liste vide ne dit
-     * rien — elle peut être « pas encore demandé ». Une fois lu, elle **fait autorité** : une tâche
-     * que le serveur ne liste plus ne tourne plus, même si un message la croit encore vivante.
+     * **The roster has been read at least once.** Until it has been, an empty list says nothing —
+     * it may be "not asked yet". Once read, it **is authoritative**: a task the server no longer
+     * lists is no longer running, even if a message still believes it is alive.
      */
     val subagentRosterRead: Boolean = false,
     /**
-     * La restauration qui attend **confirmation** : le message visé et ce qui serait défait.
-     * Rien n'est retiré tant que ce champ est posé — c'est la confirmation demandée.
+     * The restore waiting for **confirmation**: the target message and what would be undone.
+     * Nothing is removed as long as this field is set — it is the requested confirmation.
      */
     val restorePrompt: RestorePrompt? = null,
-    /** Ce qu'une restauration vient de défaire, à annoncer une fois puis à oublier. */
+    /** What a restore has just undone, to announce once then forget. */
     val restoreNotice: String? = null,
     /**
-     * Le **branchement** qui attend confirmation : le message visé et ce qui serait copié. Rien
-     * n'existe tant que ce champ est posé — c'est la confirmation que la référence demande aussi.
+     * The **branch** waiting for confirmation: the target message and what would be copied.
+     * Nothing exists as long as this field is set — it is the confirmation the reference asks for
+     * too.
      */
     val branchPrompt: BranchPrompt? = null,
 ) {
@@ -142,32 +142,32 @@ data class ChatUiState(
     val canSend: Boolean get() = (input.isNotBlank() || attachments.isNotEmpty()) && !isStreaming
 
     /**
-     * Tous les sous-agents de la conversation : ceux des réponses, complétés par le roster.
+     * All the conversation's subagents: those of the replies, completed by the roster.
      *
-     * Une seule ligne par `subagent_id` — un enfant annoncé par `subagent.start` puis relu par
-     * `subagent.list` ne doit pas apparaître deux fois.
+     * A single line per `subagent_id` — a child announced by `subagent.start` then re-read by
+     * `subagent.list` must not appear twice.
      */
     val subagents: List<SubagentActivity>
         get() {
-            // **Une seule ligne par `subagent_id`**, y compris entre deux messages : une tâche
-            // rejouée par le fil (ou reprise dans une réponse suivante) portait le même
-            // identifiant, et la liste la dessinait deux fois — c'est ce doublon qui faisait
-            // tomber l'écran des tâches (`Key … was already used` dans la `LazyColumn`). On garde
-            // la **dernière** version connue de chaque tâche : c'est la plus fraîche.
+            // **A single line per `subagent_id`**, including across two messages: a task
+            // replayed by the thread (or resumed in a following reply) carried the same
+            // identifier, and the list drew it twice — that duplicate is what crashed the tasks
+            // screen (`Key … was already used` in the `LazyColumn`). The **last** known version of
+            // each task is kept: it is the freshest.
             val fromMessages = messages.flatMap { message ->
                 message.subagents.map { row ->
-                    // **Le roster est la seule autorité sur ce qui tourne encore.** Une tâche que
-                    // le serveur ne liste plus ne travaille plus, quoi qu'en dise un message : sans
-                    // cette règle, une tâche lancée puis interrompue (coupure, reprise, tour
-                    // arrêté) restait « En cours » pour toujours, avec un compteur qui montait
-                    // jusqu'à 238 min — la liste des tâches ne se vidait jamais.
+                    // **The roster is the only authority on what is still running.** A task the
+                    // server no longer lists no longer works, whatever a message says: without
+                    // this rule, a task launched then interrupted (dropout, resume, turn stopped)
+                    // stayed "In progress" forever, with a counter climbing up to 238 min — the
+                    // task list never emptied.
                     val onServer = subagentRoster.firstOrNull { it.id == row.id }
                     when {
                         !subagentRosterRead -> row
                         message.isStreaming -> row
                         !row.status.isLive -> row
                         onServer == null -> row.copy(status = SubagentStatus.UNKNOWN)
-                        // Le serveur a le dernier mot sur l'état : c'est lui qui la voit travailler.
+                        // The server has the last word on the state: it is what sees it working.
                         else -> row.copy(status = onServer.status)
                     }
                 }
@@ -188,27 +188,27 @@ data class ChatUiState(
                     acceptingSteer = row.acceptingSteer && server.acceptingSteer,
                 )
             }
-            // Le roster du serveur peut lui aussi répéter une ligne : la liste est **bornée une
-            // fois**, à la sortie, pour que `subagent_id` reste unique quoi qu'il arrive — c'est
-            // l'invariant dont dépend la clé de la `LazyColumn`.
+            // The server roster can also repeat a line: the list is **bounded once**, on the way
+            // out, so that `subagent_id` stays unique whatever happens — it is the invariant the
+            // `LazyColumn` key depends on.
             return (merged + subagentRoster.filter { it.id !in known }).distinctBy { it.id }
         }
 
     /**
-     * Vrai quand un message écrit maintenant peut piloter la réponse en cours plutôt que
-     * d'attendre. Miroir de `Conversation.canSteer` : il faut un tour en cours et un transport
-     * qui garde un registre côté serveur (`hasLedger` : sessions Hermes ou serve).
+     * True when a message written now can steer the ongoing reply rather than wait.
+     * Mirror of `Conversation.canSteer`: a turn must be running and the transport must keep a
+     * server-side ledger (`hasLedger`: Hermes or serve sessions).
      */
     val canSteer: Boolean get() = isStreaming && server.transport.isStateful
 
     /**
-     * **Le modèle en vigueur** — la seule source de vérité du « modèle qui va servir », **nom à peindre
-     * et modèle à envoyer, la même valeur**.
+     * **The model in force** — the single source of truth for "the model that will serve", **name
+     * to paint and model to send, the same value**.
      *
-     * La pilule du haut, la puce, la feuille de modèle et l'envoi la lisent tous : **ce qui est nommé
-     * est ce qui part**. L'ordre et la règle des alias sont dans
-     * [com.onyx.app.ui.design.ModelInForce.inForce] (conversation → bot → serveur → défaut, l'alias de
-     * passerelle écarté).
+     * The top pill, the chip, the model sheet and the send all read it: **what is named is what
+     * leaves**. The order and the alias rule are in
+     * [com.onyx.app.ui.design.ModelInForce.inForce] (conversation → bot → server → default, the
+     * gateway alias set aside).
      */
     val modelInForce: String?
         get() = com.onyx.app.ui.design.ModelFallback.displayName(
@@ -217,17 +217,17 @@ data class ChatUiState(
         )
 
     /**
-     * **Le profil en vigueur** — la même valeur que celle que l'envoi porte `profile` au tour.
+     * **The profile in force** — the same value the send carries as `profile` on the turn.
      *
-     * Le profil du bot de la conversation décide, sinon celui du serveur, sinon `default`
-     * ([com.onyx.app.ui.design.ProfileInForce.inForce]). L'en-tête écrit cette valeur **telle
-     * quelle** et l'envoi porte **exactement** [botProfile] : ce qui est montré est ce qui sert.
+     * The conversation bot's profile decides, otherwise the server's, otherwise `default`
+     * ([com.onyx.app.ui.design.ProfileInForce.inForce]). The header writes this value **as is**
+     * and the send carries **exactly** [botProfile]: what is shown is what serves.
      */
     val profileInForce: String
         get() = com.onyx.app.ui.design.ProfileInForce.inForce(botProfile, server.effectiveProfile)
 }
 
-/** Change le fil présenté sans laisser fuiter les contrôles éphémères du fil précédent. */
+/** Switches the thread presented without leaking the previous thread's ephemeral controls. */
 internal fun ChatUiState.switchToConversation(
     conversationId: String,
     serverSessionId: String?,
@@ -240,26 +240,26 @@ internal fun ChatUiState.switchToConversation(
     serverSessionId = serverSessionId,
     conversationName = conversationName,
     messages = messages,
-    // La pagination appartient au fil qu'on quitte : la nouvelle conversation repart de sa
-    // dernière page, et `loadRemoteThread` redira s'il reste des messages plus anciens.
+    // Pagination belongs to the thread we are leaving: the new conversation starts from its
+    // last page, and `loadRemoteThread` will say again if older messages remain.
     earlierAvailable = false,
     loadingEarlier = false,
     input = input,
     isStreaming = false,
     live = null,
-    // Le modèle servi appartient à la conversation qu'on quitte : celui de la nouvelle arrive
-    // avec son premier tour (`follow`). Sans ça, le sous-titre de l'en-tête annonçait encore le
-    // modèle de l'ancienne conversation après une création.
+    // The served model belongs to the conversation we are leaving: the new one's arrives
+    // with its first turn (`follow`). Without this, the header subtitle still announced the
+    // old conversation's model after a creation.
     modelInUse = null,
-    // Et le modèle du **bot** de l'ancienne conversation : celui de la nouvelle arrive avec sa
-    // propre conversation (le bot qui la revendique), jamais hérité de la précédente.
+    // And the **bot** model of the old conversation: the new one's arrives with its
+    // own conversation (the bot that claims it), never inherited from the previous one.
     botModel = null,
-    // Et son **profil** : une nouvelle conversation n'hérite pas du profil du bot qu'on quitte —
-    // l'écran le repose pour la conversation qu'il ouvre (`setBotProfile`), ou `null` (conversation
-    // simple). Sans cette remise à zéro, la conversation suivante garderait le profil de la
-    // précédente, et la liaison bot → profil serait fausse.
+    // And its **profile**: a new conversation does not inherit the profile of the bot we are
+    // leaving — the screen sets it again for the conversation it opens (`setBotProfile`), or
+    // `null` (plain conversation). Without this reset, the next conversation would keep the
+    // previous one's profile, and the bot → profile binding would be wrong.
     botProfile = null,
-    // Le repli déclaré appartient à la conversation qu'on quitte : il ne suit pas.
+    // The declared fallback belongs to the conversation we are leaving: it does not follow.
     fallback = null,
     prefill = null,
     providerStatus = null,
@@ -279,17 +279,17 @@ internal fun ChatUiState.switchToConversation(
     searchCurrent = 0,
     restorePrompt = null,
     restoreNotice = null,
-    // Une confirmation qui visait l'autre fil n'a plus d'objet ici (le branchement surtout : il
-    // ouvrirait la copie d'une conversation qu'on vient de quitter).
+    // A confirmation that targeted the other thread no longer has an object here (the branch
+    // especially: it would open the copy of a conversation we have just left).
     branchPrompt = null,
 )
 
 /**
- * Une restauration qui attend confirmation.
+ * A restore waiting for confirmation.
  *
- * [removedMessages] : le nombre de messages du fil qui seront retirés (le message visé reste) ;
- * [removedTurns] : le nombre de **tours utilisateur** qu'il faut rembobiner côté gateway
- * (`session.undo` compte les tours, pas les messages).
+ * [removedMessages]: the number of thread messages that will be removed (the target message
+ * stays); [removedTurns]: the number of **user turns** that must be rewound on the gateway side
+ * (`session.undo` counts turns, not messages).
  */
 data class RestorePrompt(
     val messageId: String,
@@ -298,30 +298,30 @@ data class RestorePrompt(
 )
 
 /**
- * « 1 message » / « 3 messages » : le compte, dans la langue de l'app.
+ * "1 message" / "3 messages": the count, in the app's language.
  *
- * **Le zéro ne se dit pas.** Une phrase qui annonce « retire 0 messages » est absurde : elle décrit
- * une action qui n'en fait aucune. Le cas a donc **sa propre phrase** ([restoreZeroPhrase]), et
- * [restorePromptMessage] bascule dessus dès que le compte vaut zéro.
+ * **Zero is not spoken.** A sentence announcing "removes 0 messages" is absurd: it describes an
+ * action that does none. The case therefore has **its own sentence** ([restoreZeroPhrase]), and
+ * [restorePromptMessage] switches to it as soon as the count is zero.
  */
 internal fun restoreCountPhrase(count: Int): String =
     if (count == 1) OnyxLocalization["1 message"] else OnyxLocalization["$count messages"]
 
 /**
- * La phrase quand il n'y a **rien** à retirer — le message visé est le dernier du fil.
+ * The sentence when there is **nothing** to remove — the target message is the last of the thread.
  *
- * On ne dit pas « 0 message » : on dit ce qui est vrai, et qui s'explique — le fil s'arrête sur ce
- * message, donc la restauration ne retirerait rien.
+ * We do not say "0 messages": we say what is true, and what explains itself — the thread stops on
+ * that message, so the restore would remove nothing.
  */
 internal fun restoreZeroPhrase(): String =
     OnyxLocalization["Nothing follows this message: restoring would remove nothing."]
 
 /**
- * Ce qu'une restauration **à** [messageId] retirerait — `null` si le message n'est pas dans le fil.
+ * What a restore **at** [messageId] would remove — `null` if the message is not in the thread.
  *
- * Fonction **pure** (donc testable) : c'est la règle qui décide du compte des messages et des tours
- * utilisateur à rembobiner. Le message visé **reste** (c'est le point où l'on revient) ; tout ce qui
- * le suit est retiré. Rien n'est coupé ici : [RestorePrompt] sert à **demander confirmation**.
+ * **Pure** function (hence testable): it is the rule that decides the count of messages and user
+ * turns to rewind. The target message **stays** (it is the point we return to); everything that
+ * follows it is removed. Nothing is cut here: [RestorePrompt] is used to **ask for confirmation**.
  */
 internal fun restorePlan(messages: List<ChatMessage>, messageId: String): RestorePrompt? {
     val index = messages.indexOfFirst { it.id == messageId }
@@ -334,18 +334,18 @@ internal fun restorePlan(messages: List<ChatMessage>, messageId: String): Restor
     )
 }
 
-/** Le fil ramené **à** [messageId] : le message visé, et tout ce qui le précède. */
+/** The thread brought back **to** [messageId]: the target message, and everything before it. */
 internal fun messagesThroughRestore(messages: List<ChatMessage>, messageId: String): List<ChatMessage> {
     val index = messages.indexOfFirst { it.id == messageId }
     return if (index < 0) messages else messages.take(index + 1)
 }
 
 /**
- * Un branchement qui attend confirmation.
+ * A branch waiting for confirmation.
  *
- * [copiedMessages] : le nombre de messages que la nouvelle conversation recevra — le message visé
- * **et** tout ce qui le précède. C'est ce compte que la phrase de confirmation donne, et c'est lui
- * qu'un test peut opposer au fil réellement créé.
+ * [copiedMessages]: the number of messages the new conversation will receive — the target message
+ * **and** everything before it. It is this count that the confirmation sentence gives, and it is
+ * this one that a test can oppose to the thread actually created.
  */
 data class BranchPrompt(
     val messageId: String,
@@ -353,12 +353,11 @@ data class BranchPrompt(
 )
 
 /**
- * Ce qu'un branchement **à partir de** [messageId] copierait — `null` si le message n'est pas dans
- * le fil.
+ * What a branch **from** [messageId] would copy — `null` if the message is not in the thread.
  *
- * Fonction **pure** (donc testable) : le message visé est **inclus** (c'est le point de départ de
- * la nouvelle conversation), et tout ce qui suit est laissé à l'originale. Rien n'est créé ici :
- * [BranchPrompt] sert à **demander confirmation**.
+ * **Pure** function (hence testable): the target message is **included** (it is the starting point
+ * of the new conversation), and everything after it is left to the original. Nothing is created
+ * here: [BranchPrompt] is used to **ask for confirmation**.
  */
 internal fun branchPlan(messages: List<ChatMessage>, messageId: String): BranchPrompt? {
     val index = messages.indexOfFirst { it.id == messageId }
@@ -367,13 +366,13 @@ internal fun branchPlan(messages: List<ChatMessage>, messageId: String): BranchP
 }
 
 /**
- * Les **quatre lignes** de la confirmation d'un branchement, dans l'ordre de la référence : ce que
- * le branchement fait, ce qu'il ne fait pas, quand rien ne démarre — puis, en plus, ce que la copie
- * emporte vraiment chez nous.
+ * The **four lines** of a branch confirmation, in the reference's order: what the branch does,
+ * what it does not do, when nothing starts — then, in addition, what the copy really carries on our
+ * side.
  *
- * La dernière ligne est la nôtre et elle est **vraie** : la copie vit sur ce téléphone et les
- * pièces jointes suivent, parce que les messages sont copiés avec leurs pièces jointes. Le compte
- * est celui du fil visé, dans la langue de l'app.
+ * The last line is ours and it is **true**: the copy lives on this phone and the attachments follow,
+ * because the messages are copied with their attachments. The count is that of the target thread,
+ * in the app's language.
  */
 internal fun branchPromptLines(prompt: BranchPrompt): List<String> = listOf(
     OnyxLocalization["Copies this conversation up to this message into a new conversation, and opens it."],
@@ -386,11 +385,11 @@ internal fun branchPromptLines(prompt: BranchPrompt): List<String> = listOf(
 )
 
 /**
- * La phrase de confirmation d'une restauration : ce qui sera défait, en clair.
+ * The confirmation sentence of a restore: what will be undone, plainly.
  *
- * **Le vrai nombre de messages retirés** — celui de [restorePlan], calculé sur le fil réel — au
- * singulier quand il vaut 1, au pluriel au-delà. Et **jamais « 0 »** : quand rien ne suit le message
- * visé, la phrase change ([restoreZeroPhrase]) au lieu d'annoncer un compte nul.
+ * **The real number of removed messages** — that of [restorePlan], computed on the real thread — in
+ * the singular when it is 1, in the plural above. And **never "0"**: when nothing follows the
+ * target message, the sentence changes ([restoreZeroPhrase]) instead of announcing a null count.
  */
 internal fun restorePromptMessage(prompt: RestorePrompt): String =
     if (prompt.removedMessages == 0) {
@@ -402,5 +401,5 @@ internal fun restorePromptMessage(prompt: RestorePrompt): String =
         )
     }
 
-/** Une entrée du menu `/` : ce qui s'écrit dans le brouillon, et ce qui s'affiche. */
+/** An entry of the `/` menu: what is written into the draft, and what is displayed. */
 data class SlashItem(val text: String, val display: String, val detail: String = "")

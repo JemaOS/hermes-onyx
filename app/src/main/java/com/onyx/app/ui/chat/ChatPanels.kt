@@ -57,73 +57,73 @@ import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Ce que les onglets **Flux** et **Fichiers** d'une conversation montrent.
+ * What a conversation's **Feed** and **Files** tabs show.
  *
- * La structure suit celle de la référence — un flux daté, des groupes par catégorie, une ligne de
- * progression, une rangée d'actions — et l'habillage est celui d'Onyx : rayons du thème, barres
- * maison, [LocalOnyxTheme] pour la typographie, la couleur du bot pour l'accent et les étiquettes,
- * les **pastilles de visage** de la maison ([BotLook], jamais un caractère à leur place), tout en
- * français par [OnyxLocalization], et des fondus **figés** sous « Réduire les animations ».
+ * The structure follows the reference — a dated feed, groups by category, a progress
+ * line, an action row — and the skin is Onyx's: theme radii, house
+ * bars, [LocalOnyxTheme] for typography, the bot colour for the accent and the labels,
+ * the house **face badges** ([BotLook], never a character instead), all in
+ * English via [OnyxLocalization], and fades **frozen** under "Reduce Motion".
  *
- * Aucune de ces vues n'invente une donnée serveur :
+ * None of these views invents server data:
  *
- * - le **Feed** est tiré des réponses de ce bot **dans cette conversation** — une carte par réponse
- *   écrite, datée, avec sa rangée d'actions ;
- * - les **Files** sont les fichiers déjà échangés ici, réunis par le même lecteur que les pastilles
- *   du fil ([DeliveredFiles]), plus ce que la personne a joint ;
- * - les **retour** (pouce haut / pouce bas) n'ont **aucune route serveur** pour les recevoir
- *   (relevé : `404` sur `/api/feed`, `/api/feedback` et leurs variantes `onyx`) : ils sont gardés sur
- *   le téléphone et l'écran le dit ;
- * Les onglets **Idées** et **Objectifs** ont été **supprimés** (demande explicite du propriétaire) :
- * leurs listes locales, leurs catégories maison et leurs panneaux ne sont plus ici. Ce fichier ne
- * garde que le Flux et les Fichiers.
+ * - the **Feed** is drawn from this bot's replies **in this conversation** — one card per reply
+ *   written, dated, with its action row;
+ * - the **Files** are the files already exchanged here, gathered by the same reader as the pills
+ *   in the thread ([DeliveredFiles]), plus what the person attached;
+ * - the **feedback** (thumbs up / thumbs down) has **no server route** to receive them
+ *   (survey: `404` on `/api/feed`, `/api/feedback` and their `onyx` variants): they are kept on
+ *   the phone and the screen says so;
+ * The **Ideas** and **Goals** tabs were **removed** (explicit owner request):
+ * their local lists, house categories and panels are no longer here. This file
+ * keeps only the Feed and the Files.
  */
 
 // ---------------------------------------------------------------------------------------------
-// Le Feed — les cartes d'un bot, datées
+// The Feed — a bot's cards, dated
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Une carte du fil : un titre court en gras, un résumé d'une ou deux lignes, la réponse qui l'a
- * produite, et son horodatage pour le regroupement par jour.
+ * A feed card: a short bold title, a one- or two-line summary, the reply that produced
+ * it, and its timestamp for grouping by day.
  */
 data class FeedCard(
-    /** L'identifiant de la réponse : c'est lui qui porte le retour, donc il ne change pas. */
+    /** The reply's identifier: it carries the feedback, so it does not change. */
     val id: String,
     val title: String,
     val text: String,
-    /** Le texte entier, pour le détail ouvert par le bouton d'information. */
+    /** The full text, for the detail opened by the information button. */
     val detail: String,
     val atMillis: Long,
     /**
-     * Le **nom de profil** du bot qui a écrit cette réponse — celui par qui le visage se résout
-     * (`BotFaceResolver.codeOf`). C'est lui, et non le visage du panneau, que la carte peint : dans
-     * une salle de groupe, chaque carte montre donc le visage de **son** bot, comme le fil.
+     * The **profile name** of the bot that wrote this reply — the one the face resolves
+     * from (`BotFaceResolver.codeOf`). It is this, not the panel's face, that the card paints: in
+     * a group room, each card therefore shows **its own** bot's face, like the thread.
      *
-     * Vide quand l'auteur n'est pas nommé (une conversation à un bot, une carte forgée par un
-     * test) : la carte retombe alors sur le visage de repli du panneau.
+     * Empty when the author is not named (a single-bot conversation, a card forged by a
+     * test): the card then falls back to the panel's fallback face.
      */
     val author: String = "",
 )
 
 object ChatFeed {
 
-    /** La longueur du résumé d'une carte. */
+    /** The length of a card's summary. */
     const val Excerpt = 180
 
-    /** La longueur maximale d'un titre. */
+    /** The maximum length of a title. */
     const val TitleLimit = 64
 
-    /** La longueur du texte gardé pour le détail d'une carte. */
+    /** The length of the text kept for a card's detail. */
     const val DetailLimit = 900
 
     /**
-     * Les cartes que ce bot a produites dans cette conversation : une par réponse écrite, la plus
-     * récente en tête. Une réponse sans texte (outil seul, tour interrompu) n'a rien à montrer,
-     * donc elle ne fait pas de carte.
+     * The cards this bot produced in this conversation: one per written reply, most
+     * recent first. A reply with no text (tool only, interrupted turn) has nothing to show,
+     * so it makes no card.
      *
-     * Chaque carte garde **son** auteur (`ChatMessage.authorProfile`) : c'est le nom de profil du
-     * bot qui a répondu, donc le panneau peut peindre le visage de chacune et non un visage unique.
+     * Each card keeps **its** author (`ChatMessage.authorProfile`): it is the profile name of the
+     * bot that replied, so the panel can paint each one's face rather than a single face.
      */
     fun cards(messages: List<ChatMessage>, botName: String, limit: Int = 40): List<FeedCard> =
         messages.asSequence()
@@ -133,7 +133,7 @@ object ChatFeed {
             .map { message -> card(message, botName) }
             .reversed()
 
-    /** Une carte, telle que [cards] la compose. */
+    /** A card, as [cards] composes it. */
     fun card(message: ChatMessage, botName: String): FeedCard {
         val flat = flatten(message.text)
         val stop = flat.indexOfFirst { it == '.' || it == '!' || it == '?' || it == ':' }
@@ -146,8 +146,8 @@ object ChatFeed {
             text = if (rest.isBlank()) flat.take(Excerpt) else rest,
             detail = flat.take(DetailLimit),
             atMillis = message.createdAt,
-            // L'auteur est **lu** sur le message, jamais deviné : c'est le profil que le fil
-            // emploie déjà pour le nom et le visage de cette réponse.
+            // The author is **read** from the message, never guessed: it is the profile the thread
+            // already uses for this reply's name and face.
             author = message.authorProfile,
         )
     }
@@ -155,10 +155,10 @@ object ChatFeed {
     private fun flatten(text: String): String = text.replace(Regex("\\s+"), " ").trim()
 
     /**
-     * Le titre d'un groupe de cartes : « Aujourd'hui », « Hier », « Cette semaine », « Plus tôt ».
+     * The title of a group of cards: "Today", "Yesterday", "This week", "Earlier".
      *
-     * Rend une **clé** du dictionnaire, jamais un texte déjà formaté : la date ne se met donc jamais
-     * en forme avec la locale de la machine.
+     * Returns a dictionary **key**, never an already formatted text: the date is therefore never
+     * formatted with the machine's locale.
      */
     fun dayLabel(atMillis: Long, nowMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String {
         if (atMillis <= 0L) return "Earlier"
@@ -175,25 +175,25 @@ object ChatFeed {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Les Files — ce qui a été échangé ici
+// The Files — what was exchanged here
 // ---------------------------------------------------------------------------------------------
 
 object ChatFiles {
 
     /**
-     * Les fichiers échangés dans cette conversation, sans doublon : ce que les réponses ont livré
-     * (le même repérage que les pastilles du fil) et ce que la personne a joint.
+     * The files exchanged in this conversation, without duplicates: what the replies delivered
+     * (the same detection as the thread pills) and what the person attached.
      */
     fun exchanged(messages: List<ChatMessage>): List<DeliveredFile> =
         conversationFiles(messages).map { file -> DeliveredFile(name = file.name, path = file.path) }
 
     /**
-     * Les mêmes fichiers, avec ce que l'onglet **Fichiers** a besoin de savoir de plus : le **type**
-     * annoncé par une pièce jointe, et la **date** du message qui l'a amené — la seule date dont
-     * l'app dispose sans interroger le serveur.
+     * The same files, with what the **Files** tab needs to know beyond that: the **type**
+     * announced by an attachment, and the **date** of the message that brought it in — the only date
+     * the app has without asking the server.
      *
-     * Un fichier garde sa première apparition : c'est là qu'il est arrivé dans la conversation, et
-     * une réponse qui le redonne ne le déplace pas.
+     * A file keeps its first appearance: that is where it arrived in the conversation, and
+     * a reply that gives it again does not move it.
      */
     fun conversationFiles(messages: List<ChatMessage>): List<ConversationFile> {
         val out = LinkedHashMap<String, ConversationFile>()
@@ -228,18 +228,18 @@ object ChatFiles {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Les morceaux communs
+// The shared pieces
 // ---------------------------------------------------------------------------------------------
 
-/** La tête d'un onglet : la pastille de visage du bot, son nom, et l'action de composer. */
+/** A tab's header: the bot's face badge, its name, and the compose action. */
 @Composable
 private fun PanelHeader(
-    /** Le nom **affiché** (le libellé du bot) : c'est le texte de la tête, jamais la clé du visage. */
+    /** The **displayed** name (the bot's label): it is the header text, never the face key. */
     botName: String,
     /**
-     * Le **nom de profil** du bot (`ThreadSpeaker.faceName`) : le visage s'y résout. Le libellé,
-     * lui, ne le résout pas — « Onyx » (le libellé) donnait un soleil ambre là où « default » (le
-     * profil) donne la bulle bleue : le défaut « le même bot a deux visages ».
+     * The bot's **profile name** (`ThreadSpeaker.faceName`): the face resolves from it. The label,
+     * in contrast, does not resolve it — "Onyx" (the label) gave an amber sun where "default" (the
+     * profile) gives the blue bubble: the flaw "the same bot has two faces".
      */
     faceName: String,
     faceCode: String?,
@@ -281,7 +281,7 @@ private fun PanelHeader(
     }
 }
 
-/** Un bouton maison : la pastille du thème, l'encre mesurée sur son propre fond. */
+/** A house button: the theme's pill, the ink measured against its own background. */
 @Composable
 private fun PillButton(
     label: String,
@@ -326,7 +326,7 @@ private fun PillButton(
     }
 }
 
-/** Le titre d'une section : un libellé, un compte, et une petite étiquette à la couleur du bot. */
+/** A section title: a label, a count, and a small tag in the bot's colour. */
 @Composable
 private fun SectionHeader(label: String, count: Int, accent: Color, modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
@@ -347,14 +347,14 @@ private fun SectionHeader(label: String, count: Int, accent: Color, modifier: Mo
     }
 }
 
-/** La petite étiquette colorée d'un groupe : le compte, à la couleur du bot. */
+/** A group's small coloured tag: the count, in the bot's colour. */
 @Composable
 private fun CountTag(count: Int, accent: Color) {
     val theme = LocalOnyxTheme.current
-    // **Le compteur de la maison.** C'est un **nombre** : il prend la géométrie du compteur
-    // ([CounterBadge] — rembourrage de 2 dp au-dessus et au-dessous, largeur **mesurée**, carré
-    // optique pour un seul chiffre) au lieu d'un rembourrage écrit à la main. Un en-tête qui compte
-    // « 1 » ou « 128 » montre donc la même pastille correctement dimensionnée dans les deux cas.
+    // **The house counter.** It is a **number**: it takes the counter's geometry
+    // ([CounterBadge] — 2 dp padding above and below, **measured** width, optical
+    // square for a single digit) instead of a hand-written padding. A header that counts
+    // "1" or "128" therefore shows the same correctly sized badge in both cases.
     CounterBadge(
         count = count,
         fill = accent.copy(alpha = 0.16f),
@@ -363,11 +363,11 @@ private fun CountTag(count: Int, accent: Color) {
 }
 
 /**
- * Une source, à gauche d'une ligne : la pastille de visage du bot, ou le symbole de la personne.
+ * A source, on the left of a row: the bot's face badge, or the person's symbol.
  *
- * Le premier paramètre est le **nom de profil** du bot (`ThreadSpeaker.faceName`) — jamais son
- * libellé — pour que la carte du Flux montre exactement le visage que la barre du haut montre. La
- * personne, elle, n'a pas de visage de bot : elle porte le symbole neutre, jamais une créature.
+ * The first parameter is the bot's **profile name** (`ThreadSpeaker.faceName`) — never its
+ * label — so that the Feed card shows exactly the face the top bar shows. The
+ * person, for their part, has no bot face: they wear the neutral symbol, never a creature.
  */
 @Composable
 private fun SourceMark(faceName: String, faceCode: String?, fromBot: Boolean, size: androidx.compose.ui.unit.Dp = 22.dp) {
@@ -384,7 +384,7 @@ private fun SourceMark(faceName: String, faceCode: String?, fromBot: Boolean, si
     }
 }
 
-/** Le filet d'un groupe : 0,5 dp, la teinte de séparation du thème. */
+/** A group's hairline: 0.5 dp, the theme's separator tint. */
 @Composable
 private fun Hairline(modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
@@ -392,13 +392,13 @@ private fun Hairline(modifier: Modifier = Modifier) {
 }
 
 /**
- * Un état vide qui **dit** quelque chose d'utile : ce qui manque, et ce qui va le remplir. Jamais
- * un écran blanc.
+ * An empty state that **says** something useful: what is missing, and what will fill it. Never
+ * a blank screen.
  *
- * **Il suit l'alignement de son écran** : les panneaux de la conversation (en-tête, listes, cartes)
- * sont alignés à **gauche** ; un état vide centré y flottait au milieu d'un écran aligné à gauche —
- * le propriétaire l'a relevé (« jamais les deux »). Il prend donc `Alignment.Start`, comme le titre
- * et les rangées du panneau qui le porte.
+ * **It follows its screen's alignment**: the conversation panels (header, lists, cards)
+ * are aligned to the **left**; a centred empty state floated in the middle of a left-aligned screen —
+ * the owner raised it ("never both"). It therefore takes `Alignment.Start`, like the title
+ * and the rows of the panel that carries it.
  */
 @Composable
 private fun PanelEmpty(title: String, detail: String?, modifier: Modifier = Modifier) {
@@ -424,38 +424,38 @@ private fun PanelEmpty(title: String, detail: String?, modifier: Modifier = Modi
 }
 
 // ---------------------------------------------------------------------------------------------
-// Le Feed
+// The Feed
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Le flux daté des cartes d'un bot, avec sa rangée d'actions et le détail de chaque carte.
+ * A bot's dated feed of cards, with its action row and each card's detail.
  *
- * **Le visage est résolu carte par carte.** Le panneau ne reçoit plus un visage unique : il reçoit
- * un résolveur ([face], le `BotFaceResolver.codeOf` de l'écran) et le **visage de repli** de la
- * conversation ([fallbackFaceCode]). Chaque carte peint `face(card.author)` — le bot qui a répondu,
- * celui que le fil nomme — et retombe sur le repli quand la carte n'a pas d'auteur nommé. Une salle
- * de groupe montrait donc le visage de la salle sur **toutes** ses cartes, là où le fil montrait
- * celui de chaque bot : c'est ce défaut que ce câblage supprime.
+ * **The face is resolved card by card.** The panel no longer receives a single face: it receives
+ * a resolver ([face], the screen's `BotFaceResolver.codeOf`) and the conversation's **fallback
+ * face** ([fallbackFaceCode]). Each card paints `face(card.author)` — the bot that replied,
+ * the one the thread names — and falls back when the card has no named author. A group
+ * room therefore showed the room's face on **all** its cards, where the thread showed
+ * each bot's: that is the flaw this wiring removes.
  */
 @Composable
 fun ChatFeedPane(
     cards: List<FeedCard>,
     feedback: Map<String, String>,
-    /** Le nom **affiché** de la conversation (le libellé du bot, ou le nom de la salle). */
+    /** The conversation's **displayed** name (the bot's label, or the room's name). */
     botName: String,
     /**
-     * Le **nom de profil** de la tête d'onglet : une carte lit le sien dans `card.author`, mais la
-     * tête n'a pas de carte à lire — elle garde donc le profil de la conversation (le nom de la
-     * salle pour un salon). C'est la clé que la barre du haut emploie aussi, jamais le libellé.
+     * The tab header's **profile name**: a card reads its own from `card.author`, but the
+     * header has no card to read — it therefore keeps the conversation's profile (the room's
+     * name for a room). It is the key the top bar also uses, never the label.
      */
     faceName: String,
     /**
-     * Le visage d'un **profil**, carte par carte : le résolveur de l'écran
-     * (`BotFaceResolver.codeOf`, toujours `face = { name -> face(name) }` chez l'appelant).
-     * `null` quand rien ne fixe ce profil — le repli décide alors.
+     * The face of a **profile**, card by card: the screen's resolver
+     * (`BotFaceResolver.codeOf`, always `face = { name -> face(name) }` at the caller).
+     * `null` when nothing fixes this profile — the fallback then decides.
      */
     face: (String) -> String? = { null },
-    /** **Le visage de repli** : celui de la conversation (la salle), quand une carte n'a pas d'auteur. */
+    /** **The fallback face**: the conversation's (the room's), when a card has no author. */
     fallbackFaceCode: String? = null,
     accent: Color,
     nowMillis: Long,
@@ -513,9 +513,9 @@ fun ChatFeedPane(
                 }
             }
             item(key = card.id) {
-                // **Le visage de CETTE carte**, résolu sur son auteur — le bot qui a répondu —,
-                // jamais un visage unique pour tout le flux. Le nom vient du même auteur ; une
-                // carte sans auteur garde le profil de la conversation et le visage de repli.
+                // **THIS card's face**, resolved from its author — the bot that replied —,
+                // never a single face for the whole feed. The name comes from the same author; a
+                // card without an author keeps the conversation's profile and the fallback face.
                 val cardFace = face(card.author) ?: fallbackFaceCode
                 val cardName = card.author.ifBlank { faceName }
                 FeedCardRow(
@@ -530,19 +530,19 @@ fun ChatFeedPane(
                 )
             }
         }
-        // Pas de note de pied : la tête du flux porte **déjà** la même phrase (« Vos pouces sont
-        // gardés sur ce téléphone… »), et la répéter en bas du flux la faisait lire deux fois dans
-        // le même écran (mesuré à 411 dp sur une conversation d'une carte). Une seule occurrence,
-        // là où l'action se trouve : sous la tête, à côté de « Composer ».
+        // No footer note: the feed header **already** carries the same sentence ("Your thumbs are
+        // kept on this phone…"), and repeating it at the bottom of the feed made it read twice on
+        // the same screen (measured at 411 dp on a one-card conversation). A single occurrence,
+        // where the action is: below the header, next to "Compose".
     }
 }
 
 /**
- * Une carte du Feed : source, titre en gras, résumé, rangée d'actions, et le détail à droite.
+ * A Feed card: source, bold title, summary, action row, and the detail on the right.
  *
- * Sa pastille de source est **le visage de son auteur** (`faceName` + `faceCode`, résolus par le
- * panneau sur `card.author`) : dans une salle, deux cartes de deux bots ne montrent donc pas le
- * même visage.
+ * Its source badge is **its author's face** (`faceName` + `faceCode`, resolved by the
+ * panel from `card.author`): in a room, two cards from two bots therefore do not show the
+ * same face.
  */
 @Composable
 private fun FeedCardRow(
@@ -628,7 +628,7 @@ private fun FeedCardRow(
             )
         }
 
-        // Le détail : la source, l'heure, et le texte entier de la réponse.
+        // The detail: the source, the time, and the reply's full text.
         AnimatedVisibility(
             visible = showDetail,
             enter = fadeIn(animationSpec = reducedSpec(OnyxMotion.Sites.MessageFold)),
@@ -651,7 +651,7 @@ private fun FeedCardRow(
     }
 }
 
-/** Un pouce : le choix est dit à l'écran (inversé) et son encre est mesurée sur le fond réel. */
+/** A thumb: the choice is said on screen (inverted) and its ink is measured against the real background. */
 @Composable
 private fun ThumbAction(
     symbol: Int,

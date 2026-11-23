@@ -9,10 +9,10 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 
 /**
- * La touche nommée que Compose rapporte, ou [ChatKey.OTHER].
+ * The named key that Compose reports, or [ChatKey.OTHER].
  *
- * Compose est la seule partie de la table des raccourcis qui ne peut pas être testée sur la JVM :
- * elle est isolée ici, et tout ce qui décide vit dans `chatShortcutFor`.
+ * Compose is the only part of the shortcut table that cannot be tested on the JVM:
+ * it is isolated here, and everything that decides lives in `chatShortcutFor`.
  */
 fun chatKeyOf(key: Key): ChatKey = when (key) {
     Key.N -> ChatKey.N
@@ -27,10 +27,10 @@ fun chatKeyOf(key: Key): ChatKey = when (key) {
 }
 
 /**
- * Le raccourci que cet événement déclenche, ou `null`.
+ * The shortcut this event triggers, or `null`.
  *
- * Miroir du `onPreviewKeyEvent` de `OnyxComposer` pour Ctrl+V : la touche de commande couvre ⌘
- * sur la référence et Ctrl sur un clavier Android/externe, et Échap agit sans modificateur.
+ * Mirrors `OnyxComposer`'s `onPreviewKeyEvent` for Ctrl+V: the command key covers ⌘
+ * on the reference and Ctrl on an Android/external keyboard, and Escape acts with no modifier.
  */
 fun chatShortcutOf(event: KeyEvent): ChatShortcut? {
     if (event.type != KeyEventType.KeyDown) return null

@@ -7,30 +7,30 @@ import android.provider.OpenableColumns
 import java.io.File
 
 /**
- * Le poids d'une pièce jointe, et l'examen des limites **avant** qu'elle n'entre dans le message.
+ * The weight of an attachment, and the checking of limits **before** it enters the message.
  *
- * C'est ce qui manquait : le compositeur ne vérifiait que ce qu'on lui **déposait** (le glisser-
- * déposer d'un bureau), et il le vérifiait après coup — la bande des pièces jointes affichait alors
- * un refus pendant que la pièce était déjà là. Choisi par la photothèque, l'appareil photo, les
- * fichiers ou le presse-papiers, un fichier de 300 Mo traversait l'app : lu entier en mémoire,
- * encodé en data URL, envoyé. Il est refusé ici, tout de suite, avec son poids et le plafond.
+ * This is what was missing: the composer only checked what was **dropped onto** it (dragging
+ * and dropping from a desktop), and it checked it afterwards — the attachment strip showed a
+ * refusal while the item was already there. Chosen via the photo library, the camera, the files
+ * or the clipboard, a 300 MB file went through the app: read whole into memory, encoded as a
+ * data URL, sent. It is refused here, at once, with its weight and the cap.
  *
- * Depuis le lot des pièces durables, le poids se lit **sur la copie** (`filesDir`) : c'est la
- * seule mesure qui reste vraie une fois l'app fermée.
+ * Since the durable batch, the weight is read **on the copy** (`filesDir`): the only measure
+ * that stays true once the app is closed.
  */
 internal class AttachmentAdmission(
     val accepted: List<PendingAttachment>,
     val problem: String?,
-    /** Ce qui n'a **pas pu être copié** (source disparue) — le dit aussi, jamais en silence. */
+    /** What **could not be copied** (source gone) — also reported, never silently. */
     val refused: Int = 0,
 )
 
-/** Le poids d'un fichier du stockage privé, lu sur la copie — exact, et sans fournisseur. */
+/** The weight of a file in private storage, read on the copy — exact, and without a provider. */
 fun durableFileLength(uri: Uri): Long? =
     if (uri.scheme == "file") runCatching { File(uri.path ?: return null).length().takeIf { it > 0L } }.getOrNull()
     else null
 
-/** Le poids annoncé par le fournisseur (`OpenableColumns.SIZE`), quand il le donne. */
+/** The weight announced by the provider (`OpenableColumns.SIZE`), when it gives it. */
 fun resolveAttachmentBytes(resolver: ContentResolver, uri: Uri): Long? = runCatching {
     resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
         val column = cursor.getColumnIndex(OpenableColumns.SIZE)
@@ -39,8 +39,8 @@ fun resolveAttachmentBytes(resolver: ContentResolver, uri: Uri): Long? = runCatc
 }.getOrNull()
 
 /**
- * Le poids mesuré quand le fournisseur ne le dit pas : on compte les octets, et on **s'arrête au
- * plafond** — la réponse est « trop gros » sans lire les 300 Mo du fichier.
+ * The weight measured when the provider does not give it: we count the bytes, and **stop at the
+ * cap** — the answer is "too big" without reading the 300 MB of the file.
  */
 fun countAttachmentBytes(
     resolver: ContentResolver,
@@ -60,19 +60,20 @@ fun countAttachmentBytes(
     }
 }.getOrNull()
 
-/** Le poids d'une pièce jointe : la copie durable d'abord, sinon la taille annoncée, sinon mesurée. */
+/** The weight of an attachment: the durable copy first, else the announced size, else measured. */
 fun attachmentBytes(resolver: ContentResolver, uri: Uri): Long? =
     durableFileLength(uri) ?: resolveAttachmentBytes(resolver, uri) ?: countAttachmentBytes(resolver, uri)
 
 /**
- * Passe les pièces jointes choisies à l'examen : celles qui tiennent entrent, les autres sont
- * refusées avec la phrase qui le dit (le premier refus se dit, la suite se tait — on n'empile pas
- * quatre messages pour quatre fichiers).
+ * Passes the chosen attachments to the check: those that fit go in, the others are refused with
+ * the sentence that says so (the first refusal is reported, the rest stay quiet — we do not stack
+ * four messages for four files).
  *
- * [existing] : ce qui est déjà au message, pour le nombre et le poids cumulé.
+ * [existing]: what is already in the message, for the count and the cumulative weight.
  *
- * C'est ici que la copie durable a lieu ([pendingAttachmentsFromUris]) : une source qui ne répond
- * plus ne rend pas de pièce jointe, et sa disparition se **dit** ([AttachmentAdmission.refused]).
+ * This is where the durable copy takes place ([pendingAttachmentsFromUris]): a source that no
+ * longer answers yields no attachment, and its disappearance is **reported**
+ * ([AttachmentAdmission.refused]).
  */
 internal fun admitAttachments(
     context: Context,
@@ -102,8 +103,8 @@ internal fun admitAttachments(
             bytes += size ?: 0L
         }
     }
-    // Une pièce qui n'a pas pu être copiée ne se tait pas : c'est le cas « l'autorisation de la
-    // galerie a expiré », et le geste qui peut aboutir est de la renvoyer depuis l'appareil.
+    // An item that could not be copied is not kept quiet: this is the "the gallery permission
+    // has expired" case, and the gesture that can succeed is to send it again from the device.
     val lost = uris.size - candidates.size
     if (lost > 0 && problem == null) {
         problem = com.onyx.app.localization.OnyxLocalization[

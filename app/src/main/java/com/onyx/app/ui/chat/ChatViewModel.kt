@@ -71,35 +71,35 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 /**
- * Pilote une conversation : envoie le tour au serveur, applique les événements du flux, expose
- * l'état à l'écran et enregistre le fil.
+ * Drives a conversation: sends the turn to the server, applies stream events, exposes the
+ * state to the screen and records the thread.
  *
- * Miroir partiel de `Conversation` côté référence : `startTurn` devient [send], `apply(_:to:)`
- * devient [applyEvent], et `ConversationStore` est ici [ConversationRepository].
+ * Partial mirror of the reference `Conversation`: `startTurn` becomes [send], `apply(_:to:)`
+ * becomes [applyEvent], and `ConversationStore` is here [ConversationRepository].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-/** Le calme avant d'interroger le serveur pour le menu « / » (ms). */
+/** The calm before querying the server for the "/" menu (ms). */
 private const val SlashCompleteDebounceMs = 120L
 
-/** L'attente la plus longue d'un tour avant qu'une commande « / » ne renonce (10 minutes). */
+/** The longest wait of a turn before a "/" command gives up (10 minutes). */
 private const val SlashWaitTimeoutMs = 10 * 60 * 1000L
 
 /**
- * Les deux temps de la reprise d'import après une réinstallation.
+ * The two timings of the import retry after a reinstall.
  *
- * Premier essai rapide (le serveur répond souvent dès la deuxième frame), puis on double jusqu'à
- * une minute : au pire une lecture par minute tant que ça échoue, et plus aucune dès que c'est fait.
- * Sans ce plafond, un serveur injoignable ferait tourner une boucle serrée.
+ * Fast first attempt (the server often answers from the second frame), then doubling up to
+ * one minute: at worst one read per minute while it fails, and none at all once it is done.
+ * Without this ceiling, an unreachable server would spin a tight loop.
  */
 private const val IMPORT_RETRY_FIRST_MS = 3_000L
 private const val IMPORT_RETRY_CEILING_MS = 60_000L
 
 /**
- * Combien de canaux du Dashboard restent ouverts, un par profil de bot.
+ * How many Dashboard channels stay open, one per bot profile.
  *
- * Trois : le bot qu'on quitte, celui qu'on ouvre et le suivant se croisent souvent (aller-retour
- * entre deux bots, un troisième dans la conversation). Au-delà, le plus ancien se referme — un
- * socket oublié coûte autant qu'un handshake raté.
+ * Three: the bot being left, the one being opened and the next one often overlap (back-and-forth
+ * between two bots, a third one in the conversation). Beyond that, the oldest closes — a
+ * forgotten socket costs as much as a failed handshake.
  */
 private const val ServeChannelLimit = 3
 
@@ -110,8 +110,8 @@ class ChatViewModel(
     private val settings: SettingsRepository,
     private val drafts: DraftStore,
     /**
-     * Les tours en cours du processus. Le tour vit là, **au-dessus de l'écran** : quitter la
-     * conversation ou détruire l'activité ne l'arrête pas, et le fil le retrouve au retour.
+     * The process's in-flight turns. The turn lives there, **above the screen**: leaving the
+     * conversation or destroying the activity does not stop it, and the thread finds it on return.
      */
     private val turns: TurnStore,
 ) : AndroidViewModel(application) {
@@ -119,8 +119,8 @@ class ChatViewModel(
     private var conversationId: String = UUID.randomUUID().toString()
 
     /**
-     * Le roster gardé sur ce téléphone, lu par l'import des sessions du serveur pour savoir
-     * quelles sessions sont le **chat d'un bot** — et non des conversations à importer.
+     * The roster kept on this phone, read by the server session import to know
+     * which sessions are **a bot's chat** — and not conversations to import.
      */
     private val roster = BotRosterCache(getApplication<Application>())
 
@@ -129,18 +129,18 @@ class ChatViewModel(
     )
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
-    /** La liste affichée par l'écran des conversations, la plus récente d'abord. */
+    /** The list shown by the conversations screen, most recent first. */
     val history: StateFlow<List<Conversation>> = conversations.conversations
 
     /**
-     * **Ce que l'import des conversations du serveur a donné, dit à l'écran.**
+     * **What the server conversation import produced, said on screen.**
      *
-     * Trois correctifs successifs n'ont pas suffi parce que cet import échouait **en silence** :
-     * une lecture qui lève, un serveur qui répond 401, un profil qui n'existe pas — tout finissait
-     * dans un `runCatching` et l'écran restait vide sans un mot. On ne diagnostique pas ça depuis
-     * une capture d'écran, et le propriétaire n'a pas à jouer au devin.
+     * Three successive fixes were not enough because this import failed **silently**:
+     * a read that throws, a server answering 401, a profile that does not exist — everything ended
+     * in a `runCatching` and the screen stayed empty without a word. That is not diagnosed from
+     * a screenshot, and the owner should not have to play the guesser.
      *
-     * `null` = tout va bien. Sinon : la raison, en clair, affichée au-dessus de la liste.
+     * `null` = all is well. Otherwise: the reason, in plain terms, shown above the list.
      */
     private val _importNote = MutableStateFlow<String?>(null)
     val importNote: StateFlow<String?> = _importNote.asStateFlow()
@@ -148,41 +148,41 @@ class ChatViewModel(
     private var lastRequest: ChatRequest? = null
     private val runControls = RunChatControlsStore(application)
 
-    /** Les tours dont l'issue a déjà été arbitrée (une seule fois chacun). */
+    /** The turns whose outcome has already been settled (each only once). */
     private val settledTurns = mutableSetOf<String>()
 
-    /** Identifiant de session côté serveur, quand le transport en tient une. */
+    /** Server-side session identifier, when the transport holds one. */
     private var serverSessionId: String? = null
 
-    /** Le nom donné à la conversation (« Renommer »), ou `null` tant qu'elle n'a que sa question. */
+    /** The name given to the conversation ("Rename" ("Renommer")), or `null` while it only has its question. */
     private var conversationName: String? = null
 
-    /** Les messages écrits pendant une réponse : ils partent l'un après l'autre à la fin. */
+    /** The messages written during a response: they leave one after another at the end. */
     private val queued = OutboxQueue()
     private var retryJob: Job? = null
     private val serverImportGate = Mutex()
-    /** Le rattrapage d'un tour fini sans nous (voir [resumeDetachedTurn]) : un seul à la fois. */
+    /** The catch-up of a turn finished without us (see [resumeDetachedTurn]): only one at a time. */
     private var recoveryJob: Job? = null
-    /** Le veilleur du silence : il relit la session quand le flux n'envoie plus rien. */
+    /** The silence watcher: it re-reads the session when the stream sends nothing more. */
     private var rescueJob: Job? = null
-    /** La page plus ancienne du fil ouvert (voir [loadEarlier]) : un seul vol à la fois. */
+    /** The older page of the open thread (see [loadEarlier]): only one fetch at a time. */
     private var earlierJob: Job? = null
     private var retryAttempt = 0
     private val retryDelaysMs = longArrayOf(2_000, 5_000, 15_000, 30_000, 60_000)
-    /** Ancienneté initiale des tours sortis de la file, par bulle de réponse. */
+    /** Initial age of the turns taken out of the queue, per reply bubble. */
     private val heldSince = mutableMapOf<String, Long>()
 
     /**
-     * **Les canaux du Dashboard, gardés ouverts — un par (serveur, profil).**
+     * **The Dashboard channels, kept open — one per (server, profile).**
      *
-     * Un `ServeRpc` fige son profil ; c'est pourquoi un seul champ ne suffisait pas. Jeter le canal
-     * à chaque changement de bot repayait un login, un ticket et une montée de WebSocket **à chaque
-     * passage** — et l'aller-retour de retour coûtait autant que l'aller. Un canal par profil tient
-     * donc la conversation de chaque bot prête : changer de bot, c'est prendre un socket déjà
-     * ouvert, et y revenir ne repaie rien.
+     * A `ServeRpc` freezes its profile; that is why a single field was not enough. Throwing the channel
+     * away on every bot change repaid a login, a ticket and a WebSocket handshake **on every
+     * switch** — and the return trip cost as much as the way there. One channel per profile thus keeps
+     * every bot's conversation ready: changing bots means taking a socket already
+     * open, and coming back to it costs nothing.
      *
-     * Trois canaux au plus ([ServeChannelLimit]) : au-delà, le plus ancien se referme. La clé est
-     * [serveChannelKey] — l'adresse et les identifiants y entrent, le modèle non.
+     * Three channels at most ([ServeChannelLimit]): beyond that, the oldest closes. The key is
+     * [serveChannelKey] — the address and the credentials are in it, the model is not.
      */
     private val serveChannels =
         object : LinkedHashMap<String, com.onyx.app.data.net.ServeRpc>(4, 0.75f, true) {
@@ -190,14 +190,14 @@ class ChatViewModel(
                 eldest: MutableMap.MutableEntry<String, com.onyx.app.data.net.ServeRpc>,
             ): Boolean {
                 if (size <= ServeChannelLimit) return false
-                // Le canal évincé n'a plus personne : on le referme plutôt que de laisser un
-                // socket sans propriétaire (c'est ce que `close()` protège déjà ailleurs).
+                // The evicted channel has nobody left: close it rather than leave a
+                // socket without an owner (which is what `close()` already protects elsewhere).
                 runCatching { eldest.value.close() }
                 return true
             }
         }
 
-    /** Le canal du Dashboard de **ce** serveur et de **ce** profil, ouvert ou à ouvrir. */
+    /** The Dashboard channel of **this** server and of **this** profile, open or to be opened. */
     private fun serveChannel(server: ServerConfig): com.onyx.app.data.net.ServeRpc {
         val key = com.onyx.app.data.net.serveChannelKey(server)
         serveChannels[key]?.let { return it }
@@ -205,8 +205,8 @@ class ChatViewModel(
     }
 
     /**
-     * Ne garde que les canaux d'un serveur : les autres parlent à une adresse ou avec des
-     * identifiants qui ne sont plus ceux de l'app.
+     * Keeps only one server's channels: the others talk to an address or with
+     * credentials that are no longer the app's.
      */
     private fun retainServeChannels(key: String?) {
         val doomed = serveChannels.entries.filter { it.key != key }
@@ -217,19 +217,19 @@ class ChatViewModel(
     }
 
     /**
-     * Le verrou d'un envoi : les pièces jointes s'encodent hors du fil principal, donc deux
-     * envois rapprochés peuvent se croiser — sans lui, une grosse photo pourrait faire partir
-     * le second message avant le premier.
+     * The lock of a send: attachments are encoded off the main thread, so two
+     * close sends can cross — without it, a large photo could let
+     * the second message leave before the first.
      */
     private val sendGate = Mutex()
 
     /**
-     * Le canal du Dashboard, **préchauffé**.
+     * The Dashboard channel, **preheated**.
      *
-     * `ServeRpc.connect()` fait le login puis demande un ticket WebSocket : deux allers-retours
-     * qui, payés au moment du premier envoi, faisaient attendre chaque premier message. On les
-     * paie ici, dès que le serveur (ou le profil du bot) est connu ; `connect()` ne fait rien si
-     * le canal est déjà ouvert, et le tour le trouve prêt.
+     * `ServeRpc.connect()` does the login then requests a WebSocket ticket: two round trips
+     * that, paid at the moment of the first send, made every first message wait. We pay them
+     * here, as soon as the server (or the bot profile) is known; `connect()` does nothing if
+     * the channel is already open, and the turn finds it ready.
      */
     private fun preheatServe(server: ServerConfig) {
         if (server.transport != Transport.HERMES_SERVE) return
@@ -238,44 +238,44 @@ class ChatViewModel(
     }
 
     /**
-     * L'identifiant **runtime** de la session ouverte sur le Dashboard, celui sous lequel le
-     * gateway l'enregistre. `subagent.list` / `.tail` / `.steer` / `.interrupt` le cherchent ;
-     * l'identifiant conservé côté app (`serverSessionId`) n'est qu'une clé de reprise.
+     * The **runtime** identifier of the session opened on the Dashboard, the one under which the
+     * gateway registers it. `subagent.list` / `.tail` / `.steer` / `.interrupt` look for it;
+     * the identifier kept on the app side (`serverSessionId`) is only a resume key.
      */
     private var runtimeSessionId: String? = null
     private var slashJob: kotlinx.coroutines.Job? = null
 
     /**
-     * **La liste que le menu et l'exécution lisent**, et rien d'autre : les six commandes fixes,
-     * puis les compétences du profil ([refreshSlashCommands]).
+     * **The list that the menu and the execution read**, and nothing else: the six fixed commands,
+     * then the profile's skills ([refreshSlashCommands]).
      *
-     * Elle démarre sans compétence : avant la première lecture, l'app se comporte exactement comme
-     * avant ce lot.
+     * It starts without a skill: before the first read, the app behaves exactly as
+     * before this batch.
      */
     private var slashCommands: List<SlashCommand> = SlashCommands.commands()
 
-    /** La lecture des compétences en cours (`api/skills`). */
+    /** The skills read in progress (`api/skills`). */
     private var skillsJob: Job? = null
 
-    /** Quand `api/skills` a été lu pour la dernière fois : une relecture par minute au plus. */
+    /** When `api/skills` was last read: at most one re-read per minute. */
     private var skillsLoadedAt = 0L
 
     /**
-     * Les compétences lues, **par profil**, avec l'heure de la lecture.
+     * The skills read, **per profile**, with the time of the read.
      *
-     * Changer de bot change de profil, donc de liste : sans ce cache, revenir sur un bot qu'on
-     * vient de quitter redemandait `api/skills` — un aller-retour par passage. La fenêtre est
-     * celle de [SKILLS_TTL_MS], et le cache se vide quand le serveur change.
+     * Changing bots changes profile, hence list: without this cache, returning to a bot just
+     * left re-requested `api/skills` — one round trip per switch. The window is
+     * that of [SKILLS_TTL_MS], and the cache is emptied when the server changes.
      */
     private val skillsByProfile = mutableMapOf<String, Pair<Long, List<SlashCommand>>>()
 
     /**
-     * Les cartes déjà résolues d'un fil, par conversation : la liste source et son résultat.
+     * A thread's already resolved cards, per conversation: the source list and its result.
      *
-     * Résoudre les cartes relit les sorties d'outil de **chaque** message, JSON compris : sur un
-     * fil long, c'était une passe complète à chaque ouverture, sur le fil principal — et un
-     * changement de bot ouvre un fil. Le cache retient la liste **source** (celle du dépôt,
-     * immuable) : revenir sur un fil qu'on n'a pas touché ne relit plus rien.
+     * Resolving the cards re-reads the tool outputs of **every** message, JSON included: on a
+     * long thread, that was a full pass on every opening, on the main thread — and a
+     * bot change opens a thread. The cache keeps the **source** list (the repository's,
+     * immutable): returning to an untouched thread no longer re-reads anything.
      */
     private val cardsCache =
         object : LinkedHashMap<String, Pair<List<ChatMessage>, List<ChatMessage>>>(8, 0.75f, true) {
@@ -284,30 +284,30 @@ class ChatViewModel(
         }
 
     /**
-     * Vrai une fois la conversation la plus récente rétablie (ou une nouvelle commencée).
+     * True once the most recent conversation is restored (or a new one started).
      *
-     * Sans ce verrou, le fil vide d'une nouvelle conversation ressemblerait au démarrage de
-     * l'app, et le premier enregistrement du dépôt rouvrirait celle qu'on vient de quitter.
+     * Without this lock, the empty thread of a new conversation would look like the app's
+     * startup, and the repository's first save would reopen the one just left.
      */
     private var restoredInitial = false
 
     init {
-        // Un changement de serveur (Réglages) vide le fil : l'historique n'a plus de sens.
-        // En revanche une ÉDITION de la configuration (même id) doit être adoptée : sinon
-        // « Done » sur l'écran de connexion enregistre bien le serveur mais l'état garde
-        // l'ancienne config, l'app se croit toujours sans serveur et réaffiche le formulaire
-        // (symptôme : le bouton Done semble ne rien faire).
+        // A server change (Settings) empties the thread: history no longer makes sense.
+        // An EDIT of the configuration (same id), however, must be adopted: otherwise
+        // "Done" on the connection screen does save the server but the state keeps
+        // the old config, the app still believes it has no server and shows the form again
+        // (symptom: the Done button seems to do nothing).
         viewModelScope.launch {
             servers.activeServer.collect { server ->
                 val current = _state.value.server
                 if (server.id != current.id) {
                     persistCurrent()
-                    // Les tours de l'ancien serveur n'ont plus personne à qui répondre : ils sont
-                    // arrêtés (l'hôte est prévenu), pas abandonnés.
+                    // The old server's turns have nobody left to answer to: they are
+                    // stopped (the host is notified), not abandoned.
                     turns.stopAll()
-                    // Les canaux de l'ancien serveur parlent à une adresse (ou avec des
-                    // identifiants) qui ne sont plus ceux de l'app : eux seuls s'en vont. Ceux du
-                    // nouveau serveur restent, y compris ceux des autres profils de bot.
+                    // The old server's channels talk to an address (or with
+                    // credentials) that are no longer the app's: only they go away. Those of the
+                    // new server stay, including those of the other bot profiles.
                     retainServeChannels(com.onyx.app.data.net.serveChannelKey(server))
                     settledTurns.clear()
                     queued.clear()
@@ -332,33 +332,33 @@ class ChatViewModel(
                         )
                     }
                 } else if (server != current) {
-                    // Une édition de la configuration du **même** serveur est adoptée. Quand c'est le
-                    // **modèle** qui a changé (la feuille de modèle écrit `ServerConfig.model` pour une
-                    // conversation simple), l'écho du serveur ([ChatUiState.modelInUse]) devient
-                    // périmé : on le baisse pour que le nouveau choix prenne à l'affichage **et** à
-                    // l'envoi. Sans ça, l'étage « conversation » gardait l'ancien modèle servi et le
-                    // choix ne s'appliquait nulle part.
+                    // An edit of the **same** server's configuration is adopted. When it is the
+                    // **model** that changed (the model sheet writes `ServerConfig.model` for a
+                    // plain conversation), the server echo ([ChatUiState.modelInUse]) becomes
+                    // stale: we lower it so the new choice takes effect on display **and** on
+                    // send. Without that, the "conversation" stage kept the old served model and the
+                    // choice applied nowhere.
                     val modelChanged = server.model != current.model
                     _state.update { it.copy(server = server, modelInUse = if (modelChanged) null else it.modelInUse) }
                 }
-                // Les compétences vivent dans le profil : un autre serveur, un autre profil ou
-                // d'autres identifiants changent la liste des commandes « / » — et rien de ce
-                // qu'on a lu sur l'autre serveur ne vaut ici.
+                // Skills live in the profile: another server, another profile or
+                // other credentials change the "/" command list — and nothing of what
+                // was read on the other server holds here.
                 skillsByProfile.clear()
                 refreshSlashCommands(force = true)
-                // Le canal du Dashboard se préchauffe pour **ce** serveur (sans effet sur les
-                // autres transports) : le premier envoi ne paie plus le login ni le ticket.
+                // The Dashboard channel is preheated for **this** server (no effect on the
+                // other transports): the first send no longer pays the login or the ticket.
                 preheatServe(server)
             }
         }
-        // La conversation la plus récente pour ce serveur, une seule fois, s'il y en a une.
+        // The most recent conversation for this server, only once, if there is one.
         viewModelScope.launch {
             conversations.conversations.collect { list ->
-                // Ne JAMAIS restaurer pendant un tour en cours : l'enregistrement de la
-                // conversation (déclenché par l'envoi) fait émettre cette liste, et la
-                // restauration écraserait le message assistant en train de streamer — la
-                // réponse du serveur n'aurait plus de bulle où s'écrire (chat muet : le
-                // serveur répond en 1,6 s mais rien ne s'affiche).
+                // NEVER restore during an in-flight turn: saving the
+                // conversation (triggered by the send) makes this list emit, and the
+                // restoration would overwrite the assistant message being streamed — the
+                // server's reply would have no bubble to write into (mute chat: the
+                // server answers in 1.6 s but nothing shows).
                 if (restoredInitial || _state.value.isStreaming || _state.value.messages.isNotEmpty()) {
                     return@collect
                 }
@@ -368,38 +368,38 @@ class ChatViewModel(
                 open(latest)
             }
         }
-        // Le tour s'écrit dans le magasin, pas dans cet écran : on s'y rattache. Un tour lancé
-        // avant la recréation de l'écran (retour dans l'app) se retrouve donc entier, en cours.
+        // The turn is written in the store, not in this screen: we attach to it. A turn started
+        // before the screen was recreated (return to the app) is therefore found whole, in flight.
         viewModelScope.launch {
             _state.map { it.conversationId }.distinctUntilChanged()
                 .flatMapLatest { id -> if (id == null) flowOf(null) else turns.live(id) }
                 .collect { live -> follow(live) }
         }
-        // Les conversations du **serveur** : le registre local ne montre que ce que l'app a
-        // écrit sur ce téléphone. Les sessions du serveur — d'autres appareils, la CLI, les
-        // anciennes — s'importent ici, une fois par serveur : sans cela, le volet restait vide
-        // alors que le serveur en comptait des dizaines.
+        // The **server's** conversations: the local registry only shows what the app has
+        // written on this phone. The server's sessions — other devices, the CLI, the
+        // old ones — are imported here, once per server: without that, the pane stayed empty
+        // while the server had dozens.
         viewModelScope.launch {
-            // **Un import par serveur, pas par émission.** `activeServer` réémet à chaque réglage
-            // touché (thème, police, profil, modèle) : l'import relançait alors une lecture de tous
-            // les profils et une écriture complète de l'historique **par changement**, pour un
-            // résultat identique. La clé est la signature de configuration : elle change quand le
-            // serveur change, pas quand un réglage d'affichage bouge.
+            // **One import per server, not per emission.** `activeServer` re-emits on every setting
+            // touched (theme, font, profile, model): the import then restarted a read of all
+            // profiles and a full write of the history **per change**, for an identical
+            // result. The key is the config signature: it changes when the
+            // server changes, not when a display setting moves.
             var importedFor: String? = null
             servers.activeServer.collect { server ->
                 if (!server.hasServeCredentials) return@collect
                 if (importedFor == server.configSignature) return@collect
-                // **Un import qui échoue ne se marque pas comme fait.**
+                // **An import that fails is not marked as done.**
                 //
-                // C'était le défaut de la réinstallation : la marque était posée même quand la
-                // lecture avait échoué — serveur pas encore joignable, tunnel qui démarre, réseau
-                // pas prêt sur les premières frames. La condition « déjà importé pour ce serveur »
-                // était donc vraie pour toujours, et l'app restait vide **sans jamais réessayer**.
-                // C'est exactement ce que le propriétaire a vu : « j'ai réinstallé, mes
-                // conversations ne reviennent que dans Home ».
+                // That was the reinstall's flaw: the mark was set even when the
+                // read had failed — server not yet reachable, tunnel starting, network
+                // not ready on the first frames. The "already imported for this server" condition
+                // was therefore true forever, and the app stayed empty **without ever retrying**.
+                // That is exactly what the owner saw: "I reinstalled, my
+                // conversations only come back in Home".
                 //
-                // On réessaie donc jusqu'à ce que ça passe, à intervalle croissant, plafonné :
-                // une lecture par minute au pire, et plus rien dès que c'est fait.
+                // We therefore retry until it passes, at growing intervals, capped:
+                // one read per minute at worst, and none once it is done.
                 var attente = IMPORT_RETRY_FIRST_MS
                 while (importedFor != server.configSignature) {
                     if (importServerSessions(server)) {
@@ -411,10 +411,10 @@ class ChatViewModel(
                 }
             }
         }
-        // Le menu qui s'ouvre sur un appui long sur l'icône : un raccourci de **bot** ouvre la
-        // conversation de ce bot. La demande a été déposée par l'activité ([BotShortcutInbox]) ;
-        // elle s'ouvre ici, une fois, puis se consomme — reprendre le même raccourci deux fois
-        // ouvre deux fois, mais un retour dans l'app ne rouvre rien.
+        // The menu that opens on a long press on the icon: a **bot** shortcut opens that
+        // bot's conversation. The request was posted by the activity ([BotShortcutInbox]);
+        // it opens here, once, then is consumed — taking the same shortcut twice
+        // opens twice, but returning to the app reopens nothing.
         viewModelScope.launch {
             BotShortcutInbox.requested.collect { request ->
                 if (request == null) return@collect
@@ -425,15 +425,15 @@ class ChatViewModel(
     }
 
     /**
-     * Importe les sessions du serveur dans le registre local, pour que le volet les montre.
+     * Imports the server's sessions into the local registry, so the pane shows them.
      *
-     * Le registre local ne connaît que les conversations **écrites sur ce téléphone**. Les
-     * sessions du serveur — celles d'autres appareils, celles de la CLI, les anciennes —
-     * n'y sont pas : le volet paraissait alors vide alors que le serveur en comptait des
-     * dizaines. Chaque session devient une conversation sans message : le fil se lit à
-     * l'ouverture, jamais d'avance.
+     * The local registry only knows the conversations **written on this phone**. The
+     * server's sessions — those of other devices, those of the CLI, the old ones —
+     * are not there: the pane then appeared empty while the server had
+     * dozens. Each session becomes a conversation without messages: the thread is read on
+     * opening, never in advance.
      *
-     * Un échec de lecture ne casse rien : le registre local reste, et l'app continue.
+     * A read failure breaks nothing: the local registry stays, and the app continues.
      */
     fun retryServerConversations() {
         viewModelScope.launch {
@@ -448,43 +448,43 @@ class ChatViewModel(
 
     private suspend fun importServerSessionsLocked(server: ServerConfig): Boolean {
         if (conversations.conversations.value.isEmpty()) conversations.load()
-        // **Les profils à interroger** : ceux des bots retenus sur ce téléphone, plus celui du
-        // serveur. C'est ce qui donne à chaque session le profil qui la porte — sans lui, une
-        // conversation réimportée après une réinstallation perd son bot et prend le visage d'Onyx.
+        // **The profiles to query**: those of the bots kept on this phone, plus the
+        // server's. That is what gives each session the profile that carries it — without it, a
+        // conversation reimported after a reinstall loses its bot and takes on Onyx's face.
         val cached = runCatching { roster.load(server.rosterScope) }.getOrNull()
-        // **Au moins une lecture, celle du profil par défaut.**
+        // **At least one read, the default profile's.**
         //
-        // `effectiveProfile` rend `null` quand le serveur est en « default » : la liste des profils
-        // à interroger devenait donc **vide** dès que le roster gardé l'était aussi — c'est-à-dire
-        // exactement après une réinstallation. `summariesByProfile` bouclait sur rien, ne lisait
-        // rien, et l'import se disait réussi : la liste restait vide, l'import marqué fait, et
-        // aucune nouvelle tentative. C'est le « toujours vide » constaté.
+        // `effectiveProfile` returns `null` when the server is on "default": the list of profiles
+        // to query thus became **empty** as soon as the kept roster also was — that is,
+        // exactly after a reinstall. `summariesByProfile` looped over nothing, read
+        // nothing, and the import reported success: the list stayed empty, the import marked done, and
+        // no further attempt. That is the "always empty" that was observed.
         //
-        // Le profil par défaut n'a pas de nom sur cette route (`named()` retire « default » et le
-        // vide) : on interroge donc **avec la chaîne vide**, qui veut dire « le profil du serveur ».
+        // The default profile has no name on this route (`named()` strips "default" and the
+        // empty) : we therefore query **with the empty string**, which means "the server's profile".
         val profiles = (listOf(server.hermesProfile) + cached?.bots.orEmpty().map { it.name })
             .map { it.trim() }
             .distinct()
         val api = ServeSessionsApi(ServeClient(server))
         _importNote.value = OnyxLocalization["Refreshing server conversations. Saved/local conversations remain available; counts are not yet refreshed."]
         var tagged = runCatching { api.summariesByProfile(profiles) }.getOrElse { error ->
-            // **Dit, pas avalé.** C'est cette raison qui manquait sur les trois captures.
+            // **Said, not swallowed.** This is the reason missing from the three screenshots.
             _importNote.value = OnyxLocalization.format(
                 "The server's conversations did not load: %1\$s",
                 humanFailure(error),
             ) + " " + OnyxLocalization["Showing saved/local conversations; counts are not a refreshed server total. Check authentication in Settings or retry a temporary connection failure."]
             return false
         }
-        // **Le repli qui a déjà fait ses preuves.**
+        // **The fallback that has already proved itself.**
         //
-        // La lecture profil par profil a rendu zéro ligne alors que le serveur répondait quinze
-        // lignes au même instant (sonde brute : `{"object":"list","data":[{"id":"api-9ff07d…`).
-        // L'écran Home, lui, les affiche toutes — il lit par `allSummaries()`, sans liste de
-        // profils. Une lecture qui échoue **ne doit pas laisser la liste vide** : on refait la
-        // lecture simple, celle qui marche, quitte à perdre l'étiquette du profil (le visage se
-        // rétablit ensuite par le registre des bots).
+        // The profile-by-profile read returned zero rows while the server answered fifteen
+        // rows at the same instant (raw probe: `{"object":"list","data":[{"id":"api-9ff07d…`).
+        // The Home screen, for its part, shows them all — it reads via `allSummaries()`, without a list of
+        // profiles. A read that fails **must not leave the list empty**: we redo the
+        // simple read, the one that works, even at the cost of losing the profile tag (the face
+        // is restored afterwards by the bot registry).
         var lues = tagged
-        // Trois lectures vides d'affilée valent « il n'y a rien » ; en dessous, on réessaie.
+        // Three empty reads in a row mean "there is nothing"; below that, we retry.
         var vides = 0
         if (lues.isEmpty()) {
             val simple = runCatching { api.allSummaries() }.getOrDefault(emptyList())
@@ -493,8 +493,8 @@ class ChatViewModel(
                 lues = simple.map { summary -> etiquette to summary }
             }
         }
-        // Une lecture qui a répondu « aucune session » est un succès : il n'y a rien à restaurer.
-        // Mais elle se **dit** : c'est le silence de ce cas qui a coûté quatre versions.
+        // A read that answered "no session" is a success: there is nothing to restore.
+        // But it is **said**: it is the silence of this case that cost four versions.
         if (lues.isEmpty()) {
             _importNote.value = OnyxLocalization.format("%1\$d sessions read, %2\$d imported", 0, 0)
             vides += 1
@@ -504,30 +504,30 @@ class ChatViewModel(
         val summaries = tagged.map { (_, summary) -> summary }
         val profileById = tagged.associate { (profile, summary) -> summary.id to profile }
         val known = conversations.conversations.value
-        // **Les chats des bots du roster ne sont pas des conversations.**
+        // **The roster bots' chats are not conversations.**
         //
-        // Le roster gardé sur ce téléphone (`BotRosterCache`) nomme le `canonical_session` de chaque
-        // bot. Sans cette liste, l'import les prenait pour des conversations ordinaires : une ligne
-        // **vide** par bot, titrée de son nom et sans aperçu, apparaissait tout seule dans la liste
-        // dès qu'on créait une conversation avec l'un d'eux (« j'ai 3 bots, je devrais avoir que le
-        // bot que j'ai choisi »). Un chat de bot s'ouvre par sa tuile — il n'a rien à faire ici.
+        // The roster kept on this phone (`BotRosterCache`) names each bot's `canonical_session`.
+        // Without this list, the import took them for ordinary conversations: an **empty**
+        // row per bot, titled with its name and with no preview, appeared all by itself in the list
+        // as soon as a conversation was created with one of them ("I have 3 bots, I should only have the
+        // bot I chose"). A bot chat opens from its tile — it has nothing to do here.
         val botChats = cached?.bots.orEmpty().mapNotNull { it.chatId }.toSet()
 
-        // **Et les lignes déjà écrites par l'ancien import s'effacent.** Jusqu'ici le chat de
-        // chaque bot était importé comme une conversation : les lignes vides sont dans le registre
-        // du téléphone, et un correctif qui ne ferait que bloquer les suivantes les laisserait
-        // là pour toujours. On ne touche qu'aux conversations **distantes** (`remote`) dont la
-        // session est un chat de bot — jamais à une conversation écrite ici, qui peut légitimement
-        // être le chat d'un bot.
+        // **And rows already written by the old import are erased.** Until now each bot's chat
+        // was imported as a conversation: the empty rows are in the phone's
+        // registry, and a fix that only blocked the following ones would leave them
+        // there forever. We only touch **remote** conversations (`remote`) whose
+        // session is a bot chat — never a conversation written here, which may legitimately
+        // be a bot's chat.
         if (botChats.isNotEmpty()) {
             val stale = ServerSessions.staleBotChats(known, botChats)
             if (stale.isNotEmpty()) conversations.deleteAll(stale.toSet())
         }
 
-        // **Les conversations déjà importées retrouvent leur profil.** Celles qu'une version
-        // précédente a écrites n'ont pas de `botProfile` : sans cette reprise, le correctif ne
-        // vaudrait que pour les imports suivants, et la liste resterait au visage d'Onyx jusqu'au
-        // prochain redémarrage.
+        // **Already imported conversations get their profile back.** Those written by a previous
+        // version have no `botProfile`: without this catch-up, the fix would
+        // only hold for the following imports, and the list would stay on Onyx's face until the
+        // next restart.
         known.filter { it.remote && it.botProfile == null }.forEach { conversation ->
             val profile = profileById[conversation.serverSessionId] ?: return@forEach
             conversations.save(conversation.copy(botProfile = profile))
@@ -541,32 +541,32 @@ class ChatViewModel(
             profileOf = { summary -> profileById[summary.id] },
         )
         imported.forEach { conversation -> conversations.save(conversation) }
-        // **Ce que la lecture a réellement trouvé, dit à l'écran.**
+        // **What the read actually found, said on screen.**
         //
-        // Une lecture muette ne se distingue pas d'une lecture vide : le volet est pareil. Cette
-        // ligne coupe court au diagnostic à distance — « 15 lues, 15 importées » sur une liste
-        // vide n'accuse plus le réseau mais l'affichage, et « 0 lue » accuse la route.
-        // **Silencieux seulement quand tout est normal.** Des sessions lues et importées : rien à
-        // dire. Zéro ligne lue, ou des lignes lues et rien d'importé : c'est une anomalie, et elle
-        // se dit — c'est ce silence-là qui a coûté quatre versions.
+        // A silent read is indistinguishable from an empty read: the pane is the same. This
+        // line short-circuits remote diagnosis — "15 read, 15 imported" on an empty list
+        // no longer blames the network but the display, and "0 read" blames the route.
+        // **Silent only when all is normal.** Sessions read and imported: nothing to
+        // say. Zero rows read, or rows read and nothing imported: that is an anomaly, and it
+        // is said — it is that silence that cost four versions.
         _importNote.value = if (imported.isEmpty()) {
             OnyxLocalization.format("%1\$d sessions read, %2\$d imported", summaries.size, imported.size)
         } else {
             null
         }
-        // Vrai dès que la lecture a abouti — même sans rien de neuf à écrire : c'est la **lecture**
-        // qui doit être marquée comme faite, pas l'écriture.
+        // True as soon as the read succeeded — even with nothing new to write: it is the **read**
+        // that must be marked as done, not the write.
         return true
     }
 
     /**
-     * Ouvre la conversation du bot demandé par son raccourci.
+     * Opens the conversation of the bot requested by its shortcut.
      *
-     * C'est le chemin d'une **tuile de bot** (« `openBot` » de la référence) : la conversation que
-     * le roster nomme pour ce bot (`BotProfile.chatId`, son `canonical_session`) est retrouvée dans
-     * l'historique ; à défaut, une conversation neuve est ouverte à son nom, et c'est ce titre qui
-     * la rattache au bot. L'historique est relu **avant** de résoudre, sinon une conversation déjà
-     * gardée mais pas encore chargée du disque serait dupliquée au premier appui.
+     * This is the path of a **bot tile** ("`openBot`" of the reference): the conversation that
+     * the roster names for this bot (`BotProfile.chatId`, its `canonical_session`) is found in
+     * history; failing that, a new conversation is opened under its name, and that title is what
+     * attaches it to the bot. History is re-read **before** resolving, otherwise an already
+     * kept but not yet loaded conversation would be duplicated on the first press.
      */
     private suspend fun openBotShortcut(request: BotShortcutRequest) {
         val server = _state.value.server
@@ -578,10 +578,10 @@ class ChatViewModel(
             isDefault = request.isDefault,
             chatId = request.chatId,
         )
-        // Sans `canonical_session` (aucun Dashboard pour la nommer), `botChatToOpen` ouvre une
-        // conversation **neuve** à chaque appui : le même raccourci pris deux fois laisserait deux
-        // fils vides du même bot. On reprend donc celui qui est **vide** et déjà à ce bot, comme le
-        // crayon du compositeur (`freshConversationForPencil`).
+        // Without a `canonical_session` (no Dashboard to name it), `botChatToOpen` opens a
+        // **new** conversation on every press: the same shortcut taken twice would leave two
+        // empty threads of the same bot. We therefore take back the one that is **empty** and already
+        // this bot's, like the composer's pencil (`freshConversationForPencil`).
         val empty = known.firstOrNull { conversation ->
             conversation.isEmpty && botOfConversation(conversation, listOf(bot), server.displayName) != null
         }
@@ -596,8 +596,8 @@ class ChatViewModel(
     }
 
     /**
-     * Le fil suit le tour en cours de cette conversation : la réponse qui s'écrit, l'étape connue
-     * et l'issue. C'est le seul endroit qui arbitre une fin de tour.
+     * The thread follows this conversation's in-flight turn: the reply being written, the known stage
+     * and the outcome. It is the only place that settles the end of a turn.
      */
     private fun follow(live: TurnLive?) {
         val state = _state.value
@@ -610,8 +610,8 @@ class ChatViewModel(
         val phase = live.phase
         if (live.serverSessionId != null && live.serverSessionId != serverSessionId) {
             serverSessionId = live.serverSessionId
-            // LOT appel-agent : la session vivante du gateway, pour que le pont d'appel puisse
-            // parler au plugin (`command.dispatch` exige une session ouverte).
+            // Call-agent BATCH: the gateway's live session, so the call bridge can
+            // talk to the plugin (`command.dispatch` requires an open session).
             if (com.onyx.app.di.AppContainer.isInstalled) {
                 com.onyx.app.di.AppContainer.agentCalls.sessionId = live.serverSessionId
             }
@@ -631,8 +631,8 @@ class ChatViewModel(
         if (!phase.isStreaming) settle(live)
     }
 
-    /** Pose le message d'un tour en cours à sa place (ou l'ajoute, au retour dans la
-     *  conversation) : l'écran n'écrit jamais dans la réponse, il la lit. */
+    /** Puts the message of a turn in progress in its place (or adds it, when coming back into the
+     *  conversation): the screen never writes into the reply, it reads it. */
     private fun upsertMessage(messages: List<ChatMessage>, message: ChatMessage): List<ChatMessage> =
         if (messages.any { it.id == message.id }) {
             messages.map { if (it.id == message.id) message else it }
@@ -641,8 +641,8 @@ class ChatViewModel(
         }
 
     /**
-     * Un tour qui vient de finir. Réussi : on enregistre et on reprend la file. Échoué : un tour
-     * coupé par la connexion retourne dans la file au lieu d'être perdu, comme avant.
+     * A turn that has just finished. Successful: it is saved and the queue resumes. Failed: a turn
+     * cut off by the connection returns to the queue instead of being lost, as before.
      */
     private fun settle(live: TurnLive) {
         if (!settledTurns.add(live.assistantId)) return
@@ -664,7 +664,7 @@ class ChatViewModel(
             assistant.tools.isEmpty() && assistant.approvals.isEmpty() && assistant.clarify == null &&
             assistant.secret == null && assistant.sudoRequestId == null
 
-        // Aucune réponse n'est arrivée : le tour courant retourne dans l'outbox au lieu d'être perdu.
+        // No reply arrived: the current turn returns to the outbox instead of being lost.
         if (error.isConnectivity && user != null && blankReply) {
             val held = OutboxItem(
                 id = user.id,
@@ -711,18 +711,18 @@ class ChatViewModel(
     fun onInputChange(value: String) {
         _state.update { it.copy(input = value) }
         updateSlashMenu(value)
-        // Le brouillon suit la conversation : on le retrouve en la rouvrant.
+        // The draft follows the conversation: it is found again when reopening it.
         drafts.put(conversationId, value)
     }
 
     /**
-     * Une ligne du menu « / » a été **touchée** : son texte entre dans le brouillon, et le menu se
-     * referme.
+     * A row of the « / » menu has been **tapped**: its text enters the draft, and the menu
+     * closes.
      *
-     * Sans cette fermeture, `onInputChange` relançait `updateSlashMenu` sur le texte choisi : le
-     * menu se redessinait avec cette seule ligne, au-dessus du champ qu'on venait d'utiliser — et
-     * une compétence, qu'il faut pouvoir compléter d'une instruction puis envoyer, restait sous un
-     * panneau. C'était le second versant du défaut « les compétences sont inutilisables ».
+     * Without this close, `onInputChange` relaunched `updateSlashMenu` on the chosen text: the
+     * menu redrew itself with that single row, above the field just used — and a skill, which
+     * must be able to be completed with an instruction then sent, stayed under a panel. That was
+     * the second side of the "skills are unusable" defect.
      */
     fun pickSlash(text: String) {
         slashJob?.cancel()
@@ -730,17 +730,17 @@ class ChatViewModel(
         drafts.put(conversationId, text)
     }
 
-    /** Joint des fichiers choisis : images ou textes, selon leur type. */
+    /** Attaches the chosen files: images or texts, depending on their type. */
     fun addAttachments(uris: List<Uri>) {
         if (uris.isEmpty()) return
         val app = getApplication<Application>()
         viewModelScope.launch {
-            // Les limites sont vérifiées **avant** l'ajout (hors du fil principal : la copie
-            // durable lit le fichier, puis on lit une taille) : ce qui dépasse est refusé ici,
-            // avec son poids et le plafond, et ne part jamais vers le serveur.
+            // Limits are checked **before** adding (off the main thread: the durable copy reads
+            // the file, then a size is read): whatever exceeds them is refused here, with its
+            // weight and the cap, and never goes to the server.
             val admission = withContext(Dispatchers.IO) {
-                // L'autorisation persistable d'abord — quand le fournisseur en accorde une —, la
-                // copie ensuite : c'est elle la garantie, la première n'est que le confort.
+                // The persistable permission first — when the provider grants one —, the copy
+                // next: the copy is the guarantee, the first is only convenience.
                 takeDurablePermissions(app, uris)
                 admitAttachments(app, _state.value.attachments, uris)
             }
@@ -754,9 +754,9 @@ class ChatViewModel(
     }
 
     /**
-     * Écarte les pièces jointes du **brouillon** — un démarrage de secours ne rejoue pas celle
-     * qui a pu tuer le lancement précédent. Le fil garde la sienne : rien n'est supprimé d'un
-     * message déjà envoyé.
+     * Discards the attachments of the **draft** — a fallback startup does not replay the one
+     * that may have killed the previous launch. The thread keeps its own: nothing is deleted from
+     * a message already sent.
      */
     fun discardDraftAttachments() {
         if (_state.value.attachments.isEmpty()) return
@@ -767,13 +767,13 @@ class ChatViewModel(
         _state.update { state ->
             state.copy(
                 attachments = state.attachments.filterNot { it.id == id },
-                // Le refus s'efface avec la pièce jointe qu'on retire : il parlait de l'ajout.
+                // The refusal fades with the attachment being removed: it was about the addition.
                 attachmentProblem = null,
             )
         }
     }
 
-    /** Répond à une question de l'agent, par le canal du Dashboard. */
+    /** Answers a question from the agent, over the Dashboard channel. */
     fun respondClarify(messageId: String, answers: Map<String, String>) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val request = message.clarify ?: return
@@ -783,9 +783,9 @@ class ChatViewModel(
         if (!server.hasServeCredentials) return
         viewModelScope.launch {
             runCatching {
-                // Le canal du bot est déjà monté (ou se monte en fond) : répondre à une question ne
-                // paie plus un login et un ticket. Il n'est pas refermé ici — il appartient au
-                // cache, qui le garde pour le tour suivant.
+                // The bot channel is already up (or is coming up in the background): answering a
+                // question no longer pays for a login and a ticket. It is not closed here — it
+                // belongs to the cache, which keeps it for the next turn.
                 val rpc = serveChannel(server)
                 val client = com.onyx.app.data.net.ServeInterruptRpc(rpc)
                 if (!request.isBatch) {
@@ -799,7 +799,7 @@ class ChatViewModel(
         }
     }
 
-    /** Donne le mot de passe sudo demandé. */
+    /** Gives the requested sudo password. */
     fun respondSudo(messageId: String, password: String) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val requestId = message.sudoRequestId ?: return
@@ -809,7 +809,7 @@ class ChatViewModel(
         if (!server.hasServeCredentials) return
         viewModelScope.launch {
             runCatching {
-                // Même canal que le tour : rien à remonter pour donner un mot de passe sudo.
+                // Same channel as the turn: nothing to bring up to give a sudo password.
                 serveChannel(server)
                     .let { com.onyx.app.data.net.ServeInterruptRpc(it) }
                     .sudo(serverSessionId.orEmpty(), requestId, password)
@@ -819,7 +819,7 @@ class ChatViewModel(
         }
     }
 
-    /** Donne le secret demandé (une valeur vide le passe). */
+    /** Gives the requested secret (an empty value passes it). */
     fun respondSecret(messageId: String, value: String) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val request = message.secret ?: return
@@ -829,7 +829,7 @@ class ChatViewModel(
         if (!server.hasServeCredentials) return
         viewModelScope.launch {
             runCatching {
-                // Même canal que le tour, pour la même raison : le secret part sans handshake.
+                // Same channel as the turn, for the same reason: the secret leaves without a handshake.
                 serveChannel(server)
                     .let { com.onyx.app.data.net.ServeInterruptRpc(it) }
                     .secret(serverSessionId.orEmpty(), request.id, value)
@@ -840,26 +840,26 @@ class ChatViewModel(
     }
 
     /**
-     * Oriente un sous-agent en cours (`subagent.steer`), depuis sa transcription.
+     * Steers a running subagent (`subagent.steer`), from its transcript.
      *
-     * `false` quand le gateway n'accepte pas la consigne pour le moment, ce que l'écran dit.
+     * `false` when the gateway does not accept the instruction for now, which the screen says.
      *
-     * Le canal est celui de la conversation, **pas** un socket neuf : le gateway n'accorde le
-     * pilotage qu'au transport attaché à la session, et refuse un second socket en `4001` même
-     * avec le bon identifiant.
+     * The channel is the conversation's, **not** a fresh socket: the gateway only grants steering
+     * to the transport attached to the session, and refuses a second socket with `4001` even with
+     * the right identifier.
      */
     suspend fun steerSubagent(id: String, text: String): Boolean {
         val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return false
         return runCatching {
-            // Le canal de la conversation — celui du bot, pas un socket neuf : le gateway n'accorde
-            // le pilotage qu'au transport attaché à la session.
+            // The conversation channel — the bot's, not a fresh socket: the gateway only grants
+            // steering to the transport attached to the session.
             val channel = serveChannel(server)
             com.onyx.app.data.net.ServeSubagentRpc(channel).steer(parentSessionId(), id, text)
         }.getOrDefault(false)
     }
 
-    /** Arrête un sous-agent en cours (`subagent.interrupt`) ; `false` s'il avait déjà fini. */
+    /** Stops a running subagent (`subagent.interrupt`); `false` if it had already finished. */
     suspend fun stopSubagent(id: String): Boolean {
         val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, _state.value.botProfile)
         if (!server.hasServeCredentials) return false
@@ -870,11 +870,11 @@ class ChatViewModel(
     }
 
     /**
-     * Relit le roster des sous-agents (`subagent.list`) et le garde pour l'écran des tâches.
+     * Re-reads the subagent roster (`subagent.list`) and keeps it for the tasks screen.
      *
-     * Sans tour en cours, c'est la seule source : les trames `subagent.*` ne viennent que pendant
-     * un tour. Rendu vide (jamais une exception) quand le transport n'est pas le Dashboard — la
-     * liste vit alors sur ce que le fil a déjà vu.
+     * Without a turn in progress, it is the only source: `subagent.*` frames only come during a
+     * turn. Rendered empty (never an exception) when the transport is not the Dashboard — the
+     * list then lives on what the thread has already seen.
      */
     suspend fun refreshSubagentRoster() {
         val server = _state.value.server
@@ -884,16 +884,16 @@ class ChatViewModel(
             val channel = serveChannel(server)
             com.onyx.app.data.net.ServeSubagentRpc(channel).list(parentSessionId())
         }.getOrNull()?.let { rows ->
-            // Lu, même vide : c'est ce qui autorise l'écran à clore les tâches que le serveur ne
-            // liste plus (sinon une liste vide ne distinguerait pas « rien ne tourne » de « pas
-            // encore demandé »).
+            // Read, even empty: that is what lets the screen close the tasks the server no longer
+            // lists (otherwise an empty list would not distinguish "nothing is running" from "not
+            // requested yet").
             _state.update { it.copy(subagentRoster = rows, subagentRosterRead = true) }
         }
     }
 
     /**
-     * La transcription vivante d'un sous-agent (`subagent.tail`), ou `null` quand le transport ne
-     * la porte pas — l'écran le dit alors au lieu d'attendre indéfiniment.
+     * The live transcript of a subagent (`subagent.tail`), or `null` when the transport does not
+     * carry it — the screen then says so instead of waiting indefinitely.
      */
     suspend fun subagentTranscript(agent: com.onyx.app.data.model.SubagentActivity): SubagentTailView? {
         val server = _state.value.server
@@ -910,26 +910,26 @@ class ChatViewModel(
         )
     }
 
-    /** La session à nommer au gateway : la runtime quand on l'a vue, sinon celle conservée. */
+    /** The session to name to the gateway: the runtime one when it has been seen, otherwise the stored one. */
     private fun parentSessionId(): String = runtimeSessionId ?: serverSessionId.orEmpty()
 
     /**
-     * Pose un fil **injecté** de démonstration (drapeau `onyx.subagentDemo`), pour les captures :
-     * l'émulateur n'a ni Dashboard ni agent, donc aucun sous-agent réel ne peut naître.
+     * Sets a **seeded** demo thread (flag `onyx.subagentDemo`), for screenshots: the emulator has
+     * neither Dashboard nor agent, so no real subagent can be born.
      *
-     * Écrit l'état affiché seulement — aucune conversation n'est ouverte, rien n'est persisté sous
-     * un identifiant : sans le drapeau, cette fonction n'est jamais appelée.
+     * Writes the displayed state only — no conversation is opened, nothing is persisted under an
+     * identifier: without the flag, this function is never called.
      */
     fun seedSubagentDemo(messages: List<com.onyx.app.data.model.ChatMessage>) {
         _state.update { it.copy(messages = messages, isStreaming = false, error = null) }
     }
 
-    /** Renomme la conversation ; un titre vide revient à la première question. */
+    /** Renames the conversation; an empty title falls back to the first question. */
     fun rename(title: String) {
         val clean = title.trim()
         val id = conversationId
         val messages = _state.value.messages
-        // L'en-tête suit le nom immédiatement, sans rouvrir la conversation.
+        // The header follows the name immediately, without reopening the conversation.
         conversationName = clean.ifEmpty { null }
         _state.update { it.copy(conversationName = conversationName) }
         viewModelScope.launch {
@@ -946,7 +946,7 @@ class ChatViewModel(
         }
     }
 
-    /** Le fil en Markdown — ce que « Export as Markdown » partage (`TranscriptExporter`). */
+    /** The thread as Markdown — what « Export as Markdown » shares (`TranscriptExporter`). */
     fun exportMarkdown(assistantName: String = _state.value.server.displayName): String {
         val state = _state.value
         val title = conversations.find(conversationId)?.title ?: Conversation.DefaultTitle
@@ -977,7 +977,7 @@ class ChatViewModel(
         }
     }
 
-    /** Les identifiants des messages qui contiennent le texte cherché (`Find in conversation`). */
+    /** The identifiers of the messages containing the searched text (`Find in conversation`). */
     fun search(query: String): List<String> {
         val needle = query.trim()
         if (needle.isEmpty()) return emptyList()
@@ -994,8 +994,8 @@ class ChatViewModel(
     }
 
     /**
-     * Demande au gateway les commandes qui commencent par ce que l'on tape après « / ».
-     * Le menu n'existe que sur une connexion Dashboard, comme sur la référence.
+     * Asks the gateway for the commands starting with what is typed after « / ».
+     * The menu only exists on a Dashboard connection, as in the reference.
      */
     private fun updateSlashMenu(value: String) {
         slashJob?.cancel()
@@ -1003,11 +1003,11 @@ class ChatViewModel(
             _state.update { it.copy(slashItems = emptyList()) }
             return
         }
-        // Les compétences du profil peuvent avoir changé (une installation dans « Compétences »,
-        // un autre bot) : on les relit, au plus une fois par minute.
+        // The profile's skills may have changed (an install in « Skills » (« Compétences »),
+        // another bot): they are re-read, at most once per minute.
         if (now() - skillsLoadedAt > SKILLS_TTL_MS) refreshSlashCommands()
-        // Sans connexion Dashboard, il n'y a pas de `complete.slash` : le menu montre les
-        // commandes que l'app sait exécuter elle-même, plutôt que rien.
+        // Without a Dashboard connection, there is no `complete.slash`: the menu shows the
+        // commands the app knows how to run itself, rather than nothing.
         if (!_state.value.server.hasServeCredentials) {
             val local = SlashCommands.matches(value, slashCommands).map { command ->
                 SlashItem(text = command.name, display = command.display, detail = command.shownDetail)
@@ -1016,10 +1016,10 @@ class ChatViewModel(
             return
         }
         slashJob = viewModelScope.launch {
-            // **Une frappe, une requête — au plus.** Chaque caractère tapé après « / » lançait un
-            // `complete.slash` : quatre-vingts appels pour un mot de vingt lettres, dont aucun ne
-            // servait puisque le suivant annulait le précédent. Le petit délai n'ajoute rien à la
-            // sensation (le menu apparaît quand le doigt s'arrête) et supprime la rafale.
+            // **One keystroke, one request — at most.** Each character typed after « / » launched a
+            // `complete.slash`: eighty calls for a twenty-letter word, none of which was useful
+            // since the next one cancelled the previous one. The small delay adds nothing to the
+            // feel (the menu appears when the finger stops) and removes the burst.
             delay(SlashCompleteDebounceMs)
             val server = _state.value.server
             val channel = serveChannel(server)
@@ -1038,18 +1038,18 @@ class ChatViewModel(
                 SlashItem(
                     text = text,
                     display = obj.firstString("display") ?: text,
-                    // La réponse porte `meta` pour ce qui s'affiche à droite du nom.
+                    // The reply carries `meta` for what is displayed to the right of the name.
                     detail = obj.firstString("meta", "detail", "description").orEmpty(),
                 )
             }.take(8)
-            // Le menu du gateway, complété de ce que l'app sait déjà exécuter — `/model` et les
-            // compétences du profil (`withLocalCommands`) : la même liste que l'exécution.
+            // The gateway menu, completed with what the app already knows how to run — `/model` and
+            // the profile's skills (`withLocalCommands`): the same list as execution.
             val merged = withModelCommand(items, value)
             _state.update { it.copy(slashItems = withLocalCommands(merged, value, slashCommands)) }
         }
     }
 
-    /** Ouvre ou ferme « Find in conversation ». */
+    /** Opens or closes « Find in conversation ». */
     fun toggleSearch() {
         _state.update {
             it.copy(searchOpen = !it.searchOpen, searchQuery = "", searchHits = emptyList(), searchCurrent = 0)
@@ -1061,7 +1061,7 @@ class ChatViewModel(
         _state.update { it.copy(searchQuery = query, searchHits = hits, searchCurrent = 0) }
     }
 
-    /** Passe au résultat suivant (ou précédent) de la recherche. */
+    /** Moves to the next (or previous) search result. */
     fun stepSearch(delta: Int) {
         val state = _state.value
         if (state.searchHits.isEmpty()) return
@@ -1074,18 +1074,18 @@ class ChatViewModel(
     }
 
     /**
-     * Un fichier joint qui ne s'ouvre pas le dit dans la bande d'erreur du fil, en mots : la raison
-     * du serveur ou du système, jamais un silence qui laisserait croire à une réussite.
+     * An attached file that cannot be opened says so in the thread's error band, in words: the
+     * server's or the system's reason, never a silence that would suggest success.
      */
     fun showProblem(text: String) {
         _state.update { it.copy(error = text, canRetry = false, isConnectionProblem = false) }
     }
 
     /**
-     * Nouvelle conversation : vide le fil et l'identifiant de session serveur.
+     * New conversation: clears the thread and the server session identifier.
      *
-     * Le tour de la conversation qu'on quitte n'est **pas** arrêté : il vit dans le magasin, il
-     * continue, et sa réponse est là quand on la rouvre.
+     * The turn of the conversation being left is **not** stopped: it lives in the store, it keeps
+     * going, and its reply is there when it is reopened.
      */
     fun newConversation() {
         persistCurrent()
@@ -1110,14 +1110,14 @@ class ChatViewModel(
     }
 
     /**
-     * Rouvre une conversation enregistrée. Un tour encore en cours dans une autre conversation
-     * continue d'écrire : on le retrouve entier au retour.
+     * Reopens a saved conversation. A turn still in progress in another conversation keeps
+     * writing: it is found whole on return.
      */
     fun open(conversation: Conversation) {
         conversationId = conversation.id
         serverSessionId = conversation.serverSessionId
-        // Un titre qui n'est pas celui qu'aurait donné la première question est un nom choisi :
-        // l'en-tête doit le montrer plutôt que la question.
+        // A title that is not the one the first question would have given is a chosen name:
+        // the header must show it rather than the question.
         conversationName = conversation.customName()
         queued.replace(conversation.outbox)
         heldSince.clear()
@@ -1126,8 +1126,8 @@ class ChatViewModel(
             it.switchToConversation(
                 conversationId = conversation.id,
                 serverSessionId = conversation.serverSessionId,
-                // Les cartes d'une réponse relue sont retrouvées depuis ses appels d'outil quand
-                // elles n'ont pas été enregistrées (`ReplyCards.resolve`, comme référence).
+                // The cards of a re-read reply are recovered from its tool calls when they were
+                // not saved (`ReplyCards.resolve`, as in the reference).
                 messages = cardsFor(conversation),
                 input = drafts.get(conversation.id),
                 queued = queued.items,
@@ -1140,18 +1140,18 @@ class ChatViewModel(
     }
 
     /**
-     * Les messages d'un fil prêts pour l'écran : cartes d'outils résolues, et plus aucune bulle
-     * marquée « en train d'écrire ».
+     * The messages of a thread ready for the screen: tool cards resolved, and no bubble left
+     * marked "typing".
      *
-     * Deux passes autrefois, à **chaque** ouverture : `ReplyCards.resolve` relisait les sorties
-     * d'outil de tous les messages (JSON compris), puis un `map { copy }` recopiait la liste
-     * entière. Un changement de bot ouvre un fil, donc c'était le coût d'un changement de bot.
+     * Two passes formerly, on **every** opening: `ReplyCards.resolve` re-read the tool outputs of
+     * all messages (JSON included), then a `map { copy }` recopied the whole list. Switching bots
+     * opens a thread, so that was the cost of switching bots.
      *
-     * Ici la résolution est gardée par la **liste source** (celle du dépôt, immuable) : rouvrir
-     * un fil qu'on n'a pas touché ne relit rien. La seconde passe, elle, n'a lieu **que** si une
-     * bulle porte encore le drapeau : un `map` sur cinq cents messages rendait toujours une liste
-     * neuve, même quand aucune n'écrivait — et une liste neuve n'est plus reconnue « inchangée »
-     * par le dépôt, qui réécrivait alors le fichier du fil pour rien.
+     * Here the resolution is keyed by the **source list** (the repository's, immutable): reopening
+     * an untouched thread re-reads nothing. The second pass happens **only** if a bubble still
+     * carries the flag: a `map` over five hundred messages always returned a new list, even when
+     * none was typing — and a new list is no longer recognized as "unchanged" by the repository,
+     * which then rewrote the thread's file for nothing.
      */
     private fun cardsFor(conversation: Conversation): List<ChatMessage> {
         val source = conversation.messages
@@ -1159,7 +1159,7 @@ class ChatViewModel(
             if (cachedSource === source) return resolved
         }
         val resolved = ReplyCards.resolve(source)
-        // Aucun message ne diffuse : la liste de la résolution **est** la réponse, sans copie.
+        // No message is streaming: the resolution's list **is** the answer, without a copy.
         val clean = if (resolved.none { it.isStreaming }) resolved
         else resolved.map { message -> if (message.isStreaming) message.copy(isStreaming = false) else message }
         cardsCache[conversation.id] = source to clean
@@ -1167,12 +1167,12 @@ class ChatViewModel(
     }
 
     /**
-     * Le fil d'une conversation **du serveur** : la projection qu'on a dans le registre n'a que
-     * son titre, pas ses messages. Le fil se lit ici, à l'ouverture — le serveur en garde la
-     * source, et rien n'est écrit sur ce téléphone.
+     * The thread of a **server** conversation: the projection in the registry has only its title,
+     * not its messages. The thread is read here, on opening — the server keeps the source, and
+     * nothing is written on this phone.
      *
-     * Un fil déjà chargé (une conversation locale qui a aussi une session) n'est pas relu :
-     * ce qu'on a ici est plus frais que ce que le serveur en sait.
+     * An already loaded thread (a local conversation that also has a session) is not re-read:
+     * what we have here is fresher than what the server knows about it.
      */
     private fun loadRemoteThread(conversation: com.onyx.app.data.model.Conversation) {
         if (!conversation.remote) return
@@ -1189,8 +1189,8 @@ class ChatViewModel(
             _state.update { state ->
                 state.copy(
                     messages = state.messages + rows.mapIndexed { index, row -> row.toMessage(conversation.createdAt, index) },
-                    // Une page pleine laisse penser qu'il y a plus ancien : on le dit, et le tap
-                    // suivant le vérifie auprès du serveur (une page vide éteint la ligne).
+                    // A full page suggests there is older content: that is said, and the next tap
+                    // checks it with the server (an empty page turns the row off).
                     earlierAvailable = rows.size >= THREAD_PAGE,
                 )
             }
@@ -1198,12 +1198,12 @@ class ChatViewModel(
     }
 
     /**
-     * **La page précédente du fil.**
+     * **The previous page of the thread.**
      *
-     * Le fil s'ouvre sur sa dernière page ([THREAD_PAGE]) : les messages plus anciens se demandent
-     * ici, par `offset`, et se **posent en tête** — l'ordre chronologique du fil ne bouge pas.
-     * Une page vide éteint `earlierAvailable` : la ligne disparaît au lieu d'inviter à un tap qui
-     * ne rendrait rien.
+     * The thread opens on its last page ([THREAD_PAGE]): older messages are requested here, by
+     * `offset`, and are **placed at the top** — the thread's chronological order does not move.
+     * An empty page turns `earlierAvailable` off: the row disappears instead of inviting a tap
+     * that would return nothing.
      */
     fun loadEarlier() {
         val state = _state.value
@@ -1234,7 +1234,7 @@ class ChatViewModel(
         }
     }
 
-    /** Une ligne du serveur → un message du fil (le même mapping qu'à l'ouverture). */
+    /** A server row → a thread message (the same mapping as on opening). */
     private fun com.onyx.app.data.net.ServeSessionMessages.Row.toMessage(
         conversationCreatedAt: Long,
         index: Int,
@@ -1247,21 +1247,21 @@ class ChatViewModel(
     )
 
     /**
-     * **Le tour que l'hôte a fini sans nous.**
+     * **The turn the host finished without us.**
      *
-     * Fermer l'app pendant qu'un bot travaille ne l'arrête plus : le serveur finit le run et écrit
-     * la réponse dans la session (le client annonce `X-Hermes-Keep-Running`). Au retour sur la
-     * conversation, la bulle laissée en suspens se remplit donc avec ce que l'hôte a écrit —
-     * pendant que l'app était fermée, ou pendant qu'elle finissait d'arriver.
+     * Closing the app while a bot is working no longer stops it: the server finishes the run and
+     * writes the reply into the session (the client announces `X-Hermes-Keep-Running`). On return
+     * to the conversation, the bubble left pending therefore fills with what the host wrote —
+     * while the app was closed, or while it was still arriving.
      *
-     * Trois refus explicites, dans cet ordre :
-     *  - un tour **vit encore** dans le processus : c'est lui qui écrit, on ne double pas ;
-     *  - le transport ne tient **pas** de session côté serveur : il n'y a rien à relire ;
-     *  - pas d'identifiant de session conservé : la même raison.
+     * Three explicit refusals, in this order:
+     *  - a turn **is still alive** in the process: it is the one writing, we do not double it;
+     *  - the transport holds **no** server-side session: there is nothing to re-read;
+     *  - no stored session identifier: the same reason.
      *
-     * Et une règle de fond : sans réponse d'assistant **après** le dernier message de l'utilisateur,
-     * on ne touche à rien (`ServeSessionMessages.trailingReply`) — une vieille réponse n'est jamais
-     * la nouvelle.
+     * And one underlying rule: without an assistant reply **after** the last user message,
+     * nothing is touched (`ServeSessionMessages.trailingReply`) — an old reply is never the new
+     * one.
      */
     private fun resumeDetachedTurn(conversation: com.onyx.app.data.model.Conversation) {
         recoveryJob?.cancel()
@@ -1285,15 +1285,15 @@ class ChatViewModel(
                     persistCurrent()
                     return@launch
                 }
-                // Le run peut encore tourner chez l'hôte : on redemande, sans rien affirmer entre-temps.
+                // The run may still be going on at the host: it is asked again, without asserting anything in between.
                 if (attempt < RECOVERY_ATTEMPTS - 1) delay(RECOVERY_DELAY_MS)
             }
         }
     }
 
     fun delete(conversation: Conversation) {
-        // Une conversation supprimée n'a plus de tour qui tourne : il est arrêté chez l'hôte,
-        // jamais laissé en arrière-plan (miroir de `Conversation.delete` de la référence).
+        // A deleted conversation no longer has a running turn: it is stopped at the host,
+        // never left in the background (mirror of the reference's `Conversation.delete`).
         turns.forget(conversation.id)
         settledTurns.removeAll { turns.session(conversation.id)?.assistantId == it }
         viewModelScope.launch {
@@ -1302,7 +1302,7 @@ class ChatViewModel(
         }
     }
 
-    /** Les cartes de l'écran de démarrage : reprendre la dernière conversation. */
+    /** The startup screen cards: resume the most recent conversation. */
     fun startCards(): List<com.onyx.app.ui.chat.components.StartCard> {
         val recent = conversations.mostRecent(excluding = conversationId) ?: return emptyList()
         return listOf(
@@ -1316,13 +1316,13 @@ class ChatViewModel(
         )
     }
 
-    /** Envoie le contenu du composer. */
+    /** Sends the composer's content. */
     fun send() {
         val current = _state.value
         val text = current.input.trim()
         if (text.isEmpty() && current.attachments.isEmpty()) return
-        // « /model » nu ouvre le sélecteur de modèle (mêmes écran et effet que par l'en-tête),
-        // au lieu de partir au serveur — comme `ComposerView.send` côté référence.
+        // A bare « /model » opens the model picker (same screen and effect as via the header),
+        // instead of going to the server — like the reference's `ComposerView.send`.
         if (current.attachments.isEmpty() && isModelCommand(text)) {
             _state.update { it.copy(input = "", modelPickerRequested = true, slashItems = emptyList()) }
             drafts.put(conversationId, "")
@@ -1331,23 +1331,23 @@ class ChatViewModel(
         sendText(text, allowEmpty = current.attachments.isNotEmpty())
     }
 
-    /** L'écran du modèle s'est ouvert : on abaisse la demande (l'effet ne se rejoue pas). */
+    /** The model screen has opened: the request is lowered (the effect does not replay). */
     fun consumeModelPickerRequest() {
         _state.update { it.copy(modelPickerRequested = false) }
     }
 
     /**
-     * Le modèle **du bot** de la conversation ouverte — le même souvenir que celui qu'écrit la
-     * feuille de modèle ([com.onyx.app.ui.bots.BotsViewModel.setModel] → `FaceKeys.model`).
+     * The **bot's** model for the open conversation — the same memory as the one written by the
+     * model sheet ([com.onyx.app.ui.bots.BotsViewModel.setModel] → `FaceKeys.model`).
      *
-     * L'écran le pousse dès que la conversation (ou le roster du bot) change : c'est ce qui fait que
-     * la pilule du haut nomme **immédiatement** le modèle choisi, et que l'envoi le porte
-     * ([ChatUiState.modelInForce] : conversation → bot → serveur → défaut). `null` pour une
-     * conversation simple.
+     * The screen pushes it as soon as the conversation (or the bot's roster) changes: that is what
+     * makes the top pill name **immediately** the chosen model, and makes the send carry it
+     * ([ChatUiState.modelInForce]: conversation → bot → server → default). `null` for a plain
+     * conversation.
      *
-     * Un nouveau choix **invalide l'écho du serveur** ([ChatUiState.modelInUse]) : sans cela, l'étage
-     * « conversation » garderait l'ancien modèle servi et le modèle du bot ne prendrait pas — l'app
-     * afficherait et enverrait le précédent, en ignorant le choix qui vient d'être fait.
+     * A new choice **invalidates the server's echo** ([ChatUiState.modelInUse]): without that,
+     * the "conversation" floor would keep the old served model and the bot's model would not take
+     * effect — the app would display and send the previous one, ignoring the choice just made.
      */
     fun setBotModel(model: String?) {
         val clean = model?.trim()?.takeIf { it.isNotEmpty() }
@@ -1355,41 +1355,41 @@ class ChatViewModel(
     }
 
     /**
-     * Le **profil du bot** de la conversation ouverte — la liaison bot → profil.
+     * The **bot's profile** for the open conversation — the bot → profile binding.
      *
-     * L'écran le pousse dès que la conversation (ou le roster du bot) change, comme [setBotModel] le
-     * fait pour le modèle. C'est ce qui fait que le tour suivant part **dans le profil de ce bot**
-     * (`profile` sur `session.create`, adresse `/p/<profil>`), au lieu du profil global du serveur
-     * — le défaut que le propriétaire a vu (« coder » annoncé, `default` servi).
+     * The screen pushes it as soon as the conversation (or the bot's roster) changes, as
+     * [setBotModel] does for the model. That is what makes the next turn leave **in that bot's
+     * profile** (`profile` on `session.create`, address `/p/<profile>`), instead of the server's
+     * global profile — the defect the owner saw ("coder" announced, `default` served).
      *
-     * `null` pour une conversation simple (le profil du serveur décide) ; `""` pour le profil
-     * principal (le bot `isDefault`, qui laisse la passerelle sur son profil par défaut).
+     * `null` for a plain conversation (the server's profile decides); `""` for the main profile
+     * (the `isDefault` bot, which leaves the gateway on its default profile).
      */
     fun setBotProfile(profile: String?) {
         val clean = profile?.trim()
         val changed = _state.value.botProfile != clean
         _state.update { if (it.botProfile == clean) it else it.copy(botProfile = clean) }
-        // Les compétences sont celles **du profil** : changer de bot change la liste des
-        // commandes « / » (celles d'un profil ne sont pas celles d'un autre).
+        // Skills are **the profile's**: switching bots changes the list of « / » commands (one
+        // profile's are not another's).
         if (changed) {
-            // **Le canal du bot précédent reste ouvert.** Il ne peut pas servir ce tour-ci — un
-            // `ServeRpc` fige son profil —, mais il servira le suivant : revenir sur un bot qu'on
-            // vient de quitter prend un socket déjà monté au lieu de repayer le login, le ticket et
-            // l'upgrade. On préchauffe donc celui du profil choisi, sans fermer les autres.
+            // **The previous bot's channel stays open.** It cannot serve this turn — a `ServeRpc`
+            // freezes its profile —, but it will serve the next one: returning to a bot just left
+            // takes an already mounted socket instead of repaying the login, the ticket and the
+            // upgrade. The chosen profile's is therefore preheated, without closing the others.
             preheatServe(com.onyx.app.ui.design.ProfileInForce.appliedTo(_state.value.server, clean))
             refreshSlashCommands()
         }
-        // **Le bot se retient avec la conversation.** Sans cette ligne, l'app ne sait plus, au
-        // redémarrage, que cette conversation est celle de « coder » : le roster arrive après
-        // l'écran, et l'en-tête montrait Onyx — visage bleu, « @default » — le temps de deux
-        // frames avant de sauter sur le vrai bot.
+        // **The bot is held with the conversation.** Without this line, the app no longer knows,
+        // on restart, that this conversation is « coder »'s: the roster arrives after the screen,
+        // and the header showed Onyx — blue face, « @default » — for the time of two frames
+        // before jumping to the real bot.
         val id = _state.value.conversationId?.takeIf { it.isNotBlank() }
         if (id != null) viewModelScope.launch { conversations.bindBot(id, clean) }
     }
 
     /**
-     * Envoie un texte venu d'ailleurs que du composer — la dictée, l'écran vocal, une tuile de
-     * montre, un partage entrant.
+     * Sends a text coming from somewhere other than the composer — dictation, the voice screen,
+     * a watch tile, an incoming share.
      */
     fun sendText(
         text: String,
@@ -1401,14 +1401,14 @@ class ChatViewModel(
         val clean = text.trim()
         if (clean.isEmpty() && !(allowEmpty && current.attachments.isNotEmpty())) return
 
-        // Une commande « / » ne part jamais comme un message du fil : `/model` nu ouvre le
-        // sélecteur, les commandes de l'app agissent, et le reste va au gateway (`slash.exec`).
+        // A "/" command never leaves as a thread message: a bare `/model` opens the
+        // picker, the app's commands act, and the rest goes to the gateway (`slash.exec`).
         if (clean.startsWith("/") && !clean.contains('\n') && current.attachments.isEmpty()) {
             submitSlash(clean, clearInput)
             return
         }
 
-        // Pendant une réponse, ou derrière un message déjà retenu, on garde texte et pièces jointes.
+        // During a reply, or behind an already-queued message, we keep text and attachments.
         if (current.isStreaming || queued.items.isNotEmpty()) {
             val item = OutboxItem(
                 id = UUID.randomUUID().toString(),
@@ -1437,10 +1437,10 @@ class ChatViewModel(
     }
 
     /**
-     * Une commande « / » : ce que l'app exécute, elle le fait ; le reste part au gateway.
+     * A "/" command: what the app executes, it does; the rest goes to the gateway.
      *
-     * Miroir de `ComposerView.send()` (le `/model` nu) et de `HermesServeTransport.runSlash`
-     * (`slash.exec`, puis `command.dispatch` sur l'erreur 4018).
+     * Mirrors `ComposerView.send()` (the bare `/model`) and `HermesServeTransport.runSlash`
+     * (`slash.exec`, then `command.dispatch` on error 4018).
      */
     private fun submitSlash(text: String, clearInput: Boolean) {
         if (clearInput) clearDraft()
@@ -1459,8 +1459,8 @@ class ChatViewModel(
                 appendLocalReply(SlashCommands.helpText(slashCommands))
             }
 
-            // Une compétence du profil n'est pas une commande du worker : `slash.exec` la refuse
-            // exprès (« skill command: use command.dispatch »).
+            // A profile skill is not a worker command: `slash.exec` rejects it
+            // on purpose ("skill command: use command.dispatch").
             SlashAction.INVOKE_SKILL -> invokeSkill(text)
 
             SlashAction.GATEWAY -> runSlashOnGateway(text)
@@ -1468,12 +1468,12 @@ class ChatViewModel(
     }
 
     /**
-     * Invoque une compétence du profil, et **envoie** le message qui la charge.
+     * Invokes a profile skill, and **sends** the message that loads it.
      *
-     * `command.dispatch` rend le message destiné au modèle (`type: skill`) : c'est lui qui part
-     * comme le tour suivant, exactement le contrat de la référence (`gateway_chat_commands.forward`
-     * appelle `view.submit(reply["message"])`). Le fil, lui, garde la ligne tapée — le corps de la
-     * compétence n'est pas une parole de l'utilisateur.
+     * `command.dispatch` returns the message meant for the model (`type: skill`): that is what
+     * leaves as the next turn, exactly the reference contract (`gateway_chat_commands.forward`
+     * calls `view.submit(reply["message"])`). The thread, for its part, keeps the typed line — the
+     * skill body is not a user utterance.
      */
     private fun invokeSkill(text: String) {
         val server = _state.value.server
@@ -1486,14 +1486,14 @@ class ChatViewModel(
         val argument = line.substringAfter(' ', "").trim()
         _state.update { it.copy(slashItems = emptyList()) }
         viewModelScope.launch {
-            // Un tour est déjà en cours : la compétence attend son tour au lieu d'ouvrir un second
-            // flux sur la même conversation.
+            // A turn is already running: the skill waits its turn instead of opening a second
+            // stream on the same conversation.
             //
-            // **On attend le changement, on ne le scrute pas.** La boucle réveillait le processus
-            // cinq fois par seconde sans limite ; un flux qui dure dix minutes, c'est trois mille
-            // réveils pour rien — et chacun republie une lecture d'état dans un tour déjà chargé.
-            // `first { }` se réveille au changement, et `withTimeout` rend la main plutôt que
-            // d'attendre indéfiniment un tour qui ne finira jamais.
+            // **We wait for the change, we do not poll it.** The loop woke the process
+            // five times per second without limit; a stream lasting ten minutes is three thousand
+            // wakes for nothing — and each republishes a state read in an already loaded turn.
+            // `first { }` wakes on change, and `withTimeout` yields rather than
+            // waiting indefinitely for a turn that will never end.
             runCatching {
                 withTimeoutOrNull(SlashWaitTimeoutMs) {
                     state.first { !it.isStreaming }
@@ -1504,8 +1504,8 @@ class ChatViewModel(
                 channel.call(
                     method = "command.dispatch",
                     params = buildJsonObject {
-                        // La session vivante, quand elle existe : `command.dispatch` s'en sert pour
-                        // nommer la tâche de la compétence, et accepte une valeur vide.
+                        // The live session, when it exists: `command.dispatch` uses it to
+                        // name the skill task, and accepts an empty value.
                         put("session_id", parentSessionId())
                         put("name", name)
                         put("arg", argument)
@@ -1531,24 +1531,24 @@ class ChatViewModel(
     }
 
     /**
-     * Relit les compétences du profil : `api/skills`, la route que l'écran « Compétences » utilise
-     * déjà. C'est **la** source de la liste que le menu et l'exécution partagent.
+     * Reloads the profile skills: `api/skills`, the route the "Compétences" (Skills) screen already
+     * uses. It is **the** source of the list that the menu and the execution share.
      *
-     * Sans connexion Dashboard, il n'y a pas de route : la liste reste celle des six commandes
-     * fixes. Une lecture qui échoue ne casse rien non plus — un profil sans compétence donne
-     * exactement la liste d'avant.
+     * Without a Dashboard connection, there is no route: the list remains that of the six fixed
+     * commands. A failing read breaks nothing either — a profile with no skill yields
+     * exactly the previous list.
      */
     private fun refreshSlashCommands(force: Boolean = false) {
         skillsJob?.cancel()
         val server = _state.value.server
-        // Les compétences sont celles du profil du bot quand la conversation en porte un ; sinon
-        // celles du profil du serveur (`ServeClient` s'en charge quand on ne nomme personne).
+        // Skills are the bot profile's when the conversation carries one; otherwise
+        // the server profile's (`ServeClient` handles it when nobody is named).
         val profile = _state.value.botProfile?.takeIf { it.isNotBlank() }
         val key = profile.orEmpty()
         val stamp = now()
-        // **La liste d'un profil ne change pas d'une seconde à l'autre.** Sans ce cache, chaque
-        // retour sur un bot relançait `api/skills` — un aller-retour par passage, alors que la
-        // réponse est la même. Le cache est par profil, et il périme comme la lecture courante.
+        // **A profile's list does not change from one second to the next.** Without this cache, every
+        // return to a bot relaunched `api/skills` — one round trip per visit, while the
+        // answer is the same. The cache is per profile, and it expires like the current read.
         if (!force) {
             skillsByProfile[key]?.takeIf { stamp - it.first <= SKILLS_TTL_MS }?.let { (at, cached) ->
                 skillsLoadedAt = at
@@ -1567,21 +1567,21 @@ class ChatViewModel(
             val commands = SlashCommands.commands(skills)
             skillsByProfile[key] = now() to commands
             slashCommands = commands
-            // Le menu déjà ouvert se relit avec la liste fraîche : les compétences y entrent.
+            // The already-open menu is reread with the fresh list: skills enter it.
             val draft = _state.value.input
             if (draft.startsWith("/")) updateSlashMenu(draft)
         }
     }
 
-    /** L'écran a exécuté la commande : elle ne doit pas se rejouer à la recomposition suivante. */
+    /** The screen executed the command: it must not replay on the next recomposition. */
     fun consumeSlash() {
         _state.update { it.copy(pendingSlash = null) }
     }
 
     /**
-     * Envoie la commande au gateway : `slash.exec` d'abord, `command.dispatch` si le gateway
-     * répond 4018 (« ce n'est pas une commande du worker »). Sans connexion Dashboard, il n'y a
-     * personne pour l'exécuter : la réponse le dit plutôt que d'envoyer la ligne comme un message.
+     * Sends the command to the gateway: `slash.exec` first, `command.dispatch` if the gateway
+     * answers 4018 ("this is not a worker command"). Without a Dashboard connection, there is
+     * nobody to execute it: the reply says so instead of sending the line as a message.
      */
     private fun runSlashOnGateway(text: String) {
         val server = _state.value.server
@@ -1596,7 +1596,7 @@ class ChatViewModel(
                 channel.call(
                     method = "slash.exec",
                     params = buildJsonObject {
-                        // `session_id` n'est utile qu'à une session ouverte ; le worker accepte vide.
+                        // `session_id` is only useful to an open session; the worker accepts empty.
                         put("session_id", serverSessionId.orEmpty())
                         put("command", command)
                     },
@@ -1620,7 +1620,7 @@ class ChatViewModel(
         }
     }
 
-    /** `command.dispatch` : les commandes propres à l'utilisateur, celles que `slash.exec` ignore. */
+    /** `command.dispatch`: the user's own commands, those `slash.exec` ignores. */
     private suspend fun dispatchCustomCommand(
         channel: com.onyx.app.data.net.ServeRpc,
         command: String,
@@ -1639,9 +1639,9 @@ class ChatViewModel(
             )
         }
         val reply = result.getOrNull()?.asObject()
-        // Une compétence (ou une commande qui compose un tour, `/plan`…) : le gateway rend le
-        // message **destiné au modèle**, et c'est lui qui part — jamais dans une bulle. C'est le
-        // repli d'une compétence que la liste connue ne portait pas encore.
+        // A skill (or a command that composes a turn, `/plan`…): the gateway returns the
+        // message **meant for the model**, and that is what leaves — never in a bubble. It is the
+        // fallback for a skill that the known list did not carry yet.
         val message = reply?.firstString("message")
         val type = reply?.firstString("type")
         if (message != null && (type == "skill" || type == "send")) {
@@ -1658,7 +1658,7 @@ class ChatViewModel(
         appendLocalReply(shown)
     }
 
-    /** Ce qu'une commande a répondu : une bulle de l'agent, comme `TurnEvent.textDelta` de la référence. */
+    /** What a command answered: an agent bubble, like `TurnEvent.textDelta` in the reference. */
     private fun appendLocalReply(text: String) {
         val reply = ChatMessage(
             id = UUID.randomUUID().toString(),
@@ -1671,11 +1671,11 @@ class ChatViewModel(
     }
 
     /**
-     * Pilote la réponse en cours sans l'interrompre (`Conversation.steer`).
+     * Steers the current reply without interrupting it (`Conversation.steer`).
      *
-     * La note s'affiche comme un message de l'utilisateur, placée avant la réponse qui streame
-     * pour qu'elle reste la dernière ligne du fil. Seul un transport à registre (`hasLedger`)
-     * accepte un pilotage : ailleurs le composeur n'offre que la file.
+     * The note is shown as a user message, placed before the streaming reply
+     * so that it remains the last line of the thread. Only a ledger transport (`hasLedger`)
+     * accepts steering: elsewhere the composer only offers the queue.
      */
     fun steer(text: String) {
         val clean = text.trim()
@@ -1702,7 +1702,7 @@ class ChatViewModel(
         deliverSteer(clean)
     }
 
-    /** Le canal qui porte `session.steer` : celui du Dashboard, le seul qui sache piloter. */
+    /** The channel that carries `session.steer`: the Dashboard's, the only one that can steer. */
     private fun deliverSteer(text: String) {
         val state = _state.value
         val session = serverSessionId
@@ -1710,8 +1710,8 @@ class ChatViewModel(
             !state.server.hasServeCredentials ||
             session.isNullOrEmpty()
         ) {
-            // Aucun canal pour piloter : référence rend la main avec « steer rejected » et garde la
-            // note dans le fil. On ne prétend pas que le tour a été piloté.
+            // No channel to steer with: the reference yields with "steer rejected" and keeps the
+            // note in the thread. We do not pretend the turn was steered.
             _state.update { it.copy(steerStatus = OnyxLocalization["steer rejected (turn already finishing)"]) }
             return
         }
@@ -1746,7 +1746,7 @@ class ChatViewModel(
         _state.update { it.copy(input = "", slashItems = emptyList()) }
     }
 
-    /** Rejoue le dernier tour (bouton « Retry » ou « Regenerate »). */
+    /** Replays the last turn (the "Retry" or "Regenerate" button). */
     fun retry() {
         val current = _state.value
         if (current.isStreaming) return
@@ -1754,33 +1754,33 @@ class ChatViewModel(
         val history = current.messages
             .filter { it.error == null && it.text.isNotBlank() && it.id != lastUser.id }
             .map { ChatTurn(role = it.role, text = it.text) }
-        // Le message fautif et la réponse vide sont retirés avant de rejouer le tour.
+        // The faulty message and the empty reply are removed before replaying the turn.
         _state.update { it.copy(messages = it.messages.filterNot { m -> m.error != null || m.isStreaming }) }
         appendTurn(text = lastUser.text, history = history, clearInput = false)
     }
 
     /**
-     * Demande la restauration d'une réponse **à ce message** : rien n'est retiré avant la
-     * confirmation. On relève seulement ce qui serait défait.
+     * Requests the restoration of a reply **to this message**: nothing is removed before the
+     * confirmation. We only gather what would be undone.
      */
     fun requestRestore(messageId: String) {
         val current = _state.value
         if (current.isStreaming) return
-        // Rien n'est retiré ici : on relève seulement ce qui **serait** défait, et on le soumet.
+        // Nothing is removed here: we only gather what **would** be undone, and we submit it.
         val plan = restorePlan(current.messages, messageId) ?: return
         _state.update { it.copy(restorePrompt = plan) }
     }
 
-    /** La personne refuse : **rien** n'est défait. */
+    /** The person refuses: **nothing** is undone. */
     fun cancelRestore() {
         _state.update { it.copy(restorePrompt = null) }
     }
 
     /**
-     * La personne confirme : le fil est ramené **à** ce message, et la session du gateway est
-     * rembobinée du même nombre de tours quand le transport sait le faire (`session.undo`, le
-     * Dashboard). Sur l'API partagée, qui n'a pas d'annulation, seule notre copie du fil est
-     * coupée : l'avis le dit franchement.
+     * The person confirms: the thread is brought back **to** this message, and the gateway session is
+     * rewound by the same number of turns when the transport can do it (`session.undo`, the
+     * Dashboard). On the shared API, which has no undo, only our copy of the thread is
+     * cut: the notice says so plainly.
      */
     fun confirmRestore() {
         val prompt = _state.value.restorePrompt ?: return
@@ -1820,16 +1820,16 @@ class ChatViewModel(
         }
     }
 
-    /** L'avis de restauration a été affiché : il ne se rejoue pas. */
+    /** The restore notice has been shown: it does not replay. */
     fun consumeRestoreNotice() {
         if (_state.value.restoreNotice != null) _state.update { it.copy(restoreNotice = null) }
     }
 
     /**
-     * « Brancher à partir d'ici » : demande confirmation **avant** de créer quoi que ce soit.
+     * "Branch from here": asks for confirmation **before** creating anything.
      *
-     * Comme la restauration, la demande ne touche à rien : elle relève seulement ce qui **serait**
-     * copié (le message visé et tout ce qui le précède) et le soumet à la confirmation.
+     * Like restoration, the request touches nothing: it only gathers what **would** be
+     * copied (the target message and everything before it) and submits it to the confirmation.
      */
     fun requestBranch(messageId: String) {
         val current = _state.value
@@ -1838,32 +1838,32 @@ class ChatViewModel(
         _state.update { it.copy(branchPrompt = plan) }
     }
 
-    /** La personne refuse : **rien** n'est créé, et le fil ne bouge pas d'un pouce. */
+    /** The person refuses: **nothing** is created, and the thread does not budge an inch. */
     fun cancelBranch() {
         _state.update { it.copy(branchPrompt = null) }
     }
 
     /**
-     * La personne confirme : une **nouvelle conversation** qui porte la copie du fil jusqu'à ce
-     * message inclus, et elle **s'ouvre**. L'originale n'est ni réécrite, ni amputée : elle garde
-     * ses messages, son titre et son identifiant.
+     * The person confirms: a **new conversation** that carries the copy of the thread up to and
+     * including this message, and it **opens**. The original is neither rewritten nor truncated: it keeps
+     * its messages, its title and its identifier.
      *
-     * **Aucun tour ne démarre ici, et rien ne part au serveur** : le branchement est une copie
-     * locale (`ConversationRepository.branchFrom`) suivie d'une ouverture. La branche naît sans
-     * session serveur et sans file d'attente, donc aucun envoi ne peut s'y déclencher tout seul ;
-     * c'est le premier message écrit dans la nouvelle conversation qui ouvrira sa session.
+     * **No turn starts here, and nothing is sent to the server**: branching is a local
+     * copy (`ConversationRepository.branchFrom`) followed by an open. The branch is born without a
+     * server session and without a queue, so no send can trigger on it by itself;
+     * it is the first message written in the new conversation that will open its session.
      *
-     * Le serveur, lui, n'est pas branlable : le gateway n'expose pas de route pour bifurquer une
-     * session (`POST api/sessions/{id}/branch` n'existe pas). La copie vit donc sur ce téléphone —
-     * et c'est dit dans la confirmation, en toutes lettres.
+     * The server, for its part, cannot be branched: the gateway exposes no route to fork a
+     * session (`POST api/sessions/{id}/branch` does not exist). The copy therefore lives on this phone —
+     * and that is stated in the confirmation, in so many words.
      */
     fun confirmBranch() {
         val prompt = _state.value.branchPrompt ?: return
         _state.update { it.copy(branchPrompt = null) }
         val current = _state.value
         if (current.messages.none { it.id == prompt.messageId }) return
-        // L'originale telle qu'elle est **maintenant** : ses messages en mémoire (le fil vivant),
-        // son titre et sa session d'origine. Rien de tout cela n'est modifié par ce qui suit.
+        // The original as it is **now**: its messages in memory (the live thread),
+        // its title and its original session. None of that is modified by what follows.
         val source = (conversations.find(conversationId) ?: Conversation.start(id = conversationId)).copy(
             serverId = current.server.id,
             serverSessionId = serverSessionId,
@@ -1871,16 +1871,16 @@ class ChatViewModel(
         )
         viewModelScope.launch {
             conversations.branchFrom(source, prompt.messageId)?.let { branch ->
-                // La nouvelle conversation s'ouvre ici même ; l'écran du chat suit son état.
+                // The new conversation opens right here; the chat screen follows its state.
                 open(branch)
             }
         }
     }
 
     /**
-     * `session.undo` retire **le dernier tour** ; pour revenir à un message plus haut, on l'appelle
-     * une fois par tour utilisateur retiré (c'est ce que fait la référence). Rend `true` quand tous
-     * les tours sont passés, `false` dès qu'un appel échoue ou que le serveur en refuse un.
+     * `session.undo` removes **the last turn**; to go back to a higher message, it is called
+     * once per removed user turn (that is what the reference does). Returns `true` when all
+     * turns have passed, `false` as soon as a call fails or the server refuses one.
      */
     private suspend fun rewindGateway(session: String, turns: Int): Boolean {
         val channel = serveChannel(_state.value.server)
@@ -1898,10 +1898,10 @@ class ChatViewModel(
     }
 
     /**
-     * L'avis de fin de restauration : ce qui a été défait, et ce que le serveur a pu suivre.
+     * The end-of-restore notice: what was undone, and what the server could follow.
      *
-     * Le **vrai** compte y passe comme dans la confirmation, et le zéro y est dit autrement : « rien
-     * n'a été retiré » plutôt que « retiré : 0 messages ».
+     * The **real** count goes in here as in the confirmation, and zero is phrased differently: "nothing
+     * was removed" rather than "removed: 0 messages".
      */
     private fun restoreNotice(prompt: RestorePrompt, rewound: Boolean?): String {
         val base = if (prompt.removedMessages == 0) {
@@ -1920,13 +1920,13 @@ class ChatViewModel(
     }
 
     /**
-     * Le bouton d'arrêt : le tour en cours est **vraiment** arrêté, chez l'hôte aussi.
-     * Le texte déjà reçu reste dans le fil.
+     * The stop button: the current turn is **really** stopped, on the host too.
+     * The text already received stays in the thread.
      */
     fun stop() {
-        // L'ordre part **avant** la coupure locale : depuis que le tour survit à la fermeture de
-        // l'app, annuler l'écoute ne suffit plus — sans `POST /v1/runs/{id}/stop`, le bot
-        // continuerait de travailler dans le dos de l'utilisateur.
+        // The order goes out **before** the local cut: now that the turn survives closing the
+        // app, cancelling the listener is no longer enough — without `POST /v1/runs/{id}/stop`, the bot
+        // would keep working behind the user's back.
         val stateBefore = _state.value
         val runId = turns.session(conversationId)?.live?.value?.runId
         val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(
@@ -1954,7 +1954,7 @@ class ChatViewModel(
         persistCurrent()
     }
 
-    /** Répond à une demande d'approbation, dans les mots du gateway (`once`… `deny`). */
+    /** Answers an approval request, in the gateway's wording (`once`… `deny`). */
     fun respondApproval(messageId: String, approvalId: String, choice: String) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val approval = message.approvals.firstOrNull { it.id == approvalId } ?: return
@@ -1991,16 +1991,16 @@ class ChatViewModel(
         modelOverride: String? = null,
         outgoing: OutboxItem? = null,
         /**
-         * Ce que le fil montre comme parole de l'utilisateur, quand le texte **envoyé** n'est pas le
-         * sien : l'invocation d'une compétence envoie le corps de la compétence, et la bulle garde
-         * la ligne tapée (`/resume ce fil`).
+         * What the thread shows as the user's words, when the text **sent** is not theirs:
+         * invoking a skill sends the skill's body, and the bubble keeps the typed line
+         * (`/resume this thread`).
          */
         displayText: String? = null,
     ) {
-        // L'état **et** le serveur : le modèle en vigueur se lit sur l'état — la **même** résolution
-        // que la pilule du haut, pour que ce qui est nommé soit exactement ce qui part. Et le
-        // **profil** : la conversation d'un bot porte **son** profil (adresse, `profile` de session,
-        // modèle et fournisseur du profil), pas celui du serveur — la liaison bot → profil.
+        // The state **and** the server: the model in force is read from the state — the **same** resolution
+        // as the top pill, so that what is named is exactly what goes out. And the
+        // **profile**: a bot's conversation carries **its** profile (address, session `profile`,
+        // model and provider of the profile), not the server's — the bot → profile link.
         val state = _state.value
         val server = com.onyx.app.ui.design.ProfileInForce.appliedTo(state.server, state.botProfile)
         val attachments = outgoing?.attachments?.map { it.toPendingAttachment() } ?: _state.value.attachments
@@ -2034,20 +2034,20 @@ class ChatViewModel(
             )
         }
 
-        // Sauvegarde immédiate du tour et de l'outbox : une fermeture en cours de stream ne peut
-        // pas ressusciter le message retiré de la file à côté de sa bulle déjà envoyée.
+        // Immediate save of the turn and the outbox: a close mid-stream cannot
+        // resurrect the message removed from the queue next to its already-sent bubble.
         restoredInitial = true
         persistCurrent()
 
-        // Les images partent en data URL ; un texte joint est ajouté au message, comme la note
-        // que l'app de référence écrit pour un fichier.
+        // Images go out as data URLs; attached text is added to the message, like the note
+        // the reference app writes for a file.
         if (outgoing == null) _state.update { it.copy(attachments = emptyList()) }
 
-        // **Le disque ne fait pas attendre l'écran.** Réduire une photo et l'encoder en data URL,
-        // ou lire un fichier joint, c'est du disque et du CPU (jusqu'à [MAX_INLINE_IMAGE] avant
-        // réduction) : fait ici, ce travail retardait le départ du tour d'autant, alors que la
-        // bulle est déjà à l'écran et que la personne a vu son message partir. Le tour part donc
-        // d'une coroutine ; le verrou garde l'ordre de deux envois rapprochés.
+        // **The disk does not make the screen wait.** Downscaling a photo and encoding it as a data URL,
+        // or reading an attached file, is disk and CPU work (up to [MAX_INLINE_IMAGE] before
+        // downscaling): done here, that work delayed the turn's departure by as much, while the
+        // bubble is already on screen and the person has seen their message leave. So the turn departs
+        // from a coroutine; the lock keeps the order of two close-together sends.
         viewModelScope.launch {
             sendGate.withLock {
                 val parts = withContext(Dispatchers.IO) {
@@ -2066,15 +2066,15 @@ class ChatViewModel(
                     reasoningEffort = settings.reasoningEffort.value.takeIf { it.isNotEmpty() },
                     fast = server.transport == Transport.HERMES_SESSIONS &&
                         serverSessionId?.let { runControls.isFast(server.configSignature, it) } == true,
-                    // Une session déjà connue est reprise par son identifiant : le gateway relit son
-                    // historique (state.db) au lieu de faire confiance au fil renvoyé par l'app, et le
-                    // tour redevient « réveillable » côté serveur. Réservé au transport Hermes — un
-                    // serveur OpenAI-compatible quelconque n'a pas cette en-tête.
+                    // An already-known session is resumed by its identifier: the gateway re-reads its
+                    // history (state.db) instead of trusting the thread sent by the app, and the
+                    // turn becomes "wakeable" again on the server side. Reserved for the Hermes transport — an
+                    // arbitrary OpenAI-compatible server does not have this header.
                     sessionId = serverSessionId
                         ?.takeIf { it.isNotBlank() }
                         ?.takeIf { server.transport == Transport.HERMES_SESSIONS },
-                    // La clé du fil : stable pour cette conversation, donc le gateway retrouve la
-                    // même session d'un tour à l'autre au lieu d'en créer une par requête.
+                    // The thread key: stable for this conversation, so the gateway finds the
+                    // same session from one turn to the next instead of creating one per request.
                     conversationKey = conversationId,
                 )
                 lastRequest = request
@@ -2084,17 +2084,17 @@ class ChatViewModel(
     }
 
     /**
-     * **Une réponse qui arrive sans le flux n'est pas perdue.**
+     * **A reply that arrives without the stream is not lost.**
      *
-     * Le serveur se tait pendant qu'un outil travaille — parfois plusieurs minutes, et Telegram
-     * affiche « en train d'écrire » pendant tout ce temps sans rien perdre, parce qu'il relit la
-     * session. Le flux, lui, peut finir par être coupé par un relais, un changement de réseau ou
-     * une veille : la réponse était alors écrite chez l'hôte et jamais montrée.
+     * The server stays silent while a tool works — sometimes several minutes, and Telegram
+     * shows "typing" the whole time without losing anything, because it re-reads the
+     * session. The stream itself can end up being cut by a relay, a network change or
+     * a sleep: the reply was then written on the host and never shown.
      *
-     * Ce veilleur relit la session dès que le flux se tait plus de [RESCUE_AFTER_SECONDS] : si
-     * l'hôte a écrit la réponse, elle est posée dans le message du tour et le tour se clôt
-     * proprement. Il ne touche à rien tant que le flux parle, et ne devine jamais rien : sans
-     * message d'assistant après le prompt, il attend simplement le tour suivant.
+     * This watcher re-reads the session as soon as the stream is quiet for more than [RESCUE_AFTER_SECONDS]: if
+     * the host wrote the reply, it is placed in the turn's message and the turn closes
+     * cleanly. It touches nothing while the stream is talking, and never guesses: without an assistant
+     * message after the prompt, it simply waits for the next turn.
      */
     private fun watchForRescue(
         conversation: String,
@@ -2108,15 +2108,15 @@ class ChatViewModel(
                 delay(RESCUE_POLL_MS)
                 val session = turns.session(conversation) ?: return@launch
                 val phase = session.phase
-                // **Deux cas à rattraper, et un seul autrefois.**
+                // **Two cases to catch up on, and only one before.**
                 //
-                //  1. le tour vit encore mais le flux s'est tu (agent qui réfléchit, outil lent) :
-                //     on attend le silence, puis on relit chez l'hôte ;
-                //  2. le flux a été **coupé** (`TransportError.Truncated`) : le tour est déjà
-                //     marqué en échec, et l'ancien garde-fou `if (!phase.isStreaming) return`
-                //     sortait ici même — la bulle restait tronquée avec une erreur, alors que
-                //     l'hôte, lui, avait fini d'écrire la réponse. C'est précisément le
-                //     décrochage : la réponse existe, et l'app ne va pas la chercher.
+                //  1. the turn is still alive but the stream has gone quiet (agent thinking, slow tool):
+                //     we wait for the silence, then re-read on the host;
+                //  2. the stream was **cut** (`TransportError.Truncated`): the turn is already
+                //     marked as failed, and the old guard `if (!phase.isStreaming) return`
+                //     exited right here — the bubble stayed truncated with an error, while
+                //     the host had finished writing the reply. This is precisely the
+                //     disconnect: the reply exists, and the app does not go fetch it.
                 val cut = !phase.isStreaming && session.failure is TransportError.Truncated
                 if (!phase.isStreaming && !cut) return@launch
                 if (!cut && phase.quietSeconds(System.currentTimeMillis()) < RESCUE_AFTER_SECONDS) continue
@@ -2128,9 +2128,9 @@ class ChatViewModel(
                 val courant = _state.value.messages.firstOrNull { it.id == assistantId }
                 val fusion = com.onyx.app.data.net.ServeSessionMessages
                     .merge(courant?.text.orEmpty(), fromHost) ?: continue
-                // Une réponse récupérée chez l'hôte **efface** l'échec : elle est complète, et
-                // laisser l'erreur affichée au-dessus d'un texte entier ferait croire à un
-                // problème qui n'existe plus.
+                // A reply recovered from the host **erases** the failure: it is complete, and
+                // leaving the error shown above a full text would suggest a
+                // problem that no longer exists.
                 session.edit { message -> message.copy(text = fusion, isStreaming = false, error = null) }
                 session.succeed()
                 return@launch
@@ -2145,32 +2145,32 @@ class ChatViewModel(
         prompt: String,
     ) {
         val conversation = conversationId
-        // Le tour part dans le magasin du processus : l'écran qui l'a lancé peut disparaître
-        // (retour, autre conversation, activité détruite) sans l'arrêter.
+        // The turn departs into the process store: the screen that launched it can disappear
+        // (back, another conversation, destroyed activity) without stopping it.
         turns.start(
             conversationId = conversation,
             assistantId = assistantId,
             userText = prompt,
             serverSessionId = serverSessionId,
         ) { departure ->
-            // **La requête porte exactement le modèle en vigueur** — le même nom que la pilule du haut
-            // écrit (`ChatUiState.modelInForce`). Aucune substitution ici : `withResolvedModel`
-            // réécrivait le modèle quand le champ était vide ou inconnu (`available.first()`, souvent
-            // `sage-a1.5`) alors que la pilule disait « Modèle par défaut » — l'app nommait une chose
-            // et la requête en portait une autre. Si rien n'est en vigueur, **rien n'est envoyé** : le
-            // serveur choisit, et c'est exactement ce que « Modèle par défaut » annonce.
+            // **The request carries exactly the model in force** — the same name the top pill
+            // writes (`ChatUiState.modelInForce`). No substitution here: `withResolvedModel`
+            // rewrote the model when the field was empty or unknown (`available.first()`, often
+            // `sage-a1.5`) while the pill said "Default model" ("Modèle par défaut") — the app named one thing
+            // and the request carried another. If nothing is in force, **nothing is sent**: the
+            // server chooses, and that is exactly what "Default model" ("Modèle par défaut") announces.
             lastRequest = request
-            // **Le flux n'est pas la seule source de la réponse.** Voir `watchForRescue`.
+            // **The stream is not the only source of the reply.** See `watchForRescue`.
             watchForRescue(conversation, assistantId, server)
             val effectiveRequest = lastRequest ?: request
-            // Ce qui part vraiment : la barre du haut le montre (c'est la même valeur).
+            // What really goes out: the top bar shows it (it is the same value).
             effectiveRequest.model?.trim()?.takeIf { it.isNotEmpty() }?.let { resolved ->
                 turns.noteModel(conversation, assistantId, resolved)
             }
             when (server.transport) {
-                // Le tour passe par le canal JSON-RPC du Dashboard (WebSocket), comme référence — et
-                // par le **même socket** que les commandes de sous-agent : le gateway n'accorde
-                // le pilotage qu'au transport attaché à la session.
+                // The turn goes through the Dashboard's JSON-RPC channel (WebSocket), as a reference — and
+                // through the **same socket** as the sub-agent commands: the gateway only grants
+                // control to the transport attached to the session.
                 Transport.HERMES_SERVE -> {
                     val channel = serveChannel(server)
                     HermesServeChat(server, channel.asChatChannel(), ownsLink = false)
@@ -2182,8 +2182,8 @@ class ChatViewModel(
     }
 
     /**
-     * Demande trois questions de relance au modèle, comme `FollowUpChips` les reçoit côté référence.
-     * Un petit tour à part, une fois la réponse finie.
+     * Asks the model for three follow-up questions, as `FollowUpChips` receives them on the reference side.
+     * A small separate turn, once the reply is finished.
      */
     private fun requestFollowUps() {
         val state = _state.value
@@ -2226,7 +2226,7 @@ class ChatViewModel(
         }
     }
 
-    /** Le lecteur confirme la tête de file ; les suivants reprennent ensuite dans le même ordre. */
+    /** The reader confirms the head of the queue; the following ones then resume in the same order. */
     fun sendQueuedNow(id: String) {
         if (!queued.confirmFirst(id, now())) return
         retryAttempt = 0
