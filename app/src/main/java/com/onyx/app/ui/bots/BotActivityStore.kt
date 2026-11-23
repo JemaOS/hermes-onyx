@@ -9,37 +9,37 @@ import com.onyx.app.data.net.ActivityKind
 import com.onyx.app.ui.conversations.BotActivity
 
 /**
- * L'activité des bots et des salles telle que **ce téléphone** l'a vue, et l'ordre de la section
- * « Bots ».
+ * The activity of bots and rooms as **this phone** has seen it, and the order of the "Bots"
+ * section.
  *
- * Miroir de deux états de la référence, gardés de la même façon (par connexion, puis par ligne) :
- * `ChatActivity.seen` (Echo/Services/ChatActivity:52) — que le serveur ne donne pas : Hermes
- * ne tient pas de marque de lecture pour le chat d'un bot ni pour une salle — et
- * `Settings.botOrderHere` (Echo/Services/Settings:254), l'ordre où la personne a mis les
- * lignes de la section.
+ * Mirror of two reference states, kept the same way (by connection, then by row):
+ * `ChatActivity.seen` (Echo/Services/ChatActivity:52) — which the server does not give: Hermes
+ * does not keep a read mark for a bot's chat nor for a room — and
+ * `Settings.botOrderHere` (Echo/Services/Settings:254), the order in which the person put the
+ * rows of the section.
  *
- * Les identifiants de ligne sont ceux de `BotListItem` : `bot:<profil>` et `room:<salle>`.
+ * The row identifiers are those of `BotListItem`: `bot:<profil>` and `room:<salle>`.
  */
 class BotActivityStore(context: Context) {
 
     private val prefs = context.applicationContext
         .getSharedPreferences(ActivityKeys.FILE, Context.MODE_PRIVATE)
 
-    /** Ce qui a été vu de cette ligne : l'heure de sa dernière activité, ou 0 si marquée non lue. */
+    /** What has been seen of this row: the time of its last activity, or 0 if marked unread. */
     fun seen(server: String, item: String): Double? = prefs.getString(ActivityKeys.seen(server, item), null)?.toDoubleOrNull()
 
-    /** La ligne a été vue jusqu'à `upTo` (l'heure de sa dernière activité). */
+    /** The row has been seen up to `upTo` (the time of its last activity). */
     fun markSeen(server: String, item: String, upTo: Double) {
         prefs.edit().putString(ActivityKeys.seen(server, item), upTo.toString()).apply()
     }
 
-    /** « Mark as Unread » : la ligne s'allume, quoi qu'elle ait fait depuis. */
+    /** "Mark as Unread": the row lights up, whatever it has done since. */
     fun markUnread(server: String, item: String) = markSeen(server, item, 0.0)
 
     /**
-     * Les lignes lues pour la première fois comptent comme vues jusqu'à leur dernière activité :
-     * le premier regard sur la liste ne l'allume pas tout entière (`ChatActivity.listed`).
-     * Une salle sans marque d'activité (jamais servie) n'est pas enregistrée.
+     * Rows read for the first time count as seen up to their last activity:
+     * the first look at the list does not light it up entirely (`ChatActivity.listed`).
+     * A room without an activity mark (never served) is not recorded.
      */
     fun listed(server: String, items: List<Pair<String, Double?>>, marksWithoutActivity: Boolean = false) {
         val editor = prefs.edit()
@@ -53,7 +53,7 @@ class BotActivityStore(context: Context) {
         if (changed) editor.apply()
     }
 
-    /** L'ordre de la section, vide s'il n'a jamais été mis. */
+    /** The order of the section, empty if it has never been set. */
     fun order(server: String): List<String> =
         prefs.getString(ActivityKeys.order(server), "").orEmpty().split(ActivityKeys.SEPARATOR).filter { it.isNotBlank() }
 
@@ -64,20 +64,20 @@ class BotActivityStore(context: Context) {
     private fun nowSeconds() = System.currentTimeMillis() / 1000.0
 }
 
-/** L'écart d'horloge toléré entre deux appareils (`ChatActivity.clockSlack`). */
+/** The clock offset tolerated between two devices (`ChatActivity.clockSlack`). */
 internal const val CLOCK_SLACK = 5.0
 
 /**
- * Un bot dont un worker (une carte kanban qu'on lui a donnée) s'est fait entendre depuis moins de
- * ça est « au travail » (`ChatActivity.workerLive`).
+ * A bot from which a worker (a kanban card it was given) has made itself heard for less than
+ * this is "at work" (`ChatActivity.workerLive`).
  */
 internal const val WORKER_LIVE_MILLIS = 150_000L
 
 /**
- * Le non-lu d'une ligne, comme `ChatActivity.unread` (Echo/Services/ChatActivity:97) :
- * ni la ligne ouverte, ni une ligne où quelque chose se passe (l'activité d'un bot pendant qu'il
- * travaille n'est pas encore une réponse), et une activité venue après la dernière lecture — ou une
- * ligne marquée non lue à la main (`seen == 0`).
+ * The unread state of a row, like `ChatActivity.unread` (Echo/Services/ChatActivity:97):
+ * neither the open row, nor a row where something is happening (a bot's activity while it
+ * is working is not yet an answer), and an activity that came after the last read — or a
+ * row marked unread by hand (`seen == 0`).
  */
 internal fun isUnread(
     markSeconds: Double?,
@@ -92,9 +92,9 @@ internal fun isUnread(
 }
 
 /**
- * Ce qu'un bot fait, comme `ChatActivity.kind(of:open:settings:)` (:254) : son chat ouvert ici et
- * en train d'écrire, la session que le serveur dit travailler dans son chat
- * (`session.active_list`, par l'id de sa conversation), ou un de ses workers entendu récemment.
+ * What a bot is doing, like `ChatActivity.kind(of:open:settings:)` (:254): its chat open here and
+ * writing, the session the server says is working in its chat
+ * (`session.active_list`, by its conversation's id), or one of its workers heard recently.
  */
 internal fun botKind(
     bot: BotProfile,
@@ -102,9 +102,9 @@ internal fun botKind(
     openStreaming: Boolean,
     nowMillis: Long,
 ): ActivityKind? {
-    // Le chat de **ce** bot s'écrit ici : il faut qu'il ait un chat. Sans identifiant de chat, la
-    // comparaison qui amène `openStreaming` ne peut dire que « n'importe quelle conversation »
-    // (`ChatActivity.kind(of:)` : `guard let chat = bot.chatID`).
+    // **This** bot's chat is being written here: it must have a chat. Without a chat identifier, the
+    // comparison that brings `openStreaming` can only say "any conversation"
+    // (`ChatActivity.kind(of:)`: `guard let chat = bot.chatID`).
     if (openStreaming && !bot.chatId.isNullOrBlank()) return ActivityKind.WORKING
     bot.chatId?.let { chat -> live[chat]?.let { return it } }
     val worker = bot.workerActiveMillis
@@ -113,14 +113,14 @@ internal fun botKind(
 }
 
 /**
- * Le chat d'un bot s'écrit-il **ici** ? (`ChatActivity.kind(of:)` : « la conversation ouverte ici,
- * pour **ce** bot, écrit »).
+ * Is a bot's chat being written **here**? (`ChatActivity.kind(of:)`: "the conversation open here,
+ * for **this** bot, writing").
  *
- * Sans identifiant de chat connu, rien ne peut s'écrire pour lui : le garde est le même qu'à la
- * source (`guard let chat = bot.chatID`). Sans lui, `conversation.serverSessionId == bot.chatId`
- * compare **deux `null`** — les profils du serveur du propriétaire n'ont tous qu'un
- * `canonical_session: null` — et **toute** conversation en cours d'écriture allumait alors le rond
- * de chargement de **tous** les bots, sur une liste pourtant déjà chargée.
+ * Without a known chat identifier, nothing can be written for it: the guard is the same as at the
+ * source (`guard let chat = bot.chatID`). Without it, `conversation.serverSessionId == bot.chatId`
+ * compares **two `null`s** — the owner's server profiles all have only a
+ * `canonical_session: null` — and **every** conversation being written then lit up the loading
+ * circle of **all** bots, on a list that was already loaded.
  */
 internal fun botChatStreaming(chatId: String?, conversations: List<Conversation>): Boolean {
     val chat = chatId?.takeIf { it.isNotBlank() } ?: return false
@@ -129,14 +129,14 @@ internal fun botChatStreaming(chatId: String?, conversations: List<Conversation>
     }
 }
 
-/** Ce qu'une salle fait, comme `ChatActivity.kind(of room:)` (:305) : ce que dit `liveRooms`. */
+/** What a room is doing, like `ChatActivity.kind(of room:)` (:305): what `liveRooms` says. */
 internal fun roomKind(room: GroupRoom, rooms: Map<String, ActivityKind>): ActivityKind? = rooms[room.id]
 
 /**
- * La pastille d'un bot : au travail, en attente de vous, ou quelque chose de pas encore vu.
+ * A bot's badge: at work, waiting for you, or something not yet seen.
  *
- * Le non-lu vient de ce que ce téléphone a vu (le serveur ne le dit pas pour le chat d'un bot) ;
- * le travail et l'attente, de la session que le serveur dit vivante.
+ * Unread comes from what this phone has seen (the server does not say it for a bot's chat);
+ * working and waiting, from the session the server says is alive.
  */
 internal fun botActivity(
     bot: BotProfile,
@@ -155,7 +155,7 @@ internal fun botActivity(
     ),
 )
 
-/** La pastille d'une salle, même règle (`ChatActivity.isUnread(_:isOpen:settings:)`, :315). */
+/** The badge of a room, same rule (`ChatActivity.isUnread(_:isOpen:settings:)`, :315). */
 internal fun roomActivity(
     markSeconds: Double?,
     isOpen: Boolean,

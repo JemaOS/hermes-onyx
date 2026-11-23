@@ -37,24 +37,24 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * La feuille de « Partager comme modèle » : le lien **en clair**, le bouton qui le copie, et son QR
- * **quand le dépôt sait en produire un**.
+ * The "Share as Template" sheet ("Partager comme modèle"): the link **in clear text**, the button that copies it, and its QR
+ * **when the repo knows how to produce one**.
  *
- * L'émission d'un QR est réelle, pas promise : `com.google.zxing.qrcode.QRCodeWriter` est dans les
- * dépendances (`zxing-android-embedded` → `zxing-core`, la même bibliothèque qui **lit** les codes
- * de configuration). Aucune dépendance n'est ajoutée pour cela. Si le dessin échoue (lien refusé par
- * le générateur), la feuille montre le lien et le copier, et dit que le code n'a pas pu être dessiné
- * — elle ne cache pas la moitié qui marche.
+ * QR emission is real, not promised: `com.google.zxing.qrcode.QRCodeWriter` is in the
+ * dependencies (`zxing-android-embedded` → `zxing-core`, the same library that **reads** the configuration
+ * codes). No dependency is added for this. If drawing fails (link refused by
+ * the generator), the sheet shows the link and the copy action, and says the code could not be drawn
+ * — it does not hide the half that works.
  *
- * [link] est `null` tant que le serveur n'a pas rendu le `SOUL.md`, les outils et les compétences du
- * bot : la feuille ne montre jamais un lien partiel, elle attend. [problem] porte le refus du codec
- * (un prompt qui contient une adresse, par exemple) tel qu'il se lit.
+ * [link] is `null` until the server has rendered the bot's `SOUL.md`, tools and skills:
+ * the sheet never shows a partial link, it waits. [problem] carries the codec refusal
+ * (a prompt that contains an address, for example) as it reads.
  */
 @Composable
 internal fun BotTemplateShareSheet(
     link: String?,
     problem: String?,
-    /** Vrai quand le bot n'a pas de `SOUL.md` : le lien part sans personnalité, et c'est dit. */
+    /** True when the bot has no `SOUL.md`: the link goes out without a personality, and that is stated. */
     withoutPrompt: Boolean = false,
     onDismiss: () -> Unit,
 ) {
@@ -84,7 +84,7 @@ internal fun BotTemplateShareSheet(
                         style = theme.monospacedFootnote.copy(color = theme.textColor),
                         maxLines = 6,
                         overflow = TextOverflow.Ellipsis,
-                        // Le lien est déjà ce qu'il est : le dictionnaire n'a rien à y reprendre.
+                        // The link is already what it is: the dictionary has nothing to correct in it.
                         localize = false,
                     )
                 }
@@ -99,7 +99,7 @@ internal fun BotTemplateShareSheet(
                     ) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
-                            // Le code porte le même lien : son nom d'accessibilité dit lequel.
+                            // The code carries the same link: its accessibility name says which one.
                             contentDescription = OnyxLocalization["Bot template QR code"],
                             modifier = Modifier
                                 .padding(top = OnyxSpace.Half)
@@ -158,13 +158,13 @@ internal fun BotTemplateShareSheet(
 }
 
 /**
- * La feuille d'arrivée d'un lien, chez quelqu'un d'autre : elle **décode** le lien, montre
- * l'aperçu de [BotTemplatePreview] — nom, rôle, outils, compétences, modèle, et **les six absences**
- * — puis propose « Ajouter ». Rien ne part au serveur avant ce geste : l'aperçu est obligatoire, et
- * un lien invalide s'arrête ici avec **sa** phrase de refus.
+ * The arrival sheet of a link, at someone else's: it **decodes** the link, shows
+ * the preview of [BotTemplatePreview] — name, role, tools, skills, model, and **the six omissions**
+ * — then offers "Add" ("Ajouter"). Nothing goes to the server before that gesture: the preview is mandatory, and
+ * an invalid link stops here with **its** refusal sentence.
  *
- * [busy] disable le bouton pendant l'écriture réelle du profil ; [problem] dit ce que le serveur a
- * refusé, sans effacer l'aperçu.
+ * [busy] disables the button during the actual writing of the profile; [problem] says what the server
+ * refused, without erasing the preview.
  */
 @Composable
 internal fun BotTemplateImportSheet(
@@ -175,7 +175,7 @@ internal fun BotTemplateImportSheet(
     onDismiss: () -> Unit,
 ) {
     val theme = LocalOnyxTheme.current
-    // Le décodage est **pur** (aucun Android, aucun serveur) : il se fait une fois par lien, ici.
+    // Decoding is **pure** (no Android, no server): it happens once per link, here.
     val decoded = remember(link) { BotTemplateShareCodec.decodeOrNull(link) }
 
     HouseSheet(
@@ -247,8 +247,8 @@ internal fun BotTemplateImportSheet(
             }
 
             else -> BasicText(
-                // Le refus du codec, **sa** phrase : « ce n'est pas un lien », « ce modèle porte une
-                // clé », « ce lien est abîmé » — jamais un « erreur » muet.
+                // The codec refusal, **its** sentence: "that isn't a link" ("ce n'est pas un lien"), "this template carries a"
+                // "key" ("ce modèle porte une clé"), "this link is damaged" ("ce lien est abîmé") — never a mute "error".
                 text = (refusal as? BotTemplateShareException)?.let { refused -> refused.reason.message(refused.detail) }
                     ?: OnyxLocalization["That isn't a Onyx bot template link."],
                 style = theme.footnote.copy(color = theme.error),
@@ -258,7 +258,7 @@ internal fun BotTemplateImportSheet(
     }
 }
 
-/** Le décodage d'un lien, en `Result` : le refus garde sa raison pour la feuille. */
+/** The decoding of a link, as a `Result`: the refusal keeps its reason for the sheet. */
 internal fun BotTemplateShareCodec.decodeOrNull(link: String): Result<BotTemplateShare> =
     try {
         Result.success(decode(link))
@@ -267,11 +267,11 @@ internal fun BotTemplateShareCodec.decodeOrNull(link: String): Result<BotTemplat
     }
 
 /**
- * Le QR d'un lien, dessiné par ZXing — `null` quand le générateur refuse (lien trop long pour un
- * code, par exemple) : la feuille montre alors le lien, et dit que le code manque.
+ * A link's QR, drawn by ZXing — `null` when the generator refuses (link too long for a
+ * code, for example): the sheet then shows the link, and says the code is missing.
  *
- * 512 px de côté, comme le code de connexion : la même taille à l'écran, assez dense pour être lu
- * d'un autre téléphone.
+ * 512 px per side, like the login code: the same size on screen, dense enough to be read
+ * from another phone.
  */
 private fun qrCodeOf(link: String): android.graphics.Bitmap? = runCatching {
     val size = 512

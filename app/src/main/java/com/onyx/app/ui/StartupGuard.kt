@@ -3,12 +3,12 @@ package com.onyx.app.ui
 import android.content.Context
 
 /**
- * Ce que le démarrage doit faire, décidé avant de restaurer quoi que ce soit.
+ * What startup must do, decided before restoring anything.
  *
- * [interrupted] est vrai quand le démarrage précédent n'a jamais atteint son premier dessin :
- * l'app est morte pendant qu'elle restaurait son état. Dans ce cas on **retombe sur Chat**, on
- * **écarte la pièce jointe du brouillon** (le fil, lui, garde la sienne : rien n'est supprimé) et
- * on oublie l'onglet mémorisé.
+ * [interrupted] is true when the previous startup never reached its first frame:
+ * the app died while it was restoring its state. In that case we **fall back to Chat**, we
+ * **drop the draft's attachment** (the feed, itself, keeps its own: nothing is deleted) and
+ * we forget the remembered tab.
  */
 data class StartPlan(
     val interrupted: Boolean,
@@ -16,7 +16,7 @@ data class StartPlan(
     val dropDraftAttachments: Boolean,
 )
 
-/** Le petit magasin du drapeau et de l'onglet, pour que la décision soit éprouvable sans appareil. */
+/** The small store of the flag and the tab, so that the decision can be tested without a device. */
 interface StartupStore {
     fun interrupted(): Boolean
     fun markRestoring()
@@ -26,30 +26,30 @@ interface StartupStore {
 }
 
 /**
- * Le briseur de boucle « fermeture / réouverture ».
+ * The "close / reopen" loop breaker.
  *
- * L'app restaure sa route, son onglet et son brouillon à chaque démarrage. Si l'état restauré
- * contient de quoi tuer le processus (une pièce jointe que le dessin refuse, un lecteur qui
- * lève), la restauration elle-même plante : le système relance l'app, elle restaure le même
- * état, elle remeurt. C'est une boucle, pas un plantage isolé.
+ * The app restores its route, its tab and its draft on every startup. If the restored state
+ * contains something that kills the process (an attachment the rendering refuses, a reader that
+ * throws), the restoration itself crashes: the system relaunches the app, it restores the same
+ * state, it dies again. It is a loop, not an isolated crash.
  *
- * La parade tient en trois temps, dans cet ordre :
- * 1. [begin] **écrit le drapeau avant** que quoi que ce soit ne soit restauré (écriture
- *    bloquante : le drapeau doit être sur le disque même si le processus meurt à la frame
- *    suivante) ;
- * 2. le premier dessin passé, [settled] **efface** le drapeau ;
- * 3. si un démarrage retrouve le drapeau, il démarre **en secours** : Chat, brouillon sans sa
- *    pièce jointe, onglet remis à zéro — et il efface le drapeau, donc le démarrage suivant est
- *    normal. Un état fautif ne peut donc pas condamner l'app plus d'une fois.
+ * The remedy has three steps, in this order:
+ * 1. [begin] **writes the flag before** anything is restored (blocking
+ *    write: the flag must be on disk even if the process dies on the next
+ *    frame);
+ * 2. once the first frame has passed, [settled] **clears** the flag;
+ * 3. if a startup finds the flag, it starts **in fallback mode**: Chat, draft without its
+ *    attachment, tab reset to zero — and it clears the flag, so the next startup is
+ *    normal. A faulty state therefore cannot condemn the app more than once.
  */
 class StartupGuard(private val store: StartupStore) {
 
-    /** À appeler **au tout début** de la composition, avant toute restauration. */
+    /** To be called **at the very beginning** of composition, before any restoration. */
     fun begin(): StartPlan {
         val interrupted = store.interrupted()
         store.markRestoring()
         if (interrupted) {
-            // L'onglet mémorisé est celui où le dernier démarrage est mort : on l'oublie.
+            // The remembered tab is the one where the last startup died: we forget it.
             store.rememberTab(CHAT_TAB)
         }
         return StartPlan(
@@ -59,26 +59,26 @@ class StartupGuard(private val store: StartupStore) {
         )
     }
 
-    /** Le premier dessin a eu lieu : ce démarrage n'est plus « en cours de restauration ». */
+    /** The first frame has happened: this startup is no longer "restoring". */
     fun settled() = store.markSettled()
 
-    /** L'onglet courant, pour le retrouver au prochain lancement. */
+    /** The current tab, to find it again on the next launch. */
     fun noteTab(index: Int) {
         if (index >= 0) store.rememberTab(index)
     }
 
-    /** L'onglet du dernier lancement — Chat quand aucun n'a été noté. */
+    /** The tab of the last launch — Chat when none was noted. */
     fun lastTab(): Int = store.lastTab().coerceAtLeast(CHAT_TAB)
 
     companion object {
-        /** L'onglet Chat : le repli de tout démarrage en secours. */
+        /** The Chat tab: the fallback of every fallback-mode startup. */
         const val CHAT_TAB = 0
 
         fun with(context: Context): StartupGuard = StartupGuard(PrefsStartupStore(context))
     }
 }
 
-/** Le magasin réel : deux clés dans les préférences de l'app. */
+/** The real store: two keys in the app's preferences. */
 private class PrefsStartupStore(context: Context) : StartupStore {
 
     private val prefs = context.getSharedPreferences("onyx-startup", Context.MODE_PRIVATE)
@@ -86,8 +86,8 @@ private class PrefsStartupStore(context: Context) : StartupStore {
     override fun interrupted(): Boolean = prefs.getBoolean(KEY_RESTORING, false)
 
     override fun markRestoring() {
-        // `commit`, pas `apply` : le drapeau doit être écrit **avant** le premier dessin, et
-        // `apply` le laisserait en mémoire le temps d'un plantage.
+        // `commit`, not `apply`: the flag must be written **before** the first frame, and
+        // `apply` would leave it in memory for the duration of a crash.
         prefs.edit().putBoolean(KEY_RESTORING, true).commit()
     }
 

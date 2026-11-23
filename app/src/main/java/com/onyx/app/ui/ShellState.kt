@@ -12,29 +12,29 @@ import com.onyx.app.notifications.pendingQuestionsOf
 import com.onyx.app.data.model.ServerConfig
 
 /**
- * **Ce que la coquille de l'app lit de l'état du chat — et qui ne change pas d'un jeton à l'autre.**
+ * **What the app shell reads from the chat state — and that does not change from one token to another.**
  *
- * `OnyxApp()` est le composable racine : 5 000 lignes qui tiennent la navigation, le volet, les
- * feuilles, les notifications et les cinq routes. Il lisait `ChatUiState` **entier** (`val state by
- * …collectAsStateWithLifecycle()`), et l'état du chat est republié à chaque publication de texte —
- * trente-trois fois par seconde pendant une réponse. Chaque jeton rejouait donc la racine entière,
- * et surtout les trois balayages qu'elle fait de **tout** le fil :
+ * `OnyxApp()` is the root composable: 5,000 lines holding the navigation, the sidebar, the
+ * sheets, the notifications and the five routes. It read `ChatUiState` **whole** (`val state by
+ * …collectAsStateWithLifecycle()`), and the chat state is republished on every text publication —
+ * thirty-three times per second during an answer. Every token therefore replayed the whole root,
+ * and above all the three scans it does of **the entire** feed:
  *
- *  - `state.subagents`, un `flatMap` sur chaque message, un `distinctBy`, une fusion avec le roster ;
- *  - `state.messages.flatMap { it.approvals }`, un second balayage complet ;
- *  - `pendingQuestionsOf(state.messages)`, un troisième.
+ *  - `state.subagents`, a `flatMap` on each message, a `distinctBy`, a merge with the roster;
+ *  - `state.messages.flatMap { it.approvals }`, a second full scan;
+ *  - `pendingQuestionsOf(state.messages)`, a third.
  *
- * Ces trois-là ne dépendent **pas** du texte qui s'écrit : une approbation, une question d'agent ou
- * une tâche de sous-agent ne bougent pas parce qu'un mot vient d'arriver. Cette projection les
- * calcule donc une fois par **forme** du fil, et son égalité structurelle fait que la racine ne
- * recompose plus au jeton : seuls les champs qu'elle porte vraiment (le serveur, la conversation,
- * l'état du tour) la font changer.
+ * These three do **not** depend on the text being written: an approval, an agent question or
+ * a subagent task do not move because a word just arrived. This projection therefore computes them
+ * once per **shape** of the feed, and its structural equality means the root no
+ * longer recomposes on each token: only the fields it really carries (the server, the conversation,
+ * the turn state) make it change.
  *
- * **Ce qui reste vivant.** Le texte des messages n'est **pas** ici : il change à chaque jeton, et
- * une valeur qui change à chaque jeton ne doit être lue que par la ligne qui l'affiche. La coquille
- * n'en garde que la **taille** (`messagesSize`), qui suffit à ses effets (démarrer les cartes de
- * départ, publier au widget, relire le roster) ; là où elle a besoin du texte lui-même, elle lit
- * l'état au moment de l'effet (`chatState.value`), pas pendant la composition.
+ * **What stays live.** The text of the messages is **not** here: it changes on every token, and
+ * a value that changes on every token must only be read by the line that displays it. The shell
+ * only keeps its **size** (`messagesSize`), which is enough for its effects (starting the departure
+ * cards, publishing to the widget, re-reading the roster); where it needs the text itself, it reads
+ * the state at the moment of the effect (`chatState.value`), not during composition.
  */
 @Immutable
 data class ShellState(
@@ -46,37 +46,37 @@ data class ShellState(
     val isStreaming: Boolean,
     val modelInForce: String?,
     val fallback: FallbackDeclaration?,
-    /** Une ligne par sous-agent de la conversation, roster compris (calculé une fois). */
+    /** One row per subagent of the conversation, roster included (computed once). */
     val subagents: List<SubagentActivity>,
-    /** La forme du fil : sa taille, pas son contenu. */
+    /** The shape of the feed: its size, not its content. */
     val messagesSize: Int,
-    /** Les approbations qui attendent une décision, toutes conversations du fil confondues. */
+    /** The approvals awaiting a decision, across all conversations of the feed. */
     val pendingApprovals: List<ApprovalRequest>,
-    /** Les questions d'agent (question, sudo, secret) qui attendent une réponse. */
+    /** The agent questions (question, sudo, secret) awaiting an answer. */
     val pendingQuestions: List<PendingQuestion>,
-    /** La première question de la conversation — le titre de repli de la voix. */
+    /** The first question of the conversation — the voice fallback title. */
     val firstUserQuestion: String?,
     /**
-     * L'historique de l'écran vocal : les tours **finis**.
+     * The history of the voice screen: the **finished** turns.
      *
-     * La ligne qui s'écrit n'y entre qu'à la fin de son tour ([ChatMessage.isStreaming] faux) :
-     * sinon la liste se recalculerait à chaque jeton pour un écran qui ne montre que des tours
-     * révolus.
+     * The line being written only enters it at the end of its turn ([ChatMessage.isStreaming] false):
+     * otherwise the list would be recomputed on every token for a screen that only shows finished
+     * turns.
      */
     val voiceTurns: List<VoiceTurn>,
 ) {
     companion object {
 
-        /** Projette l'état du chat en ce que la coquille en lit. Pur, donc mesurable sans appareil. */
+        /** Projects the chat state into what the shell reads from it. Pure, therefore measurable without a device. */
         fun of(ui: ChatUiState): ShellState {
             val messages = ui.messages
-            // La frontière des messages **finis** : pendant un tour, la dernière ligne s'écrit et
-            // n'entre pas encore dans un historique.
+            // The boundary of **finished** messages: during a turn, the last line is being written and
+            // does not yet enter a history.
             val settledCount = if (ui.isStreaming) (messages.size - 1).coerceAtLeast(0) else messages.size
 
-            // Les approbations en attente, en **une** passe sans allocation intermédiaire. Elles ne
-            // se cachent pas : une approbation peut naître **pendant** le tour, sur la ligne qui
-            // s'écrit, et une carte qui attend une décision ne doit jamais attendre un jeton de plus.
+            // The pending approvals, in **one** pass with no intermediate allocation. They are not
+            // hidden: an approval can be born **during** the turn, on the line being
+            // written, and a card awaiting a decision must never wait for one more token.
             val approvals = ArrayList<ApprovalRequest>()
             for (index in messages.indices) {
                 val pending = messages[index].approvals
@@ -84,9 +84,9 @@ data class ShellState(
                 for (approval in pending) if (approval.isPending) approvals.add(approval)
             }
 
-            // Ce qui ne dépend que du fil fini (première question, historique vocal) est **calculé
-            // une fois par forme du fil**, pas à chaque jeton : c'est ce que grandissait avec
-            // l'historique. Voir [SettledScans].
+            // What depends only on the finished feed (first question, voice history) is **computed
+            // once per shape of the feed**, not on every token: that is what grew with
+            // the history. See [SettledScans].
             val settled = SettledScans.of(messages, settledCount)
 
             return ShellState(

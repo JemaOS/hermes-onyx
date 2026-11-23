@@ -72,28 +72,28 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.launch
 
 /**
- * Réglages → Bots, ou la liste atteinte depuis les conversations.
+ * Settings → Bots, or the list reached from the conversations.
  *
- * Port de la section « Bots » de `ConversationsView` : les visages des bots côte à côte
- * (`botGrid`) avec leurs marques (au travail, en attente de vous, pas encore lu, tu), la tuile
- * qui en fait un nouveau, la tuile des bots cachés, puis les salles du serveur, les discussions de
- * groupe et les lignes qui agissent.
+ * Port of the "Bots" section of `ConversationsView`: the bot faces side by side
+ * (`botGrid`) with their marks (working, waiting for you, not yet read, you), the tile
+ * that makes a new one, the hidden bots tile, then the server's rooms, the group
+ * chats and the rows that act.
  *
- * **Ce que la source de référence impose.** `botGrid` est le dessin *par défaut* de la section
- * (`showBotRows == true`, l'`@AppStorage` par défaut), et la capture référence « réelle »
- * (`01755fbe…/img_aff8bdadf42e.jpg`) le confirme : des vignettes de visage, deux ici, puis
- * « + Nouveau … ». Les lignes d'aperçu d'une conversation (`botRow`) n'apparaissent dans le
- * la référence que pendant « Reorder Bots » (`arrangingBots`), tenues par leurs poignées ; la maquette
- * promo « Meet the crew. » (`37f71832…`) montre cet état-là, pas le défaut.
+ * **What the reference source imposes.** `botGrid` is the *default* drawing of the section
+ * (`showBotRows == true`, the default `@AppStorage`), and the "real" reference screenshot
+ * (`01755fbe…/img_aff8bdadf42e.jpg`) confirms it: face thumbnails, two here, then
+ * "+ New …" ("+ Nouveau …"). The preview rows of a conversation (`botRow`) appear in the
+ * reference only during "Reorder Bots" (`arrangingBots`), held by their handles; the promo
+ * mockup "Meet the crew." (`37f71832…`) shows that state, not the default.
  */
 @Composable
 fun BotsScreen(
     viewModel: BotsViewModel,
-    /** Nul en deux panneaux : la barre latérale est là, la flèche n'aurait rien à quitter. */
+    /** Null in two-panel layout: the sidebar is there, the back arrow would have nothing to leave. */
     onBack: (() -> Unit)?,
-    /** Le tap d'une tuile : le **chat** du bot, comme `openBot` de la référence — jamais son éditeur. */
+    /** A tile tap: the bot's **chat**, like the reference's `openBot` — never its editor. */
     onOpenBotChat: (BotProfile) -> Unit,
-    /** « Edit Bot… » du menu d'une tuile. */
+    /** "Edit Bot…" of a tile's menu. */
     onEditBot: (BotProfile) -> Unit,
     onGroupChat: () -> Unit,
     conversations: List<Conversation> = emptyList(),
@@ -103,27 +103,27 @@ fun BotsScreen(
     mainName: String = "Onyx",
     onNewBot: () -> Unit = {},
     onLetBotsMessage: () -> Unit = {},
-    /** « Change Face… » du menu d'une tuile ; sans lui, l'entrée n'apparaît pas. */
+    /** "Change Face…" of a tile's menu; without it, the entry does not appear. */
     onChangeFace: ((BotProfile) -> Unit)? = null,
-    /** « Schedules… » du menu d'une tuile ; sans lui, l'entrée n'apparaît pas. */
+    /** "Schedules…" of a tile's menu; without it, the entry does not appear. */
     onSchedules: ((BotProfile) -> Unit)? = null,
-    /** « Voice… » du menu d'une tuile (`BotVoicePicker`) ; sans lui, l'entrée n'apparaît pas. */
+    /** "Voice…" of a tile's menu (`BotVoicePicker`); without it, the entry does not appear. */
     onVoice: ((BotProfile) -> Unit)? = null,
     /**
-     * Le **menu d'une carte de bot** : les neuf entrées de la référence dans son ordre, puis celles
-     * de la maison — la table des gestes, fournie par l'appelant. Sans elle, l'écran garde la
-     * sienne (celle qu'il portait), si bien qu'il reste montrable seul.
+     * The **menu of a bot card**: the nine entries of the reference in their order, then the
+     * house ones — the gesture table, supplied by the caller. Without it, the screen keeps its own
+     * (the one it carried), so that it remains showable on its own.
      */
     botMenu: BotMenuHandlers? = null,
-    /** Combien de bots sont cachés : la tuile « Hidden » n'apparaît que s'il y en a. */
+    /** How many bots are hidden: the "Hidden" tile appears only if there are any. */
     hiddenCount: Int = 0,
-    /** Ouvre l'écran « Hidden Bots » ; sans lui, la tuile reste absente. */
+    /** Opens the "Hidden Bots" screen; without it, the tile stays absent. */
     onOpenHiddenBots: (() -> Unit)? = null,
     onOpenGroup: ((GroupChat) -> Unit)? = null,
     onRoomSeen: ((GroupChat) -> Unit)? = null,
     /**
-     * Le contrôle du volet (`sidebar.left`) : la grille des bots **est** le volet des deux
-     * panneaux ; repliée, c'est le détail qui le porte.
+     * The pane control (`sidebar.left`): the bots grid **is** the pane of the two-panel layout;
+     * collapsed, the detail view carries it.
      */
     sidebarControl: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -133,30 +133,30 @@ fun BotsScreen(
     val context = LocalContext.current
     val mutes = remember { Mutes(context) }
     /**
-     * La boîte de création d'un salon (le « New room » de la référence) : ouverte ou non, ce qui
-     * court pendant l'ouverture, et le refus du serveur tel quel. Elle **remplace** le départ sans
-     * nom d'avant : c'est elle qui nomme le salon, choisit ses bots et dit la contrainte 2 à 6.
+     * The creation box for a room (the reference's "New room"): open or not, what runs during
+     * opening, and the server's refusal as-is. It **replaces** the earlier nameless
+     * start: it is what names the room, picks its bots and states the 2-to-6 constraint.
      */
     var newRoomOpen by remember { mutableStateOf(false) }
     var makingRoom by remember { mutableStateOf<String?>(null) }
     var roomProblem by remember { mutableStateOf<String?>(null) }
     val roomScope = rememberCoroutineScope()
-    // Plus de six bots : la grille se replie sur une rangée, ouverte ou fermée comme elle a été
-    // laissée (`sessions.botsExpanded` côté référence).
+    // More than six bots: the grid folds onto one row, open or closed as it was
+    // left (`sessions.botsExpanded` in the reference).
     var expanded by remember { mutableStateOf(false) }
-    // La section entière se replie aussi sous son titre, comme le `foldingHeader` de la référence : le
-    // compte n'apparaît que repliée.
+    // The whole section also folds under its title, like the reference's `foldingHeader`: the
+    // count appears only when folded.
     var open by remember { mutableStateOf(true) }
-    // « Reorder Bots » : la section ne montre que ses lignes, à poignées, et n'ouvre rien.
+    // "Reorder Bots": the section shows only its rows, with handles, and opens nothing.
     var arranging by remember { mutableStateOf(false) }
-    // La tuile ou la salle dont le menu est ouvert (l'appui long), comme le `contextMenu` de la référence.
+    // The tile or room whose menu is open (the long press), like the reference's `contextMenu`.
     var menuBot by remember { mutableStateOf<BotProfile?>(null) }
     var menuRoom by remember { mutableStateOf<GroupChat?>(null) }
-    // Le bot dont on demande la **suppression** : le menu la demande, l'écran la confirme.
+    // The bot whose **deletion** is requested: the menu requests it, the screen confirms it.
     var askDelete by remember { mutableStateOf<BotProfile?>(null) }
-    // La table des gestes du menu : ce que **cet écran** fait lui-même (la mise en ordre a son mode
-    // ici), et pour le reste ce que l'appelant a fourni — sinon les gestes de l'écran, ceux d'avant.
-    // Cet écran reste donc complet à lui seul.
+    // The menu's gesture table: what **this screen** does itself (reordering has its mode
+    // here), and for the rest what the caller supplied — otherwise the screen's gestures, the earlier ones.
+    // This screen therefore remains complete on its own.
     val table = (botMenu ?: BotMenuHandlers()).copy(
         onReorder = { arranging = true },
         onSortByRecent = viewModel::sortByRecent,
@@ -171,8 +171,8 @@ fun BotsScreen(
         hasRecent = botMenu?.hasRecent
             ?: { bot -> botRecentConversation(bot, conversations, state.bots, mainName) != null },
     )
-    // Où chaque tuile (et chaque salle) est à l'écran, dans la fenêtre : son menu s'ouvre près
-    // d'elle. La table se remplit aux mises en page et ne recompose rien.
+    // Where each tile (and each room) is on screen, in the window: its menu opens near
+    // it. The table fills in on layout passes and recomposes nothing.
     val tileBounds = remember { mutableMapOf<String, Rect>() }
     val badges = BotBadges(
         liveKinds = state.liveKinds,
@@ -202,8 +202,8 @@ fun BotsScreen(
                 .padding(bottom = 40.dp),
         ) {
             state.problem?.let { problem ->
-                // Le même panneau que partout ailleurs : un serveur qui n'a pas répondu montre la
-                // carte du fil (cause en clair + « Réessayer »), un refus sa rangée d'avertissement.
+                // The same panel as everywhere else: a server that did not answer shows the
+                // thread card (plain cause + "Réessayer" ("Retry")), a refusal its warning row.
                 OnyxTroublePanel(problem = problem, onRetry = viewModel::refresh)
             }
 
@@ -212,8 +212,8 @@ fun BotsScreen(
                 return@Column
             }
 
-            // L'en-tête de section, comme le `foldingHeader("Bots", count:)` : son titre, le
-            // compte — mais seulement repliée —, et le chevron qui la plie.
+            // The section header, like `foldingHeader("Bots", count:)`: its title, the
+            // count — but only when folded —, and the chevron that folds it.
             SectionLabel(
                 count = if (open && !arranging) null else state.bots.size,
                 open = open && !arranging,
@@ -250,14 +250,14 @@ fun BotsScreen(
                 hasDashboard = hasDashboard,
                 hiddenCount = state.hiddenBots.size,
                 hidden = if (onOpenHiddenBots != null) hiddenCount else 0,
-                // L'entrée « Hidden » est posée dès que l'écran peut l'ouvrir : c'est elle qui
-                // rend l'écran découvrable même quand aucun bot n'est encore masqué.
+                // The "Hidden" entry is placed as soon as the screen can open it: it is what
+                // makes the screen discoverable even when no bot is hidden yet.
                 hiddenEntry = onOpenHiddenBots != null,
                 onExpand = { expanded = true },
                 onFewer = { expanded = false },
                 onOpenBot = onOpenBotChat,
                 onOpenMenu = { bot -> menuBot = bot },
-                // Où la tuile est : son menu s'ouvre près d'elle, comme celui d'une rangée.
+                // Where the tile is: its menu opens near it, like that of a row.
                 onTileBounds = { name, bounds -> tileBounds["bot:" + name] = bounds },
                 onNewBot = onNewBot,
                 onOpenHiddenBots = { onOpenHiddenBots?.invoke() },
@@ -275,8 +275,8 @@ fun BotsScreen(
                 )
             }
 
-            // Les discussions de groupe, sous la grille (`groupRow`), puis les lignes qui
-            // font agir (`sectionAction`).
+            // The group chats, under the grid (`groupRow`), then the rows that
+            // act (`sectionAction`).
             groups.forEach { group ->
                 Box(
                     modifier = Modifier.onGloballyPositioned {
@@ -296,19 +296,19 @@ fun BotsScreen(
                             onRoomSeen?.invoke(group)
                             onOpenGroup?.invoke(group)
                         },
-                        // L'appui long ouvre le menu de la salle, comme le `contextMenu` du `groupRow`.
+                        // The long press opens the room's menu, like the `groupRow`'s `contextMenu`.
                         onMenu = { menuRoom = group },
                     )
                 }
             }
 
-            // **Plus de rangée « New room » ici.** L'écran portait la création **deux fois** — cette
-            // rangée (avec son icône) **et** l'action de l'en-tête (« New room » en accent, en haut à
-            // droite). Sur ordre explicite du propriétaire (30/10/2026), la rangée du bas est
-            // supprimée : « Nouveau salon » n'a plus qu'**une** entrée, l'action de l'en-tête, qui
-            // ouvre la même boîte dans les trois cas (aucun salon, un salon, plusieurs salons).
-            // Comme la référence : tant qu'aucun profil n'est déjà réglé en bot, la ligne qui propose
-            // de les faire se parler.
+            // **No more "New room" row here.** The screen carried creation **twice** — this
+            // row (with its icon) **and** the header action ("New room" in accent, top
+            // right). On the owner's explicit order (30/10/2026), the bottom row is
+            // removed: "Nouveau salon" ("New room") has only **one** entry left, the header action, which
+            // opens the same box in all three cases (no room, one room, several rooms).
+            // Like the reference: as long as no profile is already set up as a bot, the row that offers
+            // to make them talk to each other.
             if (hasDashboard && state.bots.isNotEmpty() && state.bots.none { it.setUp }) {
                 ActionRow(
                     title = "Let bots message each other",
@@ -316,14 +316,14 @@ fun BotsScreen(
                     onClick = onLetBotsMessage,
                 )
             }
-            // « Reorder Bots » et « Sort Bots by Recent » ne sont plus des lignes de la section :
-            // référence les met dans le menu d'une tuile (et d'une salle), dernier groupe après le
-            // filet (`orderingBots`).
+            // "Reorder Bots" and "Sort Bots by Recent" are no longer rows of the section:
+            // the reference puts them in a tile's menu (and a room's), the last group after the
+            // separator (`orderingBots`).
         }
 
-        // Le menu d'une tuile, ouvert à l'appui long : **les neuf entrées de la référence** dans son
-        // ordre, puis celles de la maison, et chacune son action. La table des gestes vient de
-        // l'appelant (`botMenu`) ; sans elle, l'écran garde la sienne, celle d'avant.
+        // A tile's menu, opened on long press: **the nine entries of the reference** in their
+        // order, then the house ones, and each with its action. The gesture table comes from
+        // the caller (`botMenu`); without it, the screen keeps its own, the earlier one.
         menuBot?.let { bot ->
             val isOpen = bot.chatId != null && bot.chatId == openedChatId
             val muted = mutes.isMuted("bot:" + bot.name)
@@ -339,17 +339,17 @@ fun BotsScreen(
                 mutes = mutes,
                 order = state.order,
                 mainName = mainName,
-                // Le panneau s'ouvre contre la tuile touchée, comme le `Menu` du modèle.
+                // The panel opens against the touched tile, like the model's `Menu`.
                 anchor = tileBounds["bot:" + bot.name],
                 handlers = table,
                 onDismiss = { menuBot = null },
-                // « Supprimer » demande confirmation d'abord.
+                // "Delete" asks for confirmation first.
                 onAskDelete = table.onDelete?.let { { target -> askDelete = target } },
             )
         }
 
-        // Le menu d'une salle : marquée lue ou non lue quand le serveur lui connaît une activité,
-        // le silence — sauf une salle d'Hermes Desktop, qui ne notifie pas —, puis l'ordre.
+        // A room's menu: marked read or unread when the server knows an activity for it,
+        // silence — except a Hermes Desktop room, which does not notify —, then the order.
         menuRoom?.let { room ->
             RoomMenu(
                 room = room,
@@ -362,7 +362,7 @@ fun BotsScreen(
                 ).unread,
                 mutes = mutes,
                 order = state.order,
-                // Le panneau s'ouvre contre la rangée de la salle, comme le `Menu` du modèle.
+                // The panel opens against the room's row, like the model's `Menu`.
                 anchor = tileBounds["room:" + room.id],
                 onDismiss = { menuRoom = null },
                 onMarkRead = { viewModel.markRoomSeen(room) },
@@ -372,8 +372,8 @@ fun BotsScreen(
             )
         }
 
-        // La confirmation de « Supprimer » : le bot part du **serveur**, les conversations de ce
-        // téléphone restent dans l'historique — la règle de la maison, dite à l'écran.
+        // The "Delete" confirmation: the bot leaves the **server**, this phone's
+        // conversations stay in the history — the house rule, stated on screen.
         askDelete?.let { bot ->
             OnyxAlert(
                 title = OnyxLocalization.format("Delete %1\$s?", bot.label(mainName)),
@@ -390,15 +390,15 @@ fun BotsScreen(
             )
         }
 
-        // **La boîte de création d'un salon** (le « New room » de la référence) : le titre, le nom
-        // avec son invite, le paragraphe qui dit vrai, la liste des bots (visage + cercle), la
-        // contrainte 2 à 6, et l'action de validation. Ce qui est créé est ouvert tout de suite —
-        // sur la passerelle quand elle tient les salons, gardé ici sinon.
+        // **The room creation box** (the reference's "New room"): the title, the name
+        // with its prompt, the paragraph that tells the truth, the list of bots (face + circle), the
+        // 2-to-6 constraint, and the validation action. What is created is opened at once —
+        // on the gateway when it holds the rooms, kept here otherwise.
         if (newRoomOpen) {
             RoomCreationDialog(
                 bots = state.bots,
-                // Le paragraphe suit **la même** source que l'ouverture : les identifiants du
-                // Dashboard (ce que `createGroupRoom` regarde) et ce que la passerelle dit tenir.
+                // The paragraph follows **the same** source as the opening: the Dashboard
+                // credentials (what `createGroupRoom` looks at) and what the gateway says it holds.
                 hasDashboard = hasDashboard,
                 gatewayRunsRooms = state.groupsWritable,
                 busy = makingRoom,
@@ -411,9 +411,9 @@ fun BotsScreen(
                         when (val made = viewModel.createGroup(name = name, members = members, mainName = mainName)) {
                             is GroupCreation.Made -> {
                                 newRoomOpen = false
-                                // Le salon ouvert, comme la liste l'ouvre, ses membres cochés.
-                                // Sans de quoi l'ouvrir (aucun appelant), le fil du groupe reprend
-                                // le relais : l'ancien chemin reste, il n'est pas retiré.
+                                // The room opened, as the list opens it, its members checked.
+                                // Without a way to open it (no caller), the group thread takes
+                                // over: the old path remains, it is not removed.
                                 onOpenGroup?.invoke(made.room) ?: onGroupChat()
                             }
 
@@ -427,34 +427,34 @@ fun BotsScreen(
     }
 }
 
-/** Bots à la rangée, et à partir de combien ils se replient, comme `botGrid` de la référence. */
+/** Bots per row, and after how many they fold, like the reference's `botGrid`. */
 internal const val BOT_GRID_COLUMNS = 5
 internal const val BOT_GRID_FOLDS_AFTER = 6
 
-/** La taille d'un visage là (`botGrid.tileFace`). */
+/** The size of a face there (`botGrid.tileFace`). */
 internal val BOT_TILE_FACE: Dp = 52.dp
 
-/** Plus de six bots : la grille se replie sur une rangée. */
+/** More than six bots: the grid folds onto one row. */
 internal fun botGridFolds(count: Int): Boolean = count > BOT_GRID_FOLDS_AFTER
 
-/** Combien de visages la grille montre : les quatre premiers tant qu'elle est repliée. */
+/** How many faces the grid shows: the first four as long as it is folded. */
 internal fun botGridShown(count: Int, expanded: Boolean): Int =
     if (botGridFolds(count) && !expanded) BOT_GRID_COLUMNS - 1 else count
 
-/** Ce qu'une case de la grille est : un visage, ou la tuile qui suit les visages. */
+/** What a grid cell is: a face, or the tile that follows the faces. */
 internal enum class BotGridCell { Face, More, NewBot, AddBot, Hidden }
 
 /**
- * Les cases de la grille, dans l'ordre de la référence : les visages, puis — repliée — « N more », sinon
- * « New Bot » (« Add Bot » quand il n'y a pas de Dashboard), puis la tuile « Hidden ».
+ * The grid's cells, in the reference order: the faces, then — folded — "N more", otherwise
+ * "New Bot" ("Add Bot" when there is no Dashboard), then the "Hidden" tile.
  *
- * **La tuile « Hidden » ne dépend plus du hasard du roster.** Avant ce lot elle n'apparaissait que
- * si le serveur signalait **déjà** un bot masqué (`hidden > 0`) : sur un appareil dont le roster est
- * vide, ou dont aucun bot n'est encore masqué, l'écran « Bots masqués » était donc **introuvable**
- * — l'entrée invisible que l'audit des 66 routes a relevée (`AUDIT-ROUTES.md` §4). Elle est
- * maintenant posée dès qu'un Dashboard est configuré (`hasDashboard` : c'est son roster
- * `profiles.list` qui porte les bots masqués) **et** que l'appelant fournit l'entrée
- * ([hiddenEntry]) : la grille ne dessine jamais une tuile qui n'ouvre rien.
+ * **The "Hidden" tile no longer depends on the roster's chance.** Before this change it appeared only
+ * if the server **already** reported a hidden bot (`hidden > 0`): on a device whose roster is
+ * empty, or where no bot is hidden yet, the "Bots masqués" ("Hidden Bots") screen was therefore **unfindable**
+ * — the invisible entry that the 66-route audit flagged (`AUDIT-ROUTES.md` §4). It is
+ * now placed as soon as a Dashboard is configured (`hasDashboard`: it is its roster
+ * `profiles.list` that carries the hidden bots) **and** the caller provides the entry
+ * ([hiddenEntry]): the grid never draws a tile that opens nothing.
  */
 internal fun botGridCells(
     count: Int,
@@ -473,10 +473,10 @@ internal fun botGridCells(
     return cells
 }
 
-/** « 4 more » : la tuile qui déplie la grille (`gridAction("\\(n) more")`). */
+/** "4 more": the tile that unfolds the grid (`gridAction("\\(n) more")`). */
 internal fun moreLabel(hidden: Int): String = "$hidden more"
 
-/** L'en-tête de la section, comme le `foldingHeader` : son titre, le compte, et son chevron. */
+/** The section header, like `foldingHeader`: its title, the count, and its chevron. */
 @Composable
 private fun SectionLabel(
     count: Int?,
@@ -505,8 +505,8 @@ private fun SectionLabel(
             )
         }
         Box(modifier = Modifier.weight(1f))
-        // Pendant « Reorder Bots », l'en-tête dit « Done » à la place du chevron, comme la barre
-        // de la référence (`if arrangingBots { Button("Done") }`).
+        // During "Reorder Bots", the header says "Done" in place of the chevron, like the
+        // reference's bar (`if arrangingBots { Button("Done") }`).
         if (arranging) {
             BasicText(
                 text = "Done",
@@ -525,9 +525,9 @@ private fun SectionLabel(
 }
 
 /**
- * La grille des bots (`botGrid`) : cinq visages à la rangée, leur nom dessous, puis la tuile
- * d'action ; au-delà de six bots, les quatre premiers et « N more », et « Fewer » une fois
- * dépliée.
+ * The bots grid (`botGrid`): five faces per row, their name underneath, then the action
+ * tile; beyond six bots, the first four and "N more", and "Fewer" once
+ * unfolded.
  */
 @Composable
 private fun BotsGrid(
@@ -540,21 +540,21 @@ private fun BotsGrid(
     mainName: String,
     expanded: Boolean,
     hasDashboard: Boolean,
-    /** Combien de bots sont cachés, tel que l'écran le tient. */
+    /** How many bots are hidden, as the screen holds it. */
     hiddenCount: Int,
-    /** Ce que la tuile « Hidden » montre : le compte, ou 0 quand aucun écran ne peut l'ouvrir. */
+    /** What the "Hidden" tile shows: the count, or 0 when no screen can open it. */
     hidden: Int = hiddenCount,
     /**
-     * L'appelant fournit-il l'entrée « Hidden » ? Sans elle la grille ne pose pas la tuile : une
-     * case qui n'ouvre rien serait exactement le mensonge que ce lot corrige.
+     * Does the caller supply the "Hidden" entry? Without it the grid does not place the tile: a
+     * cell that opens nothing would be exactly the lie this change fixes.
      */
     hiddenEntry: Boolean = false,
     onExpand: () -> Unit,
     onFewer: () -> Unit,
     onOpenBot: (BotProfile) -> Unit,
-    /** L'appui long d'une tuile : son menu (`contextMenu` de la référence). */
+    /** A tile's long press: its menu (the reference's `contextMenu`). */
     onOpenMenu: (BotProfile) -> Unit,
-    /** Où chaque tuile est (son nom, ses limites) : le menu s'ouvre près d'elle. */
+    /** Where each tile is (its name, its bounds): the menu opens near it. */
     onTileBounds: (String, Rect) -> Unit = { _, _ -> },
     onNewBot: () -> Unit,
     onOpenHiddenBots: () -> Unit,
@@ -628,7 +628,7 @@ private fun BotsGrid(
                                 onClick = onNewBot,
                             )
 
-                            // La tuile des bots cachés (`gridAction("Hidden", systemImage: "eye.slash")`).
+                            // The hidden bots tile (`gridAction("Hidden", systemImage: "eye.slash")`).
                             BotGridCell.Hidden -> GridAction(
                                 title = "Hidden",
                                 symbol = Symbols.EyeSlash,
@@ -637,7 +637,7 @@ private fun BotsGrid(
                         }
                     }
                 }
-                // Les cases manquantes de la dernière rangée : leur largeur tient les colonnes.
+                // The missing cells of the last row: their width holds the columns.
                 repeat(BOT_GRID_COLUMNS - row.size) {
                     Box(modifier = Modifier.weight(1f))
                 }
@@ -645,7 +645,7 @@ private fun BotsGrid(
             position += row.size
         }
 
-        // Dépliée, la grille se referme d'un mot, sous elle (`Fewer`).
+        // Unfolded, the grid closes again with one word, below it (`Fewer`).
         if (folds && expanded) {
             Row(
                 modifier = Modifier
@@ -667,10 +667,10 @@ private fun BotsGrid(
 }
 
 /**
- * Un bot dans la grille (`botTile`) : son visage — toujours, jamais son initiale —, son nom
- * dessous, et ses marques : le rond qui tourne quand il travaille, le point orange quand il
- * attend une réponse, le point d'accent quand sa réponse n'a pas été vue, la cloche barrée quand
- * il est tu. Le tap ouvre son **chat** ; l'appui long ouvre son menu, comme le `Menu` de la référence.
+ * A bot in the grid (`botTile`): its face — always, never its initial —, its name
+ * underneath, and its marks: the circle that spins when it works, the orange dot when it is
+ * waiting for an answer, the accent dot when its answer has not been seen, the crossed-out bell when
+ * it is muted. The tap opens its **chat**; the long press opens its menu, like the reference's `Menu`.
  */
 @Composable
 private fun BotTile(
@@ -685,8 +685,8 @@ private fun BotTile(
 ) {
     val theme = LocalOnyxTheme.current
     val mood = when {
-        // Il compose : sourcils rapprochés, regard de côté (le rond qui tourne dit déjà qu'il
-        // travaille). Il attend une réponse, ou il se tient tranquille.
+        // It is composing: brows drawn together, sideways glance (the spinning circle already says it
+        // is working). It is waiting for an answer, or it is sitting quietly.
         activity.working -> BotMood.THINKING
         activity.needsYou -> BotMood.WAITING
         else -> BotMood.IDLE
@@ -772,7 +772,7 @@ private fun BotTile(
     }
 }
 
-/** Ce qui suit les visages (New Bot, « N more ») : un symbole là où va un visage, et son nom. */
+/** What follows the faces (New Bot, "N more"): a symbol where a face goes, and its name. */
 @Composable
 private fun GridAction(title: String, symbol: Int, onClick: () -> Unit) {
     val theme = LocalOnyxTheme.current
@@ -796,7 +796,7 @@ private fun GridAction(title: String, symbol: Int, onClick: () -> Unit) {
     }
 }
 
-/** Le petit rond qui tourne d'une tuile (`ProgressView().controlSize(.mini)`). */
+/** The little spinning circle of a tile (`ProgressView().controlSize(.mini)`). */
 @Composable
 private fun TileSpinner() {
     val theme = LocalOnyxTheme.current
@@ -828,8 +828,8 @@ private fun TileSpinner() {
 }
 
 /**
- * Les visages superposés des membres d'un groupe (`FaceStack`), pour la rangée d'une discussion
- * de groupe.
+ * The overlaid faces of a group's members (`FaceStack`), for the row of a group
+ * chat.
  */
 @Composable
 private fun MemberFaces(members: List<BotProfile>, size: Dp = 24.dp) {
@@ -852,10 +852,10 @@ private fun MemberFaces(members: List<BotProfile>, size: Dp = 24.dp) {
 }
 
 /**
- * Une discussion de groupe, comme le `groupRow` de la référence : les visages superposés de ses
- * membres, son nom, puis qui en fait partie — avec les mêmes marques qu'un bot : le rond qui
- * tourne quand un bot y travaille, « Needs you » quand l'un attend, le point du non-lu, et la
- * marque d'une salle qu'Hermes Desktop tient.
+ * A group chat, like the reference's `groupRow`: the overlaid faces of its
+ * members, its name, then who is part of it — with the same marks as a bot: the circle that
+ * spins when a bot is working there, "Needs you" when one is waiting, the unread dot, and the
+ * mark of a room that Hermes Desktop holds.
  */
 @Composable
 private fun GroupRow(
@@ -863,7 +863,7 @@ private fun GroupRow(
     muted: Boolean,
     activity: BotActivity = BotActivity(),
     onClick: () -> Unit,
-    /** L'appui long de la rangée : son menu (`contextMenu` du `groupRow`). */
+    /** The row's long press: its menu (the `groupRow`'s `contextMenu`). */
     onMenu: (() -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
@@ -875,7 +875,7 @@ private fun GroupRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // Le point « non lu » de la référence, dans la marge gauche.
+        // The reference's "unread" dot, in the left margin.
         Box(modifier = Modifier.size(width = 8.dp, height = 24.dp), contentAlignment = Alignment.Center) {
             if (activity.unread) {
                 Box(modifier = Modifier.size(8.dp).background(theme.accent, CircleShape))
@@ -934,7 +934,7 @@ private fun GroupRow(
     }
 }
 
-/** Une ligne qui fait agir (New Group Chat, laisser les bots se parler) : symbole teinté, titre. */
+/** A row that acts (New Group Chat, let bots message each other): tinted symbol, title. */
 @Composable
 private fun ActionRow(title: String, symbol: Int, onClick: () -> Unit) {
     val theme = LocalOnyxTheme.current
@@ -953,7 +953,7 @@ private fun ActionRow(title: String, symbol: Int, onClick: () -> Unit) {
     }
 }
 
-/** Le sélecteur de visage : forme, yeux, bouche, couleur, et de quoi surprendre. */
+/** The face picker: shape, eyes, mouth, colour, and something to surprise you. */
 @Composable
 private fun FacePicker(current: BotFace, onChange: (BotFace) -> Unit) {
     val theme = LocalOnyxTheme.current

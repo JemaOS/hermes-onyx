@@ -1,50 +1,50 @@
 package com.onyx.app.ui
 
 /**
- * **La table des retours : une ligne par destination de l'application.**
+ * **The table of returns: one row per destination of the application.**
  *
- * C'est le livrable « chaque retour doit bien revenir où je me trouvais précédemment, dans toute
- * l'App ». La source de vérité reste **le graphe de navigation** (`private enum class Route` et le
- * `when (presentedRoute)` d'`OnyxApp.kt`) ; cette table en est la **traduction lisible**, et le
- * verrou [com.onyx.app.ui.TableOfRoutesLockTest] la tient contre le graphe :
+ * It is the "every back must return where I previously was, throughout the whole
+ * App" deliverable. The source of truth remains **the navigation graph** (`private enum class Route` and the
+ * `when (presentedRoute)` of `OnyxApp.kt`); this table is its **readable translation**, and the
+ * [com.onyx.app.ui.TableOfRoutesLockTest] lock holds it against the graph:
  *
- * - une valeur de l'énum **absente** de la table fait échouer le test, **en la nommant** ;
- * - une ligne dont la [declaration] **ne se retrouve plus** dans sa branche (ou son support) fait
- *   échouer le test, **en nommant la destination** — c'est « une route sans retour déclaré » ;
- * - une ligne dont la [declaration] est **vide** fait échouer le test — même verdict ;
- * - une ligne **périmée** (une destination qui n'existe plus dans l'énum) fait échouer le test ;
- * - un [repli] qui ne nomme pas une destination de l'énum fait échouer le test.
+ * - an enum value **absent** from the table makes the test fail, **by naming it**;
+ * - a row whose [declaration] **can no longer be found** in its branch (or its support) makes
+ *   the test fail, **by naming the destination** — that is "a route without a declared return";
+ * - a row whose [declaration] is **empty** makes the test fail — same verdict;
+ * - a **stale** row (a destination that no longer exists in the enum) makes the test fail;
+ * - a [repli] that does not name a destination of the enum makes the test fail.
  *
- * La table ne remplace pas le code : [declaration] est **le texte exact** qui, dans la source, porte
- * le retour (le `onBack`, le `onClose`, le `onDone`, le `onCancel`, ou le `BackHandler` de la mise en
- * page pour la racine). Le verrou le cherche donc **là où il vit** — dans la branche du routeur, dans
- * le panneau qui porte l'écran, ou dans la mise en page pour le fil.
+ * The table does not replace the code: [declaration] is **the exact text** that, in the source, carries
+ * the return (the `onBack`, the `onClose`, the `onDone`, the `onCancel`, or the `BackHandler` of the
+ * layout for the root). The lock therefore looks for it **where it lives** — in the router branch, in
+ * the pane that carries the screen, or in the layout for the feed.
  */
 enum class NatureRetour {
-    /** La racine : le retour n'est pas consommé, il rend la main au système (l'app se ferme). */
+    /** The root: back is not consumed, it hands control back to the system (the app closes). */
     RACINE_SYSTEME,
 
-    /** `if (!navBack()) navTo(<repli>)` — un niveau à la fois, puis le repli sémantique. */
+    /** `if (!navBack()) navTo(<fallback>)` — one level at a time, then the semantic fallback. */
     PILE,
 
-    /** Un repli **fixe** : la destination n'a qu'une seule entrée, la page quittée y est toujours la même. */
+    /** A **fixed** fallback: the destination has only one entry, the page left is always the same. */
     FIXE,
 }
 
-/** Le support où le verrou cherche [RetourRoute.declaration]. */
+/** The support where the lock looks for [RetourRoute.declaration]. */
 const val SUPPORT_BRANCHE = "branche"
 
 /**
- * Une destination et son retour.
+ * A destination and its return.
  *
- * @param route le nom de la valeur de l'énum `Route` (la clé du graphe).
- * @param ecran l'écran que la branche du routeur affiche réellement (en français).
- * @param nature ce que le retour fait (voir [NatureRetour]).
- * @param declaration **le texte exact** qui porte le retour dans la source ; vide = aucun retour
- *   déclaré, ce que le verrou refuse.
- * @param repli la destination du repli quand la pile est vide, ou `null` quand elle est dynamique
- *   (la page quittée, portée par un état — `contextReturn`).
- * @param support où chercher [declaration] : [SUPPORT_BRANCHE], `panneau:<nom>`, ou `layout`.
+ * @param route the name of the `Route` enum value (the graph's key).
+ * @param ecran the screen the router branch actually displays (in French).
+ * @param nature what back does (see [NatureRetour]).
+ * @param declaration **the exact text** that carries the return in the source; empty = no return
+ *   declared, which the lock refuses.
+ * @param repli the destination of the fallback when the stack is empty, or `null` when it is dynamic
+ *   (the page left, carried by a state — `contextReturn`).
+ * @param support where to look for [declaration]: [SUPPORT_BRANCHE], `panneau:<name>`, or `layout`.
  */
 data class RetourRoute(
     val route: String,
@@ -56,11 +56,11 @@ data class RetourRoute(
 )
 
 /**
- * **Les 68 destinations de l'app, chacune avec son retour déclaré.**
+ * **The 68 destinations of the app, each with its declared return.**
  *
- * L'ordre est celui de l'énum pour que la table se lise comme le graphe. Aucune ligne n'est écrite
- * « de mémoire » : chaque [RetourRoute.declaration] est le texte relevé dans `OnyxApp.kt`, et le
- * verrou le re-vérifie à chaque exécution des tests.
+ * The order is that of the enum so that the table reads like the graph. No row is written
+ * "from memory": each [RetourRoute.declaration] is the text taken from `OnyxApp.kt`, and the
+ * lock re-checks it on every test run.
  */
 object TableDesRetours {
 
@@ -569,8 +569,8 @@ object TableDesRetours {
             repli = "SETTINGS",
             support = SUPPORT_BRANCHE,
         ),
-        // Le Coffre a **sa** ligne dans les Réglages (section « Secrets ») et son raccourci d'icône :
-        // il ne s'ouvre plus depuis « Capacités », donc son repli est les Réglages.
+        // The Vault has **its** row in Settings (the "Secrets" section) and its icon shortcut:
+        // it no longer opens from "Capacités" ("Capabilities"), so its fallback is Settings.
         RetourRoute(
             route = "BROWSER_SCREEN",
             ecran = "le navigateur de l'agent",
@@ -612,15 +612,15 @@ object TableDesRetours {
             support = SUPPORT_BRANCHE,
         ),    )
 
-    /** La ligne d'une destination, ou `null` si la table ne la porte pas (ce que le verrou refuse). */
+    /** The row of a destination, or `null` if the table does not carry it (which the lock refuses). */
     fun de(route: String): RetourRoute? = toutes.firstOrNull { it.route == route }
 
-    /** Les destinations de la table, dans l'ordre. */
+    /** The destinations of the table, in order. */
     val routes: List<String> get() = toutes.map { it.route }
 
-    /** Les destinations à **repli fixe** : une seule entrée, la page quittée y est toujours la même. */
+    /** The destinations with a **fixed fallback**: a single entry, the page left is always the same. */
     val aRepliFixe: List<String> get() = toutes.filter { it.nature == NatureRetour.FIXE }.map { it.route }
 
-    /** Les destinations qui remontent la pile (`if (!navBack()) …`). */
+    /** The destinations that go up the stack (`if (!navBack()) …`). */
     val remontentLaPile: List<String> get() = toutes.filter { it.nature == NatureRetour.PILE }.map { it.route }
 }

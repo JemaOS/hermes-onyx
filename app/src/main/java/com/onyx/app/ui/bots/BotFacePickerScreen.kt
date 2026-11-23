@@ -48,11 +48,11 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Le choix du visage d'un bot (`BotFacePicker`).
+ * The choice of a bot's face (`BotFacePicker`).
  *
- * Sa forme, ses yeux, sa bouche, sa marque et sa couleur — chaque choix dessiné comme le bot avec
- * cette partie changée — puis « Surprise Me » et « Its Own Face ». La bulle et les deux couleurs de
- * Onyx ne sont proposées qu'au profil principal, comme sur la référence.
+ * Its shape, eyes, mouth, mark and colour — each choice drawn like the bot with
+ * that part changed — then "Surprise Me" and "Its Own Face". The bubble and Onyx's two
+ * colours are offered only on the main profile, as in the reference.
  */
 @Composable
 fun BotFacePickerScreen(
@@ -64,8 +64,8 @@ fun BotFacePickerScreen(
     isDefault: Boolean = botName == "default",
     hasPickedFace: Boolean = current != null,
     serverBacked: Boolean = true,
-    /** Le visage sera-t-il pose **avec** le bot, a sa creation ? Alors il n'est sur aucun
-     *  serveur : le dire, plutot que d'annoncer une garde serveur qui n'a pas lieu. */
+    /** Will the face be set **with** the bot, when it is created? Then it is on no
+     *  server: say so, rather than announcing a server safeguard that does not happen. */
     keptWithBot: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -166,9 +166,9 @@ fun BotFacePickerScreen(
                                         .background(Brush.linearGradient(listOf(light, deep)), CircleShape)
                                         .then(
                                             if (index >= BotFace.seededColors) {
-                                                // Un visage **généré** (hors des teintes pré-semées) :
-                                                // le filet de la maquette le dit, à 12 % — jamais un
-                                                // gris de texte pris pour une bordure.
+                                                // A **generated** face (outside the pre-seeded hues):
+                                                // the mock-up's outline says so, at 12% — never a
+                                                // text grey mistaken for a border.
                                                 Modifier.border(OnyxSpace.Stroke, OnyxEdge.fil(theme), CircleShape)
                                             } else {
                                                 Modifier
@@ -212,7 +212,7 @@ fun BotFacePickerScreen(
     }
 }
 
-/** La rangée d'une partie : chaque option est le visage entier avec cette partie changée. */
+/** A part's row: each option is the whole face with that part changed. */
 @Composable
 private fun PartRow(
     options: List<String>,

@@ -6,71 +6,71 @@ import com.onyx.app.ui.design.BotFace
 import java.util.Locale
 
 /**
- * Ce qu'un lien de modèle ne porte **pas** — énuméré, nommé, et montré au destinataire avant qu'il
- * ajoute le bot.
+ * What a template link does **not** carry — enumerated, named, and shown to the recipient before they
+ * add the bot.
  *
- * Un aperçu qui ne dirait que ce que le lien contient laisserait croire que le bot arrive complet.
- * Ces six lignes sont la moitié honnête de la promesse : ce qui manque est dit, pas découvert
- * après coup.
+ * A preview that said only what the link contains would let one believe the bot arrives complete.
+ * These six lines are the honest half of the promise: what is missing is said, not discovered
+ * after the fact.
  */
 enum class BotTemplateOmission(val key: String) {
-    /** Une clé, un jeton, un mot de passe ou une adresse de serveur. Le codec les refuse. */
+    /** A key, a token, a password or a server address. The codec refuses them. */
     CREDENTIALS(
         "Not in the link: the API key, the token and the server address. A template that carries one is refused.",
     ),
 
-    /** Les conversations, la mémoire, ce que le bot a appris de la personne. */
+    /** The conversations, the memory, what the bot has learned about the person. */
     CONVERSATIONS("Not in the link: the conversations, the memory and what the bot has learned."),
 
-    /** Ses routines et ses horaires : elles appartiennent au serveur, pas au modèle. */
+    /** Its routines and schedules: they belong to the server, not to the template. */
     ROUTINES("Not in the link: the routines and schedules."),
 
-    /** Sa voix : elle est choisie sur l'appareil, et ne voyage pas dans un texte. */
+    /** Its voice: it is chosen on the device, and does not travel in a text. */
     VOICE("Not in the link: the voice."),
 
-    /** Qui peut le voir, et ses réglages de partage. */
+    /** Who can see it, and its sharing settings. */
     VISIBILITY("Not in the link: who can see the bot, and its sharing settings."),
 
-    /** Les fichiers et les pièces jointes qu'il peut lire. */
+    /** The files and attachments it can read. */
     FILES("Not in the link: the files and attachments the bot can reach."),
     ;
 
-    /** La phrase, traduite si l'interface est en français. */
+    /** The sentence, translated if the interface is in French. */
     fun label(locale: Locale = OnyxLanguage.preferred): String = OnyxLocalization.translate(key, locale)
 }
 
 /**
- * L'aperçu d'un modèle partagé : ce que le destinataire voit **avant** d'ajouter le bot.
+ * The preview of a shared template: what the recipient sees **before** adding the bot.
  *
- * Il nomme ce qui est là — le nom, le rôle, les outils, les compétences, le modèle par défaut — et
- * ce qui n'y est pas ([omissions]). C'est une vue du partage, pas un écran : elle ne décide de
- * rien, ne parle à aucun serveur, et se teste sans Android.
+ * It names what is there — the name, the role, the tools, the skills, the default model — and
+ * what is not in it ([omissions]). It is a view of the share, not a screen: it decides
+ * nothing, talks to no server, and is tested without Android.
  */
 data class BotTemplatePreview(
-    /** Le nom que le bot prendra. */
+    /** The name that the bot will take. */
     val name: String,
-    /** Ce qu'il fait, tel que le modèle le dit — ou « aucun rôle indiqué ». */
+    /** What it does, as the template says it — or « aucun rôle indiqué » (no role given). */
     val role: String,
-    /** Les outils cochés, vides si le modèle n'en impose aucun. */
+    /** The checked tools, empty if the template imposes none. */
     val tools: List<String>,
-    /** Les compétences cochées, vides si le modèle n'en impose aucune. */
+    /** The checked skills, empty if the template imposes none. */
     val skills: List<String>,
-    /** Le modèle par défaut, ou `null` : le bot prendra celui du serveur. */
+    /** The default model, or `null`: the bot will take the server's. */
     val model: String?,
-    /** Le visage que le bot recevra, ou `null`. */
+    /** The face that the bot will receive, or `null`. */
     val face: BotFace?,
-    /** Ce qui n'est pas dans le lien. Jamais vide : l'honnêteté ne se règle pas. */
+    /** What is not in the link. Never empty: honesty is not a setting. */
     val omissions: List<BotTemplateOmission> = BotTemplateOmission.entries,
 ) {
-    /** Le visage décrit en une ligne, ou `null` s'il n'y en a pas. */
+    /** The face described in one line, or `null` if there is none. */
     fun faceLabel(locale: Locale = OnyxLanguage.preferred): String? = face?.describe(locale)
 
-    /** Les phrases des absences, dans l'ordre de l'énumération. */
+    /** The sentences of the omissions, in the order of the enumeration. */
     fun omissionLabels(locale: Locale = OnyxLanguage.preferred): List<String> =
         omissions.map { it.label(locale) }
 
     companion object {
-        /** La phrase qui remplace un rôle vide : ne rien dire serait laisser croire qu'il y en a un. */
+        /** The sentence that replaces an empty role: saying nothing would let one believe there is one. */
         const val NO_ROLE = "No role given."
 
         fun of(share: BotTemplateShare): BotTemplatePreview = from(share.spec, share.tools, share.skills, share.model)

@@ -5,33 +5,33 @@ import com.onyx.app.localization.OnyxLocalization
 import com.onyx.app.ui.design.BotFace
 
 /**
- * Ce qu'un ajout a donné — deux cas seulement, et chacun se dit.
+ * What an add produced — only two cases, and each is stated.
  *
- * [Added] dit le profil créé **et** ce qui n'a pas pu être écrit : un import qui n'aurait appliqué
- * que la moitié du modèle sans le dire serait un mensonge par omission, exactement ce que l'aperçu
- * du partage existe pour éviter.
+ * [Added] states the created profile **and** what could not be written: an import that would have applied
+ * only half of the template without saying so would be a lie by omission, exactly what the share
+ * preview exists to avoid.
  */
 sealed interface BotTemplateImportOutcome {
     /**
-     * Le bot est sur le serveur. [notApplied] nomme ce que le lien portait et que l'écriture n'a
-     * pas pris (les jeux d'outils, les compétences, le modèle par défaut) — vide quand tout est
-     * passé.
+     * The bot is on the server. [notApplied] names what the link carried and that the write did
+     * not take (the toolsets, the skills, the default model) — empty when everything
+     * went through.
      */
     data class Added(
         val profile: String,
         val notApplied: List<String> = emptyList(),
     ) : BotTemplateImportOutcome
 
-    /** **Rien** n'a été créé : la raison, prête à être montrée. */
+    /** **Nothing** was created: the reason, ready to be shown. */
     data class Refused(val reason: String) : BotTemplateImportOutcome
 }
 
 /**
- * Ce que la feuille du partage montre : le lien prêt à envoyer, et si le prompt du bot y est.
+ * What the share sheet shows: the link ready to send, and whether the bot's prompt is in it.
  *
- * [withoutPrompt] est vrai quand le profil n'a pas de `SOUL.md` : le lien reste valable — nom,
- * rôle, visage, outils, compétences et modèle y sont — mais la feuille le dit, plutôt que de
- * laisser croire que la personnalité voyage avec.
+ * [withoutPrompt] is true when the profile has no `SOUL.md`: the link stays valid — name,
+ * role, face, tools, skills and model are in it — but the sheet says so, rather than
+ * letting one believe that the personality travels along.
  */
 internal data class BotTemplateOffer(
     val link: String,
@@ -39,8 +39,8 @@ internal data class BotTemplateOffer(
 )
 
 /**
- * Ce que la préparation d'un partage a donné : le lien prêt, ou la raison pour laquelle il n'y en a
- * pas (le codec a refusé le prompt, le serveur est muet, l'app n'a pas de Dashboard).
+ * What preparing a share produced: the link ready, or the reason there is none
+ * (the codec refused the prompt, the server is silent, the app has no Dashboard).
  */
 internal sealed interface BotTemplateOfferOutcome {
     data class Ready(val offer: BotTemplateOffer) : BotTemplateOfferOutcome
@@ -48,15 +48,15 @@ internal sealed interface BotTemplateOfferOutcome {
 }
 
 /**
- * Le modèle que ce bot partage : ce que le serveur sait de lui, mis dans l'enveloppe du codec.
+ * The template that this bot shares: what the server knows about it, put in the codec's envelope.
  *
- * Le prompt d'un bot est son `SOUL.md` (`api/profiles/{nom}/soul`) ; sans lui le lien part sans
- * personnalité, et la feuille du partage le dit au lieu de laisser croire qu'il est dedans. Les
- * outils et les compétences sont ceux que le serveur déclare **allumés** pour ce profil, jamais une
- * liste devinée.
+ * A bot's prompt is its `SOUL.md` (`api/profiles/{nom}/soul`); without it the link leaves without a
+ * personality, and the share sheet says so instead of letting one believe it is in it. The
+ * tools and skills are those the server declares **switched on** for this profile, never a
+ * guessed list.
  *
- * Le visage passe par [BotFace.parse] : le lien porte le code que ce téléphone dessine, pas une
- * valeur recopiée telle quelle du `ui_meta`.
+ * The face goes through [BotFace.parse]: the link carries the code that this phone draws, not a
+ * value copied as is from the `ui_meta`.
  */
 internal fun sharedTemplateOf(
     bot: BotProfile,
@@ -78,17 +78,17 @@ internal fun sharedTemplateOf(
 )
 
 /**
- * Le nom de profil que prend le bot d'un lien : celui du modèle, rendu sûr pour le serveur, et
- * **libre** — un second import du même modèle s'appelle `-2`, `-3`…, comme la copie d'un bot.
+ * The profile name that a link's bot takes: the template's, made safe for the server, and
+ * **free** — a second import of the same template is called `-2`, `-3`…, like a bot's copy.
  *
- * Un titre vide ou qui ne garde aucune lettre tombe sur `bot` : un profil sans nom ne se crée pas.
+ * An empty title or one that keeps no letter falls back to `bot`: a profile without a name is not created.
  */
 internal fun templateHandle(title: String, taken: Set<String>): String {
     val base = botHandle(title)
         .map { if (it.isLetterOrDigit() || it == '_' || it == '-') it else '_' }
         .joinToString("")
         .trim('_', '-')
-        // La place d'un suffixe `-99` : le serveur refuse un nom de profil trop long.
+        // Room for a `-99` suffix: the server refuses a profile name that is too long.
         .take(61)
         .ifEmpty { "bot" }
     if (base !in taken) return base
@@ -99,11 +99,11 @@ internal fun templateHandle(title: String, taken: Set<String>): String {
 }
 
 /**
- * Ce que la feuille d'aperçu montre d'un lien : le nom, le rôle, les outils, les compétences, le
- * modèle — et ce qui n'y est pas, toujours.
+ * What the preview sheet shows of a link: the name, the role, the tools, the skills, the
+ * model — and what is not in it, always.
  *
- * Une phrase par ligne, dans l'ordre de l'énumération : c'est la moitié honnête de la promesse, et
- * elle se lit avant le bouton « Ajouter », pas après.
+ * One sentence per line, in the order of the enumeration: it is the honest half of the promise, and
+ * it is read before the « Ajouter » (Add) button, not after.
  */
 internal fun previewLines(preview: BotTemplatePreview): List<String> = buildList {
     add(preview.name)

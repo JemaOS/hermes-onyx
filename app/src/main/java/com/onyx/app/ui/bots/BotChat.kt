@@ -6,10 +6,10 @@ import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.ui.design.ProfileInForce
 
 /**
- * Le chat d'un bot, comme `Conversation.openBot(_:mainName:)` de la référence
- * (Echo/Services/Conversation:1477) : la conversation dont la session serveur est le
- * `canonical_session` du bot — la session que le Dashboard lui nomme (`bot.chatId`). C'est la même
- * conversation que la tuile lit pour ses pastilles (`openStreaming`, `isOpen`).
+ * A bot's chat, like `Conversation.openBot(_:mainName:)` in the reference
+ * (Echo/Services/Conversation:1477): the conversation whose server session is the
+ * bot's `canonical_session` — the session the Dashboard names for it (`bot.chatId`). It is the same
+ * conversation the tile reads for its badges (`openStreaming`, `isOpen`).
  */
 fun botChat(bot: BotProfile, conversations: List<Conversation>): Conversation? =
     bot.chatId?.let { chat ->
@@ -17,15 +17,15 @@ fun botChat(bot: BotProfile, conversations: List<Conversation>): Conversation? =
     }
 
 /**
- * Le **profil Hermes** qui porte la session d'une conversation : celui de son bot, sinon celui du
- * serveur — la décision unique de [com.onyx.app.ui.design.ProfileInForce].
+ * The **Hermes profile** that carries a conversation's session: that of its bot, otherwise that of the
+ * server — the single decision of [com.onyx.app.ui.design.ProfileInForce].
  *
- * Une session est écrite dans la base **de son profil** (`~/.hermes/profiles/<bot>/state.db`) : un
- * écran d'usage, de registre ou de relevé qui oublie le profil interroge la base `default`, n'y
- * trouve pas la ligne du bot, et conclut « le registre n'a pas répondu » sur une session
- * parfaitement enregistrée. C'est le défaut signalé — ici, la règle est écrite une fois.
+ * A session is written into **its profile's** database (`~/.hermes/profiles/<bot>/state.db`): a usage,
+ * roster or ledger screen that forgets the profile queries the `default` database, does not
+ * find the bot's row there, and concludes "the roster did not respond" for a session that is
+ * perfectly recorded. That is the reported defect — here, the rule is written once.
  *
- * Rend `"default"` (le profil de la passerelle) quand ni le bot ni le serveur n'en nomment un.
+ * Returns `"default"` (the gateway's profile) when neither the bot nor the server names one.
  */
 fun conversationProfile(
     conversation: Conversation,
@@ -33,22 +33,22 @@ fun conversationProfile(
     server: ServerConfig,
     mainName: String = "Onyx",
 ): String = ProfileInForce.inForce(
-    // **Le profil retenu par la conversation compte.** Une conversation importée du serveur ne
-    // porte ni titre de bot ni `canonical_session` : son seul lien est `botProfile`, écrit à
-    // l'import. Sans cette lecture, toutes les conversations réimportées après une réinstallation
-    // retombaient sur le visage d'Onyx (le bleu) au lieu de celui de leur bot.
+    // **The profile retained by the conversation counts.** A conversation imported from the server
+    // carries neither a bot title nor a `canonical_session`: its only link is `botProfile`, written at
+    // import. Without this read, all conversations reimported after a reinstall
+    // fell back on Onyx's face (the blue one) instead of their bot's.
     botOfConversationOrRemembered(conversation, bots, server.displayName.ifBlank { mainName })?.name,
     server.effectiveProfile,
 )
 
-/** Le profil d'un **bot** nommé, pour la portée « par bot » du relevé. */
+/** The profile of a named **bot**, for the "per bot" scope of the ledger. */
 fun botProfileName(bot: BotProfile): String = ProfileInForce.inForce(bot.name, null)
 
 /**
- * Les profils Hermes qu'un relevé doit interroger : les bots nommés, plus le profil du serveur.
+ * The Hermes profiles a ledger must query: the named bots, plus the server's profile.
  *
- * Même liste pour le registre des sessions **et** pour la table de prix — une seule façon de nommer
- * un profil, comme `ModelCatalog.fetchModelOptions`.
+ * Same list for the session roster **and** for the price table — a single way to name
+ * a profile, like `ModelCatalog.fetchModelOptions`.
  */
 fun ledgerProfiles(bots: List<BotProfile>, server: ServerConfig): List<String> =
     (bots.map { it.name } + (server.effectiveProfile ?: ProfileInForce.Default))
@@ -57,31 +57,31 @@ fun ledgerProfiles(bots: List<BotProfile>, server: ServerConfig): List<String> =
         .distinct()
 
 /**
- * Le bot dont c'est la conversation ouverte, ou `null` pour une conversation simple.
+ * The bot whose open conversation this is, or `null` for a plain conversation.
  *
- * Deux liens, dans cet ordre :
+ * Two links, in this order:
  *
- * 1. **Le chat serveur du bot** (`BotProfile.chatId`, le `canonical_session` que le Dashboard lui
- *    nomme) : le lien fort, celui que [botChat] et la tuile lisent. Un bot dont le chat nommé est
- *    la session serveur de la conversation — ou la conversation elle-même — la revendique.
- * 2. **Le titre posé par [botChatToOpen]** : quand le roster ne nomme aucun `canonical_session`,
- *    l'ouverture du chat d'un bot **titre la conversation de son nom**. Ce titre est le seul lien
- *    durable qui reste. Il vaut **même après le premier tour** — la session serveur s'écrit alors
- *    dans la conversation, et l'ancien test (`serverSessionId == null`) perdait le bot dès que la
- *    conversation avait parlé, ce qui faisait retomber l'en-tête sur Onyx (le défaut « scout »).
+ * 1. **The bot's server chat** (`BotProfile.chatId`, the `canonical_session` the Dashboard names
+ *    for it): the strong link, the one [botChat] and the tile read. A bot whose named chat is
+ *    the conversation's server session — or the conversation itself — claims it.
+ * 2. **The title set by [botChatToOpen]**: when the roster names no `canonical_session`,
+ *    opening a bot's chat **titles the conversation with its name**. This title is the only durable
+ *    link that remains. It holds **even after the first turn** — the server session is then written
+ *    into the conversation, and the former test (`serverSessionId == null`) lost the bot as soon as the
+ *    conversation had spoken, which made the header fall back on Onyx (the "scout" defect).
  *
- *    Le nom comparé est [Conversation.botName] : le titre **sans** le suffixe de branche. Une
- *    branche (« coder (fork) ») est la copie d'une conversation de bot — elle lui garde son bot,
- *    donc son visage et son profil. C'est ce que « Créer un fil » et « brancher à partir d'ici »
- *    produisent ; sans cette règle, la branche retombait sur le visage d'Onyx alors que sa
- *    originale gardait le sien.
+ *    The compared name is [Conversation.botName]: the title **without** the branch suffix. A
+ *    branch ("coder (fork)") is a copy of a bot conversation — it keeps it its bot,
+ *    hence its face and its profile. That is what "Create a thread" and "branch from here"
+ *    produce; without this rule, the branch fell back on Onyx's face while its
+ *    original kept its own.
  *
- * Le titre ne compte que s'il a vraiment été **posé** : [Conversation.customName] écarte un titre
- * qui n'est que la première question, qu'un message de l'utilisateur peut reprendre mot pour mot
- * (« scout » en premier message ne fait pas de la conversation celle du bot `scout`). Et il ne
- * compte que s'il désigne **un seul** bot : deux profils du même libellé rendraient le lien
- * ambigu, et un faux rattachement (le visage d'un bot qui n'a rien dit) vaut moins que pas de
- * rattachement — Onyx montre alors son propre visage.
+ * The title counts only if it was really **set**: [Conversation.customName] dismisses a title
+ * that is only the first question, which a user message may repeat word for word
+ * ("scout" as the first message does not make the conversation the `scout` bot's). And it only
+ * counts if it designates **a single** bot: two profiles with the same label would make the link
+ * ambiguous, and a false attachment (the face of a bot that said nothing) is worth less than no
+ * attachment — Onyx then shows its own face.
  */
 fun botOfConversation(
     conversation: Conversation,
@@ -93,15 +93,15 @@ fun botOfConversation(
         bot.chatId != null &&
             (bot.chatId == conversation.serverSessionId || bot.chatId == conversation.id)
     }
-    // **Une session canonique n'identifie un bot que si elle n'en désigne qu'un.** Un bot créé
-    // « à partir de » un autre hérite du `canonical_session` de son original (`clone_from`) : deux
-    // bots réclamaient alors la même session, et `firstOrNull` donnait le **premier du roster** à
-    // toutes ses conversations — deux bots, un seul visage, et changer le visage de l'un ne
-    // changeait rien chez lui (relevé par le propriétaire : « tous les coder ont syncro le même
-    // visage »). Quand la session est partagée, elle ne décide donc plus : le **nom de la
-    // conversation** tranche entre les bots qui la revendiquent, et s'il ne tranche pas, la
-    // conversation retombe sur le profil qu'elle a retenu ([Conversation.botProfile]) — jamais sur
-    // un bot choisi au hasard dans une liste.
+    // **A canonical session identifies a bot only if it designates only one.** A bot created
+    // "from" another inherits its original's `canonical_session` (`clone_from`): two
+    // bots then claimed the same session, and `firstOrNull` gave the **first of the roster** to
+    // all its conversations — two bots, a single face, and changing one's face changed
+    // nothing for it (reported by the owner: "all the coder have syncro the same
+    // face"). When the session is shared, it therefore no longer decides: the **name of the
+    // conversation** settles it between the bots that claim it, and if it does not settle it, the
+    // conversation falls back on the profile it retained ([Conversation.botProfile]) — never on
+    // a bot chosen at random from a list.
     if (byChat.size == 1) return byChat.first()
     if (byChat.size > 1) {
         return named?.let { name -> byChat.filter { it.label(mainName) == name }.singleOrNull() }
@@ -110,19 +110,19 @@ fun botOfConversation(
 }
 
 /**
- * **Le bot d'une conversation, même quand le roster n'est pas encore arrivé.**
+ * **A conversation's bot, even when the roster has not arrived yet.**
  *
- * Le roster est la vérité, mais il vient du réseau : au redémarrage, l'écran se dessine avant lui,
- * et la conversation s'affichait alors en Onyx — visage bleu, « @default » — le temps de deux
- * frames, avant de sauter sur son vrai bot. Ce que la conversation a retenu
- * ([Conversation.botProfile]) comble exactement ce trou : `""` pour le profil principal, sinon le
- * nom du profil. Il ne remplace jamais un bot du roster, il le **précède**.
+ * The roster is the truth, but it comes from the network: on restart, the screen is drawn before it,
+ * and the conversation then displayed as Onyx — blue face, "@default" — for the time of two
+ * frames, before jumping to its real bot. What the conversation retained
+ * ([Conversation.botProfile]) fills exactly this hole: `""` for the main profile, otherwise the
+ * profile name. It never replaces a roster bot, it **precedes** it.
  *
- * **Le nom du profil est l'identité du bot, et il suffit.** C'est lui que la conversation a
- * retenu, et c'est lui que le roster porte : le bot retrouvé par ce nom est le vrai — avec son
- * visage, celui que le serveur a réparti sur le roster. Sans cela, le bot retenu était une
- * coquille sans visage : l'écran dessinait la créature que le **nom** tire, au lieu de celle
- * d'hier — le même bot, mais pas le même visage, ce qui n'est pas la même chose.
+ * **The profile name is the bot's identity, and it suffices.** It is what the conversation
+ * retained, and it is what the roster carries: the bot found by this name is the real one — with its
+ * face, the one the server distributed over the roster. Without this, the retained bot was a
+ * faceless shell: the screen drew the creature that the **name** pulls, instead of the one
+ * of yesterday — the same bot, but not the same face, which is not the same thing.
  */
 fun botOfConversationOrRemembered(
     conversation: Conversation,
@@ -131,22 +131,22 @@ fun botOfConversationOrRemembered(
 ): BotProfile? = botOfConversation(conversation, bots, mainName)
     ?: conversation.botProfile?.let { profile ->
         if (profile.isEmpty()) BotProfile(name = "default", isDefault = true)
-        // Le roster connaît peut-être déjà ce profil : alors c'est lui qui parle, visage compris.
+        // The roster may already know this profile: then it is the one speaking, face included.
         else bots.firstOrNull { it.name == profile } ?: BotProfile(name = profile)
     }
 
 /**
- * **La dernière session d'un bot** — « Ouvrir la dernière session » du menu.
+ * **A bot's last session** — "Open the last session" in the menu.
  *
- * La plus récente de ses conversations **autre que son chat** : une routine qu'il a exécutée, un
- * fil qu'on a ouvert avec lui, une conversation reprise plus tard. La référence lit cette ligne sur
- * le roster (`last_session` de `profiles.list`, `BotsRoster.kt:447`) et ouvre l'identifiant qu'elle
- * porte ; ce port n'a **pas de transport de sessions** — le fil d'un bot s'écrit dans une
- * conversation locale —, la même question se pose donc ici sur l'historique du téléphone : les
- * conversations rattachées à ce bot ([botOfConversation]), la plus récemment modifiée d'abord.
+ * The most recent of its conversations **other than its chat**: a routine it ran, a
+ * thread opened with it, a conversation resumed later. The reference reads this line on
+ * the roster (`last_session` of `profiles.list`, `BotsRoster.kt:447`) and opens the identifier it
+ * carries; this port has **no session transport** — a bot's thread is written into a
+ * local conversation —, so the same question is asked here on the phone's history: the
+ * conversations attached to this bot ([botOfConversation]), the most recently modified first.
  *
- * Rend `null` quand il n'y en a aucune : l'entrée ne s'affiche alors pas (une entrée morte serait
- * pire que pas d'entrée).
+ * Returns `null` when there is none: the entry then does not appear (a dead entry would be
+ * worse than no entry).
  */
 fun botRecentConversation(
     bot: BotProfile,
@@ -162,18 +162,18 @@ fun botRecentConversation(
 }
 
 /**
- * Le chat d'un bot à ouvrir : celui qu'on garde déjà, sinon une conversation **liée à son chat
- * serveur**, titrée de son nom — le nom que la conversation d'un bot porte chez référence
- * (`BotRef.name`, celui de l'en-tête et de la liste), pas le titre « Bot Chat » de la session
- * elle-même.
+ * A bot's chat to open: the one already kept, otherwise a conversation **linked to its server
+ * chat**, titled with its name — the name a bot's conversation carries in the reference
+ * (`BotRef.name`, the one of the header and of the list), not the "Bot Chat" title of the session
+ * itself.
  *
- * référence fait le chemin entier : il retrouve la session par son titre sur le profil du bot
- * (`session.list`), la fait quand elle n'existe pas encore (`session.create`) puis l'ouvre. Ce port
- * n'a pas de transport de sessions (le chat passe par `/v1/chat/completions`, sans état) : il ouvre
- * donc la conversation liée au `canonical_session` que le roster a nommé, et la garde pour la
- * retrouver ensuite. Un bot que le roster ne nomme pas encore ([BotProfile.chatId] absent) ouvre une
- * conversation neuve, sans session serveur : c'est tout ce que le port peut tenir, et la session
- * s'y écrit au premier tour.
+ * The reference does the whole path: it finds the session by its title on the bot's profile
+ * (`session.list`), creates it when it does not exist yet (`session.create`) then opens it. This port
+ * has no session transport (the chat goes through `/v1/chat/completions`, stateless): it therefore
+ * opens the conversation linked to the `canonical_session` that the roster named, and keeps it to
+ * find it again afterwards. A bot the roster does not name yet ([BotProfile.chatId] absent) opens a
+ * new conversation, with no server session: it is all the port can hold, and the session
+ * is written into it on the first turn.
  */
 fun botChatToOpen(
     bot: BotProfile,
@@ -189,20 +189,20 @@ fun botChatToOpen(
     )
 
 /**
- * La conversation qu'ouvre le **crayon** de la barre du fil, selon l'endroit où l'on est.
+ * The conversation opened by the thread bar's **pencil**, depending on where one is.
  *
- * - **Dans la conversation d'un bot** ([bot] non nul) : une conversation du **même** bot — mêmes
- *   profil, visage et couleur, puisque c'est [botOfConversation] qui la rattache. La **même**
- *   conversation quand elle est vide et jamais servie (aucun message, rien en attente : il n'y a
- *   rien à perdre, et en garder deux vides serait un doublon) — où qu'elle soit dans la liste, pour
- *   qu'un fil neuf laissé de côté se retrouve au lieu d'en faire un second. Sinon une **neuve**,
- *   titrée du libellé du bot : c'est ce titre qui la rattache au bot, et jamais la session serveur
- *   d'un autre.
- * - **Dans une conversation simple** ([bot] nul, c'est-à-dire la racine) : la courante quand elle
- *   est vide et jamais servie, sinon une neuve — le comportement d'avant, sans doublon vide.
+ * - **In a bot's conversation** ([bot] non-null): a conversation of the **same** bot — same
+ *   profile, face and color, since it is [botOfConversation] that attaches it. The **same**
+ *   conversation when it is empty and never served (no message, nothing pending: there is
+ *   nothing to lose, and keeping two empty ones would be a duplicate) — wherever it is in the list, so
+ *   that a new thread left aside is found instead of making a second one. Otherwise a **new** one,
+ *   titled with the bot's label: it is this title that attaches it to the bot, and never the server
+ *   session of another.
+ * - **In a plain conversation** ([bot] null, that is the root): the current one when it
+ *   is empty and never served, otherwise a new one — the former behavior, without an empty duplicate.
  *
- * La conversation rendue n'est jamais l'ancienne quand elle a parlé : celle-ci reste dans
- * l'historique, entière. C'est l'appelant qui enregistre le résultat quand il est neuf.
+ * The returned conversation is never the old one when it has spoken: that one stays in
+ * the history, whole. It is the caller that saves the result when it is new.
  */
 fun freshConversationForPencil(
     current: Conversation?,
@@ -213,8 +213,8 @@ fun freshConversationForPencil(
     now: Long = System.currentTimeMillis(),
 ): Conversation {
     if (bot != null) {
-        // La conversation courante d'abord — c'est celle qu'on regarde —, puis toute autre
-        // conversation vide du même bot : la reprendre vaut mieux qu'une deuxième vide.
+        // The current conversation first — it is the one being looked at —, then any other
+        // empty conversation of the same bot: reusing it is better than a second empty one.
         val mine = buildList {
             current?.let(::add)
             addAll(conversations)

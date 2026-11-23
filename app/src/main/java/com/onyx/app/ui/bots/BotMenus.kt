@@ -13,87 +13,87 @@ import com.onyx.app.ui.design.MenuItem
 import com.onyx.app.ui.design.Symbols
 
 /**
- * Ce qu'une tuile de bot ou une salle propose quand on l'appuie longuement.
+ * What a bot tile or a room offers when long-pressed.
  *
- * **Deux blocs, dans cet ordre.** D'abord **les neuf entrées de la référence**, dans *son* ordre :
- * `BotsRoster.kt:444-454` (son menu d'une carte de bot, tel qu'il s'ouvre à l'appui long). Puis les
- * entrées **propres à Onyx**, celles de la source de référence de la maison
- * (`botMenu(_:unread:isOpen:)` de `ConversationsView:700`, le `contextMenu` du `groupRow`
- * à `:817`) : elles ne bougent pas, et aucune n'est retirée.
+ * **Two blocks, in this order.** First **the reference's nine entries**, in *its* order:
+ * `BotsRoster.kt:444-454` (its menu for a bot card, as it opens on long press). Then the
+ * entries **specific to Onyx**, those of the house reference source
+ * (`botMenu(_:unread:isOpen:)` of `ConversationsView:700`, the `contextMenu` of the `groupRow`
+ * at `:817`): they do not move, and none is removed.
  */
 internal enum class BotMenuAction {
-    // ————— Les neuf entrées de la référence, dans son ordre (`BotsRoster.kt:444-454`) —————
+    // ————— The reference's nine entries, in its order (`BotsRoster.kt:444-454`) —————
 
-    /** « Épingler en haut » / « Désépingler » (`Lucide.Pin` / `PinOff`) : le bot passe en tête. */
+    /** « Épingler en haut » (Pin to top) / « Désépingler » (Unpin) (`Lucide.Pin` / `PinOff`): the bot moves to the top. */
     Pin,
 
-    /** « Masquer » / « Afficher » (`Lucide.EyeOff` / `Eye`), sans le profil principal. */
+    /** « Masquer » (Hide) / « Afficher » (Unhide) (`Lucide.EyeOff` / `Eye`), without the main profile. */
     Hide,
 
-    /** « Ouvrir la dernière session » (`Lucide.History`) : la plus récente, hors son chat. */
+    /** « Ouvrir la dernière session » (Open recent session) (`Lucide.History`): the most recent one, outside its chat. */
     OpenRecent,
 
-    /** « Nouvelle conversation avec <le nom du bot> » (`Lucide.MessageSquarePlus`). */
+    /** « Nouvelle conversation avec <le nom du bot> » (New chat with the bot) (`Lucide.MessageSquarePlus`). */
     NewChat,
 
-    /** « Routines » (`Lucide.CalendarClock`) : les tâches planifiées du bot. */
+    /** « Routines » (`Lucide.CalendarClock`): the bot's scheduled tasks. */
     Routines,
 
-    /** « Repartir à zéro » (`Lucide.RotateCcw`) : son chat archivé, une conversation neuve. */
+    /** « Repartir à zéro » (Start fresh) (`Lucide.RotateCcw`): its chat archived, a fresh conversation. */
     StartFresh,
 
-    /** « Modifier » (`Lucide.Pencil`) : l'éditeur du bot. */
+    /** « Modifier » (Edit) (`Lucide.Pencil`): the bot's editor. */
     EditBot,
 
-    /** « Dupliquer » (`Lucide.Copy`) : un second bot, sa configuration copiée. */
+    /** « Dupliquer » (Duplicate) (`Lucide.Copy`): a second bot, with its configuration copied. */
     Duplicate,
 
-    /** « Supprimer » (`Lucide.Trash2`, destructrice) : le profil s'en va, après confirmation. */
+    /** « Supprimer » (Delete) (`Lucide.Trash2`, destructive): the profile goes away, after confirmation. */
     Delete,
 
-    // ————— Les entrées propres à Onyx, sous ce bloc, dans leur ordre —————
+    // ————— The entries specific to Onyx, below this block, in their order —————
 
-    /** « Mark as Read » (`envelope.open`), le bot ou la salle ayant quelque chose de neuf. */
+    /** « Mark as Read » (`envelope.open`), the bot or the room having something new. */
     MarkRead,
 
     /** « Mark as Unread » (`envelope.badge`). */
     MarkUnread,
 
-    /** « Voice… » : la voix d'un bot, sans le profil principal (`!bot.isDefault`). */
+    /** « Voice… » : a bot's voice, without the main profile (`!bot.isDefault`). */
     Voice,
 
-    /** Le silence (`MuteMenu`) : « Mute » ou « Unmute », avec l'échéance. */
+    /** Muting (`MuteMenu`): « Mute » or « Unmute », with the deadline. */
     Mute,
 
-    /** « Remove from Onyx » (`minus.circle`, destructrice), sur un bot ajouté à la main. */
+    /** « Remove from Onyx » (`minus.circle`, destructive), on a bot added by hand. */
     RemoveFromOnyx,
 
     /** « Change Face… » (`face.smiling`). */
     ChangeFace,
 
-    /** « Reorder Bots » (`arrow.up.arrow.down`), en dernier, comme après le `Divider()` de la référence. */
+    /** « Reorder Bots » (`arrow.up.arrow.down`), last, as after the `Divider()` of the reference. */
     Reorder,
 
-    /** « Sort Bots by Recent », dès qu'un ordre a été mis à la main. */
+    /** « Sort Bots by Recent », as soon as an order has been set by hand. */
     SortByRecent,
 
     /**
-     * « Partager comme modèle » (`Symbols.Share`) : le lien `onyx://bot?v=1&…` du bot, son QR, et
-     * rien qui parte au serveur avant que le destinataire n'ait vu l'aperçu.
+     * « Partager comme modèle » (Share as Template) (`Symbols.Share`): the bot's `onyx://bot?v=1&…` link, its QR, and
+     * nothing that goes to the server before the recipient has seen the preview.
      *
-     * Elle vient **après** toutes celles de la maison : c'est la dernière chose qu'un bot propose,
-     * comme « Supprimer » ferme le bloc de la référence.
+     * It comes **after** all the house ones: it is the last thing a bot offers,
+     * as « Supprimer » (Delete) closes the reference block.
      */
     ShareTemplate,
 }
 
 /**
- * L'état d'une carte de bot au moment où son menu s'ouvre.
+ * The state of a bot card at the moment its menu opens.
  *
- * C'est lui — jamais un écran — qui choisit le **mot** (« Pin to top » ou « Unpin », « Hide » ou
- * « Unhide ») et l'**icône** : la référence le fait au même endroit, avec le même `if`
- * (`BotsRoster.kt:445-446`). Le libellé du bot entre dans le quatrième mot, « Nouvelle conversation
- * avec <le nom> », que la référence compose de la même façon (`:448`).
+ * It — never a screen — chooses the **word** (« Pin to top » or « Unpin », « Hide » or
+ * « Unhide ») and the **icon**: the reference does it in the same place, with the same `if`
+ * (`BotsRoster.kt:445-446`). The bot's label enters the fourth word, « Nouvelle conversation
+ * avec <le nom> » (New chat with the name), which the reference composes the same way (`:448`).
  */
 internal data class BotMenuFrame(
     val label: String = "",
@@ -102,48 +102,48 @@ internal data class BotMenuFrame(
 )
 
 /**
- * Les entrées du menu d'une tuile de bot : les neuf de la référence dans son ordre, puis celles de
- * la maison.
+ * The menu entries of a bot tile: the reference's nine in its order, then the house
+ * ones.
  *
- * Une entrée n'est là que si elle **peut agir** : celles qui passent par le serveur ne s'affichent
- * que sur un bot que le Dashboard tient (`!bot.viaAPI`), « Supprimer » jamais sur le profil
- * principal, « Repartir à zéro » seulement quand le bot a un chat nommé à archiver, « Ouvrir la
- * dernière session » seulement quand il y en a une autre que ce chat. Le geste lui-même
- * ([handlers][BotMenuAction.handler]) retire aussi l'entrée quand l'écran ne le fournit pas — une
- * entrée affichée agit toujours.
+ * An entry is there only if it **can act**: those that go through the server are shown
+ * only on a bot that the Dashboard holds (`!bot.viaAPI`), « Supprimer » (Delete) never on the main
+ * profile, « Repartir à zéro » (Start fresh) only when the bot has a named chat to archive, « Ouvrir la
+ * dernière session » (Open recent session) only when there is one other than that chat. The gesture itself
+ * ([handlers][BotMenuAction.handler]) also removes the entry when the screen does not provide it — a
+ * displayed entry always acts.
  */
 internal fun botMenuActions(
     bot: BotProfile,
     isOpen: Boolean,
     unread: Boolean,
     hasOrder: Boolean,
-    /** Une conversation du bot autre que son chat : « Ouvrir la dernière session ». */
+    /** A conversation of the bot other than its chat: « Ouvrir la dernière session » (Open recent session). */
     hasRecent: Boolean = false,
 ): List<BotMenuAction> = buildList {
-    // ————— Les neuf entrées de la référence, dans son ordre (`BotsRoster.kt:444-454`) —————
+    // ————— The reference's nine entries, in its order (`BotsRoster.kt:444-454`) —————
     add(BotMenuAction.Pin)
     if (!bot.isDefault) add(BotMenuAction.Hide)
     if (hasRecent) add(BotMenuAction.OpenRecent)
     add(BotMenuAction.NewChat)
-    // Ses routines sont tenues par le serveur, par le Dashboard (`api/cron/jobs`) ; sur l'API, il
-    // n'y en a pas — c'est le même garde que l'entrée « Schedules… » qu'elle remplace.
+    // Its routines are held by the server, by the Dashboard (`api/cron/jobs`); on the API, there
+    // are none — it is the same guard as the « Schedules… » entry it replaces.
     if (!bot.viaAPI) add(BotMenuAction.Routines)
-    // « Repartir à zéro » archive le chat du bot : il en faut un.
+    // « Repartir à zéro » (Start fresh) archives the bot's chat: one is needed.
     if (bot.chatId != null) add(BotMenuAction.StartFresh)
     if (!bot.viaAPI) add(BotMenuAction.EditBot)
-    // La copie d'un profil passe par `profiles.create` du Dashboard (`clone_from`).
+    // Copying a profile goes through the Dashboard's `profiles.create` (`clone_from`).
     if (!bot.viaAPI) add(BotMenuAction.Duplicate)
-    // Le profil s'en va du serveur (`DELETE api/profiles/{name}`), jamais le principal.
+    // The profile leaves the server (`DELETE api/profiles/{name}`), never the main one.
     if (!bot.isDefault && !bot.viaAPI) add(BotMenuAction.Delete)
 
-    // ————— Les entrées propres à Onyx, sous ce bloc, dans leur ordre —————
+    // ————— The entries specific to Onyx, below this block, in their order —————
     if (bot.chatId != null && !isOpen) {
         add(if (unread) BotMenuAction.MarkRead else BotMenuAction.MarkUnread)
     }
     if (!bot.isDefault) add(BotMenuAction.Voice)
     add(BotMenuAction.Mute)
     if (bot.viaAPI) {
-        // Ajouté ici pour l'API Hermes : ses réglages et son visage sont ceux du Dashboard.
+        // Added here for the Hermes API: its settings and its face are the Dashboard's.
         if (!bot.isDefault) add(BotMenuAction.RemoveFromOnyx)
     } else {
         add(BotMenuAction.ChangeFace)
@@ -151,17 +151,17 @@ internal fun botMenuActions(
     add(BotMenuAction.Reorder)
     if (hasOrder) add(BotMenuAction.SortByRecent)
 
-    // ————— « Partager comme modèle », la dernière —————
-    // Le lien se lit sur le serveur : son `SOUL.md` (`api/profiles/{nom}/soul`), ses jeux d'outils
-    // et ses compétences. Un bot ajouté à la main n'a pas de profil sur le Dashboard, et le profil
-    // principal est l'agent de la personne — ni l'un ni l'autre ne se partagent comme modèle.
+    // ————— « Partager comme modèle » (Share as Template), the last —————
+    // The link is read from the server: its `SOUL.md` (`api/profiles/{nom}/soul`), its toolsets
+    // and its skills. A bot added by hand has no profile on the Dashboard, and the main
+    // profile is the person's agent — neither is shared as a template.
     if (!bot.viaAPI && !bot.isDefault) add(BotMenuAction.ShareTemplate)
 }
 
 /**
- * Les entrées du menu d'une salle, comme le `contextMenu` du `groupRow` : marquée lue ou non lue
- * quand elle n'est pas ouverte et que le serveur lui connaît une activité, le silence (sauf une
- * salle d'Hermes Desktop, qui ne notifie pas), puis la mise en ordre de la section.
+ * The menu entries of a room, like the `contextMenu` of the `groupRow`: marked read or unread
+ * when it is not open and the server knows of an activity for it, muting (except a
+ * Hermes Desktop room, which does not notify), then the ordering of the section.
  */
 internal fun roomMenuActions(
     canMark: Boolean,
@@ -176,18 +176,18 @@ internal fun roomMenuActions(
 }
 
 /**
- * Le libellé d'une entrée.
+ * The label of an entry.
  *
- * Les neuf mots des entrées reprises sont ceux de la référence (`BotsRoster.kt:444-454`) : quatre
- * d'entre eux demandent l'état par [frame] (« Pin to top »/« Unpin », « Hide »/« Unhide »), et
- * « Nouvelle conversation avec … » **porte le nom du bot**, composé avec le gabarit de la clé. Les
- * entrées de la maison gardent leurs mots de la référence, tels quels.
+ * The nine words of the adopted entries are those of the reference (`BotsRoster.kt:444-454`): four
+ * of them ask for the state through [frame] (« Pin to top »/« Unpin », « Hide »/« Unhide »), and
+ * « Nouvelle conversation avec … » (New chat with …) **carries the bot's name**, composed with the key's template. The
+ * house entries keep their words from the reference, as is.
  */
 internal fun botMenuLabel(action: BotMenuAction, frame: BotMenuFrame = BotMenuFrame()): String = when (action) {
     BotMenuAction.Pin -> if (frame.pinned) "Unpin" else "Pin to top"
     BotMenuAction.Hide -> if (frame.hidden) "Unhide" else "Hide"
     BotMenuAction.OpenRecent -> "Open recent session"
-    // Le nom du bot fait partie du libellé : la clé est un gabarit, composé ici une seule fois.
+    // The bot's name is part of the label: the key is a template, composed here only once.
     BotMenuAction.NewChat -> OnyxLocalization.format("New chat with %1\$s", frame.label)
     BotMenuAction.Routines -> "Routines"
     BotMenuAction.StartFresh -> "Start fresh"
@@ -206,12 +206,12 @@ internal fun botMenuLabel(action: BotMenuAction, frame: BotMenuFrame = BotMenuFr
 }
 
 /**
- * L'icône d'une entrée.
+ * The icon of an entry.
  *
- * **Les neuf entrées reprises portent les icônes de la référence** : le jeu Lucide, généré depuis
- * la géométrie de la source ([LucideMenuIcons] porte, par icône, la ligne de `BotsRoster.kt` où
- * elle sert), et les deux qui dépendent de l'état prennent la variante barrée quand l'état est posé
- * (`:445-446`). Les entrées de la maison gardent leurs symboles SF.
+ * **The nine adopted entries carry the reference's icons**: the Lucide set, generated from
+ * the source's geometry ([LucideMenuIcons] carries, per icon, the line of `BotsRoster.kt` where
+ * it is used), and the two that depend on the state take the struck-through variant when the state is set
+ * (`:445-446`). The house entries keep their SF symbols.
  */
 internal fun botMenuSymbol(action: BotMenuAction, frame: BotMenuFrame = BotMenuFrame()): Int? = when (action) {
     BotMenuAction.Pin -> if (frame.pinned) LucideMenuIcons.PinOff else LucideMenuIcons.Pin
@@ -235,10 +235,10 @@ internal fun botMenuSymbol(action: BotMenuAction, frame: BotMenuFrame = BotMenuF
 }
 
 /**
- * Le menu d'une tuile de bot, tel qu'il s'ouvre à l'appui long : le panneau de la maison, les neuf
- * entrées de la référence dans son ordre puis celles de la maison, et chacune son action. Aucune
- * entrée ne s'ouvre sans agir : une action dont l'écran ne fournit pas le geste (la voix d'un bot,
- * par exemple) ne s'affiche pas du tout.
+ * The menu of a bot tile, as it opens on long press: the house panel, the nine
+ * entries of the reference in its order then the house ones, and each with its action. No
+ * entry opens without acting: an action whose gesture the screen does not provide (a bot's voice,
+ * for example) is not shown at all.
  */
 @Composable
 internal fun BotTileMenu(
@@ -247,40 +247,40 @@ internal fun BotTileMenu(
     unread: Boolean,
     mutes: Mutes,
     order: List<String>,
-    /** Une conversation du bot autre que son chat : « Ouvrir la dernière session ». */
+    /** A conversation of the bot other than its chat: « Ouvrir la dernière session » (Open recent session). */
     hasRecent: Boolean = false,
-    /** Le libellé du bot : il entre dans « Nouvelle conversation avec <le nom> ». */
+    /** The bot's label: it enters « Nouvelle conversation avec <le nom> » (New chat with the name). */
     mainName: String = "Onyx",
-    /** La rangée touchée (ses limites dans la fenêtre) : le panneau s'ouvre près d'elle. */
+    /** The touched row (its bounds in the window): the panel opens near it. */
     anchor: Rect? = null,
     onDismiss: () -> Unit,
     onMarkRead: (() -> Unit)? = null,
     onMarkUnread: (() -> Unit)? = null,
     onVoice: (() -> Unit)? = null,
     /**
-     * Les **routines** du bot : l'écran de ses tâches planifiées. C'est le geste de « Routines » de
-     * la référence — celui de « Schedules… » d'hier, la même cible.
+     * The bot's **routines**: the screen of its scheduled tasks. It is the gesture of « Routines » in
+     * the reference — that of yesterday's « Schedules… », the same target.
      */
     onRoutines: (() -> Unit)? = null,
     onRemoveFromOnyx: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onChangeFace: (() -> Unit)? = null,
     onHide: (() -> Unit)? = null,
-    /** « Épingler en haut » / « Désépingler » : l'état **visé** (déjà retourné). */
+    /** « Épingler en haut » (Pin to top) / « Désépingler » (Unpin): the **target** state (already inverted). */
     onSetPinned: ((Boolean) -> Unit)? = null,
-    /** « Ouvrir la dernière session » : la plus récente du bot, hors son chat. */
+    /** « Ouvrir la dernière session » (Open recent session): the bot's most recent one, outside its chat. */
     onOpenRecent: (() -> Unit)? = null,
-    /** « Nouvelle conversation avec <le nom> ». */
+    /** « Nouvelle conversation avec <le nom> » (New chat with the name). */
     onNewChat: (() -> Unit)? = null,
-    /** « Repartir à zéro » : son chat archivé, une conversation neuve ouverte. */
+    /** « Repartir à zéro » (Start fresh): its chat archived, a fresh conversation opened. */
     onStartFresh: (() -> Unit)? = null,
-    /** « Dupliquer » : un second bot, sa configuration copiée. */
+    /** « Dupliquer » (Duplicate): a second bot, with its configuration copied. */
     onDuplicate: (() -> Unit)? = null,
-    /** « Supprimer » : l'écran demande confirmation avant. */
+    /** « Supprimer » (Delete): the screen asks for confirmation first. */
     onDelete: (() -> Unit)? = null,
     onReorder: (() -> Unit)? = null,
     onSortByRecent: (() -> Unit)? = null,
-    /** « Partager comme modèle » : la feuille du lien et de son QR. */
+    /** « Partager comme modèle » (Share as Template): the sheet of the link and its QR. */
     onShareTemplate: (() -> Unit)? = null,
 ) {
     val actions = botMenuActions(
@@ -320,7 +320,7 @@ internal fun BotTileMenu(
     )
 }
 
-/** Le menu d'une salle, le même panneau, avec ses seules entrées (`groupRow` de la référence). */
+/** The menu of a room, the same panel, with its own entries only (`groupRow` of the reference). */
 @Composable
 internal fun RoomMenu(
     room: GroupChat,
@@ -328,7 +328,7 @@ internal fun RoomMenu(
     unread: Boolean,
     mutes: Mutes,
     order: List<String>,
-    /** La rangée touchée (ses limites dans la fenêtre) : le panneau s'ouvre près d'elle. */
+    /** The touched row (its bounds in the window): the panel opens near it. */
     anchor: Rect? = null,
     onDismiss: () -> Unit,
     onMarkRead: (() -> Unit)? = null,
@@ -358,14 +358,14 @@ internal fun RoomMenu(
 }
 
 /**
- * Une entrée au panneau : son action, et rien d'autre. Le `when` est exhaustif — ajouter une action
- * sans lui donner d'effet ne compilerait pas — et une action sans geste ne produit aucune ligne,
- * si bien qu'une entrée affichée agit toujours.
+ * An entry in the panel: its action, and nothing else. The `when` is exhaustive — adding an action
+ * without giving it an effect would not compile — and an action without a gesture produces no line,
+ * so a displayed entry always acts.
  */
 internal fun menuItems(
     actions: List<BotMenuAction>,
     frame: BotMenuFrame = BotMenuFrame(),
-    /** Les lignes du sous-menu du silence (`MuteMenu`) : ce que « Mute › » ouvre. */
+    /** The lines of the mute submenu (`MuteMenu`): what « Mute › » opens. */
     muteLines: () -> List<MenuItem>,
     onDismiss: () -> Unit,
     onMarkRead: (() -> Unit)? = null,
@@ -386,8 +386,8 @@ internal fun menuItems(
     onSortByRecent: (() -> Unit)? = null,
     onShareTemplate: (() -> Unit)? = null,
 ): List<MenuItem> = actions.flatMap { action ->
-    // Le silence est un sous-menu (« Mute › »), comme celui du modèle : ses durées ne sont pas
-    // quatre lignes du panneau, et la ligne ouvre les quatre — plus « Unmute » s'il est déjà tu.
+    // Muting is a submenu (« Mute › »), like the template's: its durations are not
+    // four lines of the panel, and the line opens the four — plus « Unmute » if it is already muted.
     if (action == BotMenuAction.Mute) {
         return@flatMap listOf(
             MenuItem(
@@ -423,11 +423,11 @@ internal fun menuItems(
                 label = botMenuLabel(action, frame),
                 symbol = botMenuSymbol(action, frame),
                 destructive = action == BotMenuAction.RemoveFromOnyx || action == BotMenuAction.Delete,
-                // « Nouvelle conversation avec … » est **composée** (le nom du bot y entre) : elle
-                // sort déjà traduite, le dictionnaire ne la reprend pas une deuxième fois.
+                // « Nouvelle conversation avec … » (New chat with …) is **composed** (the bot's name enters it): it
+                // comes out already translated, the dictionary does not take it a second time.
                 localize = action != BotMenuAction.NewChat,
-                // Un filet devant le dernier groupe, celui de la mise en ordre — et un seul,
-                // comme le `Divider()` du modèle.
+                // A rule before the last group, the one for ordering — and only one,
+                // like the template's `Divider()`.
                 groupBreak = action == BotMenuAction.Reorder,
             ) {
                 onDismiss()
@@ -438,8 +438,8 @@ internal fun menuItems(
 }
 
 /**
- * Les lignes du silence au menu (`MuteMenu`), telles que son sous-menu les ouvre : « Unmute » et
- * son échéance quand il est déjà tu, puis les quatre durées — chacune son action, prises à
+ * The mute lines in the menu (`MuteMenu`), as its submenu opens them: « Unmute » and
+ * its deadline when it is already muted, then the four durations — each with its action, taken from
  * `muteSubmenuItems`.
  */
 internal fun muteLines(mutes: Mutes, item: String, onDismiss: () -> Unit): List<MenuItem> =
@@ -459,35 +459,35 @@ internal fun muteLines(mutes: Mutes, item: String, onDismiss: () -> Unit): List<
     }
 
 /**
- * Les gestes du menu d'une carte de bot, **rassemblés**.
+ * The gestures of a bot card's menu, **gathered**.
  *
- * Les deux endroits qui montrent ce menu — le volet (position *Bots*) et la page « Bots » — passent
- * la même table : une seule liste dit ce que chaque entrée fait, et un geste absent retire son
- * entrée (elle ne s'affiche pas). [hasRecent] répond pour « Ouvrir la dernière session » : elle
- * n'existe que si le bot a une conversation **autre que son chat**.
+ * The two places that show this menu — the drawer (*Bots* position) and the « Bots » page — pass
+ * the same table: a single list says what each entry does, and an absent gesture removes its
+ * entry (it is not shown). [hasRecent] answers for « Ouvrir la dernière session » (Open recent session): it
+ * exists only if the bot has a conversation **other than its chat**.
  */
 data class BotMenuHandlers(
-    /** « Épingler en haut » / « Désépingler » : l'état **visé** est déjà retourné par le menu. */
+    /** « Épingler en haut » (Pin to top) / « Désépingler » (Unpin): the **target** state is already inverted by the menu. */
     val onSetPinned: ((BotProfile, Boolean) -> Unit)? = null,
-    /** « Masquer » / « Afficher ». */
+    /** « Masquer » (Hide) / « Afficher » (Unhide). */
     val onHide: ((BotProfile) -> Unit)? = null,
-    /** « Ouvrir la dernière session ». */
+    /** « Ouvrir la dernière session » (Open recent session). */
     val onOpenRecent: ((BotProfile) -> Unit)? = null,
-    /** « Nouvelle conversation avec <le nom> ». */
+    /** « Nouvelle conversation avec <le nom> » (New chat with the name). */
     val onNewChat: ((BotProfile) -> Unit)? = null,
-    /** « Routines » : l'écran des tâches planifiées du bot. */
+    /** « Routines » : the screen of the bot's scheduled tasks. */
     val onRoutines: ((BotProfile) -> Unit)? = null,
-    /** « Repartir à zéro » : son chat archivé, une conversation neuve ouverte. */
+    /** « Repartir à zéro » (Start fresh): its chat archived, a fresh conversation opened. */
     val onStartFresh: ((BotProfile) -> Unit)? = null,
-    /** « Modifier » : l'éditeur du bot. */
+    /** « Modifier » (Edit): the bot's editor. */
     val onEdit: ((BotProfile) -> Unit)? = null,
-    /** « Dupliquer ». */
+    /** « Dupliquer » (Duplicate). */
     val onDuplicate: ((BotProfile) -> Unit)? = null,
-    /** « Supprimer » : c'est l'écran qui demande confirmation avant d'agir. */
+    /** « Supprimer » (Delete): it is the screen that asks for confirmation before acting. */
     val onDelete: ((BotProfile) -> Unit)? = null,
-    /** « Partager comme modèle » : la feuille du lien et de son QR. */
+    /** « Partager comme modèle » (Share as Template): the sheet of the link and its QR. */
     val onShareTemplate: ((BotProfile) -> Unit)? = null,
-    // ————— Les entrées propres à Onyx, celles d'avant —————
+    // ————— The entries specific to Onyx, the earlier ones —————
     val onMarkSeen: ((BotProfile) -> Unit)? = null,
     val onMarkUnread: ((BotProfile) -> Unit)? = null,
     val onVoice: ((BotProfile) -> Unit)? = null,
@@ -495,16 +495,16 @@ data class BotMenuHandlers(
     val onRemoveFromOnyx: ((BotProfile) -> Unit)? = null,
     val onReorder: (() -> Unit)? = null,
     val onSortByRecent: (() -> Unit)? = null,
-    /** Le bot a-t-il une conversation autre que son chat ? (« Ouvrir la dernière session »). */
+    /** Does the bot have a conversation other than its chat? (« Ouvrir la dernière session », Open recent session). */
     val hasRecent: (BotProfile) -> Boolean = { false },
 )
 
 /**
- * Le menu d'une carte de bot, monté depuis [handlers] : le **même** panneau pour le volet et pour la
- * page « Bots », si bien qu'aucune des deux ne peut oublier une entrée que l'autre a.
+ * The menu of a bot card, mounted from [handlers]: the **same** panel for the drawer and for the
+ * « Bots » page, so that neither can forget an entry that the other has.
  *
- * « Supprimer » passe par [onAskDelete] : le menu ne supprime jamais lui-même — c'est l'écran qui
- * demande confirmation d'abord, comme la référence.
+ * « Supprimer » (Delete) goes through [onAskDelete]: the menu never deletes itself — it is the screen that
+ * asks for confirmation first, like the reference.
  */
 @Composable
 internal fun BotCardMenu(
@@ -517,7 +517,7 @@ internal fun BotCardMenu(
     anchor: Rect?,
     handlers: BotMenuHandlers,
     onDismiss: () -> Unit,
-    /** « Supprimer » : l'écran pose la question, le menu ne fait que la demander. */
+    /** « Supprimer » (Delete): the screen asks the question, the menu merely requests it. */
     onAskDelete: ((BotProfile) -> Unit)? = null,
 ) {
     BotTileMenu(
@@ -551,10 +551,10 @@ internal fun BotCardMenu(
 }
 
 /**
- * Le geste d'une entrée : celui que l'écran a fourni, ou rien — l'entrée ne s'affiche alors pas.
+ * The gesture of an entry: the one the screen provided, or nothing — the entry is then not shown.
  *
- * [frame] n'entre que pour l'épinglage : son geste dit l'état **visé** (« épingler » ou
- * « désépingler »), et c'est le seul endroit qui le retourne — l'écran, lui, reçoit une décision.
+ * [frame] only enters for pinning: its gesture says the **target** state (« épingler » (pin) or
+ * « désépingler » (unpin)), and it is the only place that inverts it — the screen, for its part, receives a decision.
  */
 private fun BotMenuAction.handler(
     frame: BotMenuFrame,

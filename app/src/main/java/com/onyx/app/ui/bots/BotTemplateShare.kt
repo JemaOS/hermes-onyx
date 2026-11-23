@@ -19,16 +19,16 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
 /**
- * Un modèle de bot prêt à être partagé : la fiche du modèle ([spec] : son nom, ce qu'il fait, son
- * prompt, son visage) **et** ce qu'un bot en hérite à la création — ses outils, ses compétences et
- * son modèle par défaut.
+ * A bot template ready to be shared: the template's sheet ([spec]: its name, what it does, its
+ * prompt, its face) **and** what a bot inherits from it at creation — its tools, its skills and
+ * its default model.
  *
- * `BotTemplateSpec` ne porte que la fiche : c'est le modèle de données existant, et ce lot ne le
- * réécrit pas. Les trois réglages qui manquent vivent donc ici, dans l'enveloppe du partage, et
- * c'est elle que le codec sérialise.
+ * `BotTemplateSpec` carries only the sheet: it is the existing data model, and this batch does not
+ * rewrite it. The three missing settings therefore live here, in the share envelope, and
+ * it is this envelope that the codec serializes.
  *
- * Ce qu'un lien ne porte **jamais** : une clé, un jeton, un mot de passe, une adresse de serveur.
- * Le codec les refuse ([BotTemplateShareError.SECRET]) plutôt que de les retirer en silence.
+ * What a link **never** carries: a key, a token, a password, a server address.
+ * The codec refuses them ([BotTemplateShareError.SECRET]) rather than removing them silently.
  */
 data class BotTemplateShare(
     val spec: BotTemplateSpec,
@@ -36,14 +36,14 @@ data class BotTemplateShare(
     val skills: List<String> = emptyList(),
     val model: String? = null,
 ) {
-    /** Le lien à envoyer : la seule forme que le destinataire a besoin de recevoir. */
+    /** The link to send: the only form the recipient needs to receive. */
     val link: String get() = BotTemplateShareCodec.encode(this)
 
-    /** Ce que le destinataire verra avant d'ajouter le bot. */
+    /** What the recipient will see before adding the bot. */
     fun preview(): BotTemplatePreview = BotTemplatePreview.of(this)
 
     companion object {
-        /** Le partage d'un modèle du catalogue, sans outil, compétence ni modèle choisi. */
+        /** The share of a catalog template, with no tool, skill or chosen model. */
         fun of(
             template: BotTemplateSpec,
             tools: List<String> = emptyList(),
@@ -53,107 +53,107 @@ data class BotTemplateShare(
     }
 }
 
-/** Pourquoi un lien de modèle est refusé — chaque raison a sa phrase, traduite par le dictionnaire. */
+/** Why a template link is refused — each reason has its sentence, translated by the dictionary. */
 enum class BotTemplateShareError(val key: String) {
-    /** Ce n'est pas un lien de modèle Onyx : autre schéma, autre hôte, ou texte quelconque. */
+    /** This is not an Onyx template link: another scheme, another host, or arbitrary text. */
     NOT_A_TEMPLATE("That isn't a Onyx bot template link."),
 
     /**
-     * Une version de format que cette build ne connaît pas. Le refus est explicite : lire un
-     * format inconnu « au mieux » laisserait passer un champ qu'on ne sait pas interpréter.
+     * A format version this build does not know. The refusal is explicit: reading an
+     * unknown format "as best we can" would let through a field we cannot interpret.
      */
     UNKNOWN_VERSION(
         "This bot template was made by a newer version of Onyx (format %1\$s). Update the app, then try again.",
     ),
 
     /**
-     * Le lien porte une clé d'API, un jeton, un mot de passe ou une adresse de serveur. **Rejet**,
-     * jamais un nettoyage silencieux : ce qui est retiré sans le dire est ce qui fuit sans le dire.
+     * The link carries an API key, a token, a password or a server address. **Rejection**,
+     * never a silent cleanup: what is removed without saying so is what leaks without saying so.
      */
     SECRET(
         "This bot template carries a credential or a server address (%1\$s). Onyx refuses it.",
     ),
 
-    /** Base64 invalide, JSON illisible, UTF-8 malformé : le lien est abîmé. */
+    /** Invalid Base64, unreadable JSON, malformed UTF-8: the link is damaged. */
     CORRUPT("This bot template link is damaged and can't be read."),
 
-    /** Un champ que ce format ne connaît pas — y compris une clé étrangère ajoutée à la main. */
+    /** A field this format does not know — including a foreign key added by hand. */
     UNKNOWN_FIELD("This bot template carries a field Onyx doesn't know: %1\$s."),
 
-    /** Au-delà de la taille d'un lien qu'Onyx émet : ce n'est pas un des siens. */
+    /** Beyond the size of a link Onyx emits: it is not one of its own. */
     TOO_LONG("This bot template link is too long to be one of Onyx's."),
 
-    /** Un champ obligatoire manque, ou sa valeur n'a pas la forme attendue. */
+    /** A required field is missing, or its value does not have the expected shape. */
     INVALID_FIELD("This bot template has an invalid %1\$s."),
     ;
 
-    /** La phrase anglaise, remplie avec [detail] — et traduite si l'interface est en français. */
+    /** The English sentence, filled with [detail] — and translated if the interface is in French. */
     fun message(detail: String = ""): String =
         if (detail.isEmpty()) OnyxLocalization.translate(key) else OnyxLocalization.format(key, detail)
 }
 
-/** Le refus d'un lien, avec sa raison : l'appelant peut la dire, pas seulement l'avaler. */
+/** The refusal of a link, with its reason: the caller can say it, not merely swallow it. */
 class BotTemplateShareException(
     val reason: BotTemplateShareError,
     val detail: String = "",
 ) : IllegalArgumentException(reason.message(detail))
 
 /**
- * Le codec d'un modèle de bot : `BotTemplateShare` ↔ lien `onyx://bot?v=1&t=…`.
+ * The codec of a bot template: `BotTemplateShare` ↔ `onyx://bot?v=1&t=…` link.
  *
- * ## Le format
+ * ## The format
  *
- * Un JSON **compact** (clés d'une lettre, pour que le lien reste court), encodé en base64url sans
- * remplissage, dans le paramètre `t` ; la version du format est **obligatoire**, deux fois :
- * dans le lien (`v=`) et dans la charge (`"v"`). Les deux doivent dire [VERSION] : un lien d'une
- * version inconnue est **refusé** ([BotTemplateShareError.UNKNOWN_VERSION]), jamais interprété au
- * mieux.
+ * A **compact** JSON (single-letter keys, so the link stays short), encoded in base64url without
+ * padding, in the `t` parameter; the format version is **mandatory**, twice:
+ * in the link (`v=`) and in the payload (`"v"`). Both must state [VERSION]: a link of an
+ * unknown version is **refused** ([BotTemplateShareError.UNKNOWN_VERSION]), never interpreted as
+ * best we can.
  *
- * | clé | sens | exemple |
+ * | key | meaning | example |
  * |---|---|---|
- * | `v` | version du format | `1` |
- * | `i` | identifiant du modèle | `researcher` |
- * | `n` | nom | `Researcher` |
- * | `a` | ce qu'il fait (rôle) | `Looks things up…` |
- * | `s` | prompt (personnalité) | `# Researcher…` |
- * | `f` | visage | `egg:sparkle:smile:antenna:8:1:-3` |
- * | `t` | outils cochés | `["web"]` |
- * | `k` | compétences cochées | `["arxiv"]` |
- * | `m` | modèle par défaut | `hermes-3` |
+ * | `v` | format version | `1` |
+ * | `i` | template identifier | `researcher` |
+ * | `n` | name | `Researcher` |
+ * | `a` | what it does (role) | `Looks things up…` |
+ * | `s` | prompt (personality) | `# Researcher…` |
+ * | `f` | face | `egg:sparkle:smile:antenna:8:1:-3` |
+ * | `t` | checked tools | `["web"]` |
+ * | `k` | checked skills | `["arxiv"]` |
+ * | `m` | default model | `hermes-3` |
  *
- * Le visage garde les identifiants **locaux** (`line`, `wide`, `circle`…) et non les identifiants
- * serveur : un aller-retour doit rendre le **même** visage, pas son équivalent normalisé.
+ * The face keeps the **local** identifiers (`line`, `wide`, `circle`…) and not the server
+ * identifiers: a round trip must return the **same** face, not its normalized equivalent.
  *
- * ## Ce qui est refusé
+ * ## What is refused
  *
- * - une **clé** dont le nom dit un secret (`apiKey`, `token`, `password`, `server`, `url`…), où
- *   qu'elle soit dans la charge ;
- * - une **valeur** qui porte un secret ou une adresse : `http://`, `Bearer …`, `token=…`,
- *   `sk-…`, un bloc de clé privée ;
- * - un champ inconnu — pas de tolérance : un champ qu'on ignore est un champ qu'on ne peut pas
- *   promettre de ne pas appliquer.
+ * - a **key** whose name states a secret (`apiKey`, `token`, `password`, `server`, `url`…), wherever
+ *   it is in the payload;
+ * - a **value** that carries a secret or an address: `http://`, `Bearer …`, `token=…`,
+ *   `sk-…`, a private key block;
+ * - an unknown field — no leniency: a field we ignore is a field we cannot
+ *   promise not to apply.
  *
- * Un modèle dont le prompt contient une adresse est donc refusé : c'est voulu. Un lien de modèle
- * sert à partager une personnalité, pas un serveur.
+ * A template whose prompt contains an address is therefore refused: that is intended. A template
+ * link serves to share a personality, not a server.
  */
 object BotTemplateShareCodec {
-    /** La version du format que cette build émet, et la seule qu'elle lit. */
+    /** The format version this build emits, and the only one it reads. */
     const val VERSION = 1
 
-    /** Le schéma et l'hôte du lien : `onyx://bot?v=1&t=…`. */
+    /** The scheme and host of the link: `onyx://bot?v=1&t=…`. */
     const val SCHEME = "onyx"
     const val HOST = "bot"
 
-    /** Le préfixe exact, sans barre finale : le lien se lit au caractère près. */
+    /** The exact prefix, without a trailing slash: the link is read character by character. */
     const val PREFIX = "$SCHEME://$HOST"
 
-    /** La même borne que les liens de configuration : au-delà, ce n'est pas un des nôtres. */
+    /** The same bound as the configuration links: beyond it, it is not one of ours. */
     const val MAXIMUM_LENGTH = 12_000
 
-    /** Le paramètre du lien qui porte la charge encodée (`onyx://bot?v=1&t=…`). */
+    /** The link parameter that carries the encoded payload (`onyx://bot?v=1&t=…`). */
     private const val LINK_PAYLOAD = "t"
 
-    /** Les bornes des champs, pour qu'un lien ne puisse pas porter un roman ni saturer un écran. */
+    /** The field bounds, so a link cannot carry a novel or saturate a screen. */
     private const val MAX_NAME = 80
     private const val MAX_ABOUT = 600
     private const val MAX_SOUL = 8_000
@@ -178,7 +178,7 @@ object BotTemplateShareCodec {
         KEY_VERSION, KEY_ID, KEY_NAME, KEY_ABOUT, KEY_SOUL, KEY_FACE, KEY_TOOLS, KEY_SKILLS, KEY_MODEL,
     )
 
-    /** Les noms de champ lisibles, pour une erreur qui nomme ce qui cloche. */
+    /** The readable field names, for an error that names what is wrong. */
     private val fieldNames = mapOf(
         KEY_VERSION to "version",
         KEY_ID to "id",
@@ -192,37 +192,37 @@ object BotTemplateShareCodec {
     )
 
     /**
-     * Un nom de clé qui **dit** un secret ou un serveur. Comparé sans casse, sans tiret ni
-     * souligné : `apiKey`, `api_key`, `API-KEY` et `apikey` sont le même aveu.
+     * A key name that **states** a secret or a server. Compared without case, without hyphen or
+     * underscore: `apiKey`, `api_key`, `API-KEY` and `apikey` are the same confession.
      */
     private val forbiddenKeys = setOf(
         "apikey", "key", "token", "accesstoken", "refreshtoken", "authtoken",
         "password", "passwd", "passphrase", "secret", "clientsecret", "authorization", "auth",
         "bearer", "server", "serverurl", "baseurl", "url", "uri", "endpoint", "host",
         "hostname", "address", "credentials",
-        // Les mêmes aveux, en français : un lien forgé à la main ne passe pas par la traduction.
+        // The same confessions, in French: a hand-forged link does not go through translation.
         "cle", "clé", "jeton", "motdepasse",
     )
 
-    /** Une adresse de serveur, sous toutes ses écritures. */
+    /** A server address, in all its spellings. */
     private val urlScheme = Regex("(?i)\\b(?:https?|wss?|ftp|ssh|onyx)://")
 
-    /** Une affectation de secret dans un texte libre : `api_key=…`, `token: …`, `mot de passe : …`. */
+    /** A secret assignment in free text: `api_key=…`, `token: …`, `mot de passe : …` ("password:"). */
     private val secretAssignment = Regex(
         "(?i)\\b(?:api[_-]?key|access[_-]?token|token|password|passwd|secret|authorization" +
             "|mot\\s+de\\s+passe|jeton|cl[eé]\\s*api)\\s*[:=]\\s*\\S",
     )
 
-    /** Un en-tête d'autorisation recopié tel quel. */
+    /** An authorization header copied verbatim. */
     private val bearer = Regex("(?i)\\bbearer\\s+[A-Za-z0-9._~+/=-]{12,}")
 
-    /** La forme d'une clé d'API de fournisseur (`sk-…`). */
+    /** The shape of a provider API key (`sk-…`). */
     private val apiKeyShape = Regex("\\bsk-[A-Za-z0-9_-]{16,}")
 
-    /** Un bloc de clé privée PEM. */
+    /** A PEM private key block. */
     private val privateKey = Regex("-----BEGIN [A-Z ]*PRIVATE KEY-----")
 
-    /** Sérialise un partage en lien. Refuse d'émettre un lien qui porterait un secret. */
+    /** Serializes a share into a link. Refuses to emit a link that would carry a secret. */
     fun encode(share: BotTemplateShare): String {
         val plain = plaintext(share)
         guard(plain)
@@ -234,10 +234,10 @@ object BotTemplateShareCodec {
     }
 
     /**
-     * Lit un lien et rend le partage qu'il porte.
+     * Reads a link and returns the share it carries.
      *
-     * Lève [BotTemplateShareException] — jamais `null`, jamais un objet à moitié rempli : un lien
-     * refusé est un lien dont on dit la raison.
+     * Throws [BotTemplateShareException] — never `null`, never a half-filled object: a refused
+     * link is a link whose reason is stated.
      */
     fun decode(link: String): BotTemplateShare {
         val text = link.trim()
@@ -247,8 +247,8 @@ object BotTemplateShareCodec {
             throw BotTemplateShareException(BotTemplateShareError.NOT_A_TEMPLATE)
         }
 
-        // Le reste du lien est la requête : `?v=1&t=…`. Un `://` qui traîne après le préfixe est
-        // une adresse de serveur glissée dans le lien, même si la charge est encore en clair.
+        // The rest of the link is the query: `?v=1&t=…`. A `://` left after the prefix is
+        // a server address slipped into the link, even if the payload is still in clear text.
         val rest = text.substring(PREFIX.length)
         if (!rest.startsWith("?") || rest.length <= 1) {
             throw BotTemplateShareException(BotTemplateShareError.NOT_A_TEMPLATE)
@@ -312,7 +312,7 @@ object BotTemplateShareCodec {
         )
     }
 
-    /** La charge en clair, **sans** les secrets : c'est elle que le garde inspecte avant l'encodage. */
+    /** The clear-text payload, **without** the secrets: it is what the guard inspects before encoding. */
     private fun plaintext(share: BotTemplateShare): String {
         val spec = share.spec
         val name = spec.title.trim()
@@ -345,7 +345,7 @@ object BotTemplateShareCodec {
         return root.toString()
     }
 
-    /** L'identifiant d'un modèle sans identifiant : « Scout Two » → `scout_two`. */
+    /** The identifier of a template without one: "Scout Two" → `scout_two`. */
     private fun slug(name: String): String =
         name.trim().lowercase()
             .map { if (it.isLetterOrDigit()) it else '_' }
@@ -366,9 +366,9 @@ object BotTemplateShareCodec {
     ).joinToString(":")
 
     /**
-     * Le visage d'un lien : sept champs, les identifiants **locaux** des énumérations. Un
-     * identifiant inconnu ou hors bornes est une erreur, pas un visage par défaut : accepter un
-     * visage qu'on ne sait pas dessiner serait promettre une créature qu'on ne rend pas.
+     * A link's face: seven fields, the **local** identifiers of the enums. An
+     * unknown or out-of-bounds identifier is an error, not a default face: accepting a
+     * face we cannot draw would promise a creature we do not deliver.
      */
     private fun parseFace(raw: String): BotFace {
         val parts = raw.split(':')
@@ -383,7 +383,7 @@ object BotTemplateShareCodec {
         return BotFace(shape = shape, eyes = eyes, mouth = mouth, colour = colour, mark = mark, glance = glance, tilt = tilt)
     }
 
-    /** Un champ texte : présent et du bon type, ou une erreur qui le nomme. */
+    /** A text field: present and of the right type, or an error that names it. */
     private fun string(element: JsonElement?, key: String, maximum: Int, required: Boolean = false): String {
         if (element == null) {
             if (required) throw invalid(fieldNames[key] ?: key)
@@ -397,13 +397,13 @@ object BotTemplateShareCodec {
         return value
     }
 
-    /** Un entier obligatoire (la version de la charge). */
+    /** A required integer (the payload version). */
     private fun int(element: JsonElement?, key: String): Int {
         val primitive = element as? JsonPrimitive ?: throw invalid(key)
         return primitive.content.toIntOrNull() ?: throw invalid(key)
     }
 
-    /** Une liste de noms (outils, compétences) : chaînes non vides, sans doublon, dans l'ordre reçu. */
+    /** A list of names (tools, skills): non-empty strings, no duplicates, in the order received. */
     private fun strings(element: JsonElement?, key: String, maximum: Int, count: Int): List<String> {
         if (element == null) return emptyList()
         val array = element as? JsonArray ?: throw invalid(fieldNames[key] ?: key)
@@ -456,7 +456,7 @@ object BotTemplateShareCodec {
         throw corrupt()
     }
 
-    /** Le garde d'un texte libre : une adresse ou un secret, et le lien est refusé. */
+    /** The guard of free text: an address or a secret, and the link is refused. */
     private fun guard(text: String) {
         urlScheme.find(text)?.let { throw secret(it.value) }
         secretAssignment.find(text)?.let { throw secret(it.value.take(40)) }
@@ -465,7 +465,7 @@ object BotTemplateShareCodec {
         privateKey.find(text)?.let { throw secret("private key") }
     }
 
-    /** Le même garde, sur **chaque** clé et **chaque** valeur de la charge JSON. */
+    /** The same guard, on **every** key and **every** value of the JSON payload. */
     private fun guardJson(element: JsonElement) {
         when (element) {
             is JsonObject -> element.forEach { (key, value) ->

@@ -4,11 +4,11 @@ import com.onyx.app.data.model.serve.BotProfile
 import com.onyx.app.ui.design.BotFace
 
 /**
- * Résout une fois les visages du roster pour tous les écrans (liste, groupe, voix et piles).
+ * Resolves the roster's faces once for every screen (list, group, voice and stacks).
  *
- * Les choix locaux priment sur `ui_meta.onyx.face`, comme dans `BotFaceStore`. Les anciennes orbes
- * purement numériques restent inchangées ; les autres codes sont relus par [BotFace.parse], puis
- * réécrits dans le format serveur la référence après attribution sans doublons.
+ * Local choices take precedence over `ui_meta.onyx.face`, as in `BotFaceStore`. Old purely
+ * numeric orbs stay unchanged; the other codes are read back by [BotFace.parse], then
+ * rewritten in the server format of the reference after assignment without duplicates.
  */
 fun List<BotProfile>.withSwiftFaces(localCodes: Map<String, String?> = emptyMap()): List<BotProfile> {
     val raw = associate { bot -> bot.name to (localCodes[bot.name] ?: bot.faceCode) }
