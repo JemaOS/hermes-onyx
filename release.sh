@@ -106,7 +106,7 @@ check_apk() {  # $1 = chemin, $2 = rôle
   # la machine qui l'a signé. C'est arrivé jusqu'au 1.3.96 : on refuse désormais explicitement.
   dn="$(printf '%s' "$out" | grep -m1 'certificate DN' | sed -E 's/.*certificate DN: *//')"
   case "$dn" in
-    *"CN=Android Debug"*) die "$role : signé par la clé de DÉBOGAGE ($dn).\n   Signe avec la clé de release (cf. PUBLISH-RUNBOOK.md) avant de publier." ;;
+    *"CN=Android Debug"*) die "$role : signé par la clé de DÉBOGAGE ($dn).\n   Signe avec la clé de release du projet avant de publier." ;;
   esac
   info "$role : certificat — $dn"
   cert="$(printf '%s' "$out" | grep -m1 'SHA-256 digest' | sed -E 's/.*digest: *//')"
