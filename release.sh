@@ -6,9 +6,9 @@
 #   1. lit le `versionName`/`versionCode` de l'APK téléphone (source de vérité) ;
 #   2. vérifie la signature de chaque paquet (`apksigner verify --print-certs`) et exige
 #      UN SEUL signataire, le MÊME certificat sur les trois ;
-#   3. calcule le sha256 de chaque paquet et écrit `releases/SHA256SUMS-<version>` ;
+#   3. calcule le sha256 de chaque paquet (asset `SHA256SUMS-<version>.txt`) ;
 #   4. rend les textes publics (README + notes) en remplaçant les jetons `__VERSION__`,
-#      `__SIDECAR__`, `__TESTS__`, et écrit `releases/NOTES-<version>.md` ;
+#      `__SIDECAR__`, `__TESTS__`, et génère les notes de release ;
 #   5. passe le contrôle des mots interdits (marques de plateforme, nom de l'autre app) ;
 #   6. crée la release `v<version>` avec les paquets fournis, marquée **Latest** ;
 #   7. re-télécharge CHAQUE paquet depuis GitHub et re-vérifie son empreinte (`sha256sum -c`).
@@ -21,7 +21,7 @@
 #                [--dry-run] [--skip-download-check]
 #
 # `--dry-run` : tout est fait SAUF le `gh release create` et le re-téléchargement.
-#               Les fichiers suivis (README.md, releases/NOTES-*.md) ne sont PAS réécrits :
+#               Les fichiers suivis (README.md) ne sont PAS réécrits :
 #               le rendu part dans un répertoire temporaire et il est affiché.
 #
 # Ne pousse jamais rien en `--dry-run`. En réel, il pousse la release et le tag `v<version>`.
@@ -119,13 +119,13 @@ check_apk "$PHONE" "téléphone"
 info "un seul certificat sur tous les paquets : ${CERT:0:16}…"
 
 # --- 3. empreintes ---------------------------------------------------------------------------
-say "Empreintes — releases/SHA256SUMS-${VERSION}"
-SUMS="$ROOT/releases/SHA256SUMS-${VERSION}"
+say "Empreintes — SHA256SUMS-${VERSION}.txt"
+SUMS="$TMP/SHA256SUMS-${VERSION}.txt"
 ( cd "$(dirname "$PHONE")" && sha256sum "$(basename "$PHONE")" ) > "$TMP/sums"
 [ -n "$AUTO" ] && ( cd "$(dirname "$AUTO")" && sha256sum "$(basename "$AUTO")" ) >> "$TMP/sums"
 [ -n "$WEAR" ] && ( cd "$(dirname "$WEAR")" && sha256sum "$(basename "$WEAR")" ) >> "$TMP/sums"
 sed 's/^/   /' "$TMP/sums"
-cp "$TMP/sums" "$SUMS"; info "écrit : $SUMS"
+cp "$TMP/sums" "$SUMS"; info "écrit (temporaire, publié en asset) : $SUMS"
 
 # --- 4. textes publics -----------------------------------------------------------------------
 say "Textes publics"
@@ -134,17 +134,31 @@ say "Textes publics"
 render() { sed -e "s/__VERSION__/${VERSION}/g" -e "s/__CODE__/${CODE}/g" -e "s/__SIDECAR__/${SIDECAR}/g" -e "s/__TESTS__/${TESTS}/g" "$1"; }
 
 NOTES_SRC="$ROOT/releases/NOTES-__VERSION__.md"
-NOTES_OUT="$ROOT/releases/NOTES-${VERSION}.md"
-[ -f "$NOTES_SRC" ] || die "notes de version introuvables : $NOTES_SRC"
+NOTES_OUT="$TMP/NOTES-${VERSION}.md"
+if [ -f "$NOTES_SRC" ]; then
+  render "$NOTES_SRC" > "$NOTES_OUT"
+else
+  # Aucun modèle : notes minimales, dans la forme des releases précédentes.
+  TCOUNT="$TESTS"; [ "$TCOUNT" = "__TESTS__" ] && TCOUNT="count not reported"
+  {
+    printf '# Release notes — Hermes Onyx `%s`\n\n' "$VERSION"
+    printf '**Version:** `%s` (`versionCode` = `%s`).\n' "$VERSION" "$CODE"
+    printf '**Packages:** `onyx-app-%s-release.apk`, `onyx-auto-%s-release.apk`, `onyx-wear-%s-release.apk`; checksums in `SHA256SUMS-%s.txt`.\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION"
+    printf '**Test suite:** %s tests.\n\n---\n\n## What'"'"'s Changed\n\n' "$TCOUNT"
+    PREV="$(git tag --merged HEAD --sort=-v:refname | head -1)"
+    if [ -n "$PREV" ]; then
+      git log --no-merges --pretty='- %s (%h)' "$PREV..HEAD"
+    else
+      git log --no-merges --pretty='- %s (%h)' -20
+    fi
+  } > "$NOTES_OUT"
+fi
 if [ "$DRY_RUN" = 1 ]; then
   render "$ROOT/README.md" > "$TMP/README.md"
-  render "$NOTES_SRC"      > "$TMP/NOTES-${VERSION}.md"
   info "README.md      -> rendu dans $TMP/README.md (non écrit)"
-  info "notes          -> rendues dans $TMP/NOTES-${VERSION}.md (non écrites)"
+  info "notes          -> rendues dans $NOTES_OUT (non écrites)"
 else
   render "$ROOT/README.md" > "$TMP/README.md" && mv "$TMP/README.md" "$ROOT/README.md"
-  cp "$NOTES_SRC" "$TMP/NOTES-${VERSION}.md"
-  render "$NOTES_SRC" > "$NOTES_OUT"
   info "README.md      -> réécrit (jetons remplacés)"
   info "notes          -> $NOTES_OUT"
 fi

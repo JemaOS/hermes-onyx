@@ -163,8 +163,8 @@ the sentence the server gave it, never a made-up figure.
 ## What 1.0.0+1049 brought
 
 Each point below cites the commit, the file or the measurement that carries it — nothing is claimed
-here that cannot be shown. The full detail is in
-[`releases/NOTES-1.0.0+1049.md`](releases/NOTES-1.0.0+1049.md).
+here that cannot be shown. The full detail is in the release notes for `1.0.0+1049` on the GitHub
+releases page.
 
 - **The card no longer has an inner rectangle** — the erase band no longer composes over itself,
   and the lower band is its mirror (`567feca1`, `ui/design/Galerie.kt` ;
