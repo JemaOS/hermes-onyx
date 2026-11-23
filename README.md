@@ -199,8 +199,7 @@ here that cannot be shown. The full detail is in
   0 colour outside the palette** (`3cd0f588`).
 - **The dark theme is measured, bar by bar** — the composer goes from **1.058:1** to **1.314:1**
   against its page, the active-tab capsule holds **1.201:1** against its bar, its accent ink
-  **5.165:1**; a single family of shapes (corners **22 → 26 dp**) and shadows (`a8c50987`,
-  `UI-UNIFORMITY-DARK.md`).
+  **5.165:1**; a single family of shapes (corners **22 → 26 dp**) and shadows (`a8c50987`).
 - **The liquid glass moves to Haze 2.0.1, with refraction and welding** — modules `haze`,
   `haze-blur`, `haze-glass`; the refraction displaces the sampled content according to the edge
   profile (`RefractionProfile.Edge`), and `GlassRefractionAvailable = true` is a **measurement**; the
@@ -219,7 +218,7 @@ here that cannot be shown. The full detail is in
 - **The duplicate "Skills" removed** — the sidebar tile and the Settings row leave the interface,
   the "Onyx" group drops to four tiles, everything is **inside** "Capabilities" (`64d8e756`).
 - **The back navigation fixed** — the page you left is no longer lost on the way out of the
-  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`, `AUDIT-FEEDBACK.md`).
+  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`).
 
 **4345 tests, 0 failures.** The three packages — phone, Android Auto and Wear OS — ship in this
 release.

@@ -364,7 +364,7 @@ poste. Le mot de passe n'a jamais quitté le serveur, et il n'est jamais passé 
 | tests du plugin (côté serveur) | `browser.observe` rend un ticket à usage unique ; `input` sans bail est refusé ; l'outil rend `timeout` à 15 min |
 
 Aucun test ne mesure de fps réel : pas d'appareil sur la machine de build. Le protocole de mesure de
-`AUDIT-PERFORMANCE.md` §6 s'applique si tu veux des chiffres.
+`docs/PERF-MESURE-2026-11-05.md` s'applique si tu veux des chiffres.
 
 ---
 

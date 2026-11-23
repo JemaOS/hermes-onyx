@@ -30,7 +30,7 @@ import org.junit.Test
  * téléphone : un Snapdragon est plus lent sur du code Kotlin que ce JVM de bureau, et ART n'a pas le
  * même JIT. Ils disent donc l'**ordre de grandeur** et le **rapport** entre les postes (« ce poste
  * coûte cent fois celui-là »), jamais la durée d'une trame à l'appareil. Le protocole de mesure sur
- * l'appareil est dans `docs/PERF-MESURE.md` (ou `AUDIT-PERFORMANCE.md` §6).
+ * l'appareil est dans `docs/PERF-MESURE.md`.
  *
  * Il n'y a **aucune assertion de temps** : un seuil écrit sur une JVM de CI échouerait au premier
  * build à froid, pour une raison qui n'a rien à voir avec l'app. La sortie se lit dans le rapport de

@@ -4,7 +4,7 @@
 **Plainte** : « quand il y a beaucoup d'informations dans un chat, ça lag au défilement ».
 **Appareil visé** : Snapdragon 8 Elite (3ᵉ génération), écran 120 Hz.
 
-Ce document vient **après** `AUDIT-PERFORMANCE.md` (revue par lecture, sur `main` @ `6379c8f`) et
+Ce document vient **après** la revue de performance par lecture (sur `main` @ `6379c8f`) et
 `docs/PERF-REVIEW.md`. Il ne les recommence pas : il les **mesure**, corrige ce que la mesure
 nomme, et consigne ce que la mesure **tue** — pour que le prochain audit ne recommence pas par là.
 
