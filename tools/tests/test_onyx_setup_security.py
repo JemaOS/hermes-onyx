@@ -42,6 +42,34 @@ class InstallerSecurityTests(unittest.TestCase):
     def assert_private(self, path):
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
+    def test_cloudflared_archive_accepts_only_expected_regular_binary(self):
+        import tarfile
+
+        def archive_download(url, destination):
+            with tarfile.open(destination, "w:gz") as archive:
+                member = tarfile.TarInfo(self.member_name)
+                payload = b"test binary"
+                member.size = len(payload)
+                if self.member_link:
+                    member.type = tarfile.SYMTYPE
+                    member.linkname = "../../outside"
+                    member.size = 0
+                archive.addfile(member, io.BytesIO(payload))
+
+        with mock.patch.object(setup, "SYSTEME", "Darwin"), \
+                mock.patch.object(setup, "commande", return_value=None), \
+                mock.patch.object(setup.urllib.request, "urlretrieve", side_effect=archive_download):
+            for name, link in (("../../outside", False), ("cloudflared", True), ("other", False)):
+                self.member_name, self.member_link = name, link
+                with self.subTest(name=name, link=link), self.assertRaises(ValueError):
+                    setup.installer_cloudflared()
+                self.assertFalse((self.home / ".local/bin/cloudflared").exists())
+                self.assertFalse((self.home / "outside").exists())
+            self.member_name, self.member_link = "cloudflared", False
+            binary = Path(setup.installer_cloudflared())
+            self.assertEqual(binary.read_bytes(), b"test binary")
+            self.assertEqual(stat.S_IMODE(binary.stat().st_mode), 0o755)
+
     def test_secret_is_private_before_publication_and_replaces_symlink(self):
         victim = self.home / "unrelated"
         victim.write_text("untouched")

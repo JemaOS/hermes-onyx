@@ -243,7 +243,16 @@ def installer_cloudflared() -> str:
     if nom.endswith(".tgz"):
         import tarfile
         with tarfile.open(telecharge) as archive:
-            archive.extractall(cible)
+            # Publish only the expected regular binary, never archive paths or links.
+            members = archive.getmembers()
+            if len(members) != 1 or members[0].name not in ("cloudflared", "./cloudflared") or not members[0].isreg():
+                raise ValueError("Unexpected cloudflared archive contents")
+            source = archive.extractfile(members[0])
+            if source is None:
+                raise ValueError("Missing cloudflared binary")
+            with source, fichier_prive(binaire) as output:
+                shutil.copyfileobj(source, output)
+        binaire.chmod(0o755)
         telecharge.unlink(missing_ok=True)
     elif nom.endswith(".exe"):
         os.replace(telecharge, binaire)
