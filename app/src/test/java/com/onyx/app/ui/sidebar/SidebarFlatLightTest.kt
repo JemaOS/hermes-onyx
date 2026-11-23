@@ -87,7 +87,7 @@ class SidebarFlatLightTest {
 
     @Test
     fun `toutes les tuiles ont la meme hauteur plancher, et le libelle qui se replie n est pas coupe`() {
-        assertTrue("la tuile n'a pas de hauteur nommée", sidebar.contains("internal val SidebarTileHeight: Dp = OnyxSpace.ThumbnailSize"))
+        assertTrue("la tuile n'a pas de hauteur nommée", sidebar.contains("internal val SidebarTileHeight: Dp = MinTarget"))
         // **La hauteur est un plancher, pas un plafond.** Un libellé qui se replie sur deux lignes à
         // police 1,3× (« Fichiers du serveur ») doit pouvoir grandir : une hauteur fixe de 44 dp
         // **coupait** la seconde ligne au bas de la tuile (mesuré sur l'appareil). `heightIn(min = …)`

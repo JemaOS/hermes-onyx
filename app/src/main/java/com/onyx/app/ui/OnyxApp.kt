@@ -3028,6 +3028,7 @@ fun OnyxApp() {
             }
             ChatSidebarHost(
                 serverNote = serverImportNote,
+                onRetryServer = chatViewModel::retryServerConversations,
                 serverName = state.server.displayName,
                 serverAddress = state.server.serveBaseUrl.ifBlank { state.server.baseUrl },
                 // Joignable : le Dashboard répond. Non joignable : la dernière lecture a échoué.
@@ -3253,7 +3254,7 @@ fun OnyxApp() {
             // Le **mode** du volet est décidé par la largeur, ici même : étroit, il recouvre le fil
             // (surimpression) ; large, il est posé à côté. Chaque mode a **sa** mémoire, si bien
             // qu'un volet ouvert sur une tablette ne s'invite pas en surimpression sur un téléphone.
-            val sidebarMode = sidebarModeFor(maxWidth)
+            val sidebarMode = sidebarModeFor(maxWidth, androidx.compose.ui.platform.LocalDensity.current.fontScale)
             LaunchedEffect(sidebarMode) { sidebarState.updateMode(sidebarMode) }
             // Ce que le réglage gardé était : on l'écrit de nouveau pour qu'un lancement suivant
             // retrouve la même disposition sur grand écran.
@@ -3268,6 +3269,7 @@ fun OnyxApp() {
             // l'écraserait (voir `sidebarContentWidthFor`).
             val layout = listDetailLayout(
                 maxWidth,
+                fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale,
                 collapsed = sidebarMode == SidebarMode.DOCKED && !sidebarState.isOpen,
                 content = sidebarState.isNavigating,
             )

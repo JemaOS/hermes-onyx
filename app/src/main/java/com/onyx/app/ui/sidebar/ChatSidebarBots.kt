@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -398,7 +399,7 @@ private fun BotCard(
             // même jeton qui alimente le calcul — la carte et sa hauteur ne peuvent pas diverger.
             // La grille garde ses propres pas pour les **écarts** (colonnes, rangées), pas pour
             // l'intérieur de la carte.
-            .height(cardHeight)
+            .heightIn(min = cardHeight)
             // **L'ombre de la planche, POSÉE pour de vrai.** `.sh1` du jeu corrigé
             // (`hcss.py:27`) : deux couches **dessinées** par `socleShadow` — c'est ce qui
             // distingue une ombre déclarée d'une ombre rendue, et ce qui ramène la fonction dans
@@ -471,6 +472,13 @@ private fun BotCard(
             lines = BotsGrid.DescriptionLines,
             height = captionLine * BotsGrid.DescriptionLines,
         )
+        val status = when (bot.tone) {
+            SidebarRowTone.RUNNING -> "Running"
+            SidebarRowTone.WAITING -> "Waiting for you"
+            SidebarRowTone.UNREAD -> "Unread"
+            SidebarRowTone.IDLE -> null
+        }
+        status?.let { BasicText(text = it, style = captionStyle) }
         // L'âge : à droite, sur sa propre ligne — la même pour toutes les cartes.
         Row(
             modifier = Modifier.fillMaxWidth().height(ageLine),

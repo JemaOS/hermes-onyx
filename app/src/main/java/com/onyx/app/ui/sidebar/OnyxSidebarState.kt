@@ -32,8 +32,8 @@ enum class SidebarMode {
 }
 
 /** Le mode du volet pour cette largeur. Pur, donc mesuré par un test. */
-fun sidebarModeFor(availableWidth: Dp): SidebarMode =
-    if (canShowTwoPanes(availableWidth)) SidebarMode.DOCKED else SidebarMode.COMPACT
+fun sidebarModeFor(availableWidth: Dp, fontScale: Float = 1f): SidebarMode =
+    if (canShowTwoPanes(availableWidth, fontScale)) SidebarMode.DOCKED else SidebarMode.COMPACT
 
 /**
  * La largeur du volet **en surimpression** : **toute la fenêtre**.

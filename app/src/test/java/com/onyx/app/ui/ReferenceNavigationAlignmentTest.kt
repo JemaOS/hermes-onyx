@@ -49,7 +49,7 @@ class ReferenceNavigationAlignmentTest {
         Triple("Insights", "INSIGHTS", "Insights"),
         Triple("Capabilities", "CAPABILITIES", "Capabilities"),
         Triple("Plugins", "TOOLS", "Plugins"),
-        Triple("Config", "GATEWAY", "Config"),
+        Triple("Config", "GATEWAY", "Gateway config"),
         // La seule exception de mot : la maison nomme l'ensemble « Archives » (« Afficher les
         // archives »). « Archived » reste l'**état** — la colonne d'un tableau, le bandeau d'une
         // action —, deux autres emplois.
@@ -79,7 +79,7 @@ class ReferenceNavigationAlignmentTest {
         // nommée et justifiée.
         assertEquals(
             "une seule section change de mot, et c'est dit",
-            listOf("Archived"),
+            listOf("Config", "Archived"),
             sectionsPartagees.filter { (word, _, label) -> word != label }.map { it.first },
         )
     }

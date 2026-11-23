@@ -333,7 +333,7 @@ class ResponsiveLayoutTest {
         // boutons qui écrivaient chacun leur tour : un seul geste décide, et l'état le garde.
         assertTrue(appSource.contains("settingsRepo.setSidebarCollapsed(!sidebarState.isOpen)"))
         assertTrue(appSource.contains("val sidebarState = com.onyx.app.ui.sidebar.rememberOnyxSidebarState()"))
-        assertTrue(appSource.contains("val sidebarMode = sidebarModeFor(maxWidth)"))
+        assertTrue(appSource.contains("val sidebarMode = sidebarModeFor(maxWidth, androidx.compose.ui.platform.LocalDensity.current.fontScale)"))
         assertTrue(appSource.contains("LaunchedEffect(sidebarMode) { sidebarState.updateMode(sidebarMode) }"))
         // La géométrie des deux panneaux suit l'ouverture du volet **et** ce qu'il porte : porteur
         // d'un écran, il prend la largeur d'un écran (la colonne de la liste l'écraserait).

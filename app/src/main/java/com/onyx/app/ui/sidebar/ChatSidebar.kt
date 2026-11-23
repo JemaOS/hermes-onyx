@@ -53,6 +53,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -182,6 +186,7 @@ internal fun ChatSidebar(
      * « mes conversations sont perdues », et c'est exactement ce que le propriétaire a conclu.
      */
     serverNote: String? = null,
+    onRetryServer: () -> Unit = {},
     /** Le nom de la passerelle : celui du serveur où l'app est signée. */
     gatewayName: String,
     /** Son adresse, montrée telle quelle sous le nom. */
@@ -348,6 +353,7 @@ internal fun ChatSidebar(
     // remplace le contenu du volet, mais l'état de défilement des conversations reste vivant — au
     // retour, la liste se retrouve **là où elle était**, avec ses filtres. Les résultats ont le
     // leur, neuf.
+    var shortcutsExpanded by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val resultsState = rememberLazyListState()
 
@@ -473,12 +479,20 @@ internal fun ChatSidebar(
                         // de l'écran, la liste ne gardant plus rien. C'est la structure de la référence :
                         // la grille de tuiles est un élément de la liste.
                         header = {
-                            item(key = "tiles") {
-                                SidebarTileGrid(
-                                    tiles = tiles,
-                                    onOpenTile = onOpenTile,
-                                    editor = tileEditor,
+                            item(key = "shortcuts-toggle") {
+                                SidebarShortcutsToggle(
+                                    expanded = shortcutsExpanded,
+                                    onToggle = { shortcutsExpanded = !shortcutsExpanded },
                                 )
+                            }
+                            if (shortcutsExpanded || tileEditor?.active == true) {
+                                item(key = "tiles") {
+                                    SidebarTileGrid(
+                                        tiles = tiles,
+                                        onOpenTile = onOpenTile,
+                                        editor = tileEditor,
+                                    )
+                                }
                             }
                             item(key = "projects") {
                                 SidebarProjects(
@@ -502,7 +516,7 @@ internal fun ChatSidebar(
                             // « cette liste » — le crayon de la section, si.
                             if (serverNote != null) {
                                 item(key = "server-note") {
-                                    ServerImportNote(serverNote)
+                                    ServerImportNote(serverNote, onRetryServer, onOpenSettings)
                                 }
                             }
                             item(key = "section") {
@@ -524,8 +538,8 @@ internal fun ChatSidebar(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     GalerieSectionLabel(
-                                        text = OnyxLocalization["Conversations"],
-                                        count = rows.size,
+                                        text = OnyxLocalization["Saved conversations"],
+                                        count = null,
                                         modifier = Modifier.weight(1f),
                                     )
                                     // En sélection, la barre du bas porte déjà « Annuler »,
@@ -948,7 +962,7 @@ private fun SidebarHeader(
         // reste atteignable par l'appui long sur une rangée, et la liste est remise au propriétaire.
         GlassCircleButton(
             symbol = Symbols.GearshapeSingle,
-            label = "Settings",
+            label = "App settings",
             size = OnyxBase.TouchTarget,
             iconSize = 20.dp,
             tint = mutedIconInk(pane),
@@ -2342,8 +2356,6 @@ private fun ConversationRow(
                         text = second,
                         localize = true,
                         style = theme.caption.copy(color = mutedInk(pane)),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 1.dp),
                     )
                 }
@@ -2843,14 +2855,16 @@ private fun SidebarChip(
     Row(
         modifier = Modifier
             .defaultMinSize(minHeight = MinTarget)
+            .semantics { this.selected = selected; role = Role.RadioButton }
             .clip(shape)
-            .onyxTappable(onClick = onClick)
+            .onyxClickable(onClick = onClick)
+            .padding(vertical = 8.dp)
             .tapLabel(listOfNotNull(resolveOnyxText(label), count?.toString()).joinToString(", ")),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             modifier = Modifier
-                .height(FlatChipHeight)
+                .heightIn(min = FlatChipHeight)
                 .clip(shape)
                 .then(
                     when {
@@ -2881,8 +2895,6 @@ private fun SidebarChip(
             BasicText(
                 text = label,
                 style = theme.footnote.copy(color = ink, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
             )
             if (count != null && count > 0) {
                 BasicText(
@@ -2965,7 +2977,7 @@ internal fun signalInk(colour: Color, ground: Color): Color =
     sidebarInk(colour, ground, OnyxContrast.ICON_MIN)
 
 /** La cible tactile de la maison : rien de ce qui se touche ne descend sous 44 dp. */
-internal val MinTarget: Dp = 44.dp
+internal val MinTarget: Dp = 48.dp
 
 /**
  * La hauteur d'une **tuile** du volet : [OnyxSpace.ThumbnailSize], c'est-à-dire 44 dp.
@@ -2975,7 +2987,7 @@ internal val MinTarget: Dp = 44.dp
  * rangée entière. La valeur est reprise de la taille de vignette de la maison plutôt qu'écrite ici :
  * une tuile et une vignette de rangée sont la même cible tactile.
  */
-internal val SidebarTileHeight: Dp = OnyxSpace.ThumbnailSize
+internal val SidebarTileHeight: Dp = MinTarget
 
 /**
  * **Le carré blanc de l'icône d'une tuile** — le bloc `.tileic` de la planche
@@ -3008,19 +3020,38 @@ internal class RowBounds {
  * bloque rien — elle explique pourquoi la liste est plus courte que la mémoire qu'on en a.
  */
 @Composable
-private fun ServerImportNote(text: String) {
+private fun ServerImportNote(text: String, onRetry: () -> Unit, onSettings: () -> Unit) {
     val theme = LocalOnyxTheme.current
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = OnyxBase.ScreenMargin, vertical = OnyxSpace.Hair),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
+        verticalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
     ) {
-        OnyxIcon(symbol = Symbols.ExclamationCircle, tint = theme.warning, size = 16.dp)
         BasicText(
             text = text,
+            localize = false,
             style = theme.footnote.copy(color = theme.warning),
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SidebarChip(label = "Retry", count = null, selected = false, onClick = onRetry)
+            SidebarChip(label = "Settings", count = null, selected = false, onClick = onSettings)
+        }
+    }
+}
+
+@Composable
+private fun SidebarShortcutsToggle(expanded: Boolean, onToggle: () -> Unit) {
+    val theme = LocalOnyxTheme.current
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .onyxClickable(onClick = onToggle)
+            .tapLabel(if (expanded) "Hide shortcuts" else "Show shortcuts")
+            .semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText("Shortcuts", style = theme.footnote.copy(color = theme.textColor), modifier = Modifier.weight(1f))
+        BasicText(if (expanded) "Hide" else "Show", style = theme.footnote.copy(color = theme.textColor))
     }
 }

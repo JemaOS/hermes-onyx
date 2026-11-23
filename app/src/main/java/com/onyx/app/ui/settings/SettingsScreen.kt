@@ -225,7 +225,7 @@ fun SettingsScreen(
             // garde sa place à droite, pour que replier la liste d'ici continue de fonctionner.
             SocleLargeHeader(
                 title = "Settings",
-                subtitle = "Apparence, agent, compte",
+                subtitle = "This app: appearance, server connections and authentication",
                 onBack = onDone,
                 actions = sidebarControl,
             )

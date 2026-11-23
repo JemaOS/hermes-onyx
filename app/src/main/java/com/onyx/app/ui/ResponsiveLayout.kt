@@ -104,8 +104,9 @@ internal val TwoPaneMinWidth: Dp =
     maxOf(SidebarMinWidth / SidebarMaxFraction, SidebarMinWidth + DetailMinWidth)
 
 /** La fenêtre peut-elle porter deux panneaux avec leurs minima respectifs ? */
-internal fun canShowTwoPanes(availableWidth: Dp): Boolean =
-    availableWidth >= TwoPaneMinWidth && availableWidth * SidebarMaxFraction >= SidebarMinWidth
+internal fun canShowTwoPanes(availableWidth: Dp, fontScale: Float = 1f): Boolean =
+    availableWidth >= TwoPaneMinWidth * fontScale.coerceAtLeast(1f) &&
+        availableWidth * SidebarMaxFraction >= SidebarMinWidth
 
 /** La largeur du volet pour cette fenêtre : 320…400 dp, jamais plus de 40 % de la largeur. */
 internal fun sidebarWidthFor(availableWidth: Dp): Dp {
@@ -113,8 +114,8 @@ internal fun sidebarWidthFor(availableWidth: Dp): Dp {
     return SidebarIdealWidth.coerceIn(SidebarMinWidth, cap)
 }
 
-internal fun listDetailLayout(availableWidth: Dp, collapsed: Boolean = false, content: Boolean = false): ListDetailLayout {
-    if (!canShowTwoPanes(availableWidth)) {
+internal fun listDetailLayout(availableWidth: Dp, collapsed: Boolean = false, content: Boolean = false, fontScale: Float = 1f): ListDetailLayout {
+    if (!canShowTwoPanes(availableWidth, fontScale)) {
         return ListDetailLayout(
             twoPanes = false,
             sidebarVisible = false,
