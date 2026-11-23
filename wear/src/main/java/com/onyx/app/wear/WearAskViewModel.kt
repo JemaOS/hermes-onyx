@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Où en est la montre : au repos, à l'écoute, en train d'attendre, ou en train de lire. */
+/** Where the watch is: idle, listening, waiting, or speaking. */
 enum class WearPhase { IDLE, LISTENING, WAITING, SPEAKING, PROBLEM }
 
 data class WearState(
@@ -33,10 +33,10 @@ data class WearState(
 )
 
 /**
- * La montre : on parle, la question part au gateway, la réponse s'affiche et se lit.
+ * The watch: you speak, the question goes to the gateway, the answer appears and is read aloud.
  *
- * Miroir réduit de la Watch app de la référence : la même boucle dictée → question → réponse lue, avec
- * les mêmes briques que le téléphone puisqu'elles vivent dans `:core`.
+ * A reduced mirror of the reference Watch app: the same dictated → question → spoken answer loop, with
+ * the same building blocks as the phone since they live in `:core`.
  */
 class WearAskViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -67,7 +67,7 @@ class WearAskViewModel(application: Application) : AndroidViewModel(application)
         _state.update { it.copy(phase = WearPhase.IDLE, problem = null) }
     }
 
-    /** Le bouton de la montre : un tap pour parler, un tap pour arrêter. */
+    /** The watch button: one tap to talk, one tap to stop. */
     fun toggleListening() {
         if (_state.value.phase == WearPhase.LISTENING) {
             speech.stop()
@@ -97,7 +97,7 @@ class WearAskViewModel(application: Application) : AndroidViewModel(application)
         _state.update { it.copy(phase = WearPhase.IDLE) }
     }
 
-    /** Relit la dernière réponse. */
+    /** Reads the last answer aloud again. */
     fun speakAgain() {
         val reply = _state.value.reply
         if (reply.isBlank()) return

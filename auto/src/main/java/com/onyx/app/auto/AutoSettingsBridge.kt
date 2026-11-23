@@ -10,7 +10,7 @@ import com.onyx.app.car.AutoVoiceLook
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.model.Transport
 
-/** Lit le téléphone quand les deux apps sont installées ; sinon garde les défauts et le réglage local. */
+/** Reads the phone when both apps are installed; otherwise keeps the defaults and the local setting. */
 class AutoSettingsBridge(context: Context) {
     private val resolver = context.applicationContext.contentResolver
     private var cached: Bundle? = null
@@ -26,7 +26,7 @@ class AutoSettingsBridge(context: Context) {
         )
     }
 
-    /** Seul le transport que ChatCompletionsClient sait réellement servir dans l'Auto est repris. */
+    /** Only the transport that ChatCompletionsClient can actually serve in Auto is carried over. */
     fun server(): ServerConfig? {
         val result = snapshot() ?: return null
         val url = result.getString(AutoSettingsContract.EXTRA_SERVER_URL)?.takeIf { it.isNotBlank() }

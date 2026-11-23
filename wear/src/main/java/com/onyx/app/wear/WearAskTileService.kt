@@ -15,10 +15,10 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * La tuile « demander » : un mot au poignet, et Onyx s'ouvre en écoute.
+ * The "ask" tile: one word on the wrist, and Onyx opens listening.
  *
- * Équivalent Android de la tuile/complication de la référence : la marque, une phrase, et
- * un tap qui lance l'écran vocal.
+ * Android equivalent of the reference tile/complication: the mark, a sentence, and
+ * a tap that launches the voice screen.
  */
 class WearAskTileService : TileService() {
 
@@ -51,7 +51,7 @@ class WearAskTileService : TileService() {
                 .build(),
         )
 
-    /** L'unique élément de la tuile : toute la surface est cliquable. */
+    /** The tile's only element: the whole surface is clickable. */
     private fun openTheApp(): LayoutElementBuilders.Box =
         LayoutElementBuilders.Box.Builder()
             .setWidth(DimensionBuilders.expand())

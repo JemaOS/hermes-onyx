@@ -40,11 +40,11 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.OnyxAppTheme
 
 /**
- * L'écran de la montre : une question dictée, la réponse affichée et lue.
+ * The watch screen: a dictated question, the answer displayed and read aloud.
  *
- * C'est le pendant Android de l'écran de montre de la référence : mêmes briques que le téléphone
- * (`:core`), mais
- * un seul geste — on tape, on parle, on écoute.
+ * This is the Android counterpart of the reference watch screen: the same building blocks as the phone
+ * (`:core`), but
+ * a single gesture — tap, speak, listen.
  */
 class WearActivity : ComponentActivity() {
 
@@ -75,7 +75,7 @@ class WearActivity : ComponentActivity() {
     }
 }
 
-/** L'écran de la montre : l'anneau, la question, la réponse. */
+/** The watch screen: the ring, the question, the answer. */
 @Composable
 private fun WearAskScreen(
     state: WearState,
@@ -159,7 +159,7 @@ private fun WearAskScreen(
     }
 }
 
-/** Le premier lancement : l'adresse du serveur, sa clé, le modèle. */
+/** First launch: the server address, its key, the model. */
 @Composable
 private fun WearSetup(onSave: (String, String, String) -> Unit) {
     val theme = LocalOnyxTheme.current
