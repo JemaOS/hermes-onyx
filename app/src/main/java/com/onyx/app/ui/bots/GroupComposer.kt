@@ -60,7 +60,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Le texte entendu rejoint le brouillon initial, après une espace seulement si nécessaire. */
+/** The heard text joins the initial draft, after a space only when necessary. */
 internal fun dictationJoined(draft: String, heard: String): String {
     val clean = heard.trim()
     if (clean.isEmpty()) return draft
@@ -73,7 +73,7 @@ private val GroupTagPattern = Regex("""(?:^|\s)@([\p{L}\p{N}_-]*)$""")
 internal fun groupTagToken(draft: String): String? =
     GroupTagPattern.find(draft)?.groupValues?.get(1)
 
-/** Tous les bots dont la poignée ou le nom commence par la mention en cours. */
+/** All bots whose handle or name starts with the mention in progress. */
 internal fun groupTagSuggestions(draft: String, bots: List<BotProfile>): List<BotProfile> {
     val typed = groupTagToken(draft)?.lowercase() ?: return emptyList()
     return bots.filter {
@@ -81,26 +81,26 @@ internal fun groupTagSuggestions(draft: String, bots: List<BotProfile>): List<Bo
     }
 }
 
-/** Remplace seulement la mention en cours et conserve exactement le blanc qui la précédait. */
+/** Replaces only the mention in progress and keeps exactly the whitespace that preceded it. */
 internal fun replaceTagToken(draft: String, handle: String): String {
     val match = GroupTagPattern.find(draft) ?: return draft
     val leading = match.value.first().takeIf { it.isWhitespace() }?.toString().orEmpty()
     return draft.substring(0, match.range.first) + leading + "@" + handle + " "
 }
 
-/** Vrai si le champ porte quelque chose à envoyer (`GroupComposer.hasDraft`). */
+/** True if the field carries something to send (`GroupComposer.hasDraft`). */
 internal fun groupComposerHasDraft(draft: String, attachmentCount: Int): Boolean =
     draft.isNotBlank() || attachmentCount > 0
 
 /**
- * Le **titre** que le compositeur de la maison reçoit pour une salle : c'est lui qui fait dire
- * « Envoyer un message au salon » à l'invite du champ (`ComposerFieldInvite.GROUP`,
- * `ComposerFieldLayers.kt`), et **rien d'autre** ne réécrit ce libellé. Une salle n'a pas de nom
- * de bot à écrire dans le champ : ce titre est le repère du groupe, pas un texte de texte.
+ * The **title** the house composer receives for a room: it is what makes the field prompt say
+ * "Envoyer un message au salon" ("Send a message to the room") (`ComposerFieldInvite.GROUP`,
+ * `ComposerFieldLayers.kt`), and **nothing else** rewrites this label. A room has no bot name to
+ * write in the field: this title is the group's landmark, not a body text.
  */
 internal const val GroupComposerTitle = "the group"
 
-/** Un fichier nommé par une note : récupération du serveur puis ouverture, avec échec rejouable. */
+/** A file named by a note: fetched from the server then opened, with a retryable failure. */
 @Composable
 fun GroupFileChip(path: String, server: ServerConfig, modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
@@ -146,7 +146,7 @@ fun GroupFileChip(path: String, server: ServerConfig, modifier: Modifier = Modif
     }
 }
 
-/** Le nom d'un fichier dont l'upload est encore en cours (`feed.sending`). */
+/** The name of a file whose upload is still in progress (`feed.sending`). */
 @Composable
 fun PendingGroupFileChip(name: String, modifier: Modifier = Modifier) {
     val theme = LocalOnyxTheme.current
@@ -169,21 +169,21 @@ fun PendingGroupFileChip(name: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Le champ sous un chat de groupe.
+ * The field under a group chat.
  *
- * **Il n'a plus de dessin à lui.** Tout ce qui se voit — le « + », le champ, le micro, le bouton
- * vocal, l'arrêt, l'envoi (cercle à l'accent, flèche à l'encre **mesurée**) — vient du compositeur
- * de la maison ([OnyxComposer]). Ce qui reste ici est ce qui est **légitimement** propre au groupe :
+ * **It no longer has its own drawing.** Everything visible — the "+", the field, the mic, the voice
+ * button, the stop button, the send button (accent circle, ink arrow **measured**) — comes from the
+ * house composer ([OnyxComposer]). What remains here is what is **legitimately** specific to the group:
  *
- * - l'**invite** de la salle (le titre `the group` → « Envoyer un message au salon », par la source
- *   unique `ComposerFieldInvite.GROUP`) ;
- * - les **pièces jointes** (le menu Add, la photothèque, l'appareil photo, la lame) et leur examen
- *   par `admitAttachments` — la salle ne prend que du texte, ce qui est joint monte au serveur ;
- * - la **dictée** du champ (le texte rejoint le brouillon, rien n'est envoyé) ;
- * - les **mentions** `@` : la liste des bots offerte pendant la frappe, dessinée au-dessus du champ.
+ * - the **prompt** of the room (the title `the group` → "Send a message to the room", through the
+ *   single source `ComposerFieldInvite.GROUP`);
+ * - the **attachments** (the Add menu, the photo library, the camera, the sheet) and their review
+ *   by `admitAttachments` — the room only takes text, whatever is attached goes up to the server;
+ * - the field's **dictation** (the text joins the draft, nothing is sent);
+ * - the `@` **mentions**: the list of bots offered while typing, drawn above the field.
  *
- * L'état (brouillon, pièces jointes, dictée) vit ici, comme les `@State` de la référence : l'écran ne
- * fournit que les bots, l'état du tour et les actions d'envoi, d'arrêt et de voix.
+ * The state (draft, attachments, dictation) lives here, like the `@State` of the reference: the
+ * screen only provides the bots, the turn state and the send, stop and voice actions.
  */
 @Composable
 fun GroupComposer(
@@ -192,36 +192,36 @@ fun GroupComposer(
     onSend: (String, List<PendingAttachment>) -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Le bouton vocal ouvre la scène vocale de la salle (`GroupVoice`), depuis le champ vide. */
+    /** The voice button opens the room's voice scene (`GroupVoice`), from the empty field. */
     onTalk: (() -> Unit)? = null,
-    /** L'erreur du fil (`feed.problem`), montrée quand le compositeur n'a pas la sienne. */
+    /** The feed's error (`feed.problem`), shown when the composer has none of its own. */
     serverError: String? = null,
     /**
-     * **Le meneur de la salle, tel qu'on l'écrit** (son nom de salle, sinon sa poignée) : la ligne
-     * du dessus le rappelle tant qu'il est choisi, parce qu'un destinataire par défaut invisible ne
-     * se distingue pas d'une salle sans meneur. `null` — aucune ligne, et le compositeur est
-     * exactement celui d'avant.
+     * **The room's lead, as written** (its room name, otherwise its handle): the line above
+     * reminds of it as long as it is chosen, because an invisible default recipient cannot be
+     * told apart from a room without a lead. `null` — no line, and the composer is exactly the
+     * one from before.
      */
     leadLabel: String? = null,
-    /** La langue de la dictée du champ, distincte de la scène mains-libres. */
+    /** The field's dictation language, distinct from the hands-free scene. */
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
-    /** Donné par l'écran qui doit rendre le focus au champ (`Switch to typing`). */
+    /** Given by the screen that must return focus to the field (`Switch to typing`). */
     focusRequester: FocusRequester? = null,
     /**
-     * **Le compositeur est posé sur la plaque unique** d'un écran (la pile du bas) : il ne peint
-     * plus sa propre carte, la plaque s'en charge. Faux : la carte d'origine.
+     * **The composer sits on a screen's single plate** (the bottom stack): it no longer paints
+     * its own card, the plate handles it. False: the original card.
      */
     plate: Boolean = false,
     /**
-     * La marge système du bas est-elle prise par le compositeur ? `false` quand l'écran la prend
-     * **lui-même, une seule fois**, pour toute la pile du bas (compositeur **et** barre d'onglets) —
-     * c'est ce qui empêche les deux marges (clavier et navigation) de s'additionner.
+     * Is the bottom system inset handled by the composer? `false` when the screen handles it
+     * **itself, once only**, for the whole bottom stack (composer **and** tab bar) — this is what
+     * prevents the two insets (keyboard and navigation) from adding up.
      */
     applyBottomInsets: Boolean = true,
     /**
-     * Le sujet qu'un **« Discuter »** du flux a écrit : il rejoint le brouillon **une fois**, puis
-     * la salle dit qu'elle l'a pris (`onPrefillConsumed`) — ainsi un aller-retour d'onglet ne le
-     * réécrit pas par-dessus ce que la personne tape.
+     * The subject a feed's **"Chat"** button wrote: it joins the draft **once**, then the room
+     * says it took it (`onPrefillConsumed`) — so a tab round-trip does not rewrite it over what
+     * the person is typing.
      */
     prefill: String? = null,
     onPrefillConsumed: () -> Unit = {},
@@ -238,12 +238,12 @@ fun GroupComposer(
 
     fun addAttachments(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        // Le même examen que le chat : un fichier au-dessus du plafond est refusé ici aussi, avec
-        // son poids et la limite, au lieu de partir entier vers le serveur.
+        // The same review as the chat: a file above the ceiling is refused here too, with its
+        // size and the limit, instead of going up whole to the server.
         scope.launch {
             val admission = withContext(Dispatchers.IO) {
-                // L'autorisation persistable quand elle existe, **puis** la copie durable : seule
-                // la copie garantit qu'une pièce reste lisible après fermeture de l'app.
+                // The persistable permission when it exists, **then** the durable copy: only the
+                // copy guarantees an attachment stays readable after the app is closed.
                 takeDurablePermissions(context, uris)
                 admitAttachments(context, attachments, uris)
             }
@@ -264,7 +264,7 @@ fun GroupComposer(
         cameraUri = null
     }
 
-    // Le micro du champ est une dictée indépendante : le texte rejoint le brouillon, rien n'est envoyé.
+    // The field's mic is an independent dictation: the text joins the draft, nothing is sent.
     val speechEngine = remember(speechLocale) { SpeechEngine(context, speechLocale) }
     val speechState by speechEngine.state.collectAsStateWithLifecycle()
     var dictating by remember { mutableStateOf(false) }
@@ -300,7 +300,7 @@ fun GroupComposer(
         }
     }
 
-    /** Finit la dictée où elle en est ; ce qu'elle a entendu est déjà dans le brouillon. */
+    /** Ends the dictation where it stands; what it heard is already in the draft. */
     fun stopDictating() {
         dictating = false
         dictationOpened = false
@@ -325,7 +325,7 @@ fun GroupComposer(
         }
     }
 
-    // Le sujet d'un « Discuter » du flux : il rejoint le brouillon **une seule fois**.
+    // The subject of a feed's "Chat" button: it joins the draft **once**.
     LaunchedEffect(prefill) {
         val subject = prefill ?: return@LaunchedEffect
         draft = subject
@@ -333,7 +333,7 @@ fun GroupComposer(
         focusRequester?.requestFocus()
     }
 
-    /** Envoie le brouillon et ses pièces jointes, puis vide le champ (`GroupComposer.send`). */
+    /** Sends the draft and its attachments, then clears the field (`GroupComposer.send`). */
     fun send() {
         stopDictating()
         if (!hasDraft) return
@@ -344,8 +344,8 @@ fun GroupComposer(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Les bots proposés pendant qu'on tape une mention `@` — au-dessus du champ, comme la liste
-        // des mentions d'une conversation.
+        // The bots proposed while typing an `@` mention — above the field, like a conversation's
+        // mention list.
         if (suggestions.isNotEmpty()) {
             GroupTagSuggestions(
                 bots = suggestions,
@@ -357,24 +357,24 @@ fun GroupComposer(
             )
         }
 
-        // **Le meneur, rappelé au-dessus du champ.** Sans cette ligne, un réglage local
-        // (un destinataire par défaut) ne se voit nulle part : la salle écrirait à quelqu'un sans
-        // que la personne l'ait sous les yeux. Rien quand il n'y a pas de meneur.
+        // **The lead, recalled above the field.** Without this line, a local setting
+        // (a default recipient) is not visible anywhere: the room would write to someone without
+        // the person having it in front of them. Nothing when there is no lead.
         leadLabel?.takeIf { it.isNotBlank() }?.let { label ->
             val theme = LocalOnyxTheme.current
             BasicText(
                 text = OnyxLocalization.format("Lead: %1\$s", label),
                 localize = false,
                 style = theme.caption.copy(color = theme.secondaryText, fontWeight = FontWeight.Medium),
-                // Un libellé se replie, il ne se coupe pas : « Lead: … » à une ligne redevenait
-                // « Lead: pla… » à police 1,3× (politique des troncatures, `OnyxTextPolicy`).
+                // A label wraps, it is not cut off: "Lead: …" on one line became
+                // "Lead: pla…" at 1.3× font size (truncation policy, `OnyxTextPolicy`).
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 2.dp),
             )
         }
 
-        // **Le compositeur de la maison — le seul dessin de la commande d'envoi.**
+        // **The house composer — the only drawing of the send command.**
         OnyxComposer(
             draft = draft,
             onDraftChange = { draft = it },
@@ -388,7 +388,7 @@ fun GroupComposer(
                 stopDictating()
                 onStop()
             },
-            // Le vocal n'est dessiné que si une scène vocale est offerte : jamais une commande muette.
+            // Voice is only drawn if a voice scene is offered: never a mute command.
             onTalk = { onTalk?.invoke() },
             showTalk = onTalk != null,
             dictating = dictating,
@@ -396,8 +396,8 @@ fun GroupComposer(
             problem = problem ?: serverError,
             localizeProblem = problem == null,
             onAddAttachment = { showAddMenu = true },
-            // L'éditeur de brouillon long demande un écran que la salle n'a pas : la commande
-            // n'apparaît donc pas, plutôt que d'ouvrir le vide (voir le rapport du lot).
+            // The long-draft editor needs a screen the room does not have: the command
+            // therefore does not appear, rather than opening emptiness (see the batch report).
             allowExpand = false,
             focusRequester = focusRequester,
             plate = plate,
@@ -405,9 +405,9 @@ fun GroupComposer(
         )
     }
 
-    // La feuille qui monte du bas, la même que celle du chat : le titre, les **vraies** limites
-    // d'Onyx en sous-titre, et une ligne par entrée avec sa pastille d'icône. L'ordre est celui de
-    // la référence ; « Coller » s'y ajoute, la référence ne l'a pas.
+    // The sheet that rises from the bottom, the same as the chat's: the title, Onyx's **real**
+    // limits as a subtitle, and one row per entry with its icon badge. The order is that of the
+    // reference; "Paste" ("Coller") is added, the reference does not have it.
     if (showAddMenu) {
         AttachmentSheet(
             title = "Add to message",
@@ -447,7 +447,7 @@ fun GroupComposer(
     }
 }
 
-/** Les bots offerts pendant une mention `@` (`GroupComposer.tags`) : visage, poignée et nom. */
+/** The bots offered during an `@` mention (`GroupComposer.tags`): face, handle and name. */
 @Composable
 private fun GroupTagSuggestions(
     bots: List<BotProfile>,
@@ -491,10 +491,10 @@ private fun GroupTagSuggestions(
 }
 
 /**
- * Où l'appareil photo du groupe écrit sa prise : le **stockage privé durable**, jamais le cache.
+ * Where the group's camera writes its shot: the **durable private storage**, never the cache.
  *
- * Même défaut que dans le chat simple : une prise dans `cacheDir` disparaît au nettoyage, et la
- * bulle devient « Illisible ».
+ * Same default as in the simple chat: a shot in `cacheDir` disappears on cleanup, and the
+ * bubble becomes "Unreadable" ("Illisible").
  */
 private fun groupCameraUri(context: Context): Uri? = runCatching {
     val folder = java.io.File(context.filesDir, "photos").apply { mkdirs() }

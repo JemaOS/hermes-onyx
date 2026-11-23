@@ -30,52 +30,52 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Un message de la personne en route vers la salle : ce qui a été tapé, et les fichiers qui
- * l'accompagnent, par leur nom.
+ * A message from the person on its way to the room: what was typed, and the files that
+ * accompany it, by their name.
  */
 data class GroupSending(
-    /** Son identifiant d'événement : c'est aussi l'`event_id` du serveur, donc sa clé d'unicité. */
+    /** Its event identifier: it is also the server's `event_id`, hence its uniqueness key. */
     val id: String,
     val text: String,
     val files: List<String> = emptyList(),
-    /** Ce qui part dans la salle : le texte, et une note par fichier une fois sur le serveur. */
+    /** What goes into the room: the text, and one note per file once on the server. */
     val said: String? = null,
-    /** Combien d'essais ont échoué : le message est **encore** en route, il n'est pas perdu. */
+    /** How many attempts failed: the message is **still** on its way, it is not lost. */
     val attempts: Int = 0,
-    /** L'envoi a définitivement échoué : le message reste à l'écran, marqué, avec sa raison. */
+    /** The send definitively failed: the message stays on screen, marked, with its reason. */
     val failed: Boolean = false,
     val problem: String? = null,
 ) {
-    /** Ce qui est vraiment dit : le texte envoyé, sinon celui qui a été tapé. */
+    /** What is really said: the sent text, otherwise the one that was typed. */
     val delivered: String get() = said ?: text
 }
 
-/** Une salle suivie à l'écran : ce qui y a été dit, ce qu'elle attend, et ce qui s'écrit. */
+/** A room followed on screen: what was said there, what it waits for, and what is being written. */
 data class GroupRoomFeedState(
     val room: GroupRoom,
     val events: List<GroupEvent> = emptyList(),
     val status: GroupState = GroupState(),
     /**
-     * Le meneur que la **salle** annonce (`groups.state` → `context.lead_member_id`, routage
-     * `lead`). `null` quand la salle n'en a pas — ou quand ce serveur ne connaît pas le routage.
+     * The lead that the **room** announces (`groups.state` → `context.lead_member_id`, `lead`
+     * routing). `null` when the room has none — or when this server does not know the routing.
      */
     val leadMemberId: String? = null,
-    /** Les messages envoyés, pas encore dans le journal. */
+    /** The sent messages, not yet in the journal. */
     val sending: List<GroupSending> = emptyList(),
-    /** Les réponses en train d'être écrites, chacune jusqu'à ce que la salle l'ait. */
+    /** The replies being written, each until the room has it. */
     val drafts: List<GroupDraft> = emptyList(),
-    /** Les approbations et les relances répondus ici et pas encore partis de l'état : leur carte se cache. */
+    /** The approvals and retries answered here and not yet gone from the state: their card hides. */
     val answering: Set<String> = emptySet(),
-    /** Ce que le serveur a refusé, dit tel quel : jamais un message qui disparaît en silence. */
+    /** What the server refused, said as is: never a message that disappears silently. */
     val problem: String? = null,
-    /** Le dernier événement lu du journal. */
+    /** The last event read from the journal. */
     val cursor: Int = 0,
-    /** Vrai une fois le premier journal lu. */
+    /** True once the journal has been read a first time. */
     val loaded: Boolean = false,
 ) {
     /**
-     * Les bots parlent : un message de la personne n'a pas encore de fin de discussion après lui.
-     * (La copie d'une salle Desktop ne dit rien de cela.)
+     * The bots are talking: a message from the person does not yet have an end of discussion
+     * after it. (A Desktop room's copy says nothing about this.)
      */
     val discussing: Boolean
         get() {
@@ -84,36 +84,36 @@ data class GroupRoomFeedState(
             return sending.isNotEmpty() || events.none { it.seq > lastAsk && it.endsDiscussion }
         }
 
-    /** Quelque chose tourne : une discussion est en cours, ou la salle travaille. */
+    /** Something is running: a discussion is in progress, or the room is working. */
     val busy: Boolean get() = discussing || status.working
 
-    /** Le dernier événement vu ici, comme `GroupRoom.activityMark` le compte. */
+    /** The last event seen here, as `GroupRoom.activityMark` counts it. */
     val seenMark: Double?
         get() = if (room.inDesktop) room.updatedAtMillis?.let { it / 1000.0 } else cursor.takeIf { it > 0 }?.toDouble()
 
-    /** La réponse en train d'être écrite à cet instant, s'il y en a une. */
+    /** The reply being written at this instant, if there is one. */
     val writing: GroupDraft? get() = drafts.lastOrNull { it.text.isNotEmpty() && it.finishedAtMillis == null }
 
     /**
-     * Les brouillons qui se dessinent : ceux qui ont commencé à écrire, filtrés comme la vue de
-     * référence (`feed.drafts.filter { !$0.text.isEmpty() }`) — une session ouverte dont rien
-     * n'est encore venu n'ajoute pas de ligne.
+     * The drafts being drawn: those that have started writing, filtered like the reference view
+     * (`feed.drafts.filter { !$0.text.isEmpty() }`) — an open session from which nothing has yet
+     * come adds no row.
      */
     val shownDrafts: List<GroupDraft> get() = drafts.filter { it.text.isNotEmpty() }
 
     /**
-     * **Les passages de main du journal** — un par changement de destinataire, à la place de la
-     * réponse qui le porte (`roomHandoffs`). Lus du journal, ils ne sont jamais inventés : deux
-     * lectures du même journal rendent les mêmes lignes, et aucune ne peut donc s'afficher deux fois.
+     * **The journal's handoffs** — one per change of recipient, in place of the reply that
+     * carries it (`roomHandoffs`). Read from the journal, they are never invented: two reads of
+     * the same journal return the same lines, so none can be displayed twice.
      *
-     * Le dernier dit à qui la salle écrit par défaut pour la suite.
+     * The last one tells whom the room writes to by default from then on.
      */
     val handoffs: List<RoomHandoffLine> get() = roomHandoffs(events, room.members)
 
     /**
-     * Les lignes du journal qui se dessinent : les messages, les notes que vaut un tour, et le
-     * passage de main **juste après** la réponse qui le porte — même liste, donc même ordre : une
-     * ligne de passage ne réordonne jamais les rangées existantes.
+     * The journal rows that are drawn: the messages, the notes a turn is worth, and the handoff
+     * **right after** the reply that carries it — same list, hence same order: a handoff row never
+     * reorders existing rows.
      */
     val rows: List<GroupEvent>
         get() {
@@ -129,13 +129,13 @@ data class GroupRoomFeedState(
 }
 
 /**
- * Le fil tel que la scène vocale le lit (`GroupVoiceThread.lines`) : la question de la personne —
- * celle qui part, et celles du journal —, les réponses des bots, celles qui s'écrivent
- * (`drafts`) et celles en route (`sending`), dans l'ordre où le fil les dessine.
+ * The thread as the voice scene reads it (`GroupVoiceThread.lines`): the person's question —
+ * the one leaving, and those of the journal —, the bots' replies, those being written
+ * (`drafts`) and those on the way (`sending`), in the order the thread draws them.
  *
- * C'est la matière du `VoiceView.groupExchange` de la référence : les événements du journal deviennent les
- * lignes d'une réponse (`message.member`) ou d'une question (`message.user`), un brouillon une
- * ligne vivante sous son bot, et un message en route la bulle de la personne qui attend encore.
+ * This is the substance of the reference's `VoiceView.groupExchange`: journal events become the
+ * lines of a reply (`message.member`) or of a question (`message.user`), a draft a live line
+ * under its bot, and a message on the way the bubble of the person still waiting.
  */
 internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null }): List<GroupVoiceLine> {
     val said = events.filter { it.isMessage }.map { event ->
@@ -143,9 +143,9 @@ internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null })
         val text = AttachedFileNote.split(event.text)
         GroupVoiceLine(
             id = "voice-seq-" + event.seq,
-            // Le profil du bot (`room.member(id)?.profile`), pas l'identifiant du membre : c'est
-            // lui qui choisit sa voix (`BotVoices`) et son visage dans l'orbe. L'identifiant, lui,
-            // est gardé à part — le fil le dessine et le protocole le nomme.
+            // The bot's profile (`room.member(id)?.profile`), not the member identifier: it is
+            // what chooses its voice (`BotVoices`) and its face in the orb. The identifier, for
+            // its part, is kept apart — the thread draws it and the protocol names it.
             profile = if (event.kind == "message.user") null else member?.profile ?: event.actorID,
             memberID = if (event.kind == "message.user") null else event.actorID,
             name = member?.label ?: OnyxLocalization["A bot"],
@@ -166,8 +166,8 @@ internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null })
             text = text.text,
             paths = text.paths,
             files = message.files,
-            // Ce qui n'est pas arrivé dans la salle se **voit** : la bulle reste, marquée de son
-            // échec s'il est définitif. Un message qui disparaît en silence est un message perdu.
+            // What did not arrive in the room is **visible**: the bubble stays, marked by its
+            // failure if it is definitive. A message that disappears silently is a lost message.
             waiting = !message.failed,
             failed = message.failed,
         )
@@ -191,68 +191,69 @@ internal fun GroupRoomFeedState.voiceLines(face: (String) -> String? = { null })
 }
 
 /**
- * Le fil d'une salle de bots : ce qui y a été dit, lu de son journal, et ce que la personne y dit.
+ * The thread of a bots' room: what was said there, read from its journal, and what the person
+ * says there.
  *
- * Miroir de `GroupFeed` (Echo/Services/Transport/ServerGroups:647) : le journal est lu après
- * un curseur (`groups.log`), l'état de la salle à chaque tour (`groups.state`), et les réponses des
- * bots là où Hermes les écrit d'abord — dans la session cachée « Group: <salle> » de chaque bot
- * (`session.events.since`). Un message envoyé reste à l'écran tant que la salle ne l'a pas, et un
- * refus du serveur se lit au lieu de faire disparaître ce qui a été écrit.
+ * Mirror of `GroupFeed` (Echo/Services/Transport/ServerGroups:647): the journal is read after a
+ * cursor (`groups.log`), the room state at each turn (`groups.state`), and the bots' replies where
+ * Hermes writes them first — in the hidden session "Group: <room>" of each bot
+ * (`session.events.since`). A sent message stays on screen as long as the room has not received
+ * it, and a server refusal is read instead of making what was written disappear.
  *
- * Le fil d'une salle ne touche jamais au fil local de l'application (`GroupChatViewModel`) : ce qui
- * est écrit ici part dans la salle, et ce qui s'affiche vient de la salle.
+ * A room's thread never touches the app's local thread (`GroupChatViewModel`): what is written
+ * here goes into the room, and what is displayed comes from the room.
  */
 class GroupRoomFeed(
     initialRoom: GroupRoom,
     private val api: GroupRoomApi,
-    /** Le temps, injectable pour éprouver ce que devient une réponse finie. */
+    /** The time, injectable to test what a finished reply becomes. */
     private val clock: () -> Long = System::currentTimeMillis,
-    /** Les membres d'une salle Desktop appelés comme le roster les appelle (`GroupRoom.naming`). */
+    /** The members of a Desktop room called as the roster calls them (`GroupRoom.naming`). */
     private val naming: (GroupRoom) -> GroupRoom = { it },
-    /** Les poses entre deux essais d'envoi — raccourcies dans une preuve. */
+    /** The pauses between two send attempts — shortened in a test. */
     private val sendBackoffMs: List<Long> = GroupSendOutbox.SEND_BACKOFF_MS,
-    /** La pose elle-même, remplaçable pour ne pas attendre dans une preuve. */
+    /** The pause itself, replaceable so as not to wait in a test. */
     private val waitSend: suspend (Long) -> Unit = { delay(it) },
 ) {
     private val _state = MutableStateFlow(GroupRoomFeedState(room = initialRoom))
     val state: StateFlow<GroupRoomFeedState> = _state.asStateFlow()
 
     /**
-     * La file d'envoi de la salle : ce qui n'est **pas encore** arrivé au serveur. Le même
-     * identifiant n'y entre qu'une fois (`event_id`), et rien n'en sort sans que le serveur l'ait
-     * pris ou sans qu'on l'ait dit à la personne.
+     * The room's send queue: what has **not yet** arrived at the server. The same identifier
+     * enters it only once (`event_id`), and nothing leaves it without the server having taken it
+     * or without the person having been told.
      */
     private val outbox = GroupSendOutbox(backoffMs = sendBackoffMs)
 
-    /** Les envois partent **dans l'ordre** : une reprise ne double jamais le message suivant. */
+    /** Sends go **in order**: a retry never doubles the next message. */
     private val sendLock = Mutex()
 
     private val _pendingSends = MutableStateFlow(false)
 
-    /** Un message de la personne est encore en route : le micro d'une scène vocale reste fermé. */
+    /** A message from the person is still on its way: a voice scene's mic stays closed. */
     val pendingSends: StateFlow<Boolean> = _pendingSends.asStateFlow()
 
     private val _problem = MutableStateFlow<String?>(null)
 
-    /** Ce que la salle a refusé, tel qu'il se lit (déjà dans la langue de l'app). */
+    /** What the room refused, as it reads (already in the app's language). */
     val problem: StateFlow<String?> = _problem.asStateFlow()
 
-    /** Chaque session vivante et son dernier événement lu. */
+    /** Each live session and its last event read. */
     private val draftSeen = mutableMapOf<String, Int>()
 
-    /** Les sessions des bots de cette salle, par identifiant gardé : à qui est une session vivante. */
+    /** This room's bot sessions, by kept identifier: whose a live session is. */
     private val memberSessions = mutableMapOf<String, String>()
     private var lookedForMembers: Long? = null
 
-    /** Le numéro de chaque message d'une salle Desktop ici, par sa clé : le même message garde sa ligne. */
+    /** The number of each Desktop room message here, by its key: the same message keeps its row. */
     private val desktopSeqs = mutableMapOf<String, Int>()
 
-    /** Suit la salle jusqu'à l'annulation de la tâche (l'écran s'en va). */
+    /** Follows the room until the task is cancelled (the screen goes away). */
     suspend fun follow() {
         var tick = 0
         while (currentCoroutineContext().isActive) {
             val busy = state.value.busy
-            // Pendant que les bots parlent : le journal une fois par seconde, les réponses deux fois.
+            // While the bots are talking: the journal once per second, the replies twice.
             if (!busy || tick % 2 == 0) look()
             lookAtDrafts()
             tick += 1
@@ -260,13 +261,13 @@ class GroupRoomFeed(
         }
     }
 
-    /** Lit le journal de la salle et son état (`groups.log`, `groups.state`). */
+    /** Reads the room's journal and its state (`groups.log`, `groups.state`). */
     suspend fun look() {
         if (state.value.room.inDesktop) return lookInDesktop()
         try {
-            // **Le journal et l'état sont demandés ensemble.** Ce sont deux lectures
-            // indépendantes du même canal ; en série, le tick payait deux allers-retours
-            // (le tunnel en ajoute ~60 ms) alors qu'en parallèle il en paie un.
+            // **The journal and the state are requested together.** They are two independent
+            // reads of the same channel; in series, the tick paid two round-trips
+            // (the tunnel adds ~60 ms) whereas in parallel it pays one.
             val room = state.value.room.id
             val cursor = state.value.cursor
             val (fresh, roomStatus) = coroutineScope {
@@ -278,15 +279,15 @@ class GroupRoomFeed(
                 _state.update { current ->
                     val renamed = fresh.lastOrNull { it.kind == "room.renamed" }?.payload?.strOrNull("name")
                     current.copy(
-                        // **Le journal affiché est borné.** La salle relit son journal deux fois
-                        // par seconde quand elle travaille, et `events + fresh` recopiait tout :
-                        // une longue session de bots faisait O(n) allocations par tick, donc O(n²)
-                        // sur la durée. Cinq cents lignes couvrent largement ce que l'écran
-                        // dessine (les passages de main et le meneur ne lisent que les dernières).
+                        // **The displayed journal is bounded.** The room re-reads its journal
+                        // twice per second when it works, and `events + fresh` recopied
+                        // everything: a long bots session made O(n) allocations per tick, hence
+                        // O(n²) over time. Five hundred lines largely cover what the screen
+                        // draws (handoffs and the lead only read the last ones).
                         events = (current.events + fresh).takeLast(MAX_EVENTS),
                         cursor = fresh.last().seq,
-                        // Un message de la personne maintenant dans le journal n'attend plus (Hermes
-                        // rogne ce qu'on lui donne : c'est le texte dit qui les font se rejoindre).
+                        // A message from the person now in the journal no longer waits (Hermes
+                        // trims what it is given: it is the said text that makes them join).
                         sending = current.sending.filterNot { pending ->
                             fresh.any { it.kind == "message.user" && it.text.trim() == pending.delivered.trim() }
                         },
@@ -310,13 +311,13 @@ class GroupRoomFeed(
         }
     }
 
-    /** Les réponses des bots telles qu'elles s'écrivent (`GroupDraft`), tant que la salle travaille. */
+    /** The bots' replies as they are written (`GroupDraft`), as long as the room works. */
     suspend fun lookAtDrafts() {
         if (state.value.room.inDesktop) return
         val current = state.value
         val busy = current.busy
-        // Une réponse part une fois que la salle l'a ; une finie que la salle n'a jamais écrite (un bot
-        // qui passe), après un moment ; une en cours d'écriture, quand la salle s'arrête.
+        // A reply leaves once the room has it; a finished one that the room never wrote (a bot
+        // that passes), after a moment; one being written, when the room stops.
         val kept = current.drafts.filter { draft ->
             val landed = current.events.any { event ->
                 event.kind == "message.member" && event.seq > draft.after &&
@@ -336,19 +337,18 @@ class GroupRoomFeed(
             return
         }
         var next = _state.value.drafts
-        // Le rattachement des sessions aux membres se résout **une fois**, avant les lectures :
-        // chercher la session de chaque membre à chaque bot, à chaque tick, était un voyage de
-        // plus par membre.
+        // Attaching sessions to members is resolved **once**, before the reads:
+        // looking up each member's session at each bot, at each tick, was one extra trip
+        // per member.
         if (live.any { memberSessions[it.key] == null }) findMemberSessions()
-        // **Les sessions vivantes se lisent en parallèle.** Une à une, chaque bot rajoutait
-        // un aller-retour complet (le tunnel en ajoute ~60 ms) avant que le suivant ne parte :
-        // avec quatre bots, la réponse du quatrième attendait trois voyages. En parallèle,
-        // tous les brouillons arrivent ensemble.
+        // **Live sessions are read in parallel.** One by one, each bot added a full
+        // round-trip (the tunnel adds ~60 ms) before the next one left: with four bots, the
+        // fourth's reply waited for three trips. In parallel, all the drafts arrive together.
         val slices = coroutineScope {
             live.map { session ->
                 async {
                     val index = next.indexOfFirst { it.id == session.id }
-                    // Une session au travail, ou une dont la réponse est encore suivie.
+                    // A session at work, or one whose reply is still followed.
                     val following = index >= 0 && next[index].finishedAtMillis == null
                     if (session.status !in BUSY_STATUSES && !following) return@async null
                     val since = draftSeen[session.id] ?: 0
@@ -370,7 +370,7 @@ class GroupRoomFeed(
             draft = draft.copy(memberID = memberSessions[session.key])
             val read = draft.read(slice.events)
             draft = read.draft
-            // Lu d'abord après que son début a été lâché (Hermes garde les 512 derniers) : le reste.
+            // Read first after its beginning was released (Hermes keeps the last 512): the rest.
             if (!read.started && first && slice.truncated && draft.text.isNotEmpty()) {
                 draft = draft.copy(text = "…" + draft.text)
             }
@@ -383,15 +383,15 @@ class GroupRoomFeed(
         if (next != _state.value.drafts) _state.update { it.copy(drafts = next) }
     }
 
-    /** À qui est chacune des sessions vivantes de la salle, par le titre de chaque bot chez Hermes. */
+    /** Whose each of the room's live sessions is, by each bot's title at Hermes. */
     private suspend fun findMemberSessions() {
         val last = lookedForMembers
         if (last != null && clock() - last < MEMBER_LOOK) return
         lookedForMembers = clock()
         val room = state.value.room.id
         val members = state.value.room.members
-        // **Les membres se cherchent en parallèle.** Un par un, chaque membre rajoutait un
-        // aller-retour avant que le suivant ne parte ; en parallèle, une seule attente.
+        // **Members are looked up in parallel.** One by one, each member added a
+        // round-trip before the next one left; in parallel, a single wait.
         val found = coroutineScope {
             members.map { member ->
                 async {
@@ -409,7 +409,7 @@ class GroupRoomFeed(
         }
     }
 
-    /** Une salle qu'Hermes Desktop tient : sa copie est relue (Desktop l'écrit un instant après). */
+    /** A room held by Hermes Desktop: its copy is re-read (Desktop writes it an instant later). */
     private suspend fun lookInDesktop() {
         try {
             val current = api.desktopRooms().firstOrNull { it.id == state.value.room.id }
@@ -430,12 +430,12 @@ class GroupRoomFeed(
     }
 
     /**
-     * Ajoute un message de la personne, en route vers la salle : il s'affiche tout de suite, et
-     * reste là tant que le journal ne l'a pas. Rend son identifiant d'événement.
+     * Adds a message from the person, on its way to the room: it is displayed right away, and
+     * stays there as long as the journal does not have it. Returns its event identifier.
      *
-     * L'identifiant peut être **imposé** : une question reconnue par la voix arrive avec le sien
-     * (`GroupAskLedger`), et c'est lui l'`event_id` — une question rejouée par l'écran ne peut donc
-     * pas entrer deux fois dans la salle.
+     * The identifier can be **imposed**: a question recognized by voice arrives with its own
+     * (`GroupAskLedger`), and it is the `event_id` — a question replayed by the screen cannot
+     * therefore enter the room twice.
      */
     fun beginSend(
         text: String,
@@ -450,18 +450,18 @@ class GroupRoomFeed(
     }
 
     /**
-     * **Nomme le meneur de la salle côté serveur** (`groups.lead`), ou le retire (`memberId = null`).
+     * **Names the room's lead on the server side** (`groups.lead`), or removes it (`memberId = null`).
      *
-     * Rend `true` quand le serveur a accepté — il écrit alors un `room.lead_changed` dans le journal,
-     * et la salle interroge ce membre en premier quand personne n'est nommé. Rend `false` quand le
-     * serveur ne connaît pas la route : le réglage reste sur le téléphone, et le journal n'a rien à
-     * relire.
+     * Returns `true` when the server accepted — it then writes a `room.lead_changed` in the journal,
+     * and the room queries this member first when nobody is named. Returns `false` when the
+     * server does not know the route: the setting stays on the phone, and the journal has nothing
+     * to re-read.
      */
     suspend fun nameLead(memberId: String?): Boolean {
-        // Trois âges de serveur, dans l'ordre du plus récent au plus ancien :
-        //   1. `groups.context` + `routing: "lead"` — la forme de l'amont (le meneur distribue) ;
-        //   2. `groups.lead` — la route du lot 5 (le meneur répond en premier) ;
-        //   3. aucune des deux — le réglage reste sur ce téléphone.
+        // Three server ages, from newest to oldest:
+        //   1. `groups.context` + `routing: "lead"` — the upstream form (the lead distributes);
+        //   2. `groups.lead` — the batch 5 route (the lead replies first);
+        //   3. neither — the setting stays on this phone.
         val named = api.leadRouting(state.value.room.id, memberId) ||
             api.nameLead(state.value.room.id, memberId)
         if (named) look()
@@ -469,11 +469,11 @@ class GroupRoomFeed(
     }
 
     /**
-     * **Enregistre un passage de main dans la salle** (`groups.handoff`) : le meneur qui part a
-     * nommé son successeur, la salle le note, et les autres appareils le voient.
+     * **Records a handoff in the room** (`groups.handoff`): the lead who leaves has named its
+     * successor, the room notes it, and the other devices see it.
      *
-     * Rend `false` quand ce serveur ne connaît pas la route — la ligne de journal locale reste
-     * alors la seule trace, exactement comme avant.
+     * Returns `false` when this server does not know the route — the local journal line then
+     * remains the only trace, exactly as before.
      */
     suspend fun handOver(from: String, to: String): Boolean {
         if (from == to) return false
@@ -483,16 +483,16 @@ class GroupRoomFeed(
     }
 
     /**
-     * Dit le message dans la salle (`groups.send`) et relit le journal.
+     * Says the message in the room (`groups.send`) and re-reads the journal.
      *
-     * **Un message ne se perd pas.** Un envoi qui échoue pour une raison passagère (réseau, 5xx,
-     * délai dépassé, erreur interne du serveur) **reste en file** et repart avec des poses
-     * croissantes — toujours sous le **même** `event_id`, si bien qu'un serveur qui avait déjà pris
-     * le message ne le garde qu'une fois. Épuisé, l'échec se **dit** : la bulle reste à l'écran,
-     * marquée, et le problème s'affiche dans la langue de l'app.
+     * **A message is not lost.** A send that fails for a transient reason (network, 5xx,
+     * timeout, internal server error) **stays queued** and goes again with increasing pauses —
+     * always under the **same** `event_id`, so a server that had already taken the message keeps
+     * it only once. Once exhausted, the failure is **stated**: the bubble stays on screen,
+     * marked, and the problem is displayed in the app's language.
      *
-     * Refusé pour de bon par le serveur (une question qui n'attend plus), le message quitte
-     * l'écran et le refus se lit — jamais un message qui disparaît en silence.
+     * Refused for good by the server (a question that no longer waits), the message leaves
+     * the screen and the refusal is read — never a message that disappears silently.
      */
     suspend fun deliver(id: String, said: String) {
         _state.update { state ->
@@ -520,7 +520,7 @@ class GroupRoomFeed(
                         "salle (${state.value.room.name}): envoi en échec ($attempt/${sendBackoffMs.size}), " +
                             "reprise dans ${wait} ms — $id",
                     )
-                    // Le message reste dans la file **et** à l'écran : il n'a pas disparu.
+                    // The message stays in the queue **and** on screen: it has not disappeared.
                     _state.update { current ->
                         current.copy(
                             sending = current.sending.map { pending ->
@@ -535,11 +535,11 @@ class GroupRoomFeed(
     }
 
     /**
-     * Un message qui n'a pas pu partir (pièce jointe refusée, réseau mort, refus du serveur).
+     * A message that could not leave (attachment refused, dead network, server refusal).
      *
-     * Un refus **définitif** garde le message à l'écran, marqué : il ne s'évapore pas. Un refus de
-     * « question qui n'attend plus » (5118/5119) le retire, comme le fil du chat, parce que la
-     * salle l'a déjà traité ailleurs.
+     * A **definitive** refusal keeps the message on screen, marked: it does not evaporate. A
+     * "question that no longer waits" refusal (5118/5119) removes it, like the chat thread does,
+     * because the room has already handled it elsewhere.
      */
     fun failSend(id: String, error: Exception) {
         val reason = reason(error)
@@ -567,16 +567,16 @@ class GroupRoomFeed(
         VoiceDiagnostics.note("salle (${state.value.room.name}): envoi perdu — $reason")
     }
 
-    /** Ce que le serveur a refusé, à l'écran, tel quel (un renommage, une suppression de salle). */
+    /** What the server refused, on screen, as is (a rename, a room deletion). */
     fun report(error: Exception) = fail(error)
 
     /**
-     * Une question reconnue entre dans la salle, **une seule fois**.
+     * A recognized question enters the room, **only once**.
      *
-     * C'est le chemin de la voix : `askId` est l'identifiant que lui a donné `GroupAskLedger`, et
-     * il sert d'`event_id`. Une question rejouée (l'écran se recompose, la phase repasse, le moteur
-     * rend sa transcription une fois de plus) porte le même identifiant et n'entre donc pas deux
-     * fois : la file d'envoi la refuse, en le journalisant.
+     * This is the voice path: `askId` is the identifier given to it by `GroupAskLedger`, and it
+     * serves as the `event_id`. A replayed question (the screen recomposes, the phase restarts,
+     * the engine returns its transcript one more time) carries the same identifier and therefore
+     * does not enter twice: the send queue refuses it, while logging it.
      */
     suspend fun ask(question: String, askId: String) {
         val clean = question.trim()
@@ -589,7 +589,7 @@ class GroupRoomFeed(
         deliver(askId, clean)
     }
 
-    /** Arrête les bots de la salle (`groups.stop`). */
+    /** Stops the room's bots (`groups.stop`). */
     suspend fun stop() {
         try {
             api.stop(state.value.room.id)
@@ -599,19 +599,19 @@ class GroupRoomFeed(
         }
     }
 
-    /** Relance une réponse arrêtée à mi-chemin (`groups.retry`). */
+    /** Restarts a reply stopped halfway (`groups.retry`). */
     suspend fun retry(task: String) {
         settle(task) { api.retry(state.value.room.id, task) }
     }
 
-    /** Répond à la commande d'un bot (« once » ou « deny »). */
+    /** Answers a bot's command ("once" or "deny"). */
     suspend fun answer(approval: GroupApproval, choice: String) {
         settle(approval.id) { api.approve(state.value.room.id, approval, choice) }
     }
 
     /**
-     * Répond à une des questions de la salle, sa carte cachée entre-temps. Refusée comme n'étant
-     * plus en attente (répondue ailleurs — 5119 —, ou expirée), la salle est relue et la carte s'en va.
+     * Answers one of the room's questions, its card hidden meanwhile. Refused as no longer
+     * pending (answered elsewhere — 5119 —, or expired), the room is re-read and the card goes away.
      */
     private suspend fun settle(id: String, call: suspend () -> Unit) {
         if (state.value.answering.contains(id)) return
@@ -627,14 +627,14 @@ class GroupRoomFeed(
         _state.update { it.copy(answering = it.answering - id) }
     }
 
-    /** Renomme la salle sur le serveur (`groups.rename`). */
+    /** Renames the room on the server (`groups.rename`). */
     suspend fun rename(to: String) {
         api.rename(state.value.room.id, to)
         _state.update { it.copy(room = it.room.copy(name = to)) }
         look()
     }
 
-    /** Le bot dont c'est la tâche, par le journal de la salle (la fin d'un tour le nomme). */
+    /** The bot whose task this is, from the room's journal (the end of a turn names it). */
     fun memberForTask(task: String): String? =
         state.value.events.lastOrNull { it.payload["task_id"] != null && it.actorID != null }
             ?.let { state.value.room.member(it.actorID)?.label }
@@ -651,17 +651,17 @@ class GroupRoomFeed(
         const val IDLE_TICK = 5_000L
         const val KEEP_FINISHED = 20_000L
 
-        /** Le nombre de lignes de journal gardées en mémoire pour l'affichage. */
+        /** The number of journal lines kept in memory for display. */
         const val MAX_EVENTS = 500
         const val MEMBER_LOOK = 5_000L
 
-        /** Une session qui écrit, ou qui vient de commencer. */
+        /** A session that is writing, or that has just started. */
         val BUSY_STATUSES = setOf("working", "starting")
 
-        /** Les codes d'un refus qui n'est pas une panne : la question n'attend plus de réponse. */
+        /** The codes of a refusal that is not a failure: the question no longer awaits an answer. */
         val STALE_CODES = setOf(5118, 5119)
 
-        /** Le journal d'une salle Desktop, comme les entrées que l'écran dessine. */
+        /** A Desktop room's journal, like the entries the screen draws. */
         fun desktopEvents(room: GroupRoom, seqs: MutableMap<String, Int>): List<GroupEvent> =
             room.desktopMessages.map { message ->
                 val seq = seqs[message.key] ?: ((seqs.values.maxOrNull() ?: 0) + 1)

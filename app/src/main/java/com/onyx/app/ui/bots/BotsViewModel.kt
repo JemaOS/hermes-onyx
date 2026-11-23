@@ -39,11 +39,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Le visage choisi pour chaque bot, gardé sur le téléphone.
+ * The face chosen for each bot, kept on the phone.
  *
- * référence écrit le visage sur le serveur (`profiles.configure`, en WebSocket). Ce port n'a pas ce
- * canal : le choix reste donc sur l'appareil — le visage est le même partout où Onyx tourne sur
- * ce téléphone, mais pas sur un autre.
+ * the reference writes the face to the server (`profiles.configure`, over WebSocket). This port does
+ * not have that channel: the choice therefore stays on the device — the face is the same anywhere Onyx runs on
+ * this phone, but not on another one.
  */
 class BotFaceStore(context: Context) {
 
@@ -51,9 +51,9 @@ class BotFaceStore(context: Context) {
         .getSharedPreferences(FaceKeys.FILE, Context.MODE_PRIVATE)
 
     /**
-     * Les clés de ce magasin vivent dans [FaceKeys] : c'est le même plan que lit le report d'un
-     * renommage de profil ([com.onyx.app.data.local.ProfileStateMigration]), une seule source de
-     * vérité pour ce que le téléphone garde **par nom de profil**.
+     * This store's keys live in [FaceKeys]: it is the same map that a profile rename migration reads
+     * ([com.onyx.app.data.local.ProfileStateMigration]), a single source of truth for what the phone keeps
+     * **per profile name**.
      */
     fun faceOf(bot: String): String? = prefs.getString(FaceKeys.face(bot), null)
 
@@ -64,9 +64,9 @@ class BotFaceStore(context: Context) {
     }
 
     /*
-     * Ce qu'on écrit d'un bot depuis l'éditeur. référence l'écrit sur le serveur (`profiles.configure`,
-     * WebSocket) ; ce port n'a pas ce canal, donc ces valeurs restent sur ce téléphone — comme le
-     * visage.
+     * What we write about a bot from the editor. The reference writes it to the server (`profiles.configure`,
+     * WebSocket); this port does not have that channel, so these values stay on this phone — like the
+     * face.
      */
     fun titleOf(bot: String): String? = prefs.getString(FaceKeys.title(bot), null)
 
@@ -77,9 +77,9 @@ class BotFaceStore(context: Context) {
     fun isShown(bot: String): Boolean = prefs.getBoolean(FaceKeys.shown(bot), true)
 
     /**
-     * Un choix de visibilité fait **ici**, qui prime sur ce que le serveur dit du bot : `true`
-     * caché, `false` montré, `null` quand le serveur décide. C'est la voie de l'écran « Hidden
-     * Bots » sans Dashboard, où rien d'autre ne peut faire disparaître un bot.
+     * A visibility choice made **here**, which takes precedence over what the server says about the bot: `true`
+     * hidden, `false` shown, `null` when the server decides. This is the path of the "Hidden
+     * Bots" screen without a Dashboard, where nothing else can make a bot disappear.
      */
     fun hideOverride(bot: String): Boolean? =
         if (!prefs.contains(FaceKeys.hideOverride(bot))) null else prefs.getBoolean(FaceKeys.hideOverride(bot), false)
@@ -92,9 +92,9 @@ class BotFaceStore(context: Context) {
     }
 
     /**
-     * « Épingler en haut » fait **ici**, qui prime sur le `ui_meta` du serveur : `true` épinglé,
-     * `false` détaché, `null` quand le serveur décide. Même plan que [hideOverride] — c'est ce qui
-     * garde le choix **hors ligne**, et ce que la liste relit à chaque lancement.
+     * "Pin to top" ("Épingler en haut") done **here**, which takes precedence over the server's `ui_meta`: `true` pinned,
+     * `false` unpinned, `null` when the server decides. Same map as [hideOverride] — this is what
+     * keeps the choice **offline**, and what the list rereads on each launch.
      */
     fun pinOverride(bot: String): Boolean? =
         if (!prefs.contains(FaceKeys.pinOverride(bot))) null else prefs.getBoolean(FaceKeys.pinOverride(bot), false)
@@ -106,7 +106,7 @@ class BotFaceStore(context: Context) {
             .apply()
     }
 
-    /** Efface tout ce que ce téléphone garde des bots : visages, titres, profils ajoutés. */
+    /** Erases everything this phone keeps about bots: faces, titles, added profiles. */
     fun clearAll() {
         prefs.edit().clear().apply()
     }
@@ -122,16 +122,16 @@ class BotFaceStore(context: Context) {
             .apply()
     }
 
-    /** Les profils ajoutés à la main (sans Dashboard pour lister le serveur). */
+    /** The profiles added by hand (without a Dashboard to list the server). */
     fun localBots(): List<String> =
         prefs.getString(FaceKeys.API_BOTS, "").orEmpty().split(FaceKeys.SEPARATOR).filter { it.isNotBlank() }
 
     /**
-     * Oublie tout ce qu'on avait écrit d'un bot : son visage, son titre, sa phrase, son modèle et
-     * sa visibilité.
+     * Forgets everything we had written about a bot: its face, its title, its sentence, its model and
+     * its visibility.
      *
-     * Sans ça, un bot supprimé puis refait sous le même nom reprendrait les mots d'avant —
-     * l'éditeur de la référence n'a pas ce problème, tout vivant sur le serveur supprimé avec lui.
+     * Without this, a bot deleted then remade under the same name would take back the old words —
+     * the reference editor does not have this problem, everything living on the server deleted with it.
      */
     fun forget(bot: String) {
         val bots = localBots().toMutableList()
@@ -154,66 +154,66 @@ class BotFaceStore(context: Context) {
         if (title.isNotBlank()) prefs.edit().putString(FaceKeys.title(profile), title).apply()
     }
 
-    /** Le bot tel que l'éditeur l'a laissé : son titre, sa phrase, son modèle, sa visibilité. */
+    /** The bot as the editor left it: its title, its sentence, its model, its visibility. */
     fun edited(bot: BotProfile): BotProfile = bot.copy(
         title = titleOf(bot.name) ?: bot.title,
         description = aboutOf(bot.name) ?: bot.description,
         model = modelOf(bot.name) ?: bot.model,
-        // Un choix fait dans « Hidden Bots » prime sur le `ui_meta` du serveur.
+        // A choice made in "Hidden Bots" takes precedence over the server's `ui_meta`.
         isHidden = hideOverride(bot.name) ?: (!isShown(bot.name) || bot.isHidden),
-        // « Pin to top » : même règle, même plan — le choix du téléphone prime sur le `ui_meta`.
+        // "Pin to top": same rule, same map — the phone's choice takes precedence over `ui_meta`.
         pinned = pinOverride(bot.name) ?: bot.pinned,
     )
 }
 
 data class BotsUiState(
     val bots: List<BotProfile> = emptyList(),
-    /** Les bots cachés, hors profil principal : l'écran « Hidden Bots » les montre. */
+    /** The hidden bots, excluding the main profile: the "Hidden Bots" screen shows them. */
     val hidden: List<BotProfile> = emptyList(),
     val faces: Map<String, String> = emptyMap(),
     val loading: Boolean = true,
     val problem: String? = null,
     /**
-     * Les salles du serveur, sous la grille : celles qu'Hermes héberge (`groups.list`) et celles
-     * qu'Hermes Desktop tient de son côté (sa copie), dans l'ordre de la section.
+     * The server's rooms, below the grid: those Hermes hosts (`groups.list`) and those
+     * Hermes Desktop keeps on its side (its copy), in the order of the section.
      */
     val groups: List<GroupChat> = emptyList(),
-    /** Ce Dashboard sait tenir une salle, et peut en ouvrir une maintenant. */
+    /** This Dashboard knows how to host a room, and can open one now. */
     val groupsSupported: Boolean = false,
     val groupsWritable: Boolean = false,
-    /** Les bots cachés — ici ou dans Hermes Desktop —, à montrer de nouveau (tuile « Hidden »). */
+    /** The hidden bots — here or in Hermes Desktop —, to be shown again (the "Hidden" tile). */
     val hiddenBots: List<BotProfile> = emptyList(),
-    /** L'ordre mis à la main (« Reorder Bots »), vide quand la section suit le plus récent. */
+    /** The order set by hand ("Reorder Bots"), empty when the section follows the most recent. */
     val order: List<String> = emptyList(),
-    /** Les lignes de la section, dans cet ordre (bots et salles mêlés : `BotListItem`). */
+    /** The section's rows, in that order (bots and rooms mixed: `BotListItem`). */
     val arranged: List<BotListItem> = emptyList(),
-    /** Ce que le serveur dit vivant, par id de conversation (`session.active_list`). */
+    /** What the server reports as live, per conversation id (`session.active_list`). */
     val liveKinds: Map<String, ActivityKind> = emptyMap(),
-    /** Ce que le serveur dit vivant dans une salle, par id de salle. */
+    /** What the server reports as live in a room, per room id. */
     val roomKinds: Map<String, ActivityKind> = emptyMap(),
-    /** Ce que ce téléphone a vu de chaque ligne (`bot:<profil>` / `room:<salle>`). */
+    /** What this phone has seen of each row (`bot:<profile>` / `room:<room>`). */
     val seenMarks: Map<String, Double?> = emptyMap(),
 )
 
 /**
- * Les bots du serveur.
+ * The server's bots.
  *
- * Miroir de la section « Bots » de `ConversationsView` et de `BotEditor` : les profils Hermes,
- * leur visage, leur prompt (leur `SOUL.md`) et leurs horaires — plus, comme la référence :
- * - les **salles** du serveur (`GroupDirectory.refresh`) ;
- * - l'**activité** que le Dashboard signale (`ChatActivity.kind(of:)` sur `session.active_list`) ;
- * - l'**ordre** de la section (« Reorder Bots ») et les bots **cachés**.
+ * Mirror of the "Bots" section ("Bots") of `ConversationsView` and of `BotEditor`: the Hermes profiles,
+ * their face, their prompt (their `SOUL.md`) and their schedules — plus, like the reference:
+ * - the server's **rooms** (`GroupDirectory.refresh`);
+ * - the **activity** the Dashboard reports (`ChatActivity.kind(of:)` on `session.active_list`);
+ * - the section's **order** ("Reorder Bots") and the **hidden** bots.
  */
 class BotsViewModel(
     config: ServerConfig,
     private val faces: BotFaceStore,
     private val activity: BotActivityStore,
-    /** Les salles gardées sur ce téléphone : un « New Group Chat » fait sans Dashboard. */
+    /** The rooms kept on this phone: a "New Group Chat" made without a Dashboard. */
     private val groupRooms: GroupRoomStore,
     /**
-     * Le dernier roster réussi, gardé sur ce téléphone. Il **précède** le réseau d'une frame : sans
-     * lui, au redémarrage, la liste est vide quand l'écran se dessine, et la conversation ouverte
-     * s'affichait en Onyx (visage bleu, « @default ») avant de sauter sur son vrai bot.
+     * The last successful roster, kept on this phone. It **precedes** the network by one frame: without
+     * it, on restart, the list is empty when the screen draws, and the open conversation
+     * showed up as Onyx (blue face, "@default") before jumping to its real bot.
      */
     private val roster: BotRosterCache,
 ) : ViewModel() {
@@ -222,9 +222,9 @@ class BotsViewModel(
     private var profiles = ServeProfilesApi(ServeClient(config))
 
     /**
-     * Relie le modèle à la configuration courante quand l'adresse du serveur change : sans ça,
-     * « Réessayer » rejouait l'ancien client (et donc l'ancienne erreur « Unable to resolve
-     * host ») alors que la nouvelle adresse répondait déjà.
+     * Rebinds the model to the current configuration when the server address changes: without that,
+     * "Retry" ("Réessayer") replayed the old client (and therefore the old "Unable to resolve
+     * host" error) while the new address was already responding.
      */
     fun rebind(newConfig: ServerConfig) {
         if (newConfig.configSignature == config.configSignature) return
@@ -234,12 +234,12 @@ class BotsViewModel(
     }
 
     /**
-     * La portée du roster gardé : **le serveur**, pas la configuration entière.
+     * The scope of the kept roster: **the server**, not the whole configuration.
      *
-     * Le roster dit qui sont les bots d'un serveur — les mêmes, quel que soit le modèle qui les
-     * sert. La clé est donc [ServerConfig.rosterScope], et non la signature entière : avec celle-ci,
-     * choisir un modèle faisait perdre le roster, et l'écran retombait sur Onyx (visage bleu) le
-     * temps que le réseau réponde.
+     * The roster says who a server's bots are — the same ones, whatever model serves
+     * them. The key is therefore [ServerConfig.rosterScope], and not the whole signature: with that one,
+     * choosing a model made the roster lost, and the screen fell back to Onyx (blue face)
+     * while the network answered.
      */
     private val serverKey: String get() = config.rosterScope
 
@@ -247,44 +247,44 @@ class BotsViewModel(
     val state: StateFlow<BotsUiState> = _state.asStateFlow()
 
     /**
-     * Les photos des bots avec « Pictures from Hermes » allumé, par nom de profil **et** par
-     * libellé (les écrans passent l'un ou l'autre à `BotAvatar`, comme `BotFace.picture` de la référence
-     * suit la face et non le nom affiché).
+     * The pictures of bots with "Pictures from Hermes" turned on, by profile name **and** by
+     * label (screens pass one or the other to `BotAvatar`, just as the reference's `BotFace.picture`
+     * follows the face and not the displayed name).
      */
     private val _pictures = MutableStateFlow<Map<String, ImageBitmap>>(emptyMap())
     val pictures: StateFlow<Map<String, ImageBitmap>> = _pictures.asStateFlow()
 
-    /** Les profils dont la photo a déjà été demandée cette session. */
+    /** The profiles whose picture has already been requested this session. */
     private val askedPictures = mutableSetOf<String>()
 
-    /** Le roster brut du serveur : les codes résolus ne sont jamais réinjectés comme des choix. */
+    /** The server's raw roster: resolved codes are never reinjected as choices. */
     private var sourceBots: List<BotProfile> = emptyList()
 
-    /** Le bot dont on vient de demander l'affichage dans « Hidden Bots ». */
+    /** The bot whose display we just requested in "Hidden Bots". */
     private val _showing = MutableStateFlow<String?>(null)
     val showing: StateFlow<String?> = _showing.asStateFlow()
 
-    /** Ce qui a empêché le serveur de montrer un bot. */
+    /** What prevented the server from showing a bot. */
     private val _showProblem = MutableStateFlow<String?>(null)
     val showProblem: StateFlow<String?> = _showProblem.asStateFlow()
 
-    /** Les bots cachés du serveur, tels qu'il les donne (`ui_meta.hidden`). */
+    /** The server's hidden bots, as it gives them (`ui_meta.hidden`). */
     private var hiddenSource: List<BotProfile> = emptyList()
 
-    /** Les salles lues au dernier passage, avant mise en ordre. */
+    /** The rooms read on the last pass, before ordering. */
     private var sourceRooms: List<GroupRoom> = emptyList()
 
     init {
-        // **Le dernier roster connu tient la première frame.** Sans lui, `bots` est vide quand
-        // l'écran se dessine (le réseau n'a pas répondu), la conversation ouverte ne trouve pas son
-        // bot et l'en-tête montre Onyx — visage bleu, « @default » — avant de sauter. La lecture est
-        // locale et synchrone : elle est là avant toute composition.
+        // **The last known roster holds the first frame.** Without it, `bots` is empty when
+        // the screen draws (the network has not answered), the open conversation cannot find its
+        // bot and the header shows Onyx — blue face, "@default" — before jumping. The read is
+        // local and synchronous: it is there before any composition.
         //
-        // Ce qui est relu n'est pas le roster **brut** du serveur, mais celui qui a été **affiché** :
-        // les visages y sont les visages *effectifs* — ceux que la répartition du roster a
-        // attribués. Le nom seul ne les redonne pas (`forName("coder")` tire une autre palette que
-        // le `coder` d'un roster de six bots), et le code brut du serveur non plus : sans la table
-        // rendue, le bot retrouverait au redémarrage une autre créature que celle d'hier.
+        // What is reread is not the server's **raw** roster, but the one that was **displayed**:
+        // the faces there are the *effective* faces — those the roster's allocation
+        // assigned. The name alone does not give them back (`forName("coder")` draws a different palette than
+        // the `coder` of a six-bot roster), and neither does the server's raw code: without the rendered table,
+        // the bot would find another creature on restart than the one from yesterday.
         val remembered = roster.load(serverKey)
         if (remembered != null) {
             _state.update { it.copy(bots = remembered.bots, faces = remembered.faces, loading = false) }
@@ -297,20 +297,20 @@ class BotsViewModel(
     }
 
     /**
-     * Efface le mot d'un échec, une fois lu.
+     * Erases a failure's words, once read.
      *
-     * C'est celui que la position *Bots* du volet montre (« Aucun nom libre pour la copie. »), et
-     * qu'un appui efface — le même mot que la page « Bots » affiche, à un seul endroit, si bien
-     * qu'un échec ne se dit pas deux fois de deux façons.
+     * This is the one the *Bots* slot of the drawer shows ("No free name for the copy" / "Aucun nom libre pour la copie."), and
+     * that a tap erases — the same words the "Bots" page shows, in a single place, so that
+     * a failure is not said twice in two ways.
      */
     fun dismissProblem() = _state.update { it.copy(problem = null) }
 
     private suspend fun reload() {
         _state.update { it.copy(loading = true, problem = null) }
         try {
-            // Un seul WebSocket `ServeRpc` pour lire à la fois les profils, les salles et
-            // l'activité ; la route REST `profiles.profiles()` ne sert de repli que si le RPC
-            // des profils échoue ou revient vide.
+            // A single `ServeRpc` WebSocket to read the profiles, the rooms and the
+            // activity at once; the REST route `profiles.profiles()` is only a fallback if the profiles
+            // RPC fails or comes back empty.
             val rpc = if (config.hasServeCredentials) ServeRpc(config) else null
             val rpcBots: List<BotProfile>?
             try {
@@ -322,15 +322,15 @@ class BotsViewModel(
                     if (rpcBots == null || fromRest.isNotEmpty()) fromRest else rpcBots
                 }
                 val known = fromServer.map { it.name }.toSet()
-                // Ajoutés à la main (`Add Bot`): sans Dashboard pour lister le serveur, c'est ici
-                // qu'ils vivent — et c'est d'ici qu'ils se retirent (`Remove from Onyx` du menu).
+                // Added by hand (`Add Bot`): without a Dashboard to list the server, this is where
+                // they live — and this is where they are removed from (`Remove from Onyx` in the menu).
                 val extra = faces.localBots()
                     .filterNot { it in known }
                     .map { BotProfile(name = it, title = faces.titleOf(it), isDefault = false, viaAPI = true) }
                 sourceBots = fromServer + extra
-                // Les salles et l'activité sont un supplément : si le Dashboard ne répond pas, le
-                // roster déjà lu doit rester affiché. Sans cette garde, un échec ici effaçait la
-                // liste des bots — l'app paraissait vide alors que le serveur répondait.
+                // The rooms and the activity are an extra: if the Dashboard does not answer, the
+                // roster already read must stay displayed. Without this guard, a failure here erased the
+                // list of bots — the app looked empty while the server was answering.
                 runCatching { readRoomsAndActivity(rpc) }
             } finally {
                 rpc?.close()
@@ -339,8 +339,8 @@ class BotsViewModel(
         } catch (error: CancellationException) {
             throw error
         } catch (error: TransportError) {
-            // L'adresse réellement tentée : sans elle, « Unable to resolve host » ne dit pas
-            // quel serveur a échoué (l'ancien ou le nouveau).
+            // The address actually tried: without it, "Unable to resolve host" does not say
+            // which server failed (the old or the new one).
             val where = config.serveBase.ifBlank { config.baseUrl }.trim()
             val suffix = if (where.isEmpty()) "" else " — $where"
             _state.update { it.copy(loading = false, problem = error.userMessage() + suffix) }
@@ -357,9 +357,9 @@ class BotsViewModel(
     }
 
     /**
-     * Montre un bot caché, comme `HiddenBotsView.show` côté référence : d'abord sur le serveur (le
-     * `ui_meta` du profil, avec la révision lue), puis, quand il n'y a pas de Dashboard pour
-     * l'écrire, ici même.
+     * Shows a hidden bot, like `HiddenBotsView.show` on the reference side: first on the server (the
+     * profile's `ui_meta`, with the revision read), then, when there is no Dashboard to
+     * write it, right here.
      */
     fun showBot(bot: BotProfile) {
         faces.saveEdit(
@@ -374,8 +374,8 @@ class BotsViewModel(
     }
 
     /**
-     * Le même geste, avec ce que l'écran fait quand le dernier bot caché est montré : il se ferme,
-     * comme le `dismiss()` de la référence.
+     * The same gesture, with what the screen does when the last hidden bot is shown: it closes,
+     * like the reference's `dismiss()`.
      */
     fun showBot(bot: BotProfile, onAllShown: () -> Unit) {
         _showing.value = bot.name
@@ -385,8 +385,8 @@ class BotsViewModel(
                 if (config.hasServeCredentials) {
                     val rpc = ServeRpc(config)
                     try {
-                        // La révision lue accompagne l'écriture — Hermes refuse un `ui_meta`
-                        // changé entre-temps ; sans révision lue, la signature de la référence telle quelle.
+                        // The revision read accompanies the write — Hermes refuses a `ui_meta`
+                        // changed in the meantime; without a revision read, the reference's signature as is.
                         val revision = bot.setUpRevision
                         if (revision > 0) {
                             ServeBotsRpc(rpc).setHidden(bot.name, hidden = false, revision = revision)
@@ -410,13 +410,13 @@ class BotsViewModel(
         }
     }
 
-    /** Republie ce qui est affiché quand seuls les visages ont changé (choix d'un visage). */
+    /** Republishes what is displayed when only the faces changed (choice of a face). */
     private fun publishFaces() = publish()
 
     /**
-     * Récupère les photos des bots qui en ont une dans Hermes Desktop (`profiles.get_asset`),
-     * comme `BotPictures.load` côté référence : une fois par lancement et par profil. Sans Dashboard
-     * joignable, il n'y a rien à faire : les visages restent dessinés.
+     * Fetches the pictures of bots that have one in Hermes Desktop (`profiles.get_asset`),
+     * like `BotPictures.load` on the reference side: once per launch and per profile. Without a reachable
+     * Dashboard, there is nothing to do: the faces stay drawn.
      */
     fun loadPictures() {
         if (!config.hasServeCredentials) return
@@ -429,23 +429,23 @@ class BotsViewModel(
                 val found = mutableMapOf<String, ImageBitmap>()
                 for (bot in targets) {
                     val bytes = runCatching { bots.botPicture(bot.name) }.getOrNull() ?: continue
-                    // **Décodée bornée.** Un avatar de profil arrive en 1024×1024 (4 Mo en
-                    // ARGB_8888) alors que la seule chose qu'on en fait est une tuile de 108 px :
-                    // décodé en pleine résolution et gardé pour la vie du processus, vingt bots
-                    // pesaient ~80 Mo de tas. `BoundedImages` lit l'en-tête, choisit le facteur et
-                    // ne construit jamais l'image entière.
+                    // **Decoded bounded.** A profile avatar arrives at 1024×1024 (4 MB in
+                    // ARGB_8888) while the only thing we do with it is a 108 px tile:
+                    // decoded at full resolution and kept for the life of the process, twenty bots
+                    // weighed ~80 MB of heap. `BoundedImages` reads the header, chooses the factor and
+                    // never builds the whole image.
                     val bitmap = BoundedImages.decodeBytes(bytes, maxPx = AVATAR_PX)
                         ?.asImageBitmap() ?: continue
-                    // Le nom du profil et le libellé affiché mènent à la même photo (deux clés, un
-                    // seul bitmap : une table ne paie que la référence).
+                    // The profile name and the displayed label lead to the same picture (two keys, one
+                    // bitmap: a map only pays for the reference).
                     found[bot.name] = bitmap
                     found[bot.label(config.displayName)] = bitmap
                 }
                 if (found.isNotEmpty()) {
                     _pictures.update { it + found }
-                    // Les tuiles du menu d'appui long portent la photo dès qu'elle est là : la
-                    // section est republiée avec, sinon la tuile resterait à l'initiale du bot
-                    // alors que sa photo est arrivée.
+                    // The long-press menu tiles carry the picture as soon as it is there: the
+                    // section is republished with it, otherwise the tile would stay at the bot's initial
+                    // while its picture has arrived.
                     republishShortcuts()
                 }
             } finally {
@@ -454,14 +454,14 @@ class BotsViewModel(
         }
     }
 
-    /** Le roster par le RPC (`profiles.list`), ou `null` si le Dashboard ne répond pas. */
+    /** The roster through RPC (`profiles.list`), or `null` if the Dashboard does not answer. */
     private suspend fun readBotsByRpc(sharedRpc: ServeRpc? = null): List<BotProfile>? {
         if (!config.hasServeCredentials) return null
         val rpc = sharedRpc ?: ServeRpc(config)
         return try {
             val all = ServeBotsRpc(rpc).profiles()
-            // Les bots cachés d'Hermes Desktop : `BotRoster` les écarte de sa liste, mais la tuile
-            // « Hidden » les compte et les montre.
+            // Hermes Desktop's hidden bots: `BotRoster` leaves them out of its list, but the
+            // "Hidden" tile counts them and shows them.
             hiddenSource = all.filter { it.isHidden && !it.isDefault }
             all.visibleBotProfiles(config.displayName)
         } catch (error: TransportError) {
@@ -472,12 +472,12 @@ class BotsViewModel(
     }
 
     /**
-     * Les salles et l'activité, lues sur le même Dashboard : `groups.capabilities` dit si ce
-     * serveur sait tenir une salle, `groups.list` et la copie d'Hermes Desktop les donnent, et
-     * `session.active_list` dit ce qui travaille en ce moment.
+     * The rooms and the activity, read on the same Dashboard: `groups.capabilities` says whether this
+     * server knows how to host a room, `groups.list` and the Hermes Desktop copy give them, and
+     * `session.active_list` says what is working right now.
      *
-     * Les salles **gardées sur ce téléphone** (un « New Group Chat » fait sans Dashboard) se lisent
-     * toujours, avec ou sans serveur : elles survivent ainsi à une relance, comme celles du serveur.
+     * The rooms **kept on this phone** (a "New Group Chat" made without a Dashboard) are always
+     * read, with or without a server: they therefore survive a relaunch, like the server's ones.
      */
     private suspend fun readRoomsAndActivity(sharedRpc: ServeRpc? = null) {
         val kept = keptRooms()
@@ -508,7 +508,7 @@ class BotsViewModel(
                 )
             }
         } catch (_: TransportError) {
-            // Sans salles ni activité, la grille tient encore ; les pastilles locales aussi.
+            // Without rooms or activity, the grid still holds; so do the local dots.
             sourceRooms = kept
             _state.update { it.copy(groupsSupported = false, groupsWritable = false, liveKinds = emptyMap(), roomKinds = emptyMap()) }
         } finally {
@@ -516,23 +516,23 @@ class BotsViewModel(
         }
     }
 
-    /** Les salles que ce téléphone garde pour cette connexion (`GroupRoomStore`). */
+    /** The rooms this phone keeps for this connection (`GroupRoomStore`). */
     private fun keptRooms(): List<GroupRoom> = groupRooms.rooms(serverKey)
 
     /**
-     * « New Group Chat » : la salle de ces bots, nommée ou non, faite **maintenant**.
+     * "New Group Chat": the room of these bots, named or not, made **now**.
      *
-     * Elle est ouverte sur le serveur quand la connexion porte des identifiants de Dashboard
-     * (`groups.create`, le corps d'appel de la référence) ; sans Dashboard, elle est gardée sur ce
-     * téléphone, avec ses membres, et se retrouve après une relance.
+     * It is opened on the server when the connection carries Dashboard credentials
+     * (`groups.create`, the reference's call body); without a Dashboard, it is kept on this
+     * phone, with its members, and is found again after a relaunch.
      *
-     * Le même nom ne fait jamais deux salles : celle qui est déjà là revient. Un échec rend ce qui
-     * l'a causé et **rien** n'est gardé — jamais une salle à moitié faite, jamais un succès muet.
+     * The same name never makes two rooms: the one already there comes back. A failure returns what
+     * caused it and **nothing** is kept — never a half-made room, never a silent success.
      */
     suspend fun createGroup(
         name: String,
         members: Set<String>,
-        /** Le nom que Onyx donne au profil principal : les membres d'une salle en héritent. */
+        /** The name Onyx gives the main profile: a room's members inherit it. */
         mainName: String = config.displayName.ifBlank { "Onyx" },
     ): GroupCreation {
         val made = createGroupRoom(
@@ -545,48 +545,48 @@ class BotsViewModel(
             members = members,
             mainName = mainName,
         )
-        // La liste se relit : la salle faite y prend sa place, comme si le serveur l'avait servie.
+        // The list is reread: the made room takes its place there, as if the server had served it.
         if (made is GroupCreation.Made) reload()
         return made
     }
 
     /**
-     * La section telle qu'elle doit s'afficher : les bots et les salles dans l'ordre enregistré
-     * (`BotListItem.arranged`), les visages résolus, les bots cachés à part, et ce que ce
-     * téléphone a vu de chaque ligne.
+     * The section as it must be displayed: the bots and the rooms in the recorded order
+     * (`BotListItem.arranged`), the resolved faces, the hidden bots separately, and what this
+     * phone has seen of each row.
      */
     private fun publish() {
         val order = activity.order(serverKey)
-        // Le roster entier, cachés du serveur compris, tel que l'éditeur l'a laissé : les visages
-        // résolus, et le choix de visibilité fait ici qui prime sur le `ui_meta`.
+        // The whole roster, including the server's hidden ones, as the editor left it: the faces
+        // resolved, and the visibility choice made here which takes precedence over `ui_meta`.
         val rosterBots = (sourceBots + hiddenSource).distinctBy { it.name }
         val local = rosterBots.associate { it.name to faces.faceOf(it.name) }
         val resolved = rosterBots.withSwiftFaces(local).map { faces.edited(it) }
         val hidden = resolved.filter { bot -> bot.isHidden && !bot.isDefault }
-        // La section montre les autres, dans l'ordre enregistré, les salles mêlées aux bots.
+        // The section shows the others, in the recorded order, with the rooms mixed in with the bots.
         val arranged = BotListItem.arranged(bots = resolved.filterNot { it.isHidden }, rooms = sourceRooms, order = order)
 
         val visible = arranged.filterIsInstance<BotListItem.Bot>().map { it.profile }
         val codes = resolved.mapNotNull { bot -> bot.faceCode?.let { bot.name to it } }.toMap()
         val groups = arranged.filterIsInstance<BotListItem.Room>().map { roomChat(it.room, visible) }
 
-        // **Le roster affiché se garde, avec les visages effectifs.** C'est lui qui répondra à la
-        // première frame du prochain démarrage, avant que le réseau n'ait rien dit.
+        // **The displayed roster is kept, with the effective faces.** It is the one that will answer the
+        // first frame of the next launch, before the network has said anything.
         //
-        // Ce qui est gardé n'est pas le roster *brut* du serveur, mais celui qui a été **affiché** :
-        // les visages y sont ceux que la répartition du roster a attribués (deux bots ne peuvent
-        // pas avoir la même créature). Le nom seul ne les redonne pas — `forName("coder")` tire la
-        // palette 4 alors que le `coder` d'un roster de six bots porte la palette 6 — et le code
-        // brut du serveur non plus : sans la table rendue, le bot retrouverait au redémarrage une
-        // autre créature que celle d'hier.
+        // What is kept is not the server's *raw* roster, but the one that was **displayed**:
+        // the faces there are those the roster's allocation assigned (two bots cannot
+        // have the same creature). The name alone does not give them back — `forName("coder")` draws
+        // palette 4 while the `coder` of a six-bot roster carries palette 6 — and neither does the
+        // server's raw code: without the rendered table, the bot would find another creature
+        // on restart than the one from yesterday.
         //
-        // La portée est celle de la connexion (comme les salles gardées) : deux serveurs ne se
-        // partagent jamais leurs bots.
+        // The scope is that of the connection (like the kept rooms): two servers never
+        // share their bots.
         roster.save(serverKey, CachedRoster(bots = visible, faces = codes))
 
-        // Les lignes vues pour la première fois comptent comme lues : le premier regard sur la
-        // liste ne l'allume pas entière (`ChatActivity.listed`). Une salle sans marque d'activité
-        // (jamais servie) n'est pas enregistrée.
+        // Rows seen for the first time count as read: the first look at the
+        // list does not light it up entirely (`ChatActivity.listed`). A room without an activity mark
+        // (never served) is not recorded.
         activity.listed(serverKey, visible.map { BotListItem.Bot(it).id to it.lastActive?.toDouble() }, marksWithoutActivity = true)
         activity.listed(serverKey, groups.map { "room:" + it.id to it.activityMark }, marksWithoutActivity = false)
 
@@ -610,13 +610,13 @@ class BotsViewModel(
     }
 
     /**
-     * La **section des bots** du menu qui s'ouvre sur un appui long sur l'icône.
+     * The **bots section** of the menu that opens on a long press of the icon.
      *
-     * Republie un raccourci par bot depuis la liste **réelle** : un bot qui apparaît reçoit sa
-     * tuile, un bot qui disparaît perd la sienne, un bot renommé ou recoloré change de raccourci.
-     * La règle de sélection (favoris, puis les plus récents, puis l'ordre du serveur) et les
-     * bornes de la plateforme sont tenues dans [RosterShortcuts] ; ici, il n'y a que le
-     * branchement sur la section.
+     * Republishes one shortcut per bot from the **real** list: a bot that appears receives its
+     * tile, a bot that disappears loses its own, a renamed or recolored bot changes shortcut.
+     * The selection rule (favorites, then the most recent, then the server order) and the
+     * platform's bounds are held in [RosterShortcuts]; here, there is only the
+     * wiring to the section.
      */
     private var lastShortcutsSignature: Int = 0
 
@@ -642,37 +642,37 @@ class BotsViewModel(
                     order = state.order,
                     mainName = mainName,
                     pictures = pictures,
-                    // La table du roster : la tuile ne relit pas le magasin local pour dessiner.
+                    // The roster's map: the tile does not reread the local store to draw.
                     faceResolver = BotFaceResolver.of(state.faces),
                 )
             }
         }
     }
 
-    /** Les pastilles de la section : le serveur pour l'activité, ce téléphone pour le non-lu. */
+    /** The section's dots: the server for the activity, this phone for unread. */
     fun badges(): BotBadges = BotBadges(
         liveKinds = _state.value.liveKinds,
         roomKinds = _state.value.roomKinds,
         seenMarks = _state.value.seenMarks,
     )
 
-    /** Ajoute un bot nommé à la main, puis relit la liste. */
+    /** Adds a bot named by hand, then rereads the list. */
     fun addLocalBot(profile: String, title: String) {
         faces.addLocalBot(profile, title)
         refresh()
     }
 
     /**
-     * Le modèle qu'un bot emploiera : le choix fait **ici** (la feuille de modèle écrit
-     * `FaceKeys.model` par bot), sinon celui que le roster porte du serveur, sinon `null`.
+     * The model a bot will use: the choice made **here** (the model sheet writes
+     * `FaceKeys.model` per bot), otherwise the one the roster carries from the server, otherwise `null`.
      *
-     * C'est la résolution déjà employée par les autres lectures du modèle d'un bot ([BotFaceStore] :
-     * « le choix local prime sur ce que le serveur dit »). Publique parce que l'écran de chat en a
-     * besoin : c'est ce nom qui alimente la source unique du modèle en vigueur côté conversation.
+     * This is the resolution already used by the other reads of a bot's model ([BotFaceStore]:
+     * "the local choice takes precedence over what the server says"). Public because the chat screen needs it:
+     * this is the name that feeds the single source of the model in force on the conversation side.
      */
     fun modelOf(bot: BotProfile): String? = faces.modelOf(bot.name) ?: bot.model
 
-    /** Change le modèle d'un bot : sur le serveur quand c'est possible, ici sinon. */
+    /** Changes a bot's model: on the server when possible, here otherwise. */
     fun setModel(bot: BotProfile, model: String?, provider: String? = null) {
         if (config.hasServeCredentials) {
             viewModelScope.launch {
@@ -695,17 +695,17 @@ class BotsViewModel(
 
 
     fun setFace(bot: BotProfile, code: String?) {
-        // Le visage part sur le serveur quand le Dashboard est joignable ; sinon il reste ici.
+        // The face goes to the server when the Dashboard is reachable; otherwise it stays here.
         if (config.hasServeCredentials) {
             viewModelScope.launch {
                 try {
                     val rpc = ServeRpc(config)
                     try {
-                        // La révision **du visage** (`ui_meta.onyx`), pas celle des réglages de bot
-                        // (`ui_meta.hermes-bots`) : le serveur les compte à part. Envoyer `0`
-                        // faisait répondre « this bot was just changed elsewhere » — l'écriture
-                        // était refusée, et son échec étant avalé, le serveur gardait l'ancien
-                        // visage : la bouche choisie n'apparaissait jamais dans la scène vocale.
+                        // The revision **of the face** (`ui_meta.onyx`), not that of the bot settings
+                        // (`ui_meta.hermes-bots`): the server counts them separately. Sending `0`
+                        // made it answer "this bot was just changed elsewhere" — the write
+                        // was refused, and its failure being swallowed, the server kept the old
+                        // face: the chosen mouth never appeared in the voice scene.
                         ServeBotsRpc(rpc).setFace(bot.name, code, revision = bot.faceRevision)
                     } finally {
                         rpc.close()
@@ -713,8 +713,8 @@ class BotsViewModel(
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
-                    // Un échec d'écriture se **dit** : sans cela, le geste semblait passer et le
-                    // visage ne changeait jamais.
+                    // A write failure is **said**: without that, the gesture seemed to go through and the
+                    // face never changed.
                     val message = OnyxLocalization.format("Couldn't set that up: %1\$s", error.said())
                     _state.update { it.copy(problem = message) }
                 }
@@ -728,24 +728,24 @@ class BotsViewModel(
     }
 
     /**
-     * Le visage d'un bot, par **la résolution unique** : la table du roster (`state.faces`, sortie
-     * de [withSwiftFaces], choix local et `ui_meta.onyx.face` réunis). Un nom que la table ne
-     * porte pas laisse le nom décider, comme partout — il n'y a pas de second calcul ici.
+     * A bot's face, through **the single resolution**: the roster's map (`state.faces`, output
+     * of [withSwiftFaces], local choice and `ui_meta.onyx.face` together). A name the map does not
+     * carry leaves the name to decide, as everywhere — there is no second computation here.
      */
     fun faceFor(bot: BotProfile): String? =
         BotFaceResolver.of(_state.value.faces).codeOf(bot.name)
 
-    /** Vrai seulement pour un choix enregistré, pas pour la créature calculée du roster. */
+    /** True only for a recorded choice, not for the roster's computed creature. */
     fun hasPickedFace(bot: BotProfile): Boolean =
         faces.faceOf(bot.name) != null || sourceBots.firstOrNull { it.name == bot.name }?.faceCode != null
 
     /**
-     * « Hide » du menu d'une tuile : le bot quitte la liste, ici **et** sur le serveur quand le
-     * Dashboard est joignable.
+     * "Hide" from a tile's menu: the bot leaves the list, here **and** on the server when the
+     * Dashboard is reachable.
      *
-     * Miroir de `hide(_:)` (ConversationsView:878, `changeBot(hidden: true)`), avec la même
-     * écriture que le bouton « Hidden » de l'éditeur (`writeHidden`) et le choix local qui prime
-     * quand le serveur ne répond pas.
+     * Mirror of `hide(_:)` (ConversationsView:878, `changeBot(hidden: true)`), with the same
+     * write as the editor's "Hidden" button (`writeHidden`) and the local choice taking precedence
+     * when the server does not answer.
      */
     fun hideBot(bot: BotProfile) {
         faces.setHideOverride(bot.name, true)
@@ -754,12 +754,12 @@ class BotsViewModel(
     }
 
     /**
-     * « Remove from Onyx » du menu, sur un bot ajouté à la main (`viaAPI`) : il ne reste plus rien
-     * de lui sur ce téléphone — son profil, son visage, ses mots, sa visibilité.
+     * "Remove from Onyx" from the menu, on a bot added by hand (`viaAPI`): nothing of it is left
+     * on this phone — its profile, its face, its words, its visibility.
      *
-     * Miroir de `removeAPIBot(_:)` (ConversationsView:871) : la référence retire le profil de
-     * `settings.apiBotsHere` et sa clé du trousseau ; ici tout ce que Onyx gardait de lui vit dans
-     * `BotFaceStore` (`forget`), et la liste est relue pour qu'il disparaisse.
+     * Mirror of `removeAPIBot(_:)` (ConversationsView:871): the reference removes the profile from
+     * `settings.apiBotsHere` and its key from the keychain; here everything Onyx kept about it lives in
+     * `BotFaceStore` (`forget`), and the list is reread so that it disappears.
      */
     fun removeAPIBot(bot: BotProfile) {
         faces.forget(bot.name)
@@ -768,23 +768,23 @@ class BotsViewModel(
     }
 
     /**
-     * Enregistre ce que l'éditeur a écrit, puis relit la liste telle qu'elle doit s'afficher.
+     * Saves what the editor wrote, then rereads the list as it must be displayed.
      *
-     * **Le nom part sur le serveur.** Il n'était écrit que sur ce téléphone, dans `BotFaceStore` :
-     * l'en-tête du fil le lisait donc, mais tout ce qui vient du roster — la liste des
-     * conversations, la tuile, le Dashboard, les autres appareils — continuait d'afficher l'ancien
-     * nom. C'est le « pas synchro de partout » relevé : on renomme un bot, et seul un écran suit.
+     * **The name goes to the server.** It was only written on this phone, in `BotFaceStore`:
+     * the thread header therefore read it, but everything that comes from the roster — the list of
+     * conversations, the tile, the Dashboard, the other devices — kept displaying the old
+     * name. That is the "not in sync everywhere" that was reported: a bot is renamed, and only one screen follows.
      *
-     * Hermes garde le titre d'un bot dans `ui_meta["hermes-bots"].title`, la même clé que sa
-     * visibilité — donc la révision à annoncer est [BotProfile.setUpRevision], pas celle du visage.
-     * Le local est écrit d'abord : hors ligne, le nom change quand même sur cet appareil.
+     * Hermes keeps a bot's title in `ui_meta["hermes-bots"].title`, the same key as its
+     * visibility — so the revision to announce is [BotProfile.setUpRevision], not the face one.
+     * The local copy is written first: offline, the name changes on this device anyway.
      */
     fun saveEdit(bot: BotProfile, title: String, about: String, model: String?, shown: Boolean) {
         faces.saveEdit(bot.name, title, about, model, shown)
-        // « Hidden » fait partie des réglages d'Hermes Desktop : masquer un bot ici le masque
-        // pour tous les appareils, comme `changeBot(BotChange(hidden:))` dans la référence.
+        // "Hidden" is part of Hermes Desktop's settings: hiding a bot here hides it
+        // for all devices, like `changeBot(BotChange(hidden:))` in the reference.
         writeHidden(bot, hidden = !shown)
-        // Le serveur, ensuite : un refus se dit, sinon le nom semblerait pris partout.
+        // The server, next: a refusal is said, otherwise the name would seem taken everywhere.
         val renomme = title.trim().isNotEmpty() && title.trim() != bot.label()
         val decrit = about.trim().isNotEmpty() && about.trim() != bot.description.trim()
         if ((renomme || decrit) && config.hasServeCredentials) {
@@ -813,13 +813,13 @@ class BotsViewModel(
     }
 
     /**
-     * « Create » d'un bot neuf : le profil naît sur le serveur, avec le visage du modèle choisi.
+     * "Create" of a new bot: the profile is born on the server, with the chosen model's face.
      *
-     * Le visage fait partie de ce que le modèle remplit : il est écrit sur le profil
-     * (`ui_meta.onyx.face`) **et** gardé sur ce téléphone, pour que la rangée le montre dès la
-     * première relecture, même si le serveur n'a pas gardé le `ui_meta`.
+     * The face is part of what the model fills in: it is written on the profile
+     * (`ui_meta.onyx.face`) **and** kept on this phone, so that the row shows it from the
+     * first reread, even if the server did not keep the `ui_meta`.
      *
-     * `null` : c'est fait. Sinon : ce qui l'a empêché, prêt à être montré.
+     * `null`: it is done. Otherwise: what prevented it, ready to be shown.
      */
     suspend fun createBot(
         title: String,
@@ -840,9 +840,9 @@ class BotsViewModel(
                     about = about,
                     soul = soul,
                     faceCode = faceCode,
-                    // « It starts as a copy of {main}'s setup » : le profil principal est la copie
-                    // de départ, et ses bots ne partagent pas ses connexions (`clone_from` les
-                    // laisse de côté, comme la référence).
+                    // "It starts as a copy of {main}'s setup": the main profile is the starting
+                    // copy, and its bots do not share its connections (`clone_from` leaves
+                    // them aside, like the reference).
                     cloneFrom = sourceBots.firstOrNull { it.isDefault }?.name
                         ?: config.hermesProfile.trim().takeIf { it.isNotEmpty() },
                     hidden = hidden,
@@ -860,30 +860,30 @@ class BotsViewModel(
         }
     }
 
-    /** Le prompt d'un bot, c'est son `SOUL.md` : l'éditeur de contexte sait déjà l'ouvrir. */
+    /** A bot's prompt is its `SOUL.md`: the context editor already knows how to open it. */
     fun soulPath(bot: BotProfile): String = ".hermes/SOUL.md"
 
     /**
-     * Supprime un bot sur le serveur — avec lui ses chats, ses mémoires et ses réglages.
+     * Deletes a bot on the server — and with it its chats, its memories and its settings.
      *
-     * Miroir de `BotEditor.delete()` (BotEditor:467) et de `HermesServeClient.deleteBot`
-     * (BotManagement:244) : le profil s'en va par la route REST du Dashboard. Rien n'est
-     * retiré de la liste, et l'écran ne navigue pas, tant que le serveur n'a pas répondu : un
-     * échec laisse le bot tel quel.
+     * Mirror of `BotEditor.delete()` (BotEditor:467) and of `HermesServeClient.deleteBot`
+     * (BotManagement:244): the profile goes away through the Dashboard's REST route. Nothing is
+     * removed from the list, and the screen does not navigate, until the server has answered: a
+     * failure leaves the bot as it is.
      *
-     * `null` : c'est fait. Sinon : ce qui l'a empêché, prêt à être montré.
+     * `null`: it is done. Otherwise: what prevented it, ready to be shown.
      */
     suspend fun deleteBot(bot: BotProfile): String? {
-        // Le profil principal est l'agent de la personne : référence ne le supprime pas non plus.
+        // The main profile is the person's agent: the reference does not delete it either.
         if (bot.isDefault) return OnyxLocalization["The main profile can't be deleted."]
         if (!config.hasServeCredentials) return OnyxLocalization["Needs the Hermes Dashboard"]
         return try {
             profiles.deleteProfile(bot.name)
-            // Ce qu'on avait écrit de lui sur ce téléphone ne doit pas survivre à sa suppression.
+            // What we had written about it on this phone must not survive its deletion.
             faces.forget(bot.name)
             sourceBots = sourceBots.filterNot { it.name == bot.name }
-            // Un bot caché vit dans `hiddenSource` : le supprimer doit aussi le retirer de la
-            // liste des cachés, sans attendre la relecture du serveur.
+            // A hidden bot lives in `hiddenSource`: deleting it must also remove it from the
+            // hidden list, without waiting for the server reread.
             hiddenSource = hiddenSource.filterNot { it.name == bot.name }
             publishFaces()
             null
@@ -895,12 +895,12 @@ class BotsViewModel(
     }
 
     /**
-     * « Let bots message each other » : le profil principal est installé comme un bot du serveur,
-     * ce qui donne à chaque chat de bot l'outil d'écrire aux autres.
+     * "Let bots message each other": the main profile is installed as a server bot,
+     * which gives each bot chat the tool to write to the others.
      *
-     * Miroir de `ConversationsView.letBotsMessageEachOther()` (ConversationsView:889) :
-     * l'erreur remonte au lieu d'être avalée, et la liste est relue pour que la ligne disparaisse
-     * une fois le réglage posé.
+     * Mirror of `ConversationsView.letBotsMessageEachOther()` (ConversationsView:889):
+     * the error is surfaced instead of being swallowed, and the list is reread so that the line disappears
+     * once the setting is in place.
      */
     suspend fun letBotsMessage(): String? {
         if (!config.hasServeCredentials) return OnyxLocalization["Needs the Hermes Dashboard"]
@@ -919,14 +919,14 @@ class BotsViewModel(
             throw error
         } catch (error: Exception) {
             val message = OnyxLocalization.format("Couldn't set that up: %1\$s", error.said())
-            // La liste porte l'échec, comme le `ledgerError` de la référence : la ligne « Try Again » y
-            // est déjà, et rien ne laisse croire que le réglage a été posé.
+            // The list carries the failure, like the reference's `ledgerError`: the "Try Again" row is already
+            // there, and nothing suggests that the setting was applied.
             _state.update { it.copy(problem = message) }
             message
         }
     }
 
-    /** Le texte d'une erreur, tel que l'app le montre ailleurs. */
+    /** An error's text, as the app shows it elsewhere. */
     private fun Exception.said(): String = when (this) {
         is TransportError -> userMessage()
         else -> message ?: OnyxLocalization["Couldn't load the bots"]
@@ -935,8 +935,8 @@ class BotsViewModel(
     // MARK: - Reorder Bots
 
     /**
-     * Une ligne glissée à une autre place : la section garde cet ordre désormais
-     * (`Settings.botOrderHere` côté référence), les lignes qui ne sont pas montrées restant à la fin.
+     * A row dragged to another place: the section keeps this order from now on
+     * (`Settings.botOrderHere` on the reference side), the rows that are not shown staying at the end.
      */
     fun move(from: Int, to: Int) {
         val shown = _state.value.arranged
@@ -945,16 +945,16 @@ class BotsViewModel(
         publish()
     }
 
-    /** « Sort Bots by Recent » : la section revient au plus récent d'abord. */
+    /** "Sort Bots by Recent": the section goes back to most recent first. */
     fun sortByRecent() {
         activity.setOrder(serverKey, emptyList())
         publish()
     }
 
     /**
-     * La visibilité d'un bot part sur le serveur (`profiles.configure`) quand le Dashboard est
-     * joignable — avec la révision lue, Hermes refusant un `ui_meta` changé entre-temps. La liste
-     * locale, elle, suit sans attendre.
+     * A bot's visibility goes to the server (`profiles.configure`) when the Dashboard is
+     * reachable — with the revision read, Hermes refusing a `ui_meta` changed in the meantime. The local
+     * list, for its part, follows without waiting.
      */
     private fun writeHidden(bot: BotProfile, hidden: Boolean) {
         if (!config.hasServeCredentials) return
@@ -970,15 +970,15 @@ class BotsViewModel(
         }
     }
 
-    // MARK: - Épingler, dupliquer, repartir à zéro
+    // MARK: - Pinning, duplicating, starting over
 
     /**
-     * « Épingler en haut » / « Désépingler » : le bot passe en tête de la section, et y reste.
+     * "Pin to top" ("Épingler en haut") / "Unpin" ("Désépingler"): the bot moves to the head of the section, and stays there.
      *
-     * Miroir du `setPinned` de la référence (`BotsViewModel.setPinned` → `changeMeta(bot, "pinned", …)`) :
-     * le choix est écrit **ici** d'abord — c'est ce qui le garde hors ligne et d'un lancement à
-     * l'autre —, puis sur le serveur (`ui_meta["hermes-bots"].pinned`, le même bloc que la
-     * visibilité) quand le Dashboard est joignable, si bien qu'Hermes Desktop le voit aussi.
+     * Mirror of the reference's `setPinned` (`BotsViewModel.setPinned` → `changeMeta(bot, "pinned", …)`):
+     * the choice is written **here** first — that is what keeps it offline and from one launch to
+     * the next —, then on the server (`ui_meta["hermes-bots"].pinned`, the same block as
+     * visibility) when the Dashboard is reachable, so that Hermes Desktop sees it too.
      */
     fun setPinned(bot: BotProfile, pinned: Boolean) {
         faces.setPinOverride(bot.name, pinned)
@@ -986,7 +986,7 @@ class BotsViewModel(
         refresh()
     }
 
-    /** L'épinglage part sur le serveur, avec la révision lue, comme la visibilité. */
+    /** The pinning goes to the server, with the revision read, like visibility. */
     private fun writePinned(bot: BotProfile, pinned: Boolean) {
         if (!config.hasServeCredentials) return
         viewModelScope.launch {
@@ -1002,19 +1002,19 @@ class BotsViewModel(
     }
 
     /**
-     * « Dupliquer » : un second bot, **copie** de celui-ci.
+     * "Duplicate" ("Dupliquer"): a second bot, a **copy** of this one.
      *
-     * Ce qui est copié — exactement ce que `clone_from` copie côté serveur, plus ce que ce
-     * téléphone écrit du bot :
-     *  - **la configuration du profil** : modèle, fournisseur, clés, connexions, jeux d'outils ;
-     *  - **ses compétences, son `SOUL.md` et sa mémoire** (le profil est cloné, pas recréé) ;
-     *  - **son visage** (`ui_meta.onyx.face`, réécrit sur la copie, et gardé ici aussi) ;
-     *  - **son titre** — « <titre> (copie) » —, sa **phrase** et sa **visibilité**.
-     * Ce qui n'est **pas** copié : son chat et l'historique de ses conversations, et l'épinglage
-     * (la copie arrive sans).
+     * What is copied — exactly what `clone_from` copies on the server side, plus what this
+     * phone writes about the bot:
+     *  - **the profile configuration**: model, provider, keys, connections, tool sets;
+     *  - **its skills, its `SOUL.md` and its memory** (the profile is cloned, not recreated);
+     *  - **its face** (`ui_meta.onyx.face`, rewritten on the copy, and kept here too);
+     *  - **its title** — "<title> (copy)" —, its **sentence** and its **visibility**.
+     * What is **not** copied: its chat and the history of its conversations, and the pinning
+     * (the copy arrives without it).
      *
-     * Le nom de la copie est `<profil>-2`, `-3`… le premier libre, comme la référence. Rend `null`
-     * quand c'est fait, sinon ce qui l'a empêché.
+     * The copy's name is `<profile>-2`, `-3`… the first free one, like the reference. Returns `null`
+     * when it is done, otherwise what prevented it.
      */
     suspend fun duplicate(bot: BotProfile): String? {
         if (!config.hasServeCredentials) return OnyxLocalization["Needs the Hermes Dashboard"]
@@ -1040,8 +1040,8 @@ class BotsViewModel(
             } finally {
                 rpc.close()
             }
-            // La copie porte le **même visage** que son original : gardé ici aussi, pour que la
-            // carte le montre dès la première relecture (le `ui_meta` peut ne pas être gardé).
+            // The copy carries the **same face** as its original: kept here too, so that the
+            // card shows it from the first reread (the `ui_meta` may not be kept).
             faces.setFace(name!!, faces.faceOf(bot.name) ?: bot.faceCode)
             refresh()
             null
@@ -1054,20 +1054,20 @@ class BotsViewModel(
         }
     }
 
-    // MARK: - Partager un modèle, et l'ajouter depuis un lien
+    // MARK: - Sharing a model, and adding it from a link
 
     /**
-     * Le lien de « Partager comme modèle » : ce que le serveur sait de ce bot, encodé par
+     * The "Share as model" ("Partager comme modèle") link: what the server knows about this bot, encoded by
      * [BotTemplateShareCodec].
      *
-     * Le prompt est son `SOUL.md` (`api/profiles/{nom}/soul`), les outils et les compétences sont
-     * ceux que le serveur déclare **allumés** pour ce profil — jamais une liste devinée. Une lecture
-     * qui échoue ne casse pas le partage : le lien part avec ce qu'on a, et [BotTemplateOffer]
-     * dit si le prompt y est.
+     * The prompt is its `SOUL.md` (`api/profiles/{name}/soul`), the tools and the skills are
+     * those the server declares **enabled** for this profile — never a guessed list. A read
+     * that fails does not break the share: the link goes out with what we have, and [BotTemplateOffer]
+     * says whether the prompt is in it.
      *
-     * Les refus du codec (un prompt qui contient une adresse ou une clé) reviennent en
-     * [BotTemplateOfferOutcome.Refused] : la feuille du partage les dit, elle ne montre pas un lien
-     * vide.
+     * The codec's refusals (a prompt that contains an address or a key) come back as
+     * [BotTemplateOfferOutcome.Refused]: the share sheet says them, it does not show an empty
+     * link.
      */
     internal suspend fun templateOffer(bot: BotProfile): BotTemplateOfferOutcome {
         if (!config.hasServeCredentials) {
@@ -1108,8 +1108,8 @@ class BotsViewModel(
     }
 
     /**
-     * Le retour d'un ajout partiel, posé sur la liste des bots : ce qui n'a pas été écrit se lit,
-     * plutôt que de disparaître avec la feuille.
+     * The return of a partial add, put on the bots list: what was not written is read,
+     * rather than disappearing with the sheet.
      */
     internal fun reportPartialImport(outcome: BotTemplateImportOutcome.Added) {
         if (outcome.notApplied.isEmpty()) return
@@ -1125,14 +1125,14 @@ class BotsViewModel(
     }
 
     /**
-     * « Ajouter » d'un lien de modèle : le profil naît sur le serveur par **les routes de
-     * l'éditeur de bot** — `profiles.create` (`ServeBotsRpc.createBot`, le même `clone_from` que
-     * « New Bot »), puis ses jeux d'outils (`profiles.configure`), ses compétences
-     * (`api/skills/toggle`) et son modèle par défaut (`profiles.configure`).
+     * "Add" ("Ajouter") of a model link: the profile is born on the server through **the bot
+     * editor's routes** — `profiles.create` (`ServeBotsRpc.createBot`, the same `clone_from` as
+     * "New Bot"), then its tool sets (`profiles.configure`), its skills
+     * (`api/skills/toggle`) and its default model (`profiles.configure`).
      *
-     * Ce qui n'a pas pu être écrit n'est **pas** tu : [BotTemplateImportOutcome.Added.notApplied]
-     * le nomme, et l'écran le montre. Un profil complet n'est donc pas promis à moitié : il est
-     * écrit, ou il est dit.
+     * What could not be written is **not** hidden: [BotTemplateImportOutcome.Added.notApplied]
+     * names it, and the screen shows it. A complete profile is therefore not half promised: it is
+     * written, or it is said.
      */
     internal suspend fun importTemplate(share: BotTemplateShare): BotTemplateImportOutcome {
         if (!config.hasServeCredentials) {
@@ -1152,8 +1152,8 @@ class BotsViewModel(
                     about = share.spec.about,
                     soul = share.spec.soul,
                     faceCode = faceCode,
-                    // Comme « New Bot » : le profil naît copie de l'agent principal, sans hériter
-                    // de ses connexions.
+                    // Like "New Bot": the profile is born as a copy of the main agent, without inheriting
+                    // its connections.
                     cloneFrom = sourceBots.firstOrNull { it.isDefault }?.name
                         ?: config.hermesProfile.trim().takeIf { it.isNotEmpty() },
                     hidden = false,
@@ -1193,8 +1193,8 @@ class BotsViewModel(
                 }
                 if (failed) notApplied += OnyxLocalization["the skills"]
             }
-            // Le visage aussi est gardé ici : la carte le montre dès la première relecture, même
-            // si le serveur n'a pas gardé le `ui_meta`.
+            // The face is kept here too: the card shows it from the first reread, even
+            // if the server did not keep the `ui_meta`.
             faces.setFace(profile, faceCode)
             refresh()
             BotTemplateImportOutcome.Added(profile, notApplied)
@@ -1206,13 +1206,13 @@ class BotsViewModel(
     }
 
     /**
-     * « Repartir à zéro » : **archive** le chat du bot, qui garde tout son historique, puis laisse
-     * une conversation neuve s'ouvrir.
+     * "Start fresh" ("Repartir à zéro"): **archives** the bot's chat, which keeps all of its history, then lets
+     * a fresh conversation open.
      *
-     * Miroir du `startFresh` de la référence (`BotsViewModel.startFresh` → `sessions.setArchived`) :
-     * la même route (`PATCH api/sessions/{id}`), le même effet — l'ancien fil reste dans
-     * l'historique, le bot garde sa mémoire, ses compétences et ses réglages. Rend `null` quand
-     * c'est fait, sinon ce qui l'a empêché.
+     * Mirror of the reference's `startFresh` (`BotsViewModel.startFresh` → `sessions.setArchived`):
+     * the same route (`PATCH api/sessions/{id}`), the same effect — the old thread stays in
+     * the history, the bot keeps its memory, its skills and its settings. Returns `null` when
+     * it is done, otherwise what prevented it.
      */
     suspend fun archiveChat(bot: BotProfile): String? {
         val stored = bot.chatId?.takeIf { it.isNotBlank() } ?: return null
@@ -1235,29 +1235,29 @@ class BotsViewModel(
         }
     }
 
-    // MARK: - Ce qui a été vu
+    // MARK: - What has been seen
 
-    /** Le chat du bot a été ouvert : tout ce qu'il a dit est vu. */
+    /** The bot's chat was opened: everything it said is seen. */
     fun markBotSeen(bot: BotProfile) {
         val mark = bot.lastActive?.let { it / 1000.0 } ?: (System.currentTimeMillis() / 1000.0)
         activity.markSeen(serverKey, BotListItem.Bot(bot).id, mark)
         publishMarks()
     }
 
-    /** « Mark as Unread » sur la tuile d'un bot. */
+    /** "Mark as Unread" on a bot's tile. */
     fun markBotUnread(bot: BotProfile) {
         activity.markUnread(serverKey, BotListItem.Bot(bot).id)
         publishMarks()
     }
 
-    /** Une salle a été regardée jusqu'à son dernier événement. */
+    /** A room was looked at up to its last event. */
     fun markRoomSeen(room: GroupChat) {
         val mark = room.activityMark ?: return
         activity.markSeen(serverKey, "room:" + room.id, mark)
         publishMarks()
     }
 
-    /** « Mark as Unread » sur la rangée d'une salle. */
+    /** "Mark as Unread" on a room's row. */
     fun markRoomUnread(room: GroupChat) {
         activity.markUnread(serverKey, "room:" + room.id)
         publishMarks()
@@ -1271,10 +1271,10 @@ class BotsViewModel(
 
     private companion object {
         /**
-         * La plus grande arête gardée pour la photo d'un bot.
+         * The largest edge kept for a bot's picture.
          *
-         * La tuile du menu d'appui long en dessine 192 px (`BotTileArtwork.SIZE`) : 256 garde la
-         * marge de densité des écrans 3×, et divise par seize la mémoire d'un avatar 1024×1024.
+         * The long-press menu tile draws it at 192 px (`BotTileArtwork.SIZE`): 256 keeps the
+         * density margin of 3× screens, and divides the memory of a 1024×1024 avatar by sixteen.
          */
         const val AVATAR_PX = 256
     }

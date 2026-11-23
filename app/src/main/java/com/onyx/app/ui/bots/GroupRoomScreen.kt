@@ -124,17 +124,17 @@ import com.onyx.app.ui.design.socleShadow
 import kotlinx.coroutines.launch
 
 /**
- * Le fil d'une salle de bots du serveur.
+ * The thread of a server bot room.
  *
- * Port de `GroupChatView` (Echo/Views/GroupChatView:8) : l'en-tête (Conversations, les
- * visages des membres, le nom, le menu de la salle), ce qui a été dit lu du journal de la salle
- * (chaque réponse sous le visage et le nom de son bot), les messages de la personne, les réponses
- * que les bots écrivent à cet instant, l'état de la salle (« The bots are talking… », ce qui attend
- * la personne), et le composer — celui d'une salle Desktop remplacé par la note qui dit où elle se
- * parle.
+ * Port of `GroupChatView` (Echo/Views/GroupChatView:8): the header (Conversations, the
+ * members' faces, the name, the room menu), what has been said read from the room log
+ * (each reply under its bot's face and name), the person's messages, the replies
+ * the bots are writing at that instant, the room state (« The bots are talking… » (the bots are talking), what awaits
+ * the person), and the composer — a Desktop room's replaced by the note that says where it is
+ * spoken.
  *
- * Rien ici ne touche au fil local de l'application (`GroupChatViewModel`) : ce qui est écrit part
- * dans la salle (`groups.send`), et ce qui s'affiche vient de son journal.
+ * Nothing here touches the app's local thread (`GroupChatViewModel`): what is written goes
+ * into the room (`groups.send`), and what is displayed comes from its log.
  */
 @Composable
 fun GroupRoomScreen(
@@ -142,45 +142,45 @@ fun GroupRoomScreen(
     server: ServerConfig,
     onBack: () -> Unit,
     /**
-     * **Le contrôle du volet**, celui d'un fil de bot : un appui replie la liste, un autre la
-     * déplie. La pastille de gauche de la salle ne faisait que revenir en arrière, alors que la
-     * salle vit **dans** le volet.
+     * **The drawer control**, the one of a bot thread: one press collapses the list, another
+     * expands it. The room's left pill only went back, whereas the
+     * room lives **inside** the drawer.
      */
     sidebarToggle: (@Composable () -> Unit)? = null,
     /**
-     * Le crayon de la salle : une **nouvelle conversation de cette salle** (ses membres, son nom).
-     * Fourni, le bouton est dessiné ; sans lui, l'en-tête n'en porte aucun.
+     * The room's pencil: a **new conversation of this room** (its members, its name).
+     * Provided, the button is drawn; without it, the header carries none.
      */
     onNewConversation: (() -> Unit)? = null,
     /**
-     * Le bouton Talk du composer ouvre la scène vocale de la salle : c'est ce fil
-     * (`GroupRoomFeed`) qu'elle lit, donc les réponses du serveur et celui qui parle ; la question
-     * reconnue part par `groups.send` et le Stop rouge par `groups.stop`. Sans cette lambda, aucun
-     * bouton Talk n'est dessiné.
+     * The composer's Talk button opens the room's voice scene: it reads this thread
+     * (`GroupRoomFeed`), hence the server's replies and who is speaking; the recognized
+     * question goes out through `groups.send` and the red Stop through `groups.stop`. Without this lambda, no
+     * Talk button is drawn.
      */
     onOpenVoice: (() -> Unit)? = null,
-    /** La salle a été terminée ici : la liste la laisse partir. */
+    /** The room was ended here: the list lets it go. */
     onEnded: () -> Unit,
     /**
-     * Le modèle IA **d'un membre de la salle**, choisi d'ici : le menu de la salle liste ses bots
-     * (« Bot Models ») et cette lambda ouvre la feuille pour celui qu'on touche. Le choix s'écrit
-     * sur son profil (`profiles.configure`), donc c'est le modèle qu'Hermes lui donne **dans cette
-     * salle** comme dans ses propres conversations. Absente, l'entrée n'est pas dessinée.
+     * The AI model **of a room member**, chosen from here: the room menu lists its bots
+     * (« Bot Models » (Bot Models)) and this lambda opens the sheet for the one touched. The choice is written
+     * to its profile (`profiles.configure`), so it is the model Hermes gives it **in this
+     * room** as in its own conversations. Absent, the entry is not drawn.
      */
     onPickBotModel: ((String) -> Unit)? = null,
     speechLocale: String = SpeechEngine.DEFAULT_LOCALE,
     focusComposer: Boolean = false,
     onComposerFocused: () -> Unit = {},
     /**
-     * Le visage des membres, résolu par la **même** fonction que la liste ([BotFaceResolver]) :
-     * l'en-tête, les grands visages de la salle, les réponses, les brouillons et les mentions `@`
-     * la lisent, donc un membre montre ici exactement le visage de son profil. Absent, les noms
-     * décident seuls — jamais un tirage : le même visage à chaque ouverture.
+     * The members' face, resolved by the **same** function as the list ([BotFaceResolver]):
+     * the header, the room's large faces, the replies, the drafts and the `@` mentions
+     * read it, so a member shows here exactly the face of its profile. Absent, the names
+     * decide alone — never a random draw: the same face on every opening.
      */
     faceResolver: BotFaceResolver = BotFaceResolver.none,
     /**
-     * Ouvre un fichier échangé **dans ce salon** (l'onglet Fichiers), avec le lecteur de sa famille :
-     * la route est celle d'une conversation, donc un fichier de salle s'ouvre comme un fichier de bot.
+     * Opens a file exchanged **in this room** (the Files tab), with the viewer of its family:
+     * the route is the one of a conversation, so a room file opens like a bot file.
      */
     onOpenFile: (android.net.Uri, String, String) -> Unit,
     modifier: Modifier = Modifier,
@@ -188,8 +188,8 @@ fun GroupRoomScreen(
 ) {
     val theme = LocalOnyxTheme.current
     val state by viewModel.state.collectAsStateWithLifecycle()
-    // **Le meneur de la salle** : un destinataire par défaut, gardé sur ce téléphone. Le menu le
-    // coche, et l'envoi le lit — sans meneur, la salle se comporte exactement comme avant.
+    // **The room's lead**: a default recipient, kept on this phone. The menu
+    // checks it, and sending reads it — without a lead, the room behaves exactly as before.
     val lead by viewModel.lead.collectAsStateWithLifecycle()
     val room = state.room
     val listState = rememberLazyListState()
@@ -197,15 +197,15 @@ fun GroupRoomScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
     val mutes = remember(context) { Mutes(context) }
-    // Le visage des membres : la **même** résolution que la liste (`BotFaceResolver`), jamais une
-    // lecture à part du choix local — c'est ce qui faisait diverger la salle de la liste.
+    // The members' face: the **same** resolution as the list (`BotFaceResolver`), never a
+    // separate read of the local choice — that is what made the room diverge from the list.
     val face: (String) -> String? = faceResolver::codeOf
-    // Et la scène vocale de cette salle lit la **même** table : le fil vocal et l'orbe dessinent
-    // donc le visage du salon, jamais une créature déduite du nom.
+    // And this room's voice scene reads the **same** table: the voice thread and the orb therefore
+    // draw the room's face, never a creature inferred from the name.
     LaunchedEffect(faceResolver) { viewModel.useFaces(faceResolver::codeOf) }
 
-    // ---- Les onglets du bas : la même barre qu'une conversation à un bot. ----
-    // L'onglet choisi est gardé **par salle** (`ChatPanelStore`) : chaque salon rouvre le sien.
+    // ---- The bottom tabs: the same bar as a one-bot conversation. ----
+    // The chosen tab is kept **per room** (`ChatPanelStore`): each room reopens its own.
     val panels = remember(context) { ChatPanelStore(context) }
     val panelKey = "room:" + room.id
     val pagerState = rememberPagerState(
@@ -213,15 +213,15 @@ fun GroupRoomScreen(
         pageCount = { chatTabCount },
     )
     val scope = rememberCoroutineScope()
-    // ---- Le repère-visage de la salle : il fait DÉFILER les visages de ses membres ----
-    // La demande du propriétaire, devant la capture d'un groupe : « faire passer le visage de un bot
-    // par un bot avec un temps pour passer à l'autre : 8 secondes ». Chaque membre de la salle est
-    // donc un visage de la file ([TabFaceCycle.PeriodMs] chacun, en boucle), et l'index montré vient
-    // d'**une seule** boucle ([rememberTabFaceCycleIndex]) — c'est lui qui donne **aussi** la teinte,
-    // si bien que le repère ne peut pas montrer un bot sous la couleur d'un autre.
+    // ---- The room's face marker: it CYCLES the faces of its members ----
+    // The owner's request, looking at a group screenshot: « faire passer le visage de un bot
+    // par un bot avec un temps pour passer à l'autre : 8 secondes » (show each bot's face one after another, 8 seconds apart).
+    // Each room member is therefore a face of the queue ([TabFaceCycle.PeriodMs] each, in a loop), and the shown index comes
+    // from **a single** loop ([rememberTabFaceCycleIndex]) — it is the one that **also** gives the tint,
+    // so the marker cannot show one bot in another's color.
     //
-    // Une salle à moins de deux membres ne défile pas : `count <= 1` tient l'index à zéro et le
-    // repère garde son visage unique. C'est la règle, pas un cas particulier ajouté ici.
+    // A room with fewer than two members does not cycle: `count <= 1` holds the index at zero and the
+    // marker keeps its single face. That is the rule, not a special case added here.
     val roomMembers = room.members
     val faceCycleIndex = rememberTabFaceCycleIndex(roomMembers.size)
     val faceCycleFaces = remember(roomMembers, faceResolver, theme) {
@@ -239,14 +239,14 @@ fun GroupRoomScreen(
             )
         }
     }
-    // La teinte de la salle suit le visage montré (l'accent des onglets, du flux et des fichiers) :
-    // c'est `botFaceColour` de ce bot, donc l'identité ne se contredit pas. Sans membres, l'accent
-    // du thème reste — une salle vide n'a pas de visage à teinter.
+    // The room's tint follows the shown face (the accent of the tabs, the feed and the files):
+    // it is this bot's `botFaceColour`, so the identity does not contradict itself. Without members, the theme's
+    // accent remains — an empty room has no face to tint.
     val tabAccent = faceCycleFaces.getOrNull(faceCycleIndex)?.accent ?: theme.accent
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
     var feedFeedback by remember(panelKey) { mutableStateOf(panels.feedbackFor(panelKey)) }
-    // Le sujet qu'un « Discuter » du flux écrit dans le champ : le brouillon vit dans le
-    // compositeur, la salle ne fait que lui passer le sujet **une fois**.
+    // The subject a feed « Discuss » writes into the field: the draft lives in the
+    // composer, the room only passes it the subject **once**.
     var pendingDraft by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pagerState, panelKey) {
@@ -264,7 +264,7 @@ fun GroupRoomScreen(
     var findOpen by remember { mutableStateOf(false) }
     var findText by remember { mutableStateOf("") }
     var findIndex by remember { mutableStateOf(0) }
-    /** Le premier message montré, par son numéro dans le journal (`shownFrom` de la référence). */
+    /** The first message shown, by its number in the log (`shownFrom` of the reference). */
     var shownFrom by remember { mutableStateOf<Int?>(null) }
 
     val rows = state.rows
@@ -272,17 +272,17 @@ fun GroupRoomScreen(
     val matches = remember(rows, findText, findOpen) { roomMatches(rows, findOpen, findText) }
     val current = matches.getOrNull(findIndex.coerceIn(0, (matches.size - 1).coerceAtLeast(0)))
 
-    // Le journal de la salle, lu comme des messages : le flux et l'onglet Fichiers lisent le
-    // **même** journal que le fil — donc chaque salon garde SES fichiers.
+    // The room's log, read as messages: the feed and the Files tab read the
+    // **same** log as the thread — so each room keeps ITS files.
     val roomMessages = remember(rows, room.members) { roomThreadMessages(rows, room.members) }
     val feedCards = remember(roomMessages, room.name) {
         ChatFeed.cards(roomMessages.map { it.copy(text = AttachedFileNote.strip(it.text)) }, room.name)
     }
     val roomFiles = remember(roomMessages) { ChatFiles.conversationFiles(roomMessages) }
 
-    // Le fil est suivi tant que l'écran est ouvert et que l'application est devant, comme le
-    // `task(id: scenePhase == .active)` de la référence : le journal et les réponses en cours sont relus
-    // une fois par seconde pendant que les bots parlent, et toutes les cinq secondes sinon.
+    // The thread is followed while the screen is open and the app is in front, like the
+    // `task(id: scenePhase == .active)` of the reference: the log and the in-progress replies are re-read
+    // once per second while the bots are talking, and every five seconds otherwise.
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner, room.id) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.feed.follow() }
@@ -296,12 +296,12 @@ fun GroupRoomScreen(
         }
     }
 
-    // Le premier journal venu ouvre la page sur ses derniers messages (`settleShown`).
+    // The first log that arrives opens the page on its last messages (`settleShown`).
     LaunchedEffect(rows) {
         if (shownFrom == null && rows.isNotEmpty()) shownFrom = rows[(rows.size - PAGE).coerceAtLeast(0)].seq
     }
 
-    // Une nouveauté est suivie depuis le bas seulement : relire plus haut n'est pas tiré en arrière.
+    // A novelty is followed from the bottom only: re-reading higher up is not pulled back.
     val itemCount = roomItemCount(state, page, rows)
     var previousCount by remember { mutableStateOf(itemCount) }
     LaunchedEffect(itemCount) {
@@ -323,9 +323,9 @@ fun GroupRoomScreen(
         }
     }
 
-    // **La hauteur des barres, mesurée.** Le fil s'étend **dessous** : sans cela il n'y a, sous la
-    // plaque et sous la barre, que le fond de la page — une couleur unie, que la lentille ne peut
-    // pas faire plier. C'est la mesure qui donne aux vitres quelque chose à courber.
+    // **The bars' height, measured.** The thread extends **underneath**: without this there is, under the
+    // plate and under the bar, only the page background — a flat color, which the lens cannot
+    // bend. It is the measurement that gives the glass something to curve.
     var topInsetPx by remember { mutableIntStateOf(0) }
     var bottomInsetPx by remember { mutableIntStateOf(0) }
     val insetDensity = LocalDensity.current
@@ -336,16 +336,16 @@ fun GroupRoomScreen(
         modifier = modifier
             .fillMaxSize(),
     ) {
-    // **LA PAGE DU VERRE, SUR TOUT L'ÉCRAN.** C'est elle que la barre et la plaque de la salle
-    // échantillonnent (voir `OnyxLensGlass`). Elle est enregistrée **ici**, et l'en-tête comme la
-    // plaque sont peints **après**, donc **hors** du calque : une vitre ne se dessine jamais dans la
-    // texture qu'elle lit — c'est ce qui faisait planter l'écran quand on enregistrait le `Column`
-    // entier. Sans elle, la barre et la plaque se lisaient mates : rien à courber.
+    // **THE GLASS PAGE, OVER THE WHOLE SCREEN.** It is what the room's bar and plate
+    // sample (see `OnyxLensGlass`). It is registered **here**, and the header as well as the
+    // plate are painted **afterwards**, hence **outside** the layer: a glass pane never draws inside the
+    // texture it reads — that is what crashed the screen when the whole `Column`
+    // was registered. Without it, the bar and the plate read as matte: nothing to curve.
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // **La source Haze**, comme dans un fil de bot : ce que la vitre échantillonne quand la
-            // lentille n'est pas disponible. La salle n'en avait aucune — d'où le verre mat.
+            // **The Haze source**, as in a bot thread: what the glass samples when the
+            // lens is not available. The room had none — hence the matte glass.
             .then(
                 com.onyx.app.ui.design.LocalHazeState.current
                     ?.let { state -> Modifier.onyxHazeSource(state) }
@@ -357,13 +357,13 @@ fun GroupRoomScreen(
                     ?: Modifier,
             ),
     ) {
-        // **LA MATIÈRE DE LA PAGE, DANS LA SOURCE HAZE.** Elle était sur la `Box` racine, donc
-        // **hors** de la source : la vitre n'échantillonnait que le fil et jamais le fond — elle se
-        // posait donc sur un aplat, et le verre qu'on lisait dessous n'était qu'une teinte posée sur
-        // du vide (mesuré : derrière le menu ancré, l'écart-type du fond valait 1,3 pour un contenu
-        // réel variant de 0,6 à 94,7). Posée **ici**, elle est ce que la vitre échantillonne — c'est
-        // exactement ce que fait le fil de bot (`Box(Modifier.matchParentSize().matierePage(theme))`
-        // dans la source).
+        // **THE PAGE'S MATERIAL, INSIDE THE HAZE SOURCE.** It was on the root `Box`, hence
+        // **outside** the source: the glass sampled only the thread and never the background — it therefore
+        // sat on a flat fill, and the glass read beneath it was only a tint laid over
+        // emptiness (measured: behind the anchored menu, the background's standard deviation was 1.3 for real
+        // content varying from 0.6 to 94.7). Placed **here**, it is what the glass samples — that is
+        // exactly what the bot thread does (`Box(Modifier.matchParentSize().matierePage(theme))`
+        // in the source).
         Box(Modifier.matchParentSize().onyxPage(theme))
         Column(
             modifier = Modifier
@@ -372,28 +372,28 @@ fun GroupRoomScreen(
                 .padding(bottom = SafeBarSpacing.GapDp.dp),
         ) {
             Box(
-                // **Le fil, plein écran, décalé de la hauteur des barres.** C'est **lui**, la texture que
-                // les vitres de la salle courbent — une couleur unie ne montre aucune pliure, un fil qui
-                // défile, si. Il vit dans le calque enregistré (voir plus haut), donc aucune vitre ne se
-                // dessine à l'intérieur de ce qu'elle lit.
+                // **The thread, full screen, offset by the height of the bars.** It is **it**, the texture that
+                // the room's glass panes curve — a flat color shows no bend, a scrolling thread
+                // does. It lives in the registered layer (see above), so no glass pane
+                // draws inside what it reads.
                 modifier = Modifier
                     .fillMaxSize()
-                    // **Aucune marge de mise en page.** Le fil descend **sous la barre et sous la
-                // plaque** : c'est ce que la lentille courbe. Les deux marges vivent dans le
-                // **défilement** (`contentPadding` du journal), sinon il n'y aurait, sous le verre,
-                // qu'une couleur unie — et le verre paraîtrait mat.
+                    // **No layout margin.** The thread goes down **under the bar and under the
+                // plate**: that is what the lens curves. Both margins live in the
+                // **scroll** (`contentPadding` of the log), otherwise there would be, under the glass,
+                // only a flat color — and the glass would look matte.
             ) {
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { tabPage ->
                 when (tabPage) {
-                // ---- Chat : le journal de la salle, inchangé. ----
+                // ---- Chat: the room's log, unchanged. ----
                 0 -> {
                 if (rows.isEmpty() && state.sending.isEmpty() && state.shownDrafts.isEmpty() && !state.loaded) {
                     RoomOpening(room = room, face = face)
                 } else {
-                    // L'échelle de texte des Réglages est posée à la **racine** — l'activité la lit
-                    // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
-                    // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
-                    // une seconde fois (1,23 × 1,23 = 1,51).
+                    // The Settings text scale is set at the **root** — the activity reads it
+                    // (`LocalOnyxTextScale`), the theme applies it to the whole tree. `theme` is therefore
+                    // **already** the chosen scale: setting it again here with `chatTextScale` would apply it
+                    // a second time (1.23 × 1.23 = 1.51).
                     CompositionLocalProvider(LocalOnyxTheme provides theme) {
                         LazyColumn(
                             state = listState,
@@ -402,9 +402,9 @@ fun GroupRoomScreen(
                                 start = 16.dp,
                                 end = 16.dp,
                                 top = 12.dp + topInsetDp,
-                                // La plaque du compositeur : la dernière ligne passe **au-dessus**
-                                // d'elle au lieu de se cacher dessous, et le fil continue de défiler
-                                // **sous** le verre (voir la page enregistrée).
+                                // The composer's plate: the last line passes **above**
+                                // it instead of hiding beneath, and the thread keeps scrolling
+                                // **under** the glass (see the registered page).
                                 bottom = 12.dp + bottomInsetDp,
                             ),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -450,19 +450,19 @@ fun GroupRoomScreen(
                                     highlighted = current == event.seq,
                                 )
                             }
-                            // Les messages de la personne pas encore dans le journal.
+                            // The person's messages not yet in the log.
                             items(state.sending, key = { "sending-" + it.id }) { pending ->
                                 MineRow(
                                     text = AttachedFileNote.split(pending.text).text,
                                     paths = AttachedFileNote.split(pending.text).paths,
                                     files = pending.files,
                                     server = server,
-                                    // Un envoi définitif n'est plus « en attente » : il est là, marqué,
-                                    // et la raison se lit dans le bandeau des problèmes.
+                                    // A definitive send is no longer « en attente » (waiting): it is there, marked,
+                                    // and the reason is read in the problems banner.
                                     waiting = !pending.failed,
                                 )
                             }
-                            // Les réponses en train d'être écrites, sous leur bot, jusqu'à ce que la salle les ait.
+                            // The replies being written, under their bot, until the room has them.
                             items(state.shownDrafts, key = { "draft-" + it.id }) { draft ->
                                 RoomDraftRow(draft = draft, room = room, face = face)
                             }
@@ -509,7 +509,7 @@ fun GroupRoomScreen(
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
                                         OnyxIcon(Symbols.ExclamationTriangle, tint = theme.warning, size = 14.dp)
-                                        // Ce que le serveur a refusé passe tel quel, jamais traduit.
+                                        // What the server refused passes as is, never translated.
                                         SelectableText(
                                             text = problem,
                                             localize = false,
@@ -522,14 +522,14 @@ fun GroupRoomScreen(
                     }
                 }
                 }
-                // ---- Flux : les réponses de la salle, en cartes datées (le même journal). ----
+                // ---- Feed: the room's replies, as dated cards (the same log). ----
                 1 -> ChatFeedPane(
                     cards = feedCards,
                     feedback = feedFeedback,
                     botName = room.name,
-                    // La tête garde le profil de la salle ; **chaque carte** peint le sien par le
-                    // même résolveur que le fil — le visage du bot qui a répondu, et non celui de
-                    // la salle (le défaut « toutes les cartes ont le même visage »).
+                    // The head keeps the room's profile; **each card** paints its own with the
+                    // same resolver as the thread — the face of the bot that replied, not the
+                    // room's (the defect « toutes les cartes ont le même visage » (all cards have the same face)).
                     faceName = room.name,
                     face = { name -> face(name) },
                     fallbackFaceCode = face(room.name),
@@ -540,15 +540,15 @@ fun GroupRoomScreen(
                     },
                     onDiscuss = { card -> pendingDraft = card.title },
                     onCompose = { scope.launch { pagerState.animateScrollToPage(0) } },
-                    // **La place des barres, mesurée.** Sans elle, le contenu de ces deux
-                    // onglets démarrait **sous l'en-tête** (et sous la barre d'état) : la liste du
-                    // Chat a son `contentPadding`, celles-ci n'en ont pas — on leur donne les deux
-                    // marges, dans la mise en page.
+                    // **The place of the bars, measured.** Without it, the content of these two
+                    // tabs started **under the header** (and under the status bar): the Chat list
+                    // has its `contentPadding`, these have none — they are given both
+                    // margins, in the layout.
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = topInsetDp, bottom = bottomInsetDp),
                 )
-                // ---- Fichiers : ce qui a été échangé DANS ce salon — mêmes filtres, même tri. ----
+                // ---- Files: what was exchanged IN this room — same filters, same sort. ----
                 else -> ChatFilesPane(
                     files = roomFiles,
                     accent = tabAccent,
@@ -560,10 +560,10 @@ fun GroupRoomScreen(
                             file.mime.ifBlank { FileViewers.mimeFor(file.name) },
                         )
                     },
-                    // **La place des barres, mesurée.** Sans elle, le contenu de ces deux
-                    // onglets démarrait **sous l'en-tête** (et sous la barre d'état) : la liste du
-                    // Chat a son `contentPadding`, celles-ci n'en ont pas — on leur donne les deux
-                    // marges, dans la mise en page.
+                    // **The place of the bars, measured.** Without it, the content of these two
+                    // tabs started **under the header** (and under the status bar): the Chat list
+                    // has its `contentPadding`, these have none — they are given both
+                    // margins, in the layout.
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = topInsetDp, bottom = bottomInsetDp),
@@ -576,9 +576,9 @@ fun GroupRoomScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // La zone du système d'abord, puis l'espace visuel de la maison : la barre
-            // d'écriture de la salle ne peut plus être enterrée sous la barre de navigation,
-            // ni paraître collée au bord.
+            // The system area first, then the house's visual space: the room's
+            // input bar can no longer be buried under the navigation bar,
+            // nor look stuck to the edge.
             .navigationBarsPadding()
             .padding(bottom = SafeBarSpacing.GapDp.dp),
     ) {
@@ -608,7 +608,7 @@ fun GroupRoomScreen(
             )
         }
 
-        // Le fil vit dans le calque enregistré, plus haut ; ici, sa place seulement.
+        // The thread lives in the registered layer, above; here, only its place.
         }
         Spacer(Modifier.weight(1f))
 
@@ -616,9 +616,9 @@ fun GroupRoomScreen(
         if (room.inDesktop) {
             DesktopNote()
         } else {
-            // **La même pile du bas qu'une conversation à un bot** : le compositeur de la maison,
-            // puis la barre d'onglets, dans **une seule** plaque et avec **une seule** marge
-            // système (`composerBottomInsets`) — les deux ne s'additionnent jamais.
+            // **The same bottom stack as a one-bot conversation**: the house's composer,
+            // then the tab bar, in **a single** plate and with **a single** system
+            // margin (`composerBottomInsets`) — the two never add up.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -635,8 +635,8 @@ fun GroupRoomScreen(
                         OnyxSurfaces.hairline(theme),
                         RoundedCornerShape(PlateGeometry.Radius),
                     )
-                    // **La lentille de la maison**, la même que dans un fil de bot — désormais découpée à la
-                    // forme (voir `LiquidGlass`), donc plus de rectangle au milieu de la plaque.
+                    // **The house's lens**, the same as in a bot thread — now clipped to the
+                    // shape (see `LiquidGlass`), hence no more rectangle in the middle of the plate.
                     .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true),
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -650,15 +650,15 @@ fun GroupRoomScreen(
                         speechLocale = speechLocale,
                         focusRequester = composerFocusRequester,
                         plate = true,
-                        // La plaque prend la marge système **une seule fois** (voir plus haut) : le
-                        // champ ne la reprend pas, les deux ne s'additionnent plus.
+                        // The plate takes the system margin **only once** (see above): the
+                        // field does not take it again, the two no longer add up.
                         applyBottomInsets = false,
                         prefill = pendingDraft,
                         onPrefillConsumed = { pendingDraft = null },
                     )
                 }
-                // Le filet interne de la plaque : la frontière entre le champ et la rangée d'onglets
-                // (`.ask{border-bottom}` de la planche), peint et non mesuré.
+                // The plate's inner rule: the boundary between the field and the tab row
+                // (`.ask{border-bottom}` of the mockup), painted and not measured.
                 val separatorColour = OnyxSurfaces.hairline(theme)
                 Column(
                     modifier = Modifier
@@ -673,8 +673,8 @@ fun GroupRoomScreen(
                         },
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    // **La barre est celle de la maison**, avec ses quatre repères : Chat, Flux,
-                    // Fichiers, puis le repère-visage — ici les visages des membres de la salle.
+                    // **The bar is the house's**, with its four markers: Chat, Feed,
+                    // Files, then the face marker — here the faces of the room's members.
                     val faceIndex = ChatTab.drawn.lastIndex
                     ChatTabBar(
                         selectedIndex = pagerState.currentPage,
@@ -684,10 +684,10 @@ fun GroupRoomScreen(
                         plate = true,
                         faceIndex = faceIndex,
                         faceLabel = room.name,
-                        // **Les visages des membres défilent** sur le repère, un bot après l'autre
-                        // (`faceCycle`), et l'index courant — une seule boucle — donne aussi la
-                        // teinte. `face` reste le repli d'une salle sans membre : rien à faire
-                        // défiler, donc le repère ne peint qu'un visage.
+                        // **The members' faces cycle** on the marker, one bot after another
+                        // (`faceCycle`), and the current index — a single loop — also gives the
+                        // tint. `face` remains the fallback of a room without members: nothing to
+                        // cycle, so the marker paints only one face.
                         faceCycle = faceCycleFaces,
                         faceCycleIndex = faceCycleIndex,
                         face = {
@@ -699,7 +699,7 @@ fun GroupRoomScreen(
                         },
                         onSelect = { index ->
                             when {
-                                // Le repère-visage de la salle ouvre son menu (son identité).
+                                // The room's face marker opens its menu (its identity).
                                 index == faceIndex -> showingMenu = true
                                 index in 0 until chatTabCount -> scope.launch {
                                     pagerState.animateScrollToPage(index)
@@ -722,9 +722,9 @@ fun GroupRoomScreen(
                     showingMenu = false
                     findOpen = true
                 })
-                // **Le meneur de la salle** : un **destinataire par défaut**, jamais un chef — et
-                // un réglage local, sans route serveur. « No lead » l'enlève, et la salle se
-                // comporte alors exactement comme avant.
+                // **The room's lead**: a **default recipient**, never a chief — and
+                // a local setting, with no server route. « No lead » (No lead) removes it, and the room
+                // then behaves exactly as before.
                 if (room.members.isNotEmpty()) {
                     add(
                         MenuItem(
@@ -757,9 +757,9 @@ fun GroupRoomScreen(
                         ),
                     )
                 }
-                // Le modèle IA **de chaque bot**, depuis la salle : une salle n'avait aucun chemin
-                // vers le modèle d'un membre (seule la conversation d'un bot portait sa feuille).
-                // Le sous-menu nomme les membres — celui qu'on touche ouvre sa feuille de modèle.
+                // The AI model **of each bot**, from the room: a room had no path
+                // to a member's model (only a bot's conversation carried its sheet).
+                // The submenu names the members — the one touched opens its model sheet.
                 if (onPickBotModel != null && room.members.isNotEmpty()) {
                     add(
                         MenuItem(
@@ -826,20 +826,20 @@ fun GroupRoomScreen(
     }
 }
 
-/** Combien de messages une page tient (`GroupChatView.pageSize`). */
+/** How many messages a page holds (`GroupChatView.pageSize`). */
 private const val PAGE = 30
 
-/** Une page du journal : les lignes montrées, combien sont avant, et où la page commence. */
+/** A page of the log: the rows shown, how many are before, and where the page starts. */
 internal data class RoomPage(val shown: List<GroupEvent>, val hidden: Int, val start: Int)
 
-/** Les lignes du journal à partir de `from`, ou les plus récentes tant qu'il n'est pas posé. */
+/** The log rows from `from`, or the most recent ones as long as it is not set. */
 internal fun roomPage(rows: List<GroupEvent>, from: Int?): RoomPage {
     val start = from?.let { seq -> rows.indexOfFirst { it.seq >= seq }.takeIf { it >= 0 } ?: rows.size }
         ?: (rows.size - PAGE).coerceAtLeast(0)
     return RoomPage(shown = if (start < rows.size) rows.subList(start, rows.size) else emptyList(), hidden = start, start = start)
 }
 
-/** Les messages où les mots cherchés se trouvent, par leur numéro, du plus ancien au plus récent. */
+/** The messages where the searched words are found, by their number, from oldest to newest. */
 internal fun roomMatches(rows: List<GroupEvent>, open: Boolean, query: String): List<Int> {
     val words = query.trim()
     if (!open || words.isEmpty()) return emptyList()
@@ -847,9 +847,9 @@ internal fun roomMatches(rows: List<GroupEvent>, open: Boolean, query: String): 
 }
 
 /**
- * Combien de lignes la liste de la salle dessine : ce que l'écran empile, dans l'ordre — les lignes
- * du journal montrées, les messages en route, les réponses qui s'écrivent, la ligne de la salle, les
- * cartes à répondre, et ce que le serveur a refusé.
+ * How many rows the room list draws: what the screen stacks, in order — the log rows
+ * shown, the messages on their way, the replies being written, the room line, the
+ * cards to answer, and what the server refused.
  */
 internal fun roomItemCount(
     state: GroupRoomFeedState,
@@ -867,26 +867,26 @@ internal fun roomItemCount(
     return count
 }
 
-/** Va à un message trouvé : quand il est avant la page montrée, la page s'ouvre sur lui. */
+/** Goes to a found message: when it is before the shown page, the page opens on it. */
 internal fun findGoTo(seq: Int, page: RoomPage, shownFrom: Int?): Int? =
     if (page.shown.any { it.seq == seq }) null else seq
 
 /**
- * Vrai quand une salle a de quoi ouvrir une **autre** conversation : son journal porte quelque
- * chose. Une salle encore vierge rend faux et se reprend telle quelle — le crayon n'empile pas
- * deux conversations vides.
+ * True when a room has something to open **another** conversation with: its log carries
+ * something. A still blank room returns false and is reused as is — the pencil does not stack
+ * two empty conversations.
  */
 internal fun roomStartsAnotherConversation(rows: List<GroupEvent>): Boolean = rows.isNotEmpty()
 
-/** L'en-tête : Conversations, les visages des membres, le nom de la salle, le crayon, et le menu « … ». */
+/** The header: Conversations, the members' faces, the room name, the pencil, and the « … » menu. */
 @Composable
 private fun RoomHeader(
     room: GroupRoom,
     face: (String) -> String?,
     onBack: () -> Unit,
-    // Le **même** contrôle que dans un fil de bot : la pastille du volet, avec son état et son
-    // libellé (« Déplier » / « Replier la liste »). La salle n'avait qu'un retour, alors qu'elle est
-    // ouverte **dans** le volet : le geste attendu est celui du volet.
+    // The **same** control as in a bot thread: the drawer pill, with its state and its
+    // label (« Déplier » / « Replier la liste » (Expand / Collapse the list)). The room had only a back button, whereas it is
+    // open **inside** the drawer: the expected gesture is the drawer's.
     sidebarToggle: (@Composable () -> Unit)? = null,
     onMenu: () -> Unit,
     onNewConversation: (() -> Unit)? = null,
@@ -896,9 +896,9 @@ private fun RoomHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            // **La même barre que dans un fil de bot** : une capsule de verre détachée de la page,
-            // et non un bandeau plein largeur. Sans elle, la salle se lisait comme un autre écran
-            // que le fil — alors que c'est le même endroit, avec plusieurs voix.
+            // **The same bar as in a bot thread**: a glass capsule detached from the page,
+            // and not a full-width banner. Without it, the room read as another screen
+            // than the thread — whereas it is the same place, with several voices.
             .padding(horizontal = 8.dp, vertical = 6.dp)
             .glassBarShell(SurfaceRole.Bar)
             .liquidGlass(GlassSurface.THREAD_TOP_BAR, SurfaceRole.Bar.shape)
@@ -906,8 +906,8 @@ private fun RoomHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // **Le contrôle du volet**, celui du fil de bot — il replie et déplie la liste. Sans lui (une
-        // salle ouverte hors du volet), la pastille des conversations garde son rôle de retour.
+        // **The drawer control**, the bot thread's — it collapses and expands the list. Without it (a
+        // room opened outside the drawer), the conversations pill keeps its back role.
         if (sidebarToggle != null) {
             sidebarToggle()
         } else {
@@ -938,8 +938,8 @@ private fun RoomHeader(
             onClick = onMenu,
         )
         if (onNewConversation != null) {
-            // Le crayon, à droite du menu : la même chose que dans un fil de bot — une
-            // conversation de **cette** salle, avec ses membres et son nom.
+            // The pencil, to the right of the menu: the same thing as in a bot thread — a
+            // conversation of **this** room, with its members and its name.
             GlassCircleButton(
                 symbol = Symbols.SquareAndPencil,
                 label = "New conversation",
@@ -952,7 +952,7 @@ private fun RoomHeader(
     }
 }
 
-/** Les visages de quelques membres qui se chevauchent (`FaceStack`), chacun sur le fond de la page. */
+/** The faces of a few overlapping members (`FaceStack`), each on the page background. */
 @Composable
 private fun RoomFaceStack(members: List<GroupMember>, face: (String) -> String?, size: Dp) {
     val theme = LocalOnyxTheme.current
@@ -970,7 +970,7 @@ private fun RoomFaceStack(members: List<GroupMember>, face: (String) -> String?,
     }
 }
 
-/** L'état vide : les visages des membres, leurs noms joints, et la phrase d'aide de la référence. */
+/** The empty state: the members' faces, their joined names, and the reference's help sentence. */
 @Composable
 private fun RoomOpening(room: GroupRoom, face: (String) -> String?, inline: Boolean = false) {
     val theme = LocalOnyxTheme.current
@@ -1001,19 +1001,19 @@ private fun RoomOpening(room: GroupRoom, face: (String) -> String?, inline: Bool
     }
 }
 
-/** Les noms des membres joints comme `formatted(.list(type: .and))`. */
+/** The members' names joined like `formatted(.list(type: .and))`. */
 internal fun roomMembersLabel(labels: List<String>): String {
     return when (labels.size) {
         0 -> ""
         1 -> labels[0]
         2 -> "${labels[0]} ${OnyxLocalization["and"]} ${labels[1]}"
-        // Trois et plus : la queue dit la langue — « , and » en anglais (la virgule d'Oxford),
-        // « et » en français, où la virgule ne la précède pas.
+        // Three and more: the tail states the language — « , and » in English (the Oxford comma),
+        // « et » (and) in French, where the comma does not precede it.
         else -> labels.dropLast(1).joinToString(", ") + OnyxLocalization[", and"] + " " + labels.last()
     }
 }
 
-/** Un événement du journal : ce que la personne a dit, la réponse d'un bot, ou une note de tour. */
+/** A log event: what the person said, a bot's reply, or a turn note. */
 @Composable
 private fun RoomEventRow(
     event: GroupEvent,
@@ -1046,9 +1046,9 @@ private fun RoomEventRow(
             highlighted = highlighted,
         )
 
-        // **Le passage de main** : la ligne que la salle ajoute quand un membre nomme le suivant.
-        // Elle est dessinée **par la même liste** que les autres événements, à sa place — après la
-        // réponse qui la porte —, et elle ne réordonne rien.
+        // **The handoff**: the line the room adds when a member names the next one.
+        // It is drawn **by the same list** as the other events, in its place — after the
+        // reply that carries it —, and it reorders nothing.
         event.kind == ROOM_HANDOFF_KIND -> RoomHandoffRow(
             from = event.payload.strOrNull("from").orEmpty(),
             to = event.payload.strOrNull("to").orEmpty(),
@@ -1068,12 +1068,12 @@ private fun RoomEventRow(
 }
 
 /**
- * **Le passage de main, dans le journal.** Une ligne, pas une carte : qui prend la suite, et la
- * phrase qui l'a dit.
+ * **The handoff, in the log.** A line, not a card: who takes over, and the
+ * sentence that said it.
  *
- * Le meneur n'est pas un chef — la ligne ne dit ni ordre ni permission, seulement qui reçoit la
- * suite. Les noms sont ceux de la salle (`label`), les mêmes que la réponse au-dessus : la ligne ne
- * renomme personne. Un membre que la salle ne connaît plus garde son profil, tel quel.
+ * The lead is not a chief — the line states neither order nor permission, only who receives
+ * the turn. The names are the room's (`label`), the same as the reply above: the line does not
+ * rename anyone. A member the room no longer knows keeps its profile, as is.
  */
 @Composable
 private fun RoomHandoffRow(from: String, to: String, sentence: String, room: GroupRoom) {
@@ -1103,10 +1103,10 @@ private fun RoomHandoffRow(from: String, to: String, sentence: String, room: Gro
 }
 
 /**
- * Une réponse d'un bot : son visage, son nom, puis ce qu'il a dit — **à plat**, sous le visage,
- * comme le `MessageRow` de la référence quand le thème imprime les réponses sur la page
- * (`palette.flatReplies`) : le texte est au bord du fil, pas en retrait sous le nom, et la ligne
- * du nom est à 8 pt de ce qu'elle annonce.
+ * A bot's reply: its face, its name, then what it said — **flat**, under the face,
+ * like the reference's `MessageRow` when the theme prints the replies on the page
+ * (`palette.flatReplies`): the text is at the thread's edge, not indented under the name, and the name
+ * line is 8 pt from what it announces.
  */
 @Composable
 internal fun RoomMemberRow(
@@ -1117,24 +1117,24 @@ internal fun RoomMemberRow(
     live: Boolean,
     whenMillis: Long? = null,
     highlighted: Boolean = false,
-    /** La voix de ce bot sort à cet instant : sa ligne se distingue des autres. */
+    /** This bot's voice is coming out at this instant: its line stands out from the others. */
     speaking: Boolean = false,
 ) {
     val theme = LocalOnyxTheme.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             BotLook(
-                // Le **nom de profil** du bot. Vide (un auteur que la salle ne connaît pas), le
-                // visage est le **neutre** de `botFace` — jamais la créature de la chaîne « bot »,
-                // qui se lisait comme un bot expressif.
+                // The bot's **profile name**. Empty (an author the room does not know), the
+                // face is `botFace`'s **neutral** — never the creature of the "bot" string,
+                // which read as an expressive bot.
                 name = profile,
                 faceCode = faceCode,
                 size = 20.dp,
                 mood = if (live) BotMood.THINKING else BotMood.PLEASED,
             )
             if (live) LiveMark(color = theme.accent)
-            // Ce qui est lu maintenant : un haut-parleur de la couleur de l'accent, et le nom
-            // dans cette couleur — la réponse dont la voix sort se voit dans le fil.
+            // What is being read now: a speaker in the accent color, and the name
+            // in that color — the reply whose voice is coming out is visible in the thread.
             if (speaking && !live) OnyxIcon(symbol = Symbols.SpeakerWave, tint = theme.accent, size = 13.dp)
             BasicText(
                 text = name,
@@ -1153,7 +1153,7 @@ internal fun RoomMemberRow(
     }
 }
 
-/** Une réponse en train d'être écrite (`GroupDraft`), dessinée comme la réponse vivante du chat. */
+/** A reply being written (`GroupDraft`), drawn like the chat's live reply. */
 @Composable
 private fun RoomDraftRow(draft: GroupDraft, room: GroupRoom, face: (String) -> String?) {
     RoomMemberRow(
@@ -1167,8 +1167,8 @@ private fun RoomDraftRow(draft: GroupDraft, room: GroupRoom, face: (String) -> S
 }
 
 /**
- * Ce que la personne a dit, comme le chat dessine un de ses messages, avec les fichiers qu'il
- * nomme par leurs chemins sur le serveur, ou leurs noms tant qu'il est en route (`waiting`).
+ * What the person said, as the chat draws one of its messages, with the files it
+ * names by their paths on the server, or their names while it is on its way (`waiting`).
  */
 @Composable
 internal fun MineRow(
@@ -1213,7 +1213,7 @@ internal fun MineRow(
     }
 }
 
-/** Ce que la salle attend : les bots parlent, elle attend la personne, elle s'arrête, ou se remet. */
+/** What the room is waiting on: the bots are talking, it awaits the person, it stops, or resumes. */
 @Composable
 private fun TalkingLine(status: GroupState) {
     val theme = LocalOnyxTheme.current
@@ -1234,7 +1234,7 @@ private fun TalkingLine(status: GroupState) {
     }
 }
 
-/** Une réponse arrêtée à mi-chemin : Hermes ne sait pas jusqu'où elle est allée, on la relance si on veut. */
+/** A reply stopped midway: Hermes does not know how far it got, it is run again if wanted. */
 @Composable
 private fun RetryCard(task: String, who: String, onRetry: () -> Unit) {
     val theme = LocalOnyxTheme.current
@@ -1269,8 +1269,8 @@ private fun RetryCard(task: String, who: String, onRetry: () -> Unit) {
 }
 
 /**
- * En place du composer, pour une salle qu'Hermes Desktop tient : c'est Desktop qui répond à ses
- * messages, et il n'en partage qu'une copie des derniers, alors elle se lit ici et se parle là-bas.
+ * In place of the composer, for a room held by Hermes Desktop: Desktop is what answers its
+ * messages, and it only shares a copy of the latest, so it is read here and spoken there.
  */
 @Composable
 private fun DesktopNote() {
@@ -1290,7 +1290,7 @@ private fun DesktopNote() {
     }
 }
 
-/** La recherche dans la salle (`Find in Chat`) : les mots, le compte, et les flèches. */
+/** The search in the room (`Find in Chat`): the words, the count, and the arrows. */
 @Composable
 private fun RoomFindBar(
     text: String,

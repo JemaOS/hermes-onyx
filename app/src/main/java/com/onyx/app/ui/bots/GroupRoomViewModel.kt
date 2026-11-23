@@ -37,18 +37,17 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 
 /**
- * Une salle du serveur ouverte : son fil (`GroupRoomFeed`), branché sur le Dashboard de la
- * connexion.
+ * An open server room: its feed (`GroupRoomFeed`), wired to the connection's Dashboard.
  *
- * Miroir de `GroupChatView` + `GroupFeed` de la référence (Echo/Views/GroupChatView:8) : la salle est
- * suivie tant que l'écran est là, ce qui est écrit part par `groups.send`, et ce qui s'affiche
- * vient du journal de la salle — jamais du fil local de l'application.
+ * Mirror of the reference's `GroupChatView` + `GroupFeed` (Echo/Views/GroupChatView:8): the room is
+ * followed as long as the screen is there, what is written leaves via `groups.send`, and what is
+ * displayed comes from the room's journal — never from the app's local feed.
  */
 class GroupRoomViewModel(
     application: Application,
     private val config: ServerConfig,
     initialRoom: GroupRoom,
-    /** Le nom que Onyx donne au bot principal : les membres d'une salle Desktop en héritent. */
+    /** The name Onyx gives the main bot: the members of a Desktop room inherit it. */
     private val mainName: String = "",
 ) : AndroidViewModel(application), GroupVoiceThread {
 
@@ -56,51 +55,51 @@ class GroupRoomViewModel(
     private val attachments = ServerAttachments(ServeFilesApi(ServeClient(config)))
 
     /**
-     * Le choix gardé sur ce téléphone, **derrière la résolution unique**.
+     * The choice kept on this phone, **behind the single resolution**.
      *
-     * La salle ne relit plus le magasin pour dessiner : elle lit ce que [BotFaceResolver] rend.
-     * Quand l'écran n'a pas encore posé sa table, le repli reste le choix local — mais il est
-     * servi par le crochet `local` du résolveur, la même fonction que partout ailleurs, au lieu
-     * d'un second chemin de résolution qui pouvait donner un autre visage.
+     * The room no longer re-reads the store to draw: it reads what [BotFaceResolver] returns.
+     * When the screen has not yet set its table, the fallback remains the local choice — but it is
+     * served by the resolver's `local` hook, the same function as everywhere else, instead of
+     * a second resolution path that could yield another face.
      */
     private val faceStore: BotFaceResolver =
         BotFaceResolver.of(emptyMap(), BotFaceStore(application)::faceOf)
 
-    /** Le nom que la salle donne au visage d'un profil : ce que la résolution unique rend. */
+    /** The name the room gives to a profile's face: what the single resolution returns. */
     private fun BotFaceResolver.faceOf(profile: String): String? = codeOf(profile)
 
     /**
-     * **Le meneur de cette salle.** Il vit d'abord ici (`RoomLeadStore`), comme l'onglet ouvert
-     * d'une conversation — c'est ce qui le garde d'une session à l'autre, même hors ligne. Quand le
-     * serveur connaît `groups.lead`, [setLead] l'écrit **aussi dans la salle** : le meneur devient
-     * alors un fait du salon, que les bots lisent et que la salle interroge en premier.
+     * **This room's lead.** It lives first here (`RoomLeadStore`), like an open conversation tab
+     * — that is what keeps it from one session to the next, even offline. When the server knows
+     * `groups.lead`, [setLead] writes it **also into the room**: the lead then becomes a fact of
+     * the room, which the bots read and which the room consults first.
      */
     private val leadStore = RoomLeadStore(application)
 
     /**
-     * Le destinataire par défaut de la salle : le membre à qui elle écrit quand la personne ne
-     * nomme personne. `null` — « No lead » — et la salle se comporte exactement comme avant.
+     * The room's default recipient: the member it writes to when the person names no one.
+     * `null` — "No lead" — and the room behaves exactly as before.
      */
     private val _lead = MutableStateFlow(leadStore.lead(initialRoom.id))
     val lead: StateFlow<String?> = _lead.asStateFlow()
 
     /**
-     * Jusqu'où le journal a été lu pour le meneur : un passage ne change le destinataire **qu'une
-     * fois**. Posé au dernier événement que la liste connaissait à l'ouverture (le journal d'hier
-     * ne défait donc pas le choix d'aujourd'hui) ; `null` quand la liste n'en savait rien — le
-     * premier journal lu sert alors de point de départ.
+     * How far the journal has been read for the lead: a handoff changes the recipient **only
+     * once**. Set to the last event the list knew at opening (so yesterday's journal does not
+     * undo today's choice); `null` when the list knew nothing — the first journal read then
+     * serves as the starting point.
      */
     private var handoffThrough: Int? = initialRoom.latestSeq
 
     /**
-     * La table de visages **de l'écran** (`BotFaceResolver`), posée par la salle : elle réunit le
-     * choix du téléphone et `ui_meta.onyx.face`. Sans elle, la scène vocale ne lisait que le choix
-     * local — un membre dont le visage vient du serveur y apparaissait sans code, donc avec la
-     * créature de repli de `BotLook`, déduite de son nom : deux visages pour un même bot.
+     * The **screen's** face table (`BotFaceResolver`), set by the room: it brings together the
+     * phone's choice and `ui_meta.onyx.face`. Without it, the voice scene read only the local
+     * choice — a member whose face comes from the server appeared there without a code, hence
+     * with `BotLook`'s fallback creature, inferred from its name: two faces for one bot.
      */
     private val faces = MutableStateFlow<((String) -> String?)?>(null)
 
-    /** La salle pose sa résolution de visages ; le fil et la scène vocale la suivent. */
+    /** The room sets its face resolution; the feed and the voice scene follow it. */
     fun useFaces(resolve: (String) -> String?) {
         faces.value = resolve
     }
@@ -115,10 +114,9 @@ class GroupRoomViewModel(
     val state = feed.state
 
     init {
-        // **Un passage de main se lit dans le journal**, à chaque réponse lue : le premier journal
-        // venu est l'histoire de la salle (il ne défait pas le choix d'aujourd'hui), et les
-        // passages **suivants** changent le destinataire par défaut de la suite — une seule fois
-        // chacun.
+        // **A handoff is read from the journal**, on every response read: the first journal to
+        // come is the room's history (it does not undo today's choice), and the **next** handoffs
+        // change the default recipient afterwards — once each.
         viewModelScope.launch {
             state.collect { current ->
                 adoptRoomLead(current)
@@ -128,12 +126,13 @@ class GroupRoomViewModel(
     }
 
     /**
-     * **Le meneur que la salle annonce** (`groups.state` → `context.lead_member_id`), adopté une
-     * fois à l'ouverture.
+     * **The lead the room announces** (`groups.state` → `context.lead_member_id`), adopted once at
+     * opening.
      *
-     * Sans ça, un meneur choisi depuis un autre appareil restait invisible ici : le menu montrait le
-     * choix du téléphone, et l'écran pouvait désigner un autre bot que celui que la salle routait.
-     * La salle fait foi quand elle parle ; le réglage local reste le repli quand elle se tait.
+     * Without this, a lead chosen from another device stayed invisible here: the menu showed the
+     * phone's choice, and the screen could point to another bot than the one the room routed to.
+     * The room is authoritative when it speaks; the local setting remains the fallback when it
+     * stays silent.
      */
     private fun adoptRoomLead(current: GroupRoomFeedState) {
         if (leadAdopted) return
@@ -145,16 +144,16 @@ class GroupRoomViewModel(
         leadStore.set(current.room.id, profile)
     }
 
-    /** L'état de la salle n'a été lu qu'une fois pour le meneur : ensuite, c'est le local qui vit. */
+    /** The room's state was read only once for the lead: afterwards, the local one lives on. */
     private var leadAdopted = false
 
-    // — Ce qu'une scène vocale lit dans cette salle (`GroupVoiceThread`) —
+    // — What a voice scene reads in this room (`GroupVoiceThread`) —
 
     override val server: ServerConfig get() = config
 
     override val roomName: String get() = state.value.room.name
 
-    /** Le round, tel que la scène vocale le lit : le journal, ce qui part, ce qui s'écrit. */
+    /** The round, as the voice scene reads it: the journal, what leaves, what is being written. */
     private val _lines = combine(state, faces) { room, _ -> room.voiceLines(face) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     override val lines: StateFlow<List<GroupVoiceLine>> = _lines
@@ -162,46 +161,46 @@ class GroupRoomViewModel(
     override val isTalking: StateFlow<Boolean> =
         state.map { it.busy }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    /** Un bot qui attend une réponse de la personne : une commande à approuver, ou une relance. */
+    /** A bot waiting for an answer from the person: a command to approve, or a nudge. */
     override val waitsOnPerson: StateFlow<Boolean> =
         state.map { it.status.waitsOnPerson }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    /** Un message de la personne est encore en route (essai en cours, ou reprise espacée). */
+    /** A message from the person is still on its way (attempt in progress, or spaced retry). */
     override val pendingSends: StateFlow<Boolean> = feed.pendingSends
 
     /**
-     * Ce que la salle a refusé, tel quel : une question qui n'est pas partie, un journal illisible,
-     * un envoi qui n'a pas atteint la salle. La scène vocale le montre — sans ça, une question
-     * refusée disparaissait sans un mot. Ce que la **file d'envoi** dit prime (un message qui n'est
-     * pas encore arrivé) ; la salle prend le relais (le journal illisible, la salle terminée).
+     * What the room refused, as is: a question that did not leave, an unreadable journal,
+     * a send that did not reach the room. The voice scene shows it — without that, a refused
+     * question vanished without a word. What the **send queue** says takes precedence (a message
+     * that has not arrived yet); the room takes over (the unreadable journal, the ended room).
      */
     override val problem: StateFlow<String?> =
         combine(feed.problem, state.map { it.problem }) { fromFeed, fromRoom -> fromFeed ?: fromRoom }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /**
-     * La question reconnue part dans la salle (`groups.send`), **une seule fois** : son identifiant
-     * est l'`event_id`, et la file d'envoi refuse de le reprendre.
+     * The recognized question leaves into the room (`groups.send`), **only once**: its identifier
+     * is the `event_id`, and the send queue refuses to take it again.
      */
     override fun ask(question: String, askId: String) {
         viewModelScope.launch { feed.ask(question, askId) }
     }
 
-    /** L'arrêt rouge arrête les bots de la salle (`groups.stop`). */
+    /** The red stop stops the room's bots (`groups.stop`). */
     override fun haltTalking() = stop()
 
-    // Le fil est suivi par l'écran, tant qu'il est à l'écran et que l'application est devant
-    // (`GroupRoomScreen`), comme le `task(id: scenePhase == .active)` de la référence.
+    // The feed is followed by the screen, as long as it is on screen and the app is in front
+    // (`GroupRoomScreen`), like the reference's `task(id: scenePhase == .active)`.
 
     /**
-     * Dit quelque chose dans la salle. Une salle ne prend que du texte : ce qui est joint part
-     * d'abord sur le serveur (« Onyx attachments ») et le message les nomme, comme le fait
-     * `GroupFeed.send` de la référence.
+     * Says something in the room. A room only takes text: what is attached leaves first to the
+     * server ("Onyx attachments") and the message names them, as the reference's `GroupFeed.send`
+     * does.
      *
-     * **Le destinataire est un paramètre, pas un protocole.** La salle a un meneur ? Le message
-     * part **à lui par défaut** (`roomAddressed`) : c'est la même mention que la personne aurait
-     * tapée. La mention `@X` du composeur prime toujours, et sans meneur rien ne change.
-     * [to] nomme un destinataire pour cet envoi seulement ; absent, c'est le meneur de la salle.
+     * **The recipient is a parameter, not a protocol.** The room has a lead? The message leaves
+     * **to it by default** (`roomAddressed`): it is the same mention the person would have typed.
+     * The composer's `@X` mention always takes precedence, and without a lead nothing changes.
+     * [to] names a recipient for this send only; absent, it is the room's lead.
      */
     fun send(
         question: String,
@@ -210,7 +209,7 @@ class GroupRoomViewModel(
     ) {
         val clean = question.trim()
         if (clean.isEmpty() && pendingAttachments.isEmpty()) return
-        // Le destinataire est choisi **ici**, une fois : le meneur de la salle, ou celui qu'on nomme.
+        // The recipient is chosen **here**, once: the room's lead, or the one named.
         val recipient = to ?: _lead.value
         val id = feed.beginSend(clean, pendingAttachments.map { it.name })
         viewModelScope.launch {
@@ -243,30 +242,30 @@ class GroupRoomViewModel(
     }
 
     /**
-     * **Choisit le meneur de la salle** — ou l'enlève (`null`, « No lead »).
+     * **Chooses the room's lead** — or removes it (`null`, "No lead").
      *
-     * Deux endroits, dans cet ordre : le téléphone (`RoomLeadStore`, toujours), puis la salle
-     * elle-même quand ce serveur connaît `groups.lead`. Écrire au salon est ce qui rend le choix
-     * **visible aux bots** : ils lisent le `room.lead_changed` du journal, et la salle interroge le
-     * meneur en premier quand personne n'est nommé. Un serveur sans cette route laisse simplement
-     * le réglage ici — et [leadIsRooms] le dit à l'écran.
+     * Two places, in this order: the phone (`RoomLeadStore`, always), then the room itself when
+     * this server knows `groups.lead`. Writing to the room is what makes the choice **visible to
+     * the bots**: they read the journal's `room.lead_changed`, and the room consults the lead first
+     * when no one is named. A server without this route simply leaves the setting here — and
+     * [leadIsRooms] tells the screen so.
      */
     fun setLead(profile: String?, memberId: String? = profile) {
         val clean = profile?.takeIf { it.isNotBlank() }
         _lead.value = clean
         leadStore.set(state.value.room.id, clean)
-        // Le salon d'abord quand il sait le recevoir : c'est ce qui rend le meneur lisible aux bots
-        // (un `room.lead_changed` dans le journal) et fait interroger ce membre en premier. Un
-        // serveur sans la route rend `false` — le réglage local reste, exactement comme avant.
+        // The room first when it can receive it: that is what makes the lead readable to the bots
+        // (a `room.lead_changed` in the journal) and makes this member consulted first. A server
+        // without the route returns `false` — the local setting remains, exactly as before.
         viewModelScope.launch { feed.nameLead(memberId?.takeIf { it.isNotBlank() }) }
     }
 
     /**
-     * Ce qu'un journal **vient de dire** du meneur : le dernier passage plus récent que
-     * [handoffThrough] l'emporte, une seule fois, et se garde pour la suite.
+     * What a journal **has just said** about the lead: the last handoff more recent than
+     * [handoffThrough] wins, only once, and is kept for afterwards.
      *
-     * Le premier journal venu ne compte pas : c'est l'histoire de la salle, et elle ne doit pas
-     * défaire le choix que la personne a fait aujourd'hui.
+     * The first journal to come does not count: it is the room's history, and it must not
+     * undo the choice the person made today.
      */
     private fun applyHandoffs(current: GroupRoomFeedState) {
         val through = handoffThrough
@@ -280,10 +279,10 @@ class GroupRoomViewModel(
             val from = _lead.value
             _lead.value = read.lead
             leadStore.set(current.room.id, read.lead)
-            // **Le passage devient un fait du salon.** Le meneur a écrit « @Coder prend la suite » :
-            // la salle l'enregistre (`groups.handoff`), les autres appareils le voient, et le tour
-            // du meneur qui part est arrêté. Un serveur sans la route rend `false` — la ligne de
-            // journal locale reste, exactement comme avant.
+            // **The handoff becomes a fact of the room.** The lead wrote "@Coder takes over":
+            // the room records it (`groups.handoff`), the other devices see it, and the departing
+            // lead's turn is stopped. A server without the route returns `false` — the local
+            // journal line remains, exactly as before.
             if (from != null && read.lead != null) {
                 val memberOf = { profile: String ->
                     current.room.members.firstOrNull { it.profile == profile }?.id ?: profile
@@ -315,23 +314,23 @@ class GroupRoomViewModel(
     }
 
     /**
-     * Le crayon de la salle : une **conversation neuve de la même salle**.
+     * The room's pencil: a **fresh conversation of the same room**.
      *
-     * Une salle d'Hermes **est** une conversation : sa neuve se demande donc au serveur
-     * (`groups.create`), avec les mêmes membres et le même nom, sous un identifiant neuf. Le
-     * journal repart à vide, et la salle d'hier reste dans la liste avec son fil — rien n'est
-     * effacé, rien n'est réécrit.
+     * A Hermes room **is** a conversation: its fresh one is therefore requested from the server
+     * (`groups.create`), with the same members and the same name, under a new identifier. The
+     * journal starts empty, and yesterday's room stays in the list with its feed — nothing is
+     * erased, nothing is rewritten.
      *
-     * `onOpened` reçoit la salle telle que le serveur l'a faite : l'appelant l'ouvre **dans le
-     * même écran** (`GroupRoomScreen`), donc avec la même plaque, les mêmes onglets et les mêmes
-     * visages. Un refus se lit dans la salle et l'écran ne bouge pas.
+     * `onOpened` receives the room as the server made it: the caller opens it **in the same
+     * screen** (`GroupRoomScreen`), hence with the same header, the same tabs and the same
+     * faces. A refusal is read in the room and the screen does not move.
      */
     fun startNewConversation(onOpened: (GroupRoom) -> Unit) {
         val room = state.value.room
         viewModelScope.launch {
             try {
-                // Les membres passent **tels quels** : mêmes profils, mêmes poignées, mêmes noms
-                // de salle — la conversation neuve est celle de cette salle, pas une autre.
+                // The members pass **as is**: same profiles, same handles, same room
+                // names — the fresh conversation is this room's, not another one.
                 val draft = GroupRoomDraft(
                     id = GroupRoomDraft.newID(),
                     name = room.name,
@@ -350,8 +349,8 @@ class GroupRoomViewModel(
     }
 
     /**
-     * Termine la salle pour de bon (`groups.disband`) : les bots s'arrêtent et la salle s'en va,
-     * sur le serveur aussi. `onEnded` n'est appelé qu'une fois que le serveur a pris.
+     * Ends the room for good (`groups.disband`): the bots stop and the room goes away, on the
+     * server too. `onEnded` is called only once the server has taken it.
      */
     fun disband(onEnded: () -> Unit) {
         viewModelScope.launch {
@@ -359,8 +358,8 @@ class GroupRoomViewModel(
                 rpc.disband(state.value.room.id)
                 onEnded()
             } catch (error: Exception) {
-                // Le refus se lit à l'écran : la salle ne disparaît pas tant que le serveur ne l'a
-                // pas prise, et rien n'est effacé ici.
+                // The refusal is read on screen: the room does not disappear as long as the server
+                // has not taken it, and nothing is erased here.
                 feed.report(error)
             }
         }
@@ -375,20 +374,20 @@ class GroupRoomViewModel(
 }
 
 /**
- * **Ce qu'un journal fait au meneur** : le dernier passage plus récent que [through] l'emporte, et
- * [through] avance jusqu'à lui.
+ * **What a journal does to the lead**: the last handoff more recent than [through] wins, and
+ * [through] advances up to it.
  *
- * C'est ce qui fait qu'un passage n'agit **qu'une fois** : relire le journal (chaque seconde, et à
- * chaque reconnexion) ne change pas deux fois le destinataire, et ne réécrit pas le réglage.
+ * This is what makes a handoff act **only once**: re-reading the journal (every second, and on
+ * every reconnection) does not change the recipient twice, and does not rewrite the setting.
  */
 internal data class RoomLeadRead(val lead: String?, val through: Int)
 
 /**
- * **Le profil d'un meneur annoncé par la salle** (`context.lead_member_id`), résolu dans le roster.
+ * **The profile of a lead announced by the room** (`context.lead_member_id`), resolved in the roster.
  *
- * La salle nomme un **membre** (`coder`), l'écran coche un **profil** : c'est le roster qui fait le
- * pont. Un identifiant qui ne correspond à aucun membre est rendu tel quel — il vient du serveur, et
- * l'écran préfère un nom qu'il ne connaît pas à un meneur silencieusement effacé.
+ * The room names a **member** (`coder`), the screen checks a **profile**: the roster makes the
+ * bridge. An identifier that matches no member is returned as is — it comes from the server, and
+ * the screen prefers a name it does not know to a silently erased lead.
  */
 internal fun roomLeadProfile(memberId: String, members: List<GroupMember>): String? {
     val id = memberId.trim().takeIf { it.isNotEmpty() } ?: return null
@@ -400,7 +399,7 @@ internal fun roomLeadRead(lead: String?, lines: List<RoomHandoffLine>, through: 
     return RoomLeadRead(fresh.to, fresh.seq)
 }
 
-/** Les membres d'une salle, comme les bots que le composer connaît (poignée `@`, nom, visage). */
+/** A room's members, as the bots the composer knows (handle `@`, name, face). */
 internal fun GroupRoom.composerBots(face: (String) -> String? = { null }): List<BotProfile> =
     members.map { member ->
         BotProfile(
@@ -412,9 +411,9 @@ internal fun GroupRoom.composerBots(face: (String) -> String? = { null }): List<
     }
 
 /**
- * La salle du serveur telle que la liste l'a donnée (`GroupChat` → `GroupRoom`) : le fil part de
- * là, puis se met à jour avec ce qu'Hermes en dit (`groups.state`, et sa copie pour une salle
- * qu'Hermes Desktop tient lui-même).
+ * The server room as the list gave it (`GroupChat` → `GroupRoom`): the feed starts from there,
+ * then updates with what Hermes says about it (`groups.state`, and its copy for a room that
+ * Hermes Desktop holds itself).
  */
 internal fun GroupChat.toRoom(): GroupRoom = GroupRoom(
     id = id,

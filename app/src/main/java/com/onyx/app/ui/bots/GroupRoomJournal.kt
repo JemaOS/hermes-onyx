@@ -6,22 +6,22 @@ import com.onyx.app.data.model.serve.GroupEvent
 import com.onyx.app.data.model.serve.GroupMember
 
 /**
- * **Le journal d'une salle, lu comme les messages d'une conversation.**
+ * **A room's journal, read like a conversation's messages.**
  *
- * C'est ce qui donne à l'onglet **Fichiers** et au **Flux** de la salle la même matière qu'à ceux
- * d'un bot : les fichiers échangés (par `ChatFiles.conversationFiles`, qui lit le texte **brut** où
- * `DeliveredFiles` repère les chemins joints), et les réponses des bots en cartes datées.
+ * This is what gives the room's **Files** tab and **Feed** the same substance as a bot's: the
+ * exchanged files (by `ChatFiles.conversationFiles`, which reads the **raw** text where
+ * `DeliveredFiles` spots the attached paths), and the bots' replies as dated cards.
  *
- * **L'auteur de chaque message voyage avec lui** (`ChatMessage.authorProfile`) : c'est le **nom de
- * profil** du membre, lu par la **même** clé que le fil — l'`actorID` de l'événement, résolu par
- * `GroupMember.profile` (voir `RoomEventRow`, qui pose par elle le nom et le visage d'une réponse).
- * Sans cela, le Flux ne savait pas qui avait répondu et peignait le visage de la salle sur toutes
- * ses cartes — le défaut « toutes les cartes ont le même visage ».
+ * **Each message's author travels with it** (`ChatMessage.authorProfile`): it is the member's
+ * **profile name**, read by the **same** key as the thread — the event's `actorID`, resolved by
+ * `GroupMember.profile` (see `RoomEventRow`, which sets the name and face of a reply from it).
+ * Without this, the Feed did not know who had replied and painted the room's face on all its
+ * cards — the "all cards have the same face" defect.
  *
- * Chaque salon n'a donc que **ses** fichiers : la matière vient de son propre journal
- * (`state.rows`), jamais d'un magasin partagé. La fonction est **pure** — le verrou de parité
- * l'interroge sans appareil. [members] est la liste des membres du salon ; absente, aucun auteur
- * n'est nommé (le Flux retombe alors sur le visage de la salle).
+ * Each room therefore only has **its** files: the substance comes from its own journal
+ * (`state.rows`), never from a shared store. The function is **pure** — the parity lock
+ * queries it without a device. [members] is the list of the room's members; if absent, no author
+ * is named (the Feed then falls back on the room's face).
  */
 internal fun roomThreadMessages(
     rows: List<GroupEvent>,
@@ -33,7 +33,7 @@ internal fun roomThreadMessages(
             role = if (event.kind == "message.user") Role.USER else Role.ASSISTANT,
             text = event.text,
             createdAt = event.createdAtMillis,
-            // Le membre qui a parlé, par la même clé que le fil : `room.member(actorID).profile`.
+            // The member who spoke, by the same key as the thread: `room.member(actorID).profile`.
             authorProfile = members.firstOrNull { it.id == event.actorID }?.profile.orEmpty(),
         )
     }

@@ -13,41 +13,41 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * La maquette de boutique de la scène vocale d'une salle, comme le drapeau correspondant de la référence : le
- * lancement la demande (`-e onyx.groupVoiceDemo speaking`, ou `listening`), et la scène se pose sur
- * une salle scriptée — **sans serveur, sans salle ouverte et sans micro**.
+ * The shop-demo fixture of a room's voice scene, like the corresponding flag of the reference: the
+ * launch requests it (`-e onyx.groupVoiceDemo speaking`, or `listening`), and the scene sits on
+ * a scripted room — **no server, no open room and no microphone**.
  *
- * C'est ce qui permet d'éprouver la scène de parole sur un émulateur qui n'a ni microphone ni
- * moteur de reconnaissance : la réplique, son bot et son niveau sont **injectés**, pas devinés.
- * Rien de tout ceci ne sert hors d'un APK de debug.
+ * This is what makes it possible to test the speech scene on an emulator that has neither microphone nor
+ * recognition engine: the reply, its bot and its level are **injected**, not guessed.
+ * None of this is of any use outside a debug APK.
  */
 internal class GroupVoiceDemo(
     val thread: GroupVoiceThread,
     val bots: List<BotProfile>,
-    /** Le bot dont la réplique est lue ; `null` quand c'est le tour de quelqu'un d'autre. */
+    /** The bot whose reply is being read; `null` when it is someone else's turn. */
     val speakerId: String?,
     val phase: VoicePhase,
-    /** Le niveau de la voix lue, celui sur lequel la bouche du grand visage bat. */
+    /** The level of the voice being read, the one on which the big face's mouth beats. */
     val level: Float,
     /**
-     * Vrai pour la maquette qui **joue la boucle** ([live]) : la scène suit alors la phase et le
-     * locuteur **réels** (`GroupVoice`), la maquette ne fournissant que la salle. Faux pour la
-     * scène figée, où tout est injecté.
+     * True for the fixture that **plays the loop** ([live]): the scene then follows the **real**
+     * phase and speaker (`GroupVoice`), the fixture providing only the room. False for the
+     * frozen scene, where everything is injected.
      */
     val live: Boolean = false,
 ) {
     companion object {
-        /** La sienne des trois : c'est elle qui reçoit l'aura de son visage. */
+        /** Its own of the three: it is the one that receives its face's aura. */
         private const val QUILL = "1:blob:happy:smile:blush:4:0:0"
 
-        /** Les trois faces de la salle, pour que l'en-tête et l'orbe aient des visages distincts. */
+        /** The room's three faces, so that the header and the orb have distinct faces. */
         private val bots = listOf(
             BotProfile(name = "default", title = "Onyx", isDefault = true, faceCode = "1:bubble:happy:smile:none:13:0:0"),
             BotProfile(name = "scout", title = "Scout", faceCode = "1:egg:happy:smile:freckles:3:0:0"),
             BotProfile(name = "quill", title = "Quill", faceCode = QUILL),
         )
 
-        /** Le round de la référence, mot pour mot : la question, puis une réponse par bot. */
+        /** The reference's round, word for word: the question, then one answer per bot. */
         private val round = listOf(
             GroupVoiceLine(
                 id = "demo-seq-1",
@@ -83,16 +83,16 @@ internal class GroupVoiceDemo(
         )
 
         /**
-         * Le niveau de la maquette à la seconde `t`, comme le niveau de maquette de la référence : deux ondes
-         * qui battent, jamais tout à fait muettes. La réplique est simulée — c'est dit — et la
-         * bouche du grand visage **bouge** donc d'une image à l'autre, comme elle bougerait avec
-         * une vraie voix.
+         * The fixture's level at second `t`, like the reference's fixture level: two waves
+         * that beat, never quite silent. The reply is simulated — it is said so — and the
+         * big face's mouth therefore **moves** from one frame to the next, as it would move with
+         * a real voice.
          */
         fun levelAt(t: Float): Float = 0.3f + 0.45f * kotlin.math.abs(sin(t * 5.1f) * sin(t * 1.7f + 0.8f))
 
         /**
-         * La scène demandée : `speaking` (le défaut) pose **Quill en train de parler**, sa réplique
-         * étant lue ; `listening` pose le micro ouvert, tous les visages dans l'orbe.
+         * The requested scene: `speaking` (the default) sets up **Quill speaking**, its reply
+         * being read; `listening` sets up the open microphone, all the faces in the orb.
          */
         fun from(variant: String?): GroupVoiceDemo? {
             val name = variant?.trim()?.lowercase() ?: return null
@@ -110,13 +110,13 @@ internal class GroupVoiceDemo(
         }
 
         /**
-         * La maquette qui **joue la boucle** : une salle scriptée qui **répond**, bot après bot.
+         * The fixture that **plays the loop**: a scripted room that **answers**, bot after bot.
          *
-         * Elle se pose avec le drapeau de scène (`-e onyx.groupVoiceDemo file`) **et** le moteur
-         * sans micro (`-e onyx.voiceScenario phrase`) : l'écoute, la question, la file des réponses
-         * — une par bot, chacune lue avec son profil — et la reprise de l'écoute tournent alors
-         * **pour de vrai**, sans serveur, sans salle ouverte et sans micro. C'est ce qui rend la
-         * conversation d'une salle prouvable sur un émulateur.
+         * It is set up with the scene flag (`-e onyx.groupVoiceDemo file`) **and** the engine
+         * without microphone (`-e onyx.voiceScenario phrase`): listening, the question, the queue of answers
+         * — one per bot, each read with its profile — and the resumption of listening then run
+         * **for real**, with no server, no open room and no microphone. This is what makes a
+         * room's conversation provable on an emulator.
          */
         fun live(scope: CoroutineScope): GroupVoiceDemo = GroupVoiceDemo(
             thread = ScriptedGroupRoom(scope),
@@ -129,16 +129,16 @@ internal class GroupVoiceDemo(
     }
 }
 
-/** Délai entre deux réponses de la salle scriptée : le temps de lire celle qui précède. */
+/** Delay between two answers of the scripted room: the time to read the one before. */
 private const val SCRIPTED_REPLY_GAP_MS = 2_200L
 
 /**
- * La salle **scriptée qui répond** : le pendant, pour la boucle, de la salle figée de la maquette.
+ * The **scripted room that answers**: the counterpart, for the loop, of the fixture's frozen room.
  *
- * Elle reçoit la question (`ask`) et écrit les réponses **une par une** — un bot, puis le suivant —
- * en gardant `isTalking` vrai pendant tout le tour : c'est ce qui rejoue la règle « chacun son
- * tour » (l'écoute ne se rouvre pas tant que la file n'est pas finie), sans serveur ni salle
- * ouverte. Rien de tout ceci ne sert hors d'un APK de debug.
+ * It receives the question (`ask`) and writes the answers **one by one** — one bot, then the next —
+ * keeping `isTalking` true throughout the turn: this is what replays the "one at a time"
+ * rule (listening does not reopen as long as the queue is not finished), with no server and no open
+ * room. None of this is of any use outside a debug APK.
  */
 private class ScriptedGroupRoom(private val scope: CoroutineScope) : GroupVoiceThread {
     override val roomName: String = "Weekend hike"
@@ -187,7 +187,7 @@ private class ScriptedGroupRoom(private val scope: CoroutineScope) : GroupVoiceT
     }
 
     private companion object {
-        /** Trois bots, trois réponses : de quoi montrer que le tour passe bien de l'un à l'autre. */
+        /** Three bots, three answers: enough to show that the turn does pass from one to the other. */
         val scriptedReplies = listOf(
             Triple("default", "Onyx", "J'ai noté la sortie de samedi à 8 h, avec un réveil à 6 h 45."),
             Triple(
@@ -204,7 +204,7 @@ private class ScriptedGroupRoom(private val scope: CoroutineScope) : GroupVoiceT
     }
 }
 
-/** Le fil de la maquette : une salle scriptée qui ne parle à personne. */
+/** The fixture's thread: a scripted room that talks to nobody. */
 private class DemoThread(
     lines: MutableStateFlow<List<GroupVoiceLine>>,
     talking: MutableStateFlow<Boolean>,

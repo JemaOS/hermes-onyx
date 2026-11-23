@@ -16,13 +16,13 @@ import com.onyx.app.ui.conversations.GroupCreation
 import kotlinx.coroutines.CancellationException
 
 /**
- * Le nom de la salle demandée : celui qu'on a tapé, ou à défaut les membres nommés comme on les
- * appelle — « Onyx, Scout, and Quill » (`formatted(.list(type: .and))` de la référence).
+ * The name of the requested room: the one that was typed, or failing that the named members as
+ * they are called — "Onyx, Scout, and Quill" (`formatted(.list(type: .and))` of the reference).
  */
 internal fun groupTitle(name: String, bots: List<BotProfile>, mainName: String): String =
     name.trim().ifBlank { roomMembersLabel(bots.map { it.label(mainName) }) }
 
-/** Une salle telle que la liste la dessine (`GroupChat`) : ses membres reconnus dans le roster. */
+/** A room as the list draws it (`GroupChat`): its members recognized in the roster. */
 internal fun roomChat(room: GroupRoom, bots: List<BotProfile>): GroupChat = GroupChat(
     id = room.id,
     name = room.name,
@@ -33,7 +33,7 @@ internal fun roomChat(room: GroupRoom, bots: List<BotProfile>): GroupChat = Grou
     local = room.local,
 )
 
-/** Le profil d'un membre de salle : le bot quand on le connaît, sinon ses seuls noms. */
+/** A room member's profile: the bot when it is known, otherwise only its names. */
 internal fun botFor(member: GroupMember, bots: List<BotProfile>): BotProfile =
     bots.firstOrNull { it.name == member.profile }
         ?: BotProfile(
@@ -42,7 +42,7 @@ internal fun botFor(member: GroupMember, bots: List<BotProfile>): BotProfile =
             isDefault = member.profile == "default",
         )
 
-/** Ouvre une salle sur le Dashboard (`groups.create`). Le vrai appel ; hors appareil il se donne. */
+/** Opens a room on the Dashboard (`groups.create`). The real call; off-device it gives nothing. */
 internal suspend fun openGroupOnServer(config: ServerConfig, draft: GroupRoomDraft): GroupRoom? {
     val rpc = ServeRpc(config)
     return try {
@@ -53,33 +53,33 @@ internal suspend fun openGroupOnServer(config: ServerConfig, draft: GroupRoomDra
 }
 
 /**
- * « New Group Chat », de bout en bout : la salle de ces bots, faite **maintenant**.
+ * "New Group Chat", end to end: the room of these bots, made **now**.
  *
- * Deux chemins, comme la référence. Quand la connexion porte des identifiants de Dashboard, la
- * salle est **ouverte sur le serveur** (`groups.create`, [server]) : elle apparaît alors dans la
- * liste avec les autres salles d'Hermes. Sans Dashboard, elle est **gardée sur ce téléphone**
- * ([store]), avec ses membres, et se retrouve après une relance.
+ * Two paths, like the reference. When the connection carries Dashboard credentials, the room is
+ * **opened on the server** (`groups.create`, [server]): it then appears in the list with Hermes's
+ * other rooms. Without a Dashboard, it is **kept on this phone** ([store]), with its members, and
+ * is found again after a restart.
  *
- * Le même nom ne fait jamais deux salles : celle qui porte déjà ce nom (`known`) revient telle
- * quelle. Un échec du serveur rend ce qui l'a causé, et **rien** n'est gardé — jamais une salle à
- * moitié faite, jamais un succès muet.
+ * The same name never makes two rooms: the one that already carries this name (`known`) comes
+ * back as is. A server failure returns what caused it, and **nothing** is kept — never a
+ * half-made room, never a silent success.
  */
 internal suspend fun createGroupRoom(
     config: ServerConfig,
     bots: List<BotProfile>,
     known: List<GroupRoom>,
     store: GroupRoomStore,
-    /** La connexion dont la salle gardée porte le nom (`GroupRoomStore`, `BotActivityStore`). */
+    /** The connection whose name the kept room carries (`GroupRoomStore`, `BotActivityStore`). */
     serverKey: String,
     name: String,
     members: Set<String>,
     mainName: String,
-    /** Ouvre la salle sur le serveur ; sans lui, c'est le RPC du Dashboard qui s'en charge. */
+    /** Opens the room on the server; without it, the Dashboard RPC handles it. */
     server: (suspend (GroupRoomDraft) -> GroupRoom?)? = null,
 ): GroupCreation {
-    // La contrainte est **celle du serveur** (`gateway/hosted_room_discussion.py` : « between 2 and 6
-    // entries »), et elle s'applique **avant** l'appel : un septième bot ne part pas, il est refusé
-    // ici avec sa raison — et rien n'est tronqué en silence.
+    // The constraint is **the server's** (`gateway/hosted_room_discussion.py`: "between 2 and 6
+    // entries"), and it applies **before** the call: a seventh bot does not leave, it is refused
+    // here with its reason — and nothing is truncated silently.
     val chosen = bots.filter { it.name in members }
     if (chosen.size < GroupRoom.MIN_MEMBERS) {
         return GroupCreation.Failed(OnyxLocalization["Pick two to six bots for the group."])
@@ -94,14 +94,14 @@ internal suspend fun createGroupRoom(
         )
     }
     val title = groupTitle(name, chosen, mainName)
-    // Un nom déjà pris : c'est cette salle qui revient, rien de neuf n'est ouvert.
+    // A name already taken: it is that room that comes back, nothing new is opened.
     GroupRoom.named(known, title)?.let { existing ->
         return GroupCreation.Made(roomChat(existing, bots))
     }
 
     val draft = GroupRoomDraft.of(name = title, bots = chosen, mainName = mainName)
     if (!config.hasServeCredentials) {
-        // Pas de Dashboard : la salle reste ici, avec ses membres, et survit à la relance.
+        // No Dashboard: the room stays here, with its members, and survives the restart.
         return GroupCreation.Made(roomChat(store.save(serverKey, draft), bots))
     }
     return try {
@@ -111,13 +111,13 @@ internal suspend fun createGroupRoom(
     } catch (error: CancellationException) {
         throw error
     } catch (error: Exception) {
-        // Le refus se lit tel quel : la feuille le montre, et rien n'est resté à moitié.
+        // The refusal is read as is: the sheet shows it, and nothing was left half-done.
         GroupCreation.Failed(
             OnyxLocalization.format("Couldn't create the group: %1\$s", reason(error)),
         )
     }
 }
 
-/** Le texte d'une erreur, tel qu'on le montre ailleurs. */
+/** An error's text, as it is shown elsewhere. */
 private fun reason(error: Exception): String =
     humanFailure(error, OnyxLocalization["unknown error"])
