@@ -1629,7 +1629,7 @@ fun OnyxApp() {
         val voiceNoSound = noSound || posedNoSound
         val listenProblem = posedProblem
             ?: voiceProblem
-            // never started" or "the engine receives frames and returns nothing", which the level
+            // La panne d'écoute vient **avant** le niveau du micro : elle sait dire « le moteur
             // alone cannot distinguish — and that is what left the screen mute.
             // level alone cannot distinguish — and that is what left the screen mute.
             ?: voiceTrouble.message
@@ -1793,8 +1793,8 @@ fun OnyxApp() {
         }
 
         // The conversations' read marks: what this phone has seen of each, like
-        // the reference's `ChatActivity.seen` — there is no server-side read registry here. "Mark as
-        // Unread" writes 0, "Mark as Read" the current time, and the row reads them.
+        // `ChatActivity.seen` d'la référence — il n'y a pas de registre serveur de lecture ici. « Mark as
+        // Unread » écrit 0, « Mark as Read » l'heure courante, et la rangée les lit.
         val conversationMarks = remember { BotActivityStore(context) }
         var unreadMarks by remember { mutableStateOf(emptyMap<String, Double?>()) }
         LaunchedEffect(history.size, state.conversationId, state.server.configSignature) {
@@ -2619,8 +2619,8 @@ fun OnyxApp() {
                 onBack = if (wideDetail) null else {
                     val inApp: () -> Unit = ({ if (!navBack()) navTo(Route.CHAT.name) })
                     // The arrow **and** the gesture pop the same stack: the sidebar's only
-                    // when it is **this** screen that it carries. `isNavigating` said "some
-                    // screen is open in there" — even closed, even invisible: the arrow
+                    // quand c'est **cet** écran qu'il porte. `isNavigating` disait « un écran
+                    // quelconque est ouvert là-dedans » — même fermé, même invisible : la flèche
                     // then popped a sidebar one did not see, and the first press had no
                     // visible effect (measured).
                     if (sidebarState.destination == Route.CRON.name) paneBack else inApp
@@ -2971,7 +2971,7 @@ fun OnyxApp() {
                     },
                 )
 
-                // A tile without a screen here should not exist (`SidebarDestinations.paneScreens`
+                // Une tuile sans écran ici ne devrait pas exister (`SidebarDestinations.paneScreens`
                 // is measured by a test); we draw nothing rather than invent a screen.
                 else -> Unit
             }
@@ -3066,8 +3066,8 @@ fun OnyxApp() {
                 // killed mid-composition finds the grid it was showing, and the order.
                 // // A tile **stacks its screen in the sidebar** — it no longer closes it. That is the
                 onSetTileLayout = { ids -> scope.launch { settingsRepo.setSidebarTiles(ids) } },
-                // requested fix: "when I click for example on Insights, we stay in the
-                // sidebar". The previous choice did the opposite (`navTo` then `close()`), and the
+                // Une tuile **empile son écran dans le volet** — elle ne le ferme plus. C'est la
+                // correction demandée : « quand je clique par exemple sur Aperçus, on reste dans le
                 // owner had to reopen the sidebar to see where he had just arrived.
                 // owner had to reopen the sidebar to see where he had just arrived.
                 onOpenTile = { id ->
@@ -3236,7 +3236,7 @@ fun OnyxApp() {
             )
         }
 
-        // // shift by it a second time. Without that, a low field of a long form
+        // Le clavier est traité **ici, une seule fois** : la zone de l'app se réduit au-dessus du
         // // ("Identifier" of the configuration) stayed under the keyboard: the scrolling area
         // // kept the whole screen height, so Compose had nothing to lift.
         // ("Identifier" of the configuration) stayed under the keyboard: the scrolling area
@@ -3304,8 +3304,8 @@ fun OnyxApp() {
             // lower in the stack it goes back as before. Two panes: the list is already there,
             // back only has to go back up the stack — never a closing of the app.
             // // pop, we go back to the screen that makes sense. Before, on Settings in two panes,
-            // // the stack was empty, `navBack()` returned false and the gesture did **nothing** — "I
-            // // can't even go back with the screen edge".
+            // dépiler, on remonte à l'écran qui a du sens. Avant, sur Réglages en deux panneaux,
+            // la pile était vide, `navBack()` rendait faux et le geste ne faisait **rien** — « je
             // // Two panes: the **root** is the thread — the detail paints it as well for Chat as
             // // for the conversation list, which lives on the left. At the foot of the stack, back is
             // // thus no longer consumed: it hands control back to the system, as on a phone. The rule is
@@ -3368,8 +3368,8 @@ fun OnyxApp() {
                     // porte le contrôle qui rouvre la liste.
                     if (presentedRoute == Route.KANBAN) {
                         // // board holds the left pane and carries the section picker
-                        // // (the reference's `topRow`); the conversation the right one — "ask
-                        // // Onyx" fills it without leaving the board. The sidebar follows the same
+                        // tableau tient le panneau de gauche et porte le sélecteur de section
+                        // (le `topRow` d'la référence) ; la conversation celui de droite — « demander à
                         // // bounded geometry as the other routes, not a frozen 58/42 split.
                         // bounded geometry as the other routes, not a frozen 58/42 split.
                         OnyxListDetail(
@@ -3842,8 +3842,8 @@ fun OnyxApp() {
                 } else {
                     // **A thread's face or a bot's?** Came from the conversation, the choice
                     // only writes on **this thread** (`Conversation.faceCode`): the other conversations
-                    // of the same bot keep theirs — that was the whole reported defect ("it changed
-                    // all the coder ones"). Came from the "Bots" tab, it writes on the bot, as before.
+                    // du même bot gardent le leur — c'était tout le défaut relevé (« ça a changé
+                    // tous les coder »). Venu de l'onglet « Bots », il écrit sur le bot, comme avant.
                     val thread = faceConversation
                     BotFacePickerScreen(
                         botName = bot.name,
@@ -3868,8 +3868,8 @@ fun OnyxApp() {
             }
 
             // **The room is wrapped by the sidebar**, like the thread: without this wrapper, the
-            // sidebar's control changed its state without anything opening — "the button does
-            // nothing". The same `SidebarScaffold` thus serves the thread and the room.
+            // contrôle du volet changeait son état sans que rien ne s'ouvre — « le bouton ne fait
+            // rien ». Le même `SidebarScaffold` sert donc le fil et la salle.
             Route.GROUP_CHAT -> withSidebar {
                 val room = openedRoom
                 if (room != null) {
@@ -3905,8 +3905,8 @@ fun OnyxApp() {
                         // room**: the same screen, thus the same plate, the same tabs and the
                         // same faces. It no longer leaves the route: the old path emptied
                         // `openedRoom` and fell back on the local composer of `GroupChatScreen`,
-                        // which appeared above the plate during the transition ("a second
-                        // empty composer in blur, shifted to the right").
+                        // qui apparaissait par-dessus la plaque pendant la transition (« un second
+                        // compositeur vide en flou, décalé à droite »).
                         onNewConversation = {
                             // A still-blank room is taken as is, so as not to stack
                             // two empty conversations: the conversation is already new there.
@@ -3970,8 +3970,8 @@ fun OnyxApp() {
                                 // **The roster is read again; the choice is pushed into the room itself.**
                                 // `setModel` writes `profiles.configure` on the server side and the local
                                 // profile: without re-reading the roster, the sheet reopened the old model
-                                // and the room saw nothing change — "the change is not
-                                // taken in real time". The local merge gives the new model to
+                                // et la salle ne voyait rien changer — « le changement n'est pas
+                                // pris en temps réel ». La fusion locale donne le nouveau modèle à
                                 // the screen immediately, the re-read confirms what the server
                                 // retained.
                                 botsViewModel.refresh()

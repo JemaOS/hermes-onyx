@@ -31,22 +31,23 @@ data class BotShortcut(
 )
 
 /**
- * The **selection rule** of the bots section of the long-press menu: which bots, in which order,
- * and how many.
+ * La **règle de sélection** de la section des bots du menu d'appui long : quels bots, dans quel
+ * ordre, et combien.
  *
- * The long press on the icon opens a menu where three action shortcuts are declared by the
- * manifest (`ask`, `talk`, `note` — they do not move) and where one tile per bot comes next.
- * The platform bounds this list: a shortcut published at runtime costs a slot
- * (`getMaxShortcutCountPerActivity`, the slot of pinned shortcuts and of the three actions
- * deducted), and the launcher only shows part of it. Hence an explicit rule, applied here and
- * nowhere else:
+ * L'appui long sur l'icône ouvre un menu où trois raccourcis d'action sont déclarés par le
+ * manifeste (`ask`, `talk`, `note` — ils ne bougent pas) et où une tuile par bot vient ensuite.
+ * La plateforme borne cette liste : un raccourci publié à l'exécution coûte une place
+ * (`getMaxShortcutCountPerActivity`, la place des raccourcis épinglés et des trois actions
+ * déduite), et le lanceur n'en montre qu'une partie. D'où une règle explicite, appliquée ici et
+ * nulle part ailleurs :
  *
- * 1. **The bots the person put at the top** — the section's saved order ("Reorder Bots"): it is
- *    their choice, it comes before everything else.
- * 2. **Then the most recently active** (`lastActive`, most recent first): "most used first".
- * 3. **Then the server order**, as is.
+ * 1. **Les bots que la personne a mis en tête** — l'ordre enregistré de la section (« Reorder
+ *    Bots ») : c'est son choix, il passe avant tout le reste.
+ * 2. **Puis les plus récemment actifs** (`lastActive`, le plus récent d'abord) : « les plus
+ *    utilisés d'abord ».
+ * 3. **Puis l'ordre du serveur**, tel quel.
  *
- * The number is bounded by [MAX_BOTS] and by the room the platform leaves ([schedule]).
+ * Le nombre est borné par [MAX_BOTS] et par la place que la plateforme laisse ([schedule]).
  */
 object BotShortcutPlan {
 

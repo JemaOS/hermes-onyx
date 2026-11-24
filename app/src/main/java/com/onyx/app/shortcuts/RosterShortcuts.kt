@@ -19,21 +19,21 @@ import com.onyx.app.ui.theme.OnyxFonts
 import com.onyx.app.ui.theme.ResolvedTheme
 
 /**
- * The **bots section** of the menu that opens on a long press on the icon.
+ * La **section des bots** du menu qui s'ouvre sur un appui long sur l'icône.
  *
- * One shortcut per bot, carrying its **colour** and its **tile** ([BotTileArtwork]), and opening a
- * conversation **with that bot** ([ACTION_BOT] → `BotShortcutInbox` → the bot's chat).
+ * Un raccourci par bot, portant sa **couleur** et sa **tuile** ([BotTileArtwork]), et ouvrant une
+ * conversation **avec ce bot** ([ACTION_BOT] → `BotShortcutInbox` → le chat du bot).
  *
- * Published at runtime, because the list of bots comes from the server: it is the only part of the
- * menu that cannot be declared in `res/xml/shortcuts.xml`. The three action shortcuts
- * (`ask`, `talk`, `note`) are declared there and **do not move**: here only the section is added.
+ * Publiée à l'exécution, parce que la liste des bots vient du serveur : c'est la seule partie du
+ * menu qui ne peut pas être déclarée dans `res/xml/shortcuts.xml`. Les trois raccourcis d'action
+ * (`ask`, `talk`, `note`) y sont déclarés et **ne bougent pas** : ici on n'ajoute que la section.
  *
- * **Consistency**: [publish] is called again on each read of the roster by the bots section, and
- * `setDynamicShortcuts` **replaces the whole set** — therefore:
- * - a bot that appears receives its tile;
- * - a bot that disappears loses its own (no shortcut survives the roster);
- * - a renamed bot changes identifier (it is derived from the profile name): the old one is erased;
- * - a bot that changes face is republished with its new colour.
+ * **Cohérence** : [publish] est rappelée à chaque lecture du roster par la section des bots, et
+ * `setDynamicShortcuts` **remplace l'ensemble** — donc :
+ * - un bot qui apparaît reçoit sa tuile ;
+ * - un bot qui disparaît perd la sienne (aucun raccourci ne survit au roster) ;
+ * - un bot renommé change d'identifiant (il est dérivé du nom de profil) : l'ancien s'efface ;
+ * - un bot qui change de visage est republié avec sa nouvelle couleur.
  */
 object RosterShortcuts {
 
@@ -149,11 +149,11 @@ object RosterShortcuts {
     }
 
     /**
-     * The shortcut's **launcher** component.
+     * Le composant **lanceur** du raccourci.
      *
-     * A long press's shortcuts belong to the component the launcher queries: the active icon
-     * alias, not `MainActivity` (the home screen's icon is an alias, and a shortcut published on
-     * another component appears under **no** icon).
+     * Les raccourcis d'un appui long appartiennent au composant que le lanceur interroge : l'alias
+     * d'icône actif, pas `MainActivity` (l'icône de l'écran d'accueil est un alias, et un raccourci
+     * publié sur un autre composant n'apparaît sous **aucune** icône).
      */
     fun launcherComponent(context: Context): ComponentName {
         val choice = AppIconController(context.applicationContext).current()

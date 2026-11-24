@@ -282,7 +282,7 @@ fun RoomCreationDialog(
 
 /** What hosts the room being opened : it is **this** that decides the sentence, never the reverse. */
 enum class RoomHosting {
-    /** The gateway holds the room : it keeps going with no app open. */
+    /** La passerelle tient le salon : il continue sans application ouverte. */
     GATEWAY,
 
     /** Without Dashboard, the room is kept on this phone. */
@@ -303,9 +303,8 @@ internal fun roomHosting(hasDashboard: Boolean, gatewayRunsRooms: Boolean): Room
 }
 
 /**
- * The dialog's paragraph, depending on [hosting]. Each variant only says what that path keeps :
- * « il continue même application fermée » ("it keeps going even with the app closed") appears **only**
- * for a room the gateway holds.
+ * Le paragraphe de la boîte, selon [hosting]. Chaque variante ne dit que ce que ce chemin-là tient :
+ * « il continue même application fermée » n'apparaît **que** pour un salon que la passerelle tient.
  */
 internal fun roomExplanation(hosting: RoomHosting): String = when (hosting) {
     RoomHosting.GATEWAY -> OnyxLocalization[
