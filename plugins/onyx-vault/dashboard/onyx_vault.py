@@ -1,19 +1,19 @@
-"""onyx-vault — cœur du coffre de secrets par profil (chiffrement au repos).
+"""onyx-vault — core of the per-profile secrets vault (encryption at rest).
 
-Invariants de sécurité — à ne jamais casser :
+Security invariants — never to be broken:
 
-* la valeur en clair n'est écrite **nulle part** : ni sur disque, ni dans une
-  requête SQL (seuls le chiffré Fernet, l'empreinte et les métadonnées le sont),
-  ni dans un log, ni dans une exception, ni dans une réponse HTTP ;
-* l'empreinte ne contient que les 4 derniers caractères de la valeur (et rien du
-  tout en dessous de 8 caractères) ;
-* la clé Fernet n'est jamais en dur : elle vient d'une variable d'environnement
-  ou d'un fichier en 0600, sinon le coffre refuse de servir (``VaultUnavailable``)
-  au lieu de planter ;
-* chaque chiffré est lié à son ``(profil, nom)`` : le déplacer d'une ligne à
-  l'autre est détecté au déchiffrement.
+* the plaintext value is written **nowhere**: neither on disk, nor in an
+  SQL query (only the Fernet ciphertext, the fingerprint and the metadata are),
+  nor in a log, nor in an exception, nor in an HTTP response;
+* the fingerprint contains only the last 4 characters of the value (and nothing at
+  all below 8 characters);
+* the Fernet key is never hardcoded: it comes from an environment variable
+  or a 0600 file, otherwise the vault refuses to serve (``VaultUnavailable``)
+  instead of crashing;
+* each ciphertext is bound to its ``(profile, name)``: moving it from one row to
+  another is detected on decryption.
 
-Ce module ne dépend d'aucun code Hermes : il est testable seul.
+This module depends on no Hermes code: it is testable on its own.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ PLUGIN_NAME = "onyx-vault"
 DB_FILENAME = "onyx-vault.db"
 KEY_FILENAME = "onyx-vault.key"
 MAX_VALUE_BYTES = 16 * 1024
-# En dessous de cette longueur, une empreinte "4 derniers caractères" révélerait
-# une part trop grande du secret : on masque entièrement.
+# Below this length, a "last 4 characters" fingerprint would reveal
+# too large a part of the secret: we mask it entirely.
 MIN_FINGERPRINT_LENGTH = 8
 MASKED_FINGERPRINT = "****"
 
@@ -59,44 +59,44 @@ KEY_HELP = (
 
 
 # ---------------------------------------------------------------------------
-# Erreurs — messages sûrs, jamais construits à partir d'une valeur
+# Errors — safe messages, never built from a value
 # ---------------------------------------------------------------------------
 
 
 class VaultError(Exception):
-    """Erreur du coffre. Le message est destiné à l'opérateur, pas au secret."""
+    """Vault error. The message is meant for the operator, not for the secret."""
 
 
 class VaultUnavailable(VaultError):
-    """Clé absente ou invalide : le coffre refuse de servir (503), il ne plante pas."""
+    """Missing or invalid key: the vault refuses to serve (503), it does not crash."""
 
 
 class VaultInvalid(VaultError):
-    """Entrée refusée (profil, nom, valeur ou métadonnée)."""
+    """Refused input (profile, name, value or metadata)."""
 
 
 class VaultNotFound(VaultError):
-    """Secret inconnu."""
+    """Unknown secret."""
 
 
 # ---------------------------------------------------------------------------
-# Empreinte / objets porteurs de secret
+# Fingerprint / secret-carrying objects
 # ---------------------------------------------------------------------------
 
 
 def fingerprint(value: str) -> str:
-    """Les 4 derniers caractères, ou ``****`` pour une valeur trop courte."""
+    """The last 4 characters, or ``****`` for a value that is too short."""
     if not isinstance(value, str) or len(value) < MIN_FINGERPRINT_LENGTH:
         return MASKED_FINGERPRINT
     return value[-4:]
 
 
 class Secret:
-    """Valeur déchiffrée en mémoire.
+    """Value decrypted in memory.
 
-    ``repr``/``str``/``format``/``f-string`` ne rendent jamais la valeur : un
-    ``log.info("%s", secret)`` ou un traceback ne peut donc pas la fuiter. Le
-    seul chemin d'accès est ``reveal()``, explicite et grep-able.
+    ``repr``/``str``/``format``/``f-string`` never render the value: a
+    ``log.info("%s", secret)`` or a traceback therefore cannot leak it. The
+    only access path is ``reveal()``, explicit and grep-able.
     """
 
     __slots__ = ("profile", "name", "_value")
@@ -117,13 +117,13 @@ class Secret:
     def __format__(self, _spec: str) -> str:
         return repr(self)
 
-    def __reduce__(self):  # pickle/copy ne doivent pas sérialiser la valeur
+    def __reduce__(self):  # pickle/copy must not serialize the value
         raise TypeError("Secret n'est pas sérialisable")
 
 
 @dataclass(frozen=True)
 class SecretMeta:
-    """Métadonnées publiques d'un secret : jamais la valeur."""
+    """Public metadata of a secret: never the value."""
 
     profile: str
     name: str
@@ -177,7 +177,7 @@ def validate_name(name: Any) -> str:
 
 
 def validate_value(value: Any) -> str:
-    """Valide **sans jamais recopier** la valeur dans le message d'erreur."""
+    """Validate **without ever copying** the value into the error message."""
     if not isinstance(value, str):
         raise VaultInvalid("valeur invalide : chaîne attendue")
     if not value:
@@ -206,14 +206,14 @@ def validate_used_by(used_by: Any) -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Emplacement + clé
+# Location + key
 # ---------------------------------------------------------------------------
 
 
 def vault_dir() -> Path:
-    """``$ONYX_VAULT_DIR`` sinon ``$HERMES_HOME/vault`` sinon ``~/.hermes/vault``.
+    """``$ONYX_VAULT_DIR`` otherwise ``$HERMES_HOME/vault`` otherwise ``~/.hermes/vault``.
 
-    Hors du dépôt Hermes : un ``hermes update`` ne peut pas l'écraser.
+    Outside the Hermes repository: a ``hermes update`` cannot overwrite it.
     """
     override = os.environ.get("ONYX_VAULT_DIR", "").strip()
     if override:
@@ -232,11 +232,11 @@ def _check_permissions(path: Path) -> bool:
 
 
 def load_key() -> KeyMaterial:
-    """Clé Fernet depuis ``$ONYX_VAULT_KEY``, ``$ONYX_VAULT_KEY_FILE`` ou le fichier par défaut.
+    """Fernet key from ``$ONYX_VAULT_KEY``, ``$ONYX_VAULT_KEY_FILE`` or the default file.
 
-    Lève ``VaultUnavailable`` (message actionnable, sans matériel de clé) quand
-    elle manque ou est malformée : le plugin répond alors 503 au lieu de
-    faire tomber le Dashboard.
+    Raises ``VaultUnavailable`` (actionable message, without key material) when
+    it is missing or malformed: the plugin then answers 503 instead of
+    bringing the Dashboard down.
     """
     env_key = os.environ.get("ONYX_VAULT_KEY", "").strip()
     if env_key:
@@ -284,7 +284,7 @@ def _parse_key(raw: str, origin: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Stockage
+# Storage
 # ---------------------------------------------------------------------------
 
 
@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS meta (
 
 
 class Vault:
-    """Coffre SQLite + Fernet. Une connexion par opération, un verrou par instance."""
+    """SQLite + Fernet vault. One connection per operation, one lock per instance."""
 
     def __init__(self, db_path: Optional[Path] = None, key: Optional[KeyMaterial] = None) -> None:
         self.key = key or load_key()
@@ -320,7 +320,7 @@ class Vault:
         self._lock = threading.Lock()
         self._init_schema()
 
-    # -- interne ---------------------------------------------------------
+    # -- internal ---------------------------------------------------------
     def _connect(self):
         cx = sqlite3.connect(str(self.db_path), timeout=5.0)
         cx.execute("PRAGMA busy_timeout = 5000")
@@ -347,7 +347,7 @@ class Vault:
             pass
 
     def _seal(self, profile: str, name: str, value: str) -> bytes:
-        """Chiffre la valeur *liée* à (profil, nom) pour détecter un déplacement de ligne."""
+        """Encrypt the value *bound to* (profile, name) to detect a row move."""
         envelope = json.dumps(
             {"v": 1, "p": profile, "n": name, "s": value}, ensure_ascii=False, separators=(",", ":")
         ).encode("utf-8")
@@ -373,7 +373,7 @@ class Vault:
 
     # -- API -------------------------------------------------------------
     def put(self, profile: str, name: str, value: str, used_by: Iterable[str] | None = None) -> dict:
-        """Écrit/remplace un secret. Retourne ses métadonnées (dont l'empreinte)."""
+        """Write/replace a secret. Returns its metadata (including the fingerprint)."""
         profile = validate_profile(profile)
         name = validate_name(name)
         value = validate_value(value)
@@ -452,7 +452,7 @@ class Vault:
         return removed
 
     def read(self, profile: str, name: str) -> Secret:
-        """Déchiffre un secret (usage interne : consommateur Onyx). Jamais exposé en HTTP."""
+        """Decrypt a secret (internal use: Onyx consumer). Never exposed over HTTP."""
         profile = validate_profile(profile)
         name = validate_name(name)
         with self._lock, closing(self._connect()) as cx:
@@ -469,8 +469,8 @@ class Vault:
 
 
 # ---------------------------------------------------------------------------
-# Singleton paresseux : une clé ajoutée après coup est prise en compte au
-# prochain appel, sans redémarrer le serveur.
+# Lazy singleton: a key added afterwards is taken into account on the
+# next call, without restarting the server.
 # ---------------------------------------------------------------------------
 
 _vault: Optional[Vault] = None
@@ -486,7 +486,7 @@ def get_vault() -> Vault:
 
 
 def reset_vault() -> None:
-    """Oublie l'instance (tests, ou rotation de clé)."""
+    """Forget the instance (tests, or key rotation)."""
     global _vault
     with _vault_lock:
         _vault = None

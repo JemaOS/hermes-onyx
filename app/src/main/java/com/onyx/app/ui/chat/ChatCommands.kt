@@ -3,27 +3,27 @@ package com.onyx.app.ui.chat
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * Les commandes `/` que Onyx traite elle-même, sans les envoyer au serveur.
+ * The `/` commands that Onyx handles itself, without sending them to the server.
  *
- * Miroir du cas spécial de `ComposerView.send` (Echo/Views/ComposerView:569) :
- * `/model` nu ouvre le sélecteur de modèle ; avec un argument, la ligne reste une commande
- * `slash` ordinaire et part au gateway.
+ * Mirror of the special case in `ComposerView.send` (Echo/Views/ComposerView:569):
+ * a bare `/model` opens the model picker; with an argument, the line remains an ordinary
+ * `slash` command and goes to the gateway.
  */
 internal const val MODEL_COMMAND = "/model"
 
 /**
- * Vrai si le brouillon est exactement `/model` (espaces et casse ignorés).
+ * True if the draft is exactly `/model` (spaces and case ignored).
  *
- * Un `/model gpt-5` n'est **pas** cette commande : c'est une ligne pour le serveur.
+ * A `/model gpt-5` is **not** this command: it is a line for the server.
  */
 internal fun isModelCommand(draft: String): Boolean = draft.trim().lowercase() == MODEL_COMMAND
 
 /**
- * Garantit `/model` en tête du menu `/` quand il correspond à ce qui est tapé.
+ * Guarantees `/model` at the top of the `/` menu when it matches what is being typed.
  *
- * Le menu vient de `complete.slash` du gateway ; `/model` est une commande locale que Onyx
- * intercepte à l'envoi, donc on l'ajoute au menu pour qu'elle soit visible même si le serveur ne
- * la propose pas. Rien n'est dupliqué si le gateway la renvoie déjà.
+ * The menu comes from the gateway's `complete.slash`; `/model` is a local command that Onyx
+ * intercepts on send, so we add it to the menu so that it is visible even if the server does not
+ * offer it. Nothing is duplicated if the gateway already returns it.
  */
 internal fun withModelCommand(items: List<SlashItem>, draft: String): List<SlashItem> {
     if (items.any { it.text.equals(MODEL_COMMAND, ignoreCase = true) }) return items
@@ -37,22 +37,22 @@ internal fun withModelCommand(items: List<SlashItem>, draft: String): List<Slash
     ) + items
 }
 
-/** La taille du menu : la référence en montre huit. */
+/** The size of the menu: the reference shows eight. */
 internal const val SLASH_MENU_LINES = 8
 
 /**
- * Ajoute au menu les commandes que l'app connaît — les six fixes et les **compétences du profil** —
- * et les fait **passer devant** ce que le gateway propose.
+ * Adds to the menu the commands the app knows — the six fixed ones and the **profile skills** —
+ * and makes them **come before** what the gateway offers.
  *
- * Défaut relevé sur l'appareil : « les compétences sont inutilisables ». `complete.slash` d'un
- * serveur qui remplit les huit lignes du menu (ses propres commandes) ne laissait aucune place aux
- * compétences, ajoutées *après* puis coupées par `take(8)` : elles existaient sans jamais
- * s'afficher. Rien n'était cassé dans la liste fournie — c'est la place qui manquait.
+ * Defect found on the device: "the skills are unusable". `complete.slash` from a server that
+ * fills the eight lines of the menu (its own commands) left no room for the skills, added
+ * *afterwards* then cut off by `take(8)`: they existed without ever showing. Nothing was broken
+ * in the provided list — it was room that was missing.
  *
- * L'ordre est donc : les commandes de l'app qui répondent au préfixe (les six fixes, puis les
- * compétences), puis ce que le serveur propose, dédoublonné, le tout coupé à [SLASH_MENU_LINES].
- * Un préfixe plus précis (`/you`, `/re`) fait la part belle au serveur dès que les commandes de
- * l'app ne répondent plus.
+ * The order is therefore: the app's commands that respond to the prefix (the six fixed ones, then
+ * the skills), then what the server offers, deduplicated, all cut at [SLASH_MENU_LINES].
+ * A more precise prefix (`/you`, `/re`) hands the floor to the server as soon as the app's
+ * commands no longer respond.
  */
 internal fun withLocalCommands(
     items: List<SlashItem>,

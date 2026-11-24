@@ -75,31 +75,31 @@ import com.onyx.app.ui.voice.voicePose
 import com.onyx.app.voice.VoicePhase
 
 /**
- * Un modèle de bot, comme `BotTemplate` de la référence : nom, ce qu'il fait, son prompt, et son
- * visage.
+ * A bot template, like `BotTemplate` in the reference: name, what it does, its prompt, and its
+ * face.
  *
- * Le visage fait partie du modèle : « Start from » promet « son nom, ce qu'il fait, sa
- * personnalité, **son visage** et ses outils remplis » — chaque vignette dessine donc la créature
- * de son modèle (forme, yeux, bouche, marque, couleur), et le bot créé la reçoit. Le modèle
- * « Blank » n'en a pas : c'est celui qui part de rien.
+ * The face is part of the template: "Start from" promises "its name, what it does, its
+ * personality, **its face** and its tools filled in" — so each tile draws its template's creature
+ * (shape, eyes, mouth, mark, colour), and the created bot receives it. The "Blank" template has
+ * none: it is the one that starts from nothing.
  */
 data class BotTemplateSpec(
     val id: String,
     val title: String,
     val about: String,
     val soul: String,
-    /** Le visage que ce modèle donne : ce qui se voit sur sa vignette et sur le bot créé. */
+    /** The face this template gives: what shows on its tile and on the created bot. */
     val face: BotFace? = null,
 ) {
     companion object {
         val blank = BotTemplateSpec("blank", "", "", "")
 
-        /** Les cinq modèles de la référence, mot pour mot, chacun avec sa propre créature. */
+        /** The five templates of the reference, word for word, each with its own creature. */
         val all = listOf(
             BotTemplateSpec(
                 id = "researcher",
                 title = "Researcher",
-                // Curieuse : l'œil étincelant, l'antenne qui capte, le ciel.
+                // Curious: the sparkling eye, the receiving antenna, the sky.
                 face = BotFace(
                     shape = FaceShape.EGG,
                     eyes = FaceEyes.SPARKLE,
@@ -121,7 +121,7 @@ You are curious and careful. You keep answers short unless asked for more, and y
             BotTemplateSpec(
                 id = "writer",
                 title = "Writer",
-                // Le rose du fard de la personne qui écrit, un sourire, la pilule de la plume.
+                // The pink of the writer's blush, a smile, the pill of the quill.
                 face = BotFace(
                     shape = FaceShape.PILL,
                     eyes = FaceEyes.HAPPY,
@@ -143,7 +143,7 @@ You write plainly. You cut what doesn't earn its place, prefer short words to lo
             BotTemplateSpec(
                 id = "coder",
                 title = "Coder",
-                // L'hexagone de la puce, l'œil franc, la bouche fermée : il dit ce qu'il a fait.
+                // The hexagon of the chip, the frank eye, the closed mouth: it says what it did.
                 face = BotFace(
                     shape = FaceShape.HEX,
                     eyes = FaceEyes.ROUND,
@@ -165,7 +165,7 @@ You ask before anything that can't be undone: deleting files, rewriting history,
             BotTemplateSpec(
                 id = "home",
                 title = "Home",
-                // La capsule chaude de la maison, la bouche ronde du « il fait bon », les taches.
+                // The warm capsule of the house, the round mouth of "it feels good in here" ("il fait bon"), the spots.
                 face = BotFace(
                     shape = FaceShape.CAPSULE,
                     eyes = FaceEyes.HAPPY,
@@ -187,7 +187,7 @@ You ask before anything that affects safety or security, such as locks, alarms o
             BotTemplateSpec(
                 id = "planner",
                 title = "Planner",
-                // Le carré de la case à cocher, l'indigo du calendrier, l'étincelle de l'échéance.
+                // The square of the checkbox, the indigo of the calendar, the sparkle of the deadline.
                 face = BotFace(
                     shape = FaceShape.SQUARE,
                     eyes = FaceEyes.ROUND,
@@ -212,55 +212,55 @@ You are brief and calm. You never add a task the person didn't ask for; you sugg
 
 
 /**
- * La poignée d'un bot neuf, telle que son nom la donne : « Scout Two » devient `scout_two`, et
- * c'est ce nom que le profil prend sur le serveur — le même que l'éditeur annonce sous le champ
- * du nom.
+ * The handle of a new bot, as its name gives it: "Scout Two" becomes `scout_two`, and
+ * that is the name the profile takes on the server — the same one the editor announces under the
+ * name field.
  */
 fun botHandle(title: String): String = title.trim().lowercase().replace(' ', '_')
 
 /**
- * L'éditeur d'un bot — **sa page d'identité**.
+ * A bot's editor — **its identity page**.
  *
- * Port de `BotEditor` : son visage, son nom et sa poignée, sa voix, ce qu'il fait, sa
- * personnalité, son modèle, ses outils et ses compétences, sa visibilité et sa suppression —
- * mêmes sections, mêmes pieds de section, mêmes textes.
+ * Port of `BotEditor`: its face, its name and handle, its voice, what it does, its
+ * personality, its model, its tools and skills, its visibility and its deletion —
+ * same sections, same section footers, same texts.
  *
- * ## La page est passée au langage de la maison
+ * ## The page has been brought into the house language
  *
- * Elle était restée dans l'ancien : une marge d'écran qui n'était pas la marge, des cartes plates
- * sans l'ombre de la famille, des rangées à une hauteur choisie au cas par cas, et des tuiles de
- * modèle à un rayon qui n'appartenait à aucune famille. Elle prend maintenant [OnyxBase] et rien
- * d'autre :
+ * It had stayed in the old one: a screen margin that was not the margin, flat cards
+ * without the family's shadow, rows with a height chosen case by case, and template tiles
+ * with a radius that belonged to no family. It now takes [OnyxBase] and nothing
+ * else:
  *
- * - **marge 16** ([OnyxBase.ScreenMargin]) à gauche comme à droite ;
- * - **espacements 8 / 16** ([OnyxBase.Tight] dans un groupe, [OnyxBase.Loose] entre les
- *   groupes) — plus une seule valeur intermédiaire ;
- * - **rayons 14 / 20 / 28 / capsule** ([OnyxBase.RadiusField] pour une vignette,
- *   `RadiusCard` pour une carte) ;
- * - **trois profondeurs d'ombre enchaînées** ([Modifier.socleShadow] en `ShadowMid` sur chaque
- *   carte — un appelant de plus, donc l'ombre reste dans le binaire) ;
- * - **trait 1,55 dp** ([OnyxBase.Stroke]) sur le contour des cartes ;
- * - **six corps** 30 / 26 / 16 / 15 / 12 / 11 (`socleDisplayStyle`…`socleMonoStyle`) ;
- * - **cibles ≥ 48 dp** : chaque rangée fait au moins [OnyxBase.RowHeight] (56), chaque contrôle
- *   au moins [OnyxBase.TouchTarget] ;
- * - **un seul accent par écran** : l'accent du thème porte l'action et les états choisis, et il
- *   n'y en a pas d'autre ;
- * - **monospace pour les identifiants et les nombres** (`socleMonoStyle`) : la poignée du bot,
- *   le nom d'un modèle, les compteurs d'outils et de compétences.
+ * - **margin 16** ([OnyxBase.ScreenMargin]) on the left as on the right;
+ * - **spacings 8 / 16** ([OnyxBase.Tight] within a group, [OnyxBase.Loose] between
+ *   groups) — not a single intermediate value left;
+ * - **radii 14 / 20 / 28 / capsule** ([OnyxBase.RadiusField] for a tile,
+ *   `RadiusCard` for a card);
+ * - **three chained shadow depths** ([Modifier.socleShadow] as `ShadowMid` on each
+ *   card — one caller more, so the shadow stays in the binary);
+ * - **stroke 1.55 dp** ([OnyxBase.Stroke]) on the outline of the cards;
+ * - **six body sizes** 30 / 26 / 16 / 15 / 12 / 11 (`socleDisplayStyle`…`socleMonoStyle`);
+ * - **targets ≥ 48 dp**: each row is at least [OnyxBase.RowHeight] (56), each control
+ *   at least [OnyxBase.TouchTarget];
+ * - **a single accent per screen**: the theme's accent carries the action and the chosen states, and
+ *   there is no other;
+ * - **monospace for identifiers and numbers** (`socleMonoStyle`): the bot's handle,
+ *   a template's name, the tool and skill counters.
  *
- * ## Où la couleur du bot a le droit d'être
+ * ## Where the bot's colour is allowed to be
  *
- * La couleur d'un bot est **la sienne** : c'est son visage, et ç'aurait été une faute que de la
- * ramener à l'accent du thème. La règle, tenue ici et partout :
+ * A bot's colour is **its own**: it is its face, and it would have been a mistake to bring
+ * it back to the theme's accent. The rule, kept here and everywhere:
  *
- * | La couleur du bot **a** le droit | La couleur du bot **n'a pas** le droit |
+ * | The bot's colour **is** allowed | The bot's colour **is not** allowed |
  * |---|---|
- * | le **visage** du bot — l'aperçu de cette page, la vignette d'un modèle, le repère-visage de la barre du bas | les **contrôles de l'écran** : « Changer de visage », « Enregistrer », une coche, un interrupteur, un lien |
- * | l'**anneau** qui détache ce visage de la vitre | les **intitulés de section**, les filets, les ombres, les fonds de carte |
+ * | the bot's **face** — this page's preview, a template's tile, the face marker of the bottom bar | the **controls of the screen**: "Change Face" ("Changer de visage"), "Save" ("Enregistrer"), a checkmark, a switch, a link |
+ * | the **ring** that lifts this face off the glass | the **section headings**, the rules, the shadows, the card backgrounds |
  *
- * Autrement dit : la couleur du bot **désigne le bot** ; elle n'**accentue pas** l'écran. Sur cette
- * page, seul le visage la porte — tout le reste prend l'accent du thème, qui est donc le seul
- * accent de l'écran.
+ * In other words: the bot's colour **designates the bot**; it does not **accent** the screen. On this
+ * page, only the face carries it — everything else takes the theme's accent, which is therefore the only
+ * accent of the screen.
  */
 @Composable
 fun BotEditorScreen(
@@ -269,72 +269,72 @@ fun BotEditorScreen(
     mainName: String,
     onFaceChosen: (String?) -> Unit,
     /**
-     * Le nom du bot en cours de creation, pour que l'ecran de visage ait un titre vrai.
+     * The name of the bot being created, so that the face screen has a true title.
      *
-     * Pour un bot deja fait, c'est son nom de profil ; pour un bot en creation, celui que la
-     * personne tape. L'ecran de visage s'ouvre sur un autre ecran (une route) : il lui faut donc
-     * ce nom, et il ne peut pas le deduire — le bot n'existe pas encore sur le serveur.
+     * For an already-made bot, it is its profile name; for a bot being created, the one the
+     * person types. The face screen opens on another screen (a route): it therefore needs
+     * this name, and it cannot infer it — the bot does not exist on the server yet.
      */
     onFaceChosenNamed: (String?, String) -> Unit = { code, _ -> onFaceChosen(code) },
     /**
-     * Le visage choisi dans l'écran de visage dédié, pour un bot **en création**.
+     * The face chosen in the dedicated face screen, for a bot **being created**.
      *
-     * L'écran de visage s'ouvre sur un autre écran (une route) : le choix revient donc par ici.
-     * Sans ce paramètre, « Change Face » de « New Bot » ne pouvait aboutir — le bot n'existe pas
-     * encore, et l'éditeur ne savait rien du choix fait ailleurs.
+     * The face screen opens on another screen (a route): the choice therefore comes back through here.
+     * Without this parameter, "Change Face" of "New Bot" could not complete — the bot does not exist
+     * yet, and the editor knew nothing of the choice made elsewhere.
      */
     chosenFaceCode: String? = null,
     onOpenPrompt: () -> Unit,
     onOpenSchedules: () -> Unit,
     onOpenVoice: () -> Unit,
     /**
-     * La voix que ce bot lit de son cru (`BotVoicePicker.summary`) : « Automatique », « Identique à
-     * l'agent principal », le nom de sa voix — et sa vitesse quand il en a une.
+     * The voice this bot reads with of its own (`BotVoicePicker.summary`): "Automatic", "Same as
+     * the main agent", the name of its voice — and its speed when it has one.
      */
     voiceSummary: String = "Automatic",
     models: List<String> = emptyList(),
     onPickModel: (String?) -> Unit = {},
     /**
-     * **La liste des modèles disponibles** — la feuille du fil (`ModelSheet`), avec sa recherche,
-     * ses profils, ses prix et ses favoris.
+     * **The list of available models** — the thread's sheet (`ModelSheet`), with its search,
+     * its profiles, its prices and its favourites.
      *
-     * `null` : l'écran garde sa liste locale dépliée (les identifiants que le serveur a rendus pour
-     * ce bot). Fourni : un appui sur « Modèle » **ouvre la feuille**, au lieu de déplier deux
-     * lignes qui ne veulent rien dire pour la personne — « hermes-agent », « Identique à Onyx » —
-     * et un seul identifiant. Le retour à « identique à l'agent principal » reste possible : il a sa
-     * propre rangée, sous celle du modèle.
+     * `null`: the screen keeps its local list unfolded (the identifiers the server returned for
+     * this bot). Provided: a tap on "Model" **opens the sheet**, instead of unfolding two
+     * lines that mean nothing to the person — "hermes-agent", "Same as Onyx" —
+     * and a single identifier. Returning to "same as the main agent" remains possible: it has its
+     * own row, under the model's.
      */
     onOpenModelSheet: (() -> Unit)? = null,
     onSave: (title: String, about: String, model: String?, shown: Boolean) -> Unit,
     /**
-     * « Create » d'un bot neuf : le nom, ce qu'il fait, la personnalité du modèle choisi, sa
-     * visibilité et **son visage** — celui du modèle, ou rien pour « Blank » (son nom le lui
-     * donnera).
+     * "Create" for a new bot: the name, what it does, the chosen template's personality, its
+     * visibility and **its face** — the template's, or nothing for "Blank" (its name will give
+     * it to it).
      */
     onCreate: (title: String, about: String, soul: String, shown: Boolean, faceCode: String?) -> Unit = { _, _, _, _, _ -> },
     onDelete: () -> Unit,
     onCancel: () -> Unit,
-    // Les jeux d'outils que le serveur offre, ceux que ce bot a choisis (`null` : ceux du principal),
-    // et ceux du principal — comme `offered` / `toolsets` / `mainToolsets` de la référence.
+    // The toolsets the server offers, those this bot has chosen (`null`: the main one's),
+    // and the main one's — like `offered` / `toolsets` / `mainToolsets` in the reference.
     toolsets: List<GatewayToolset> = emptyList(),
     toolsSelection: Set<String>? = null,
     mainToolsets: Set<String> = emptySet(),
     onToolsSelectionChange: (Set<String>?) -> Unit = {},
-    // Les compétences du bot, chacune allumée ou non, et celles qu'il lit en entier au début de
-    // chaque message — comme `skills` / `alwaysLoaded` de la référence.
+    // The bot's skills, each on or off, and those it reads in full at the start of
+    // every message — like `skills` / `alwaysLoaded` in the reference.
     skills: List<DashboardSkill> = emptyList(),
     alwaysLoadedSkills: Set<String> = emptySet(),
     onToggleSkill: (DashboardSkill, Boolean) -> Unit = { _, _ -> },
     onPinSkill: (DashboardSkill, Boolean) -> Unit = { _, _ -> },
-    // **Pas de rangée « Idées » sur cette page.** L'arbitrage de la réconciliation refuse ce que le
-    // lot du visage avait ajouté : la suppression d'Idées/Objectifs (demande du propriétaire) retire
-    // l'écran, sa route, sa destination, sa clé de dictionnaire **et** toute porte de secours. Le
-    // quatrième repère ouvre donc l'identité du bot, sans plus mener à une liste locale disparue.
-    // Voir `DeletionIdeasGoalsTest` (verrou qui mord) et `FaceGateIdentityTest` (qui nomme
-    // l'arbitrage).
-    /** Ce qui a échoué (une suppression refusée par le serveur, une écriture non gardée). */
+    // **No "Ideas" row on this page.** The reconciliation arbitration refuses what the face
+    // batch had added: deleting Ideas/Goals (the owner's request) removes
+    // the screen, its route, its destination, its dictionary key **and** every fallback door. The
+    // fourth marker therefore opens the bot's identity, no longer leading to a vanished local list.
+    // See `DeletionIdeasGoalsTest` (a lock that bites) and `FaceGateIdentityTest` (which names
+    // the arbitration).
+    /** What failed (a deletion refused by the server, a write not kept). */
     problem: String? = null,
-    // Un écran dédié pour chaque liste, si le parent en a un ; sans lui, la liste se déplie ici.
+    // A dedicated screen for each list, if the parent has one; without it, the list unfolds here.
     onOpenTools: (() -> Unit)? = null,
     onOpenSkills: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -343,32 +343,32 @@ fun BotEditorScreen(
     val isNew = bot == null
     val isMain = bot?.isDefault == true
 
-    // Le champ **part du nom que la page affiche déjà**, puis du titre, puis du `display_name` :
-    // un bot sans titre laissait la case **vide** (seul le placeholder « Scout » se voyait) alors
-    // que l'écran s'appelait « coder » — on ne voyait donc pas ce qu'on modifiait. Le nom pré-rempli
-    // est celui de [BotProfile.label] ; l'enregistrer sans y toucher n'écrit rien sur le serveur,
-    // puisque le libellé est identique (`saveEdit` ne renomme que si le titre diffère).
+    // The field **starts from the name the page already displays**, then the title, then the `display_name`:
+    // a bot without a title left the box **empty** (only the "Scout" placeholder showed) while
+    // the screen was called "coder" — so you could not see what you were editing. The pre-filled name
+    // is that of [BotProfile.label]; saving it without touching it writes nothing on the server,
+    // since the label is identical (`saveEdit` only renames if the title differs).
     var title by remember(bot?.name) {
         mutableStateOf(bot?.label(mainName).orEmpty())
     }
     var about by remember(bot?.name) { mutableStateOf(bot?.description.orEmpty()) }
     var template by remember { mutableStateOf(BotTemplateSpec.blank.id) }
-    // Le visage du modèle choisi : il se voit dans l'aperçu du haut comme sur la vignette, et
-    // c'est lui que le bot créé reçoit. Rien pour « Blank » (et pour un bot déjà fait, dont le
-    // visage est celui de son profil).
+    // The chosen template's face: it shows in the top preview as on the tile, and
+    // it is the one the created bot receives. Nothing for "Blank" (and for an already-made bot, whose
+    // face is that of its profile).
     var pickedFace by remember { mutableStateOf<BotFace?>(null) }
-    // Le visage choisi dans l'écran dédié (« Change Face »), pour un bot **en création**. Il
-    // arrive par un autre écran : c'est donc un état du parent, et il est posé ici à son retour.
-    // Sans cela, le choix ne pouvait pas revenir — et « Change Face » ne faisait rien.
+    // The face chosen in the dedicated screen ("Change Face"), for a bot **being created**. It
+    // arrives from another screen: it is therefore a state of the parent, and it is set here on its return.
+    // Without this, the choice could not come back — and "Change Face" did nothing.
     val chosenFace = remember(chosenFaceCode) { BotFace.parse(chosenFaceCode) }
     LaunchedEffect(chosenFaceCode) {
         if (chosenFace != null) pickedFace = chosenFace
     }
     var shown by remember(bot?.name) { mutableStateOf(bot?.isHidden != true) }
     var confirmingDelete by remember { mutableStateOf(false) }
-    // **Le retour bref de « Enregistrer ».** L'action enregistre et **reste** sur la page ; un mot
-    // s'affiche à côté d'elle, puis s'efface. Sans lui, un enregistrement silencieux se lit comme un
-    // bouton mort — et c'est ce qui avait fait croire que l'action « changeait de page ».
+    // **The brief return of "Save" ("Enregistrer").** The action saves and **stays** on the page; a word
+    // shows next to it, then fades. Without it, a silent save reads like a
+    // dead button — and that is what had made people believe the action "changed page".
     var savedFlash by remember(bot?.name) { mutableStateOf(false) }
     LaunchedEffect(savedFlash) {
         if (savedFlash) {
@@ -377,15 +377,15 @@ fun BotEditorScreen(
         }
     }
     var showModels by remember { mutableStateOf(false) }
-    // Les listes « Tools » et « Skills » dépliées sous leur rangée, quand le parent n'a pas fourni
-    // d'écran dédié.
+    // The "Tools" and "Skills" lists unfolded under their row, when the parent has not provided
+    // a dedicated screen.
     var showTools by remember { mutableStateOf(false) }
     var showSkills by remember { mutableStateOf(false) }
 
     val typed = title.trim()
 
-    // Le résumé de ses jeux d'outils, comme `BotEditor.toolsSummary` : « Same as {mainName} »
-    // quand il suit le principal, sinon le nom des deux premiers choisis, ou « n of m ».
+    // The summary of its toolsets, like `BotEditor.toolsSummary`: "Same as {mainName}"
+    // when it follows the main one, otherwise the names of the first two chosen, or "n of m".
     val toolsSummary: String = if (toolsSelection == null || toolsSelection == mainToolsets) {
         OnyxLocalization.format("Same as %1\$s", mainName)
     } else {
@@ -397,8 +397,8 @@ fun BotEditorScreen(
         }
     }
 
-    // Le résumé de ses compétences, comme `BotEditor.skillsSummary` : le nombre allumées, puis
-    // celles épinglées (« always loaded »).
+    // The summary of its skills, like `BotEditor.skillsSummary`: the number on, then
+    // those pinned ("always loaded").
     val skillsSummary: String = if (skills.isEmpty()) {
         OnyxLocalization["All"]
     } else {
@@ -421,16 +421,16 @@ fun BotEditorScreen(
             .onyxPage(theme),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
-            // Le grand titre du socle (30 sp, −0,032 em, ExtraBold) et l'action unique de
-            // l'écran, à droite. L'ancien en-tête gardait un corps intermédiaire (28) : le titre
-            // d'un écran est **le** grand corps de la maison, ou il n'y en a pas.
+            // The base's large title (30 sp, −0.032 em, ExtraBold) and the screen's single action,
+            // on the right. The old header kept an intermediate body size (28): a screen's title
+            // is **the** large body of the house, or there is none.
             SocleLargeHeader(
                 title = if (isNew) "New Bot" else if (isMain) mainName else typed.ifEmpty { bot?.label(mainName) ?: "Bot" },
                 onBack = onCancel,
                 localizeTitle = isNew,
                 actions = {
-                    // Le mot de retour, avant l'action : il ne déplace pas le bouton (il occupe sa
-                    // place un instant et s'efface).
+                    // The return word, before the action: it does not move the button (it occupies its
+                    // place for an instant and fades).
                     if (savedFlash) {
                         BasicText(
                             text = "Saved",
@@ -450,11 +450,11 @@ fun BotEditorScreen(
                                     val spec = BotTemplateSpec.all.firstOrNull { it.id == template }
                                     onCreate(title, about, spec?.soul.orEmpty(), shown, pickedFace?.code())
                                 } else {
-                                    // **Enregistrer enregistre, et ne quitte pas la page.** C'est le
-                                    // parent qui écrivait `navTo(Route.BOTS.name)` : l'action
-                                    // renvoyait sur la liste des bots — lue comme « la page de
-                                    // création » — alors qu'on venait de demander à garder ses
-                                    // réglages, pas à sortir.
+                                    // **Save saves, and does not leave the page.** It was the
+                                    // parent that wrote `navTo(Route.BOTS.name)`: the action
+                                    // sent back to the bot list — read as "the creation
+                                    // page" — whereas we had just asked to keep one's
+                                    // settings, not to exit.
                                     onSave(title, about, bot?.model, shown)
                                     savedFlash = true
                                 }
@@ -471,11 +471,11 @@ fun BotEditorScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = OnyxBase.Loose),
         ) {
-            // Le visage, en grand, et « Change Face ».
+            // The face, large, and "Change Face".
             //
-            // **C'est ici, et seulement ici, que la couleur du bot se pose** : le visage la porte,
-            // parce qu'elle dit *qui* est ce bot. Le lien qui suit prend l'accent du thème — le
-            // seul accent de l'écran (voir la règle dans le commentaire de l'écran).
+            // **It is here, and only here, that the bot's colour is laid down**: the face carries it,
+            // because it says *who* this bot is. The link that follows takes the theme's accent — the
+            // only accent of the screen (see the rule in the screen's comment).
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = OnyxBase.Loose),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -558,9 +558,9 @@ fun BotEditorScreen(
                             style = socleBodyStyle(theme),
                         )
                     }
-                    // **La poignée, en monospace** : c'est un identifiant, pas une phrase — le
-                    // profil prend exactement ce nom sur le serveur, et un identifiant ne se lit
-                    // pas comme du texte. C'est la seule écriture de donnée de la rangée.
+                    // **The handle, in monospace**: it is an identifier, not a sentence — the
+                    // profile takes exactly this name on the server, and an identifier is not read
+                    // like text. It is the only data typeface of the row.
                     if (bot != null || typed.isNotEmpty()) {
                         IdentityDivider()
                         Row(
@@ -642,9 +642,9 @@ fun BotEditorScreen(
                         localizeValue = bot?.model == null,
                         monoValue = bot?.model != null,
                         symbol = Symbols.Bolt,
-                        // **Un appui ouvre la feuille des modèles**, quand le parent la fournit :
-                        // c'est la même liste que dans le fil — recherche, profils, prix, favoris.
-                        // Sans elle (aperçus, tests), la liste locale se déplie comme avant.
+                        // **A tap opens the model sheet**, when the parent provides it:
+                        // it is the same list as in the thread — search, profiles, prices, favourites.
+                        // Without it (previews, tests), the local list unfolds as before.
                         onClick = {
                             if (onOpenModelSheet != null) onOpenModelSheet() else showModels = !showModels
                         },
@@ -687,10 +687,10 @@ fun BotEditorScreen(
                     }
                     if (onOpenModelSheet != null) {
                         IdentityDivider()
-                        // **Le retour à l'agent principal reste à portée.** La feuille choisit un
-                        // modèle ; « identique à X » n'en est pas un, c'est l'absence de choix — il
-                        // garde donc sa rangée, avec sa coche, au lieu de disparaître avec la liste
-                        // locale.
+                        // **The return to the main agent stays within reach.** The sheet picks a
+                        // model; "same as X" is not one, it is the absence of a choice — it
+                        // therefore keeps its row, with its checkmark, instead of disappearing with the local
+                        // list.
                         IdentityRow(onClick = { onPickModel(null) }) {
                             OnyxIcon(
                                 symbol = if (bot?.model == null) Symbols.CheckmarkCircle else Symbols.Circle,
@@ -705,9 +705,9 @@ fun BotEditorScreen(
                         }
                     }
                     IdentityDivider()
-                    // « Tools » : ouvre la liste des jeux d'outils du bot, chacun avec son
-                    // interrupteur. Le parent peut fournir son propre écran (`onOpenTools`) ; à
-                    // défaut, la liste se déplie juste en dessous.
+                    // "Tools": opens the list of the bot's toolsets, each with its
+                    // switch. The parent can provide its own screen (`onOpenTools`); by
+                    // default, the list unfolds right below.
                     IdentityValueRow(
                         label = "Tools",
                         value = toolsSummary,
@@ -720,8 +720,8 @@ fun BotEditorScreen(
                     )
                     if (bot != null) {
                         IdentityDivider()
-                        // « Skills » : ouvre la liste des compétences du bot, chacune avec son
-                        // interrupteur et son épingle (« always loaded »).
+                        // "Skills": opens the list of the bot's skills, each with its
+                        // switch and its pin ("always loaded").
                         IdentityValueRow(
                             label = "Skills",
                             value = skillsSummary,
@@ -741,8 +741,8 @@ fun BotEditorScreen(
                 }
             }
 
-            // Les listes dépliées, quand le parent n'a pas fourni d'écran dédié (`onOpenTools` /
-            // `onOpenSkills` à `null`, cas de l'app seule).
+            // The unfolded lists, when the parent has not provided a dedicated screen (`onOpenTools` /
+            // `onOpenSkills` at `null`, the app-alone case).
             if (!isMain && showTools && onOpenTools == null) {
                 BotToolsList(
                     offered = toolsets,
@@ -759,7 +759,7 @@ fun BotEditorScreen(
                     alwaysLoaded = alwaysLoadedSkills,
                     onToggle = onToggleSkill,
                     onPin = onPinSkill,
-                    // `BotEditor.hasSkillsTool` : sans l'outil « Skills », aucune n'est lue.
+                    // `BotEditor.hasSkillsTool`: without the "Skills" tool, none of them is read.
                     hasSkillsTool = isMain || toolsets.isEmpty() ||
                         (toolsSelection ?: mainToolsets).contains("skills"),
                 )
@@ -781,16 +781,16 @@ fun BotEditorScreen(
             }
 
             if (confirmingDelete) {
-                // **Une confirmation ne se déplie pas au bas d'une page qui défile.**
+                // **A confirmation does not unfold at the bottom of a scrolling page.**
                 //
-                // Défaut relevé sur l'appareil : « quand je clique sur supprimer le bot, ça me
-                // ramène tout en bas automatiquement et je ne vois pas les options, je suis obligé
-                // de le faire manuellement ». Le bloc de confirmation était **ajouté à la fin** du
-                // `Column` défilant : il tombait sous la ligne de flottaison, et le geste de
-                // l'ouvrir déplaçait la vue au lieu de montrer la question. Ici, la confirmation
-                // est **la boîte de la maison** ([OnyxConfirm]) : centrée, au-dessus de l'écran,
-                // entièrement visible quelle que soit la longueur de la page — et la page ne bouge
-                // plus d'un pixel.
+                // Defect found on the device: "when I click to delete the bot, it takes me
+                // all the way back down automatically and I don't see the options, I have to
+                // do it manually". The confirmation block was **added at the end** of the
+                // scrolling `Column`: it fell below the fold, and the gesture of
+                // opening it moved the view instead of showing the question. Here, the confirmation
+                // is **the house's box** ([OnyxConfirm]): centred, above the screen,
+                // entirely visible whatever the length of the page — and the page no longer moves
+                // by a single pixel.
                 OnyxConfirm(
                     title = "Delete ${bot?.label(mainName) ?: "this bot"}?",
                     destructiveLabel = OnyxLocalization["Delete"],
@@ -803,9 +803,9 @@ fun BotEditorScreen(
                 )
             }
 
-            // Ce qui a échoué, comme le `Label(problem, …)` orange de `BotEditor` : une
-            // suppression que le serveur a refusée, un réglage qu'il n'a pas gardé. L'écran
-            // reste ouvert, le bot reste là — rien n'a été fait en douce.
+            // What failed, like the orange `Label(problem, …)` of `BotEditor`: a
+            // deletion the server refused, a setting it did not keep. The screen
+            // stays open, the bot stays there — nothing was done behind the scenes.
             problem?.let { message ->
                 IdentitySection {
                     IdentityRow {
@@ -824,10 +824,10 @@ fun BotEditorScreen(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Les pièces de la page, dans le langage du socle
+// The pieces of the page, in the language of the base
 // ---------------------------------------------------------------------------------------------
 
-/** Vrai si le résumé d'outils est un **nombre** (« 17 sur 19 ») plutôt qu'un nom ou un renvoi. */
+/** True if the tools summary is a **number** ("17 of 19") rather than a name or a reference. */
 private fun toolsCounted(
     selection: Set<String>?,
     main: Set<String>,
@@ -838,10 +838,10 @@ private fun toolsCounted(
 }
 
 /**
- * Une section : son intitulé en petites capitales ([socleSectionStyle], 11 sp, ouvertes), sa
- * **carte** ([OnyxBase.RadiusCard], l'ombre de la famille, le trait de 1,55), puis sa ligne de
- * contexte (12 sp). C'est la forme de toutes les cartes de la page — aucune n'échappe à la
- * famille, et le contour comme l'ombre ne sont écrits qu'ici.
+ * A section: its heading in small caps ([socleSectionStyle], 11 sp, open), its
+ * **card** ([OnyxBase.RadiusCard], the family's shadow, the 1.55 stroke), then its line of
+ * context (12 sp). It is the shape of all the cards of the page — none escapes the
+ * family, and both the outline and the shadow are written only here.
  */
 @Composable
 private fun IdentitySection(
@@ -853,10 +853,10 @@ private fun IdentitySection(
     Column(modifier = Modifier.fillMaxWidth().padding(top = OnyxBase.Loose)) {
         header?.let {
             BasicText(
-                // **La majuscule vient APRÈS la traduction.** L'inverser affichait l'en-tête en
-                // anglais dans une interface française : « WHAT IT DOES » au lieu de « SA FONCTION ».
-                // Le catalogue contient la traduction (« What it does » → « Sa fonction ») ; c'est
-                // l'ordre des deux opérations qui l'ignorait.
+                // **The capital comes AFTER the translation.** Inverting it displayed the header in
+                // English in a French interface: "WHAT IT DOES" instead of "SA FONCTION".
+                // The catalogue contains the translation ("What it does" → "Sa fonction"); it is
+                // the order of the two operations that ignored it.
                 text = OnyxLocalization.translate(it).uppercase(),
                 style = socleSectionStyle(theme).copy(color = theme.secondaryText),
                 modifier = Modifier.padding(
@@ -870,13 +870,13 @@ private fun IdentitySection(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = OnyxBase.ScreenMargin)
-                // **L'ombre en trois profondeurs, posée pour de vrai** : [Modifier.socleShadow]
-                // dessine chaque couche séparément (un `drop-shadow` à deux ombres ne rend rien).
+                // **The shadow in three depths, placed for real**: [Modifier.socleShadow]
+                // draws each layer separately (a `drop-shadow` with two shadows renders nothing).
                 .socleShadow(OnyxBase.ShadowMid, OnyxBase.RadiusCard, theme.dark)
                 .clip(RoundedCornerShape(OnyxBase.RadiusCard))
                 .background(OnyxSurfaces.surface(theme))
-                // **Le trait de la maison : 1,55 dp.** Un filet de 1 dp se lit comme un défaut
-                // d'affichage à côté des surfaces de la planche.
+                // **The house stroke: 1.55 dp.** A 1 dp hairline reads like a display
+                // defect next to the board's surfaces.
                 .border(
                     OnyxBase.Stroke,
                     OnyxSurfaces.hairline(theme),
@@ -899,7 +899,7 @@ private fun IdentitySection(
     }
 }
 
-/** Une rangée de la page : au moins 56 dp de haut, 16 dp de marge, 8 dp d'écart entre ses pièces. */
+/** A row of the page: at least 56 dp high, 16 dp margin, 8 dp gap between its pieces. */
 @Composable
 private fun IdentityRow(
     onClick: (() -> Unit)? = null,
@@ -918,9 +918,9 @@ private fun IdentityRow(
 }
 
 /**
- * Une rangée « libellé → valeur » : la tuile grise de la maison, le libellé au titre de carte
- * (16 sp), la valeur en méta (12 sp) — **en monospace quand c'est un identifiant ou un nombre**
- * ([monoValue]) —, puis le chevron.
+ * A "label → value" row: the house's grey tile, the label at card-title size
+ * (16 sp), the value in meta (12 sp) — **in monospace when it is an identifier or a number**
+ * ([monoValue]) —, then the chevron.
  */
 @Composable
 private fun IdentityValueRow(
@@ -940,17 +940,17 @@ private fun IdentityValueRow(
         ) {
             BasicText(
                 text = label,
-                // Un libellé **se replie** (la politique de la maison) : il ne se coupe jamais sur
-                // une seule ligne, où il perdrait son mot.
+                // A label **wraps** (the house policy): it never breaks onto
+                // a single line, where it would lose its word.
                 style = socleTitleStyle(theme).copy(color = theme.textColor),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (value.isNotBlank()) {
                 if (monoValue) {
-                    // Un identifiant ou un nombre : le **début et la fin** comptent, donc il
-                    // s'abrège au milieu ([com.onyx.app.ui.design.IdentifierFit]) au lieu de se
-                    // couper — la même règle que le nom d'un modèle et l'adresse d'un serveur.
+                    // An identifier or a number: the **start and the end** matter, so it
+                    // is abbreviated in the middle ([com.onyx.app.ui.design.IdentifierFit]) instead of being
+                    // cut — the same rule as a model's name and a server's address.
                     IdentifierText(
                         text = value,
                         style = socleMonoStyle(theme).copy(color = theme.secondaryText),
@@ -970,7 +970,7 @@ private fun IdentityValueRow(
     }
 }
 
-/** Une rangée à bascule : le libellé, et l'interrupteur de la maison ([SocleSwitch]). */
+/** A toggle row: the label, and the house's switch ([SocleSwitch]). */
 @Composable
 private fun IdentityToggleRow(
     label: String,
@@ -996,7 +996,7 @@ private fun IdentityToggleRow(
     }
 }
 
-/** Le filet **en retrait des deux bords** — de la marge à la marge, jamais bord à bord. */
+/** The rule **inset from both edges** — from the margin to the margin, never edge to edge. */
 @Composable
 private fun IdentityDivider() {
     val theme = LocalOnyxTheme.current
@@ -1010,19 +1010,19 @@ private fun IdentityDivider() {
 }
 
 /**
- * Une tuile de modèle : le **visage dessiné** de son modèle (ou « + » pour Blank), puis son nom.
+ * A template tile: the **drawn face** of its template (or "+" for Blank), then its name.
  *
- * Le visage passe par le même moteur que l'aperçu en haut de l'écran (`BotAvatar`) et par
- * **l'animation qui existe déjà** pour ces visages — `voicePose`, celle de la scène vocale : il
- * **respire** au repos et se tourne vers vous tant que le doigt reste appuyé (la pose attentive de
- * l'écoute), au lieu d'une seconde animation écrite ici. Sa **bouche** reste la sienne (`mouth =
- * null` : la scène vocale, elle, la tient fermée pour la piloter par la voix). Un modèle n'a donc
- * jamais l'icône générique d'un orbe : c'est sa créature, sa forme, sa couleur et son expression.
- * Sous « Réduire les animations », [rememberBotSeconds] ne rend rien et le visage est **figé**.
+ * The face goes through the same engine as the preview at the top of the screen (`BotAvatar`) and through
+ * **the animation that already exists** for these faces — `voicePose`, the one of the voice scene: it
+ * **breathes** at rest and turns towards you as long as the finger stays pressed (the attentive pose of
+ * listening), instead of a second animation written here. Its **mouth** stays its own (`mouth =
+ * null`: the voice scene, on the other hand, holds it closed to drive it by voice). A template therefore never
+ * has the generic icon of an orb: it is its creature, its shape, its colour and its expression.
+ * Under "Reduce motion" ("Réduire les animations"), [rememberBotSeconds] returns nothing and the face is **frozen**.
  *
- * Sa forme est celle de la famille : **le rayon d'un champ** ([OnyxBase.RadiusField]), l'écart de
- * la maison (8), et le fond de la tuile retenue à l'accent. C'est le visage qui porte la couleur
- * du modèle — la tuile, elle, ne fait que l'encadrer.
+ * Its shape is the family's: **a field's radius** ([OnyxBase.RadiusField]), the
+ * house's gap (8), and the background of the selected tile at the accent. It is the face that carries the template's
+ * colour — the tile itself only frames it.
  */
 @Composable
 private fun TemplateTile(
@@ -1032,7 +1032,7 @@ private fun TemplateTile(
     onClick: () -> Unit,
 ) {
     val theme = LocalOnyxTheme.current
-    // L'appui de la tuile : le visage s'y abonne pour se tourner vers vous pendant l'appui long.
+    // The tile's press: the face subscribes to it to turn towards you during the long press.
     val press = remember { MutableInteractionSource() }
     val held by press.collectIsPressedAsState()
     Column(
@@ -1056,9 +1056,9 @@ private fun TemplateTile(
                     level = 0f,
                     tilt = face.tilt.toFloat(),
                 )
-                // À la taille d'une vignette, les sourcils de l'écoute (0,35) ne se lisent pas :
-                // l'appui les relève au haut de l'échelle de `BotPose.brow`, et le visage lève
-                // les yeux vers vous. Sa bouche, elle, reste la sienne.
+                // At tile size, the listening eyebrows (0.35) cannot be read:
+                // the press raises them to the top of the `BotPose.brow` scale, and the face lifts
+                // its eyes towards you. Its mouth, on the other hand, stays its own.
                 if (held) attentive.copy(mouth = null, brow = 0.95f) else attentive.copy(mouth = null)
             } ?: BotPose()
             BotAvatar(
@@ -1084,11 +1084,11 @@ private fun TemplateTile(
 }
 
 /**
- * Les jeux d'outils d'un bot (`BotToolsList`).
+ * A bot's toolsets (`BotToolsList`).
  *
- * Une première section offre « Same as {mainName} » — le bot suit alors les jeux du principal.
- * La seconde liste chaque jeu que le serveur propose, avec son interrupteur : plus courts sont les
- * outils, plus vite chaque tour du bot démarre sur un modèle qui tourne sur la machine.
+ * A first section offers "Same as {mainName}" — the bot then follows the main one's toolsets.
+ * The second lists each toolset the server offers, with its switch: the shorter the
+ * tools, the faster each of the bot's turns starts on a model running on the machine.
  */
 @Composable
 fun BotToolsList(
@@ -1101,7 +1101,7 @@ fun BotToolsList(
 ) {
     val theme = LocalOnyxTheme.current
     Column(modifier = modifier.fillMaxWidth()) {
-        // « Same as {mainName} » : rien de propre au bot, il hérite des jeux du principal.
+        // "Same as {mainName}": nothing specific to the bot, it inherits the main one's toolsets.
         IdentitySection(footer = "The tools $mainName has.") {
             IdentityRow(onClick = { onSelectionChange(null) }) {
                 OnyxIcon(
@@ -1116,7 +1116,7 @@ fun BotToolsList(
                 )
             }
         }
-        // Les jeux offerts, chacun sur « on » ou « off » pour ce bot.
+        // The offered toolsets, each on "on" or "off" for this bot.
         IdentitySection(
             footer = OnyxLocalization.format(
                 "Fewer tools make a bot's every turn quicker to start on a model running on your own machine. Hermes 0.21.5 and later keep a bot to these; earlier ones give every bot all of %1\$s's.",
@@ -1161,10 +1161,10 @@ fun BotToolsList(
 }
 
 /**
- * Les compétences d'un bot (`BotSkillsList`).
+ * A bot's skills (`BotSkillsList`).
  *
- * Chacune est allumée ou éteinte pour lui seul ; les épinglées sont lues en entier au début de
- * chaque message. Sans l'outil « Skills » du bot, aucune n'est lue — l'écran le dit.
+ * Each is on or off for it alone; the pinned ones are read in full at the start of
+ * every message. Without the bot's "Skills" tool, none is read — the screen says so.
  */
 @Composable
 fun BotSkillsList(
@@ -1199,8 +1199,8 @@ fun BotSkillsList(
                 }
 
                 else -> {
-                    // Les compétences groupées par catégorie, dans l'ordre alphabétique — comme les
-                    // sections « Catégorie · n » de la référence.
+                    // The skills grouped by category, in alphabetical order — like the
+                    // "Category · n" sections of the reference.
                     val groups = skills
                         .groupBy { it.category?.takeIf { category -> category.isNotBlank() } ?: "Other" }
                         .toSortedMap()
@@ -1209,8 +1209,8 @@ fun BotSkillsList(
                         if (!first) IdentityDivider()
                         first = false
                         IdentityRow {
-                            // Le compte d'une catégorie est un **nombre** : monospace, comme le
-                            // pied de l'échelle de la maison le réserve aux données chiffrées.
+                            // A category's count is a **number**: monospace, as the
+                            // house scale's footer reserves it for numeric data.
                             BasicText(
                                 text = "${category.replaceFirstChar { it.uppercase() }} · ${list.size}",
                                 localize = false,
@@ -1233,7 +1233,7 @@ fun BotSkillsList(
     }
 }
 
-/** Une compétence : son nom, son épingle, sa phrase, son interrupteur. */
+/** A skill: its name, its pin, its sentence, its switch. */
 @Composable
 private fun SkillRow(
     skill: DashboardSkill,
@@ -1274,8 +1274,8 @@ private fun SkillRow(
                 )
             }
         }
-        // L'épingle n'existe que pour une compétence allumée : éteinte, elle n'est de toute façon
-        // pas lue.
+        // The pin exists only for a skill that is on: off, it is in any case
+        // not read.
         if (skill.enabled) {
             OnyxIcon(
                 symbol = Symbols.Pin,

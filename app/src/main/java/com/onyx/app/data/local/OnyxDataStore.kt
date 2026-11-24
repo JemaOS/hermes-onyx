@@ -16,14 +16,14 @@ import java.io.InputStream
 import java.io.OutputStream
 
 /**
- * Le magasin des conversations : un seul fichier JSON, réécrit en entier et de façon atomique par
+ * The conversation store: a single JSON file, rewritten whole and atomically by
  * DataStore.
  *
- * Miroir de `ConversationStore` côté référence, qui tient un fichier d'index et un fichier par
- * conversation ; ici tout tient dans une liste, l'historique restant petit.
+ * Mirrors `ConversationStore` on the reference side, which keeps an index file and one file per
+ * conversation; here everything fits in one list, the history staying small.
  *
- * Une seule instance par processus : `DataStoreFactory` refuse deux magasins sur le même fichier,
- * donc [com.onyx.app.di.AppContainer] la garde.
+ * A single instance per process: `DataStoreFactory` rejects two stores on the same file,
+ * so [com.onyx.app.di.AppContainer] keeps it.
  */
 fun conversationsDataStore(context: Context): DataStore<List<Conversation>> =
     DataStoreFactory.create(
@@ -31,65 +31,65 @@ fun conversationsDataStore(context: Context): DataStore<List<Conversation>> =
         produceFile = { conversationsFile(context) },
     )
 
-/** Le fichier de la **copie locale** des conversations — un seul, réécrit en entier. */
+/** The file of the **local copy** of the conversations — a single one, rewritten whole. */
 fun conversationsFile(context: Context): File =
     File(context.applicationContext.filesDir, "conversations.json")
 
 /**
- * **Quand la copie locale a été enregistrée pour la dernière fois** (millisecondes depuis l'époque),
- * ou `null` si ce téléphone n'a encore rien enregistré.
+ * **When the local copy was last saved** (milliseconds since the epoch),
+ * or `null` if this phone has not saved anything yet.
  *
- * C'est la date que porte la ligne d'état du volet quand la passerelle ne répond plus : « Copie
- * enregistrée · il y a 9 h. » — et elle vient du **fichier lui-même**, pas d'une horloge de
- * session. Une date de session se remettrait à zéro à chaque démarrage de l'app et dirait « il y a
- * 2 secondes » d'une copie vieille de trois jours : c'est exactement ce qu'il ne faut pas.
+ * It is the date carried by the pane's status line when the gateway no longer responds: “Copie
+ * enregistrée · il y a 9 h.” (copy saved · 9 h ago) — and it comes from the **file itself**, not from a
+ * session clock. A session date would reset on every app start and would say “il y a
+ * 2 secondes” (2 seconds ago) of a copy three days old: exactly what must not happen.
  */
 fun savedCopyAtMs(context: Context): Long? {
     val file = conversationsFile(context)
     return if (file.isFile) file.lastModified().takeIf { it > 0L } else null
 }
 
-/** Réglages : petits, donc `Preferences`. */
+/** Settings: small, therefore `Preferences`. */
 val Context.onyxPreferences: DataStore<Preferences> by preferencesDataStore(name = "onyx_settings")
 
-/** Clés de `onyx_settings`. */
+/** Keys of `onyx_settings`. */
 object SettingsKeys {
-    /** Liste des serveurs, en JSON, sans les clés API (celles-ci vivent dans le Keystore). */
+    /** List of servers, as JSON, without the API keys (those live in the Keystore). */
     val SERVERS = stringPreferencesKey("servers")
 
-    /** Identifiant du serveur actif. */
+    /** Identifier of the active server. */
     val ACTIVE_SERVER_ID = stringPreferencesKey("active_server_id")
 
-    /** Thème choisi (`OnyxTheme.id`). */
+    /** Chosen theme (`OnyxTheme.id`). */
     val THEME = stringPreferencesKey("theme")
 
-    /** Apparence : `system`, `light` ou `dark`. */
+    /** Appearance: `system`, `light` or `dark`. */
     val APPEARANCE = stringPreferencesKey("appearance")
 
     /**
-     * La période des aperçus : 7, 30 ou 90 jours.
+     * The insights period: 7, 30 or 90 days.
      *
-     * Elle est mémorisée **par appareil**, comme les autres réglages d'interface : rouvrir les
-     * aperçus retrouve la période qu'on regardait, au lieu de revenir chaque fois au mois.
+     * It is remembered **per device**, like the other interface settings: reopening the
+     * insights finds back the period one was looking at, instead of always returning to the month.
      */
     val INSIGHTS_PERIOD = intPreferencesKey("insights_period_days")
 
     /**
-     * **La grille de raccourcis du volet**, telle que la personne l'a composée : les identifiants des
-     * tuiles affichées, dans son ordre, séparés par une virgule (voir `SidebarTileLayout`).
+     * **The pane's shortcut grid**, as the person composed it: the identifiers of the
+     * displayed tiles, in its order, separated by a comma (see `SidebarTileLayout`).
      *
-     * Une clé **dédiée** : ce réglage ne partage sa place avec aucun autre, si bien qu'une valeur
-     * déjà enregistrée par une version antérieure n'est jamais invalidée par un autre réglage. Clé
-     * absente = la grille d'origine (les six tuiles de la référence).
+     * A **dedicated** key: this setting shares its place with no other, so that a value
+     * already saved by an earlier version is never invalidated by another setting. Key
+     * absent = the original grid (the six tiles of the reference).
      */
     val SIDEBAR_TILES = stringPreferencesKey("sidebar_tiles")
 
-    /** Ce que le widget affiche de la fenêtre de contexte, écrit à la fin de chaque tour. */
+    /** What the widget displays of the context window, written at the end of each turn. */
     val WIDGET_CONTEXT_USED = intPreferencesKey("widget_context_used")
     val WIDGET_CONTEXT_WINDOW = intPreferencesKey("widget_context_window")
 }
 
-/** Sérialise la liste des conversations en JSON, sans passer par un format binaire. */
+/** Serializes the conversation list as JSON, without going through a binary format. */
 class ConversationSerializer(
     private val json: Json = Json {
         ignoreUnknownKeys = true
@@ -115,7 +115,7 @@ class ConversationSerializer(
     }
 
     private companion object {
-        /** Un fichier vide n'est pas du JSON valide : on écrit `[]` pour une liste vide. */
+        /** An empty file is not valid JSON: `[]` is written for an empty list. */
         const val EMPTY_LITERAL = "[]"
     }
 }

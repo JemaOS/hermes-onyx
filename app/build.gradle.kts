@@ -9,9 +9,9 @@ plugins {
 }
 
 /**
- * La clé de release vit hors du dépôt : renseignez la variable d'environnement
- * `ONYX_RELEASE_KEYSTORE` avec le chemin de `release.properties`. Sans ce fichier le build de
- * release reste non signé plutôt que d'échouer — la clé n'appartient pas au projet.
+ * The release key lives outside the repository: set the environment variable
+ * `ONYX_RELEASE_KEYSTORE` to the path of `release.properties`. Without this file the release build
+ * stays unsigned rather than failing — the key does not belong to the project.
  */
 val releaseKeystore = System.getenv("ONYX_RELEASE_KEYSTORE")?.let { file(it) }
     ?: file("${rootDir}/keystore.properties")
@@ -21,10 +21,10 @@ val keystoreProperties = Properties().apply {
 }
 
 /**
- * Le jeton du service vocal, pour la **version de test** : il est lu du fichier `0600` du mandataire
- * (jamais du dépôt), et devient la valeur par défaut du réglage « Voice token » (`BuildConfig`).
- * Le fichier peut être désigné par `-Ponyx.voiceTokenFile=…` ; absent, le jeton est vide et l'app
- * n'envoie aucun en-tête — le serveur local ouvert, comme avant.
+ * The voice service token, for the **test version**: it is read from the agent's `0600` file
+ * (never from the repository), and becomes the default value of the "Voice token" setting (`BuildConfig`).
+ * The file can be specified with `-Ponyx.voiceTokenFile=…`; if absent, the token is empty and the app
+ * sends no header — the open local server, as before.
  */
 val voiceToken: String = runCatching {
     File(
@@ -33,7 +33,7 @@ val voiceToken: String = runCatching {
     ).readLines().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 }.getOrDefault("")
 
-/** Résout `storeFile` relativement au fichier de propriétés, où qu'il soit. */
+/** Resolves `storeFile` relative to the properties file, wherever it is. */
 fun keystorePath(): File {
     val raw = keystoreProperties.getProperty("storeFile") ?: return releaseKeystore
     val candidate = File(raw)
@@ -41,41 +41,41 @@ fun keystorePath(): File {
 }
 
 android {
-    // Le paquet du code et l'identifiant installé sont déclarés une seule fois pour tout le
-    // dépôt, dans `gradle.properties` (cf. le commentaire là-bas).
+    // The code package and the installed identifier are declared once for the whole
+    // repository, in `gradle.properties` (cf. the comment there).
     namespace = providers.gradleProperty("onyx.namespace").get()
     compileSdk = 37
 
     defaultConfig {
         applicationId = providers.gradleProperty("onyx.applicationId").get()
-        // `${applicationId}` sert aux **composants** (alias du lanceur, fournisseurs) : Android les
-        // résout contre le paquet réellement installé. `${onyxNamespace}` sert aux **contrats**
-        // partagés avec les compagnons Wear et Auto (permission, autorité, actions), qui ne
-        // dépendent pas de l'identifiant d'installation.
+        // `${applicationId}` is used by **components** (launcher aliases, providers): Android resolves
+        // them against the actually installed package. `${onyxNamespace}` is used by **contracts**
+        // shared with the Wear and Auto companions (permission, authority, actions), which do
+        // not depend on the install identifier.
         manifestPlaceholders["onyxNamespace"] = providers.gradleProperty("onyx.namespace").get()
         minSdk = 26
         targetSdk = 36
-        // Version dérivée du nombre de commits : monotone (obligatoire pour qu'un APK
-        // s'installe par-dessus le précédent) et traçable jusqu'au dépôt.
+        // Version derived from the commit count: monotonic (mandatory for an APK
+        // to install over the previous one) and traceable back to the repository.
         //
-        // **Départage de fusion.** Deux lots partis de la même base annoncent le **même** numéro
-        // (`1.0.0+662` de part et d'autre) : `ONYX_VERSION_CODE` tranche alors explicitement, et
-        // la valeur retenue est écrite dans le rapport de la fusion. Sans la variable, la règle
-        // du compte de commits reste la seule source — les deux branches de la fusion ne peuvent
-        // donc pas se marcher dessus en silence.
+        // **Merge tie-breaker.** Two batches started from the same base announce the **same** number
+        // (`1.0.0+662` on both sides): `ONYX_VERSION_CODE` then decides explicitly, and
+        // the retained value is written in the merge report. Without the variable, the
+        // commit-count rule remains the only source — the two sides of the merge therefore
+        // cannot silently overwrite each other.
         versionCode = providers.gradleProperty("onyx.versionCode").orNull?.toIntOrNull()
             ?: providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
             ?: providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
                 .standardOutput.asText.get().trim().toIntOrNull() ?: 1
-        // La version **affichée** : 1.3.1, puis 1.3.2 à chaque publication. Elle est **dérivée**
-        // du `versionCode` — une seule source de vérité, impossible d'en oublier une — à partir du
-        // code qui porte le premier 1.3.1 (`onyx.versionBase`). Le tag de la release suit la même
-        // forme (`v1.3.1+<versionCode>`) : c'est le numéro, dans le tag, que la mise à jour
-        // compare — le nom lisible ne décide de rien.
+        // The **displayed** version: 1.3.1, then 1.3.2 on each release. It is **derived**
+        // from the `versionCode` — a single source of truth, impossible to forget one — starting from
+        // the code that carries the first 1.3.1 (`onyx.versionBase`). The release tag follows the same
+        // form (`v1.3.1+<versionCode>`): it is the number, in the tag, that the update
+        // compares — the readable name decides nothing.
         versionName = providers.gradleProperty("onyx.versionBase").orNull?.toIntOrNull()
             ?.let { base -> "1.3." + ((versionCode ?: 1) - base) }
             ?: ("1.0.0+" + (versionCode ?: 1))
-        // Le jeton du service vocal pour la version de test (voir plus haut `voiceToken`).
+        // The voice service token for the test version (see `voiceToken` above).
         buildConfigField("String", "VOICE_TOKEN", "\"" + voiceToken + "\"")
 
         vectorDrawables {
@@ -92,12 +92,12 @@ android {
                 keyPassword = keystoreProperties.getProperty("keyPassword")
             }
         } else {
-            // **Repli : la clé de mise au point.** Sans `keystore.properties`, la version de release
-            // restait non signée, donc ininstallable — et la seule version testable était la version
-            // **de débogage**, la plus lente de toutes (aucune minification, vérifications de
-            // Compose, `assertions`). Signée avec la clé de debug, la version optimisée s'installe
-            // **par-dessus** la version de test (même signature) : c'est ce qui rend la fluidité
-            // mesurable sur l'appareil. Ce repli ne convient qu'aux tests, jamais à une publication.
+            // **Fallback: the debug key.** Without `keystore.properties`, the release version
+            // stayed unsigned, hence uninstallable — and the only testable version was the
+            // **debug** version, the slowest of all (no minification, Compose
+            // checks, `assertions`). Signed with the debug key, the optimized version installs
+            // **over** the test version (same signature): this is what makes smoothness
+            // measurable on the device. This fallback suits tests only, never a publication.
             val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
             if (debugKeystore.exists()) {
                 create("release") {
@@ -112,8 +112,8 @@ android {
 
     buildTypes {
         release {
-            // Le brief demande la minification si le build reste vert ; les règles de
-            // `proguard-rules.pro` couvrent kotlinx.serialization et OkHttp.
+            // The brief asks for minification if the build stays green; the
+            // `proguard-rules.pro` rules cover kotlinx.serialization and OkHttp.
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release")
@@ -150,12 +150,12 @@ kotlin {
 }
 
 /**
- * **Le rapport du compilateur Compose** — un outil d'audit, pas un réglage de production.
+ * **The Compose compiler report** — an audit tool, not a production setting.
  *
- * Le compilateur dit, fonction par fonction, ce qu'il peut sauter (`skippable`) et ce qu'il ne
- * peut pas (`restartable but not skippable`) : c'est la liste des recompositions que le fil
- * déclenche à chaque publication de l'état. Le rapport est écrit dans
- * `build/compose_compiler/` — il ne change rien au code produit.
+ * The compiler says, function by function, what it can skip (`skippable`) and what it cannot
+ * (`restartable but not skippable`): this is the list of recompositions the thread
+ * triggers on each state publication. The report is written to
+ * `build/compose_compiler/` — it changes nothing in the produced code.
  */
 composeCompiler {
     reportsDestination.set(layout.buildDirectory.dir("compose_compiler"))
@@ -163,8 +163,8 @@ composeCompiler {
 }
 
 dependencies {
-    // **Les travaux périodiques** : la seule voie gratuite pour prévenir d'une réponse alors
-    // que l'app est fermée (aucun service de push tiers, Android s'auto-enregistre).
+    // **Periodic work**: the only free way to notify of a reply while
+    // the app is closed (no third-party push service, Android self-registers).
     implementation(libs.androidx.work.runtime)
     implementation(project(":core"))
 
@@ -175,8 +175,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.biometric)
-    // MainActivity est une FragmentActivity pour BiometricPrompt ; l'API ActivityResult
-    // demande Fragment 1.3 au moins (lint le refuse en release).
+    // MainActivity is a FragmentActivity for BiometricPrompt; the ActivityResult API
+    // requires Fragment 1.3 at least (lint rejects it in release).
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
@@ -204,6 +204,6 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.18.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    // Un Dashboard en mémoire : le fil d'une salle éprouvé sur le vrai canal JSON-RPC.
+    // An in-memory Dashboard: a room's thread exercised over the real JSON-RPC channel.
     testImplementation(libs.mockwebserver)
 }

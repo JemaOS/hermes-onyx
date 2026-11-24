@@ -237,7 +237,7 @@ import com.onyx.app.voice.VoiceSession
 import com.onyx.app.widget.OnyxWidget
 import androidx.glance.appwidget.updateAll
 
-/** Les écrans de l'app ; la navigation tient dans un seul état, comme un `NavigationStack`. */
+/** The app's screens; navigation holds in a single state, like a `NavigationStack`. */
 private enum class Route {
     CHAT, SETTINGS, APPEARANCE, MODELS, VOICE,
     GATEWAY, LOGS, FILES, FILE_EDITOR, CONTEXT, MEMORY, CONTEXT_EDITOR, VOICE_SETTINGS, NOTIFICATIONS, KOKORO_VOICES, CRON, KANBAN, CODE,
@@ -247,150 +247,150 @@ private enum class Route {
     // Les destinations de l'onglet **Fichiers** qui n'avaient pas de lecteur : un son (le lecteur
     // de la maison), un document texte, et le contenu d'une archive.
     AUDIO, DOCUMENT, ARCHIVE,
-    // « Capture rapide » : une note prise en passant, classée par l'agent.
+    // "Quick capture": a passing note, filed by the agent.
     QUICK_CAPTURE,
-    // Les quatre destinations d'la référence qui manquaient : `ConnectionDetailsView`, `HiddenBotsView`,
+    // The four destinations of the reference that were missing: `ConnectionDetailsView`, `HiddenBotsView`,
     // `SessionUsageView` et `ProjectSessionsView`.
     CONNECTION_DETAILS, HIDDEN_BOTS, SESSION_USAGE, PROJECT_SESSIONS,
-    // Les deux écrans de ce lot : « Capacités » (compétences, outils, serveurs MCP) et
-    // « Aperçus » (coût, sessions, jetons, cache, jetons par jour, modèles). Ce sont les deux
-    // destinations des tuiles « Capacités » et « Aperçus » du volet.
+    // The two screens of this batch: "Capabilities" (skills, tools, MCP servers) and
+    // "Insights" (cost, sessions, tokens, cache, tokens per day, models). They are the two
+    // destinations of the sidebar's "Capabilities" and "Insights" tiles.
     CAPABILITIES, INSIGHTS,
-    // **« Le Coffre »** — les secrets d'un profil : les lister, en écrire un, en révoquer un. La
-    // route n'est ouverte que par la ligne « Secrets › » de « Capacités », elle-même dessinée
-    // seulement quand la sonde a prouvé que le serveur sert le greffon `onyx-vault`.
+    // **"The Vault"** — a profile's secrets: listing them, writing one, revoking one. The
+    // route is only opened by the "Secrets ›" row of "Capabilities", itself drawn
+    // only when the probe has proven that the server serves the `onyx-vault` plugin.
     VAULT,
-    /** Le navigateur de l'agent, en direct, et sa prise en main. */
+    /** The agent's browser, live, and its onboarding. */
     BROWSER_SCREEN,
-    // **« Archives »** — la destination de la tuile *Archived* de la référence, celle qui
-    // manquait : les conversations rangées de cet appareil (leur état existait déjà). Le volet la
-    // porte comme ses autres tuiles (voir `SidebarDestinations.referenceTiles`).
+    // **"Archives"** — the destination of the reference's *Archived* tile, the one that was
+    // missing: the archived conversations of this device (their state already existed). The sidebar
+    // carries it like its other tiles (see `SidebarDestinations.referenceTiles`).
     ARCHIVED,
-    // **« Relevé de l'agent »** : ce que l'agent a fait, avec quoi, combien de temps, et ce que cela
-    // a coûté — pour la conversation ouverte, ou pour un bot en cumul. Ouvert par le menu « … » du
-    // fil (voir l'entrée « Agent ledger » du menu de conversation).
+    // **"Agent ledger"**: what the agent did, with what, for how long, and what that
+    // cost — for the open conversation, or for a bot in aggregate. Opened by the thread's
+    // "…" menu (see the "Agent ledger" entry of the conversation menu).
     LEDGER,
 }
 
-/**
- * La maquette de boutique du mode vocal, comme `-echo.voiceDemo` d'la référence : le lancement la demande
- * (`-e onyx.voiceDemo true`), et l'écran vocal se pose en écoute sans qu'aucun micro n'existe.
- * Rien de tout ceci ne sert hors d'un APK de debug.
+/** The sidebar's **tiles**: the app's screens, two per row. Each label opens a
+ * screen that **really** exists here — the correspondence with the reference's layout
+ * (Scheduled, Skills, Tools, Settings) is noted in the batch report.
+ * None of this serves outside a debug APK.
  */
 private const val EXTRA_VOICE_DEMO = "onyx.voiceDemo"
 
 /**
- * La maquette de la scène vocale d'une salle (`-e onyx.groupVoiceDemo speaking`) : la réplique qui
- * se lit est **injectée**, sans serveur ni micro, comme le drapeau de la référence. Debug seulement.
+ * The stand-in of a room's voice scene (`-e onyx.groupVoiceDemo speaking`): the line that
+ * is read is **injected**, without server or microphone, like the reference's flag. Debug only.
  */
 private const val EXTRA_GROUP_VOICE_DEMO = "onyx.groupVoiceDemo"
 
 /**
- * La doublure de QA du roster des bots (`am start -e onyx.demoBots true`) : le pendant Android du
- * drapeau de la référence. Elle ne pose que la liste des mentions `@` (et l'identité de la
- * conversation ouverte), jamais un réglage : sans l'extra, le roster est celui du serveur.
+ * The QA stand-in of the bot roster (`am start -e onyx.demoBots true`): the Android counterpart of the
+ * reference's flag. It only sets the list of `@` mentions (and the open
+ * conversation's identity), never a setting: without the extra, the roster is the server's.
  */
 private const val EXTRA_DEMO_BOTS = "onyx.demoBots"
 
-/** Les mots de la maquette : la phrase par défaut du crochet d'la référence, mot pour mot. */
+/** The stand-in words: the reference hook's default sentence, word for word. */
 private const val VOICE_DEMO_WORDS = "Okay, prune anything older than thirty days and try the media share again"
 
-/** Le titre de la conversation, tronqué à 170 points comme `soloHeader` le fait. */
+/** The conversation title, truncated at 170 points like `soloHeader` does. */
 private const val VOICE_DEMO_TITLE = "What's on my calendar tomorrow?"
 
 /**
- * La **pose** de la scène vocale pour une capture (`-e onyx.voicePhase thinking`) : un émulateur n'a
- * ni micro ni moteur de reconnaissance, donc les états d'erreur et les phases ne peuvent pas être
- * produits pour de vrai. Le drapeau les pose, comme `onyx.voiceDemo` pose déjà l'écoute — et il ne
- * change **rien** quand il est absent. Debug seulement, comme les autres.
+ * The **pose** of the voice scene for a capture (`-e onyx.voicePhase thinking`): an emulator has
+ * neither microphone nor recognition engine, so the error states and the phases cannot be
+ * produced for real. The flag poses them, as `onyx.voiceDemo` already poses listening — and it
+ * changes **nothing** when it is absent. Debug only, like the others.
  */
 private const val EXTRA_VOICE_PHASE = "onyx.voicePhase"
 
-/** Le bandeau d'un refus du moteur, posé pour une capture (`-e onyx.voiceProblem "…"`). Debug. */
+/** An engine refusal banner, set for a capture (`-e onyx.voiceProblem "…"`). Debug. */
 private const val EXTRA_VOICE_PROBLEM = "onyx.voiceProblem"
 
 /**
- * L'alerte « on n'entend rien » posée pour une capture (`--ez onyx.voiceNoSound true`) : un
- * émulateur n'a pas de micro, donc l'état ne peut pas être produit pour de vrai. Le drapeau ne
- * change **rien** quand il est absent. Debug seulement, comme les autres.
+ * The "nothing is heard" alert set for a capture (`--ez onyx.voiceNoSound true`): an
+ * emulator has no microphone, so the state cannot be produced for real. The flag
+ * changes **nothing** when it is absent. Debug only, like the others.
  */
 private const val EXTRA_VOICE_NO_SOUND = "onyx.voiceNoSound"
 
 /**
- * **La chaîne vocale rejouée sans micro** (`am start -e onyx.voiceScenario phrase`).
+ * The voice pipeline replayed without a microphone** (`am start -e onyx.voiceScenario phrase`).
  *
- * L'émulateur n'a pas de micro : la boucle complète (ouverture de l'écoute, détection de fin de
- * parole, envoi de la question, réflexion, réponse, reprise de l'écoute, arrêts, plafond d'échecs)
- * ne pouvait donc pas être prouvée — la seule chose qu'on y voyait était un moteur qui démarre.
- * Le drapeau pose un **moteur alimenté par un WAV français** ([VoiceScenarioDemo]) et un lecteur de
- * test, et câble la réponse **localement** (aucun serveur sur un émulateur).
+ * The emulator has no microphone: the full loop (opening listening, detecting the end of
+ * speech, sending the question, thinking, reply, resuming listening, stops, failure cap)
+ * thus could not be proven — the only thing seen there was an engine starting.
+ * The flag sets a **French-WAV-fed engine** ([VoiceScenarioDemo]) and a test
+ * player, and wires the reply **locally** (no server on an emulator).
  *
- * Trois scénarios : `phrase` (le parcours complet), `silencieux` (le moteur tourne sans rien
- * entendre — la couche d'honnêteté doit le dire) et `echec` (plafond d'échecs, message, réessai).
- * **Debug seulement** ; sans le drapeau, rien de tout ceci n'est instancié.
+ * Three scenarios: `phrase` (the full journey), `silencieux` (the engine runs without hearing
+ * anything — the honesty layer must say so) and `echec` (failure cap, message, retry).
+ * Debug only**; without the flag, none of this is instantiated.
  */
 private const val EXTRA_VOICE_SCENARIO = "onyx.voiceScenario"
 
 /**
- * La doublure de QA des sous-agents (`am start --ez onyx.subagentDemo true`) : un fil et un
- * roster **injectés** (une tâche qui travaille, une qui démarre, une lancée à l'aveugle, une
- * finie, une en échec), faute de Dashboard et d'agent sur un émulateur. Debug seulement ; sans le
- * drapeau, rien n'est injecté.
+ * The QA stand-in for subagents (`am start --ez onyx.subagentDemo true`): an **injected**
+ * thread and roster (a task working, one starting, one launched blind, one
+ * finished, one failed), for lack of Dashboard and agent on an emulator. Debug only; without the
+ * flag, nothing is injected.
  */
 private const val EXTRA_SUBAGENT_DEMO = "onyx.subagentDemo"
 
 /**
- * La doublure de QA du **menu « / »** (`am start --ez onyx.slashDemo true`) : une liste de
- * commandes **posée**, faute de passerelle sur un émulateur — sans serveur, `complete.slash` ne rend
- * rien et le menu n'est ni visible ni mesurable. Les entrées reprennent la forme réelle : des
- * commandes de l'app (nom court, détail court) et des compétences du serveur (nom long, détail qui
- * court sur une ligne). Debug seulement ; sans le drapeau, le menu est celui du serveur.
+ * The QA stand-in for the **"/" menu** (`am start --ez onyx.slashDemo true`): a list of
+ * commands **set**, for lack of gateway on an emulator — without a server, `complete.slash` returns
+ * nothing and the menu is neither visible nor measurable. The entries follow the real shape: app
+ * commands (short name, short detail) and server skills (long name, detail that
+ * runs over one line). Debug only; without the flag, the menu is the server's.
  */
 private const val EXTRA_SLASH_DEMO = "onyx.slashDemo"
 
 /**
- * La doublure de QA du **défilement** (`am start --ez onyx.threadDemo true`) : un fil long et
- * reproductible (prose en Markdown, listes, code, six étapes d'outils par réponse) pour lire des
- * temps d'image au lieu d'une impression — `dumpsys gfxinfo`. Debug seulement.
+ * The QA stand-in for **scrolling** (`am start --ez onyx.threadDemo true`): a long, reproducible
+ * thread (Markdown prose, lists, code, six tool steps per reply) to read frame
+ * times instead of an impression — `dumpsys gfxinfo`. Debug only.
  */
 private const val EXTRA_THREAD_DEMO = "onyx.threadDemo"
 
 /**
- * La doublure de QA du **relevé d'agent** (`am start -e onyx.ledgerDemo chargee`) : un fil, un
- * registre de sessions et une table de prix **posés**, faute de Dashboard et d'agent sur un
- * émulateur. Quatre cas nommés — `fraiche` (conversation neuve), `chargee` (conversation chargée),
- * `sans-prix` (un bot dont le fournisseur ne publie aucun prix) et `manquante` (ce que le transport
- * n'a pas conservé). Les valeurs posées sont celles relevées sur le serveur réel : la doublure ne
- * sert qu'à les montrer sans serveur. Sans le drapeau, rien n'est posé et l'écran lit le serveur.
+ * The QA stand-in for the **agent ledger** (`am start -e onyx.ledgerDemo chargee`): a thread, a
+ * session registry and a price table **set**, for lack of Dashboard and agent on an
+ * emulator. Four named cases — `fraiche` (new conversation), `chargee` (loaded conversation),
+ * `sans-prix` (a bot whose provider publishes no price) and `manquante` (what the transport
+ * did not keep). The set values are those observed on the real server: the stand-in only
+ * serves to show them without a server. Without the flag, nothing is set and the screen reads the server.
  */
 private const val EXTRA_LEDGER_DEMO = "onyx.ledgerDemo"
 
 /**
- * Le **journal vocal de l'appareil, recopié dans logcat** (`am start --ez onyx.voiceJournal true`).
+ * The **device's voice journal, copied into logcat** (`am start --ez onyx.voiceJournal true`).
  *
- * La page Journaux de l'app n'est atteignable qu'avec un Dashboard joignable ; sur un émulateur qui
- * n'en a pas, les lignes du chemin vocal (question envoyée, bot qui prend la parole, tour fini,
- * échec d'envoi) restent donc invisibles — et ce sont elles qui disent ce qui casse. Le drapeau les
- * recopie dans logcat, ligne par ligne. **Debug seulement** : dans un APK release,
- * `BuildConfig.DEBUG` est faux, rien n'est recopié, et le drapeau ne change rien.
+ * The app's Logs page is only reachable with a reachable Dashboard; on an emulator that
+ * has none, the voice path's lines (question sent, bot taking the floor, turn finished,
+ * send failure) thus remain invisible — and it is they that say what breaks. The flag
+ * copies them into logcat, line by line. **Debug only**: in a release APK,
+ * `BuildConfig.DEBUG` is false, nothing is copied, and the flag changes nothing.
  */
 private const val EXTRA_VOICE_JOURNAL = "onyx.voiceJournal"
 
 /**
- * La chaine vocale de maquette branchee sur une **vraie salle** (`--ez onyx.voiceScenarioRoom true`).
+ * The voice pipeline stand-in wired to a **real room** (`--ez onyx.voiceScenarioRoom true`).
  *
- * Sans ce drapeau, `onyx.voiceScenario` ouvre la scene **solo** et se repond a elle-meme : c'est ce
- * qu'il faut pour la boucle du solo, et c'est justement ce qui empechait d'eprouver une salle — la
- * question etait posee, mais a personne. Avec le drapeau, la maquette **n'ouvre rien** : la personne
- * navigue, ouvre sa salle et touche « Parler », et c'est le fil de la salle qui recoit la question
- * reconnue (`groups.send`). Debug seulement, et sans lui rien ne change.
+ * Without this flag, `onyx.voiceScenario` opens the **solo** scene and answers itself: that is what
+ * the solo loop needs, and precisely what prevented exercising a room — the
+ * question was asked, but to nobody. With the flag, the stand-in **opens nothing**: the person
+ * navigates, opens their room and taps "Talk" ("Parler"), and it is the room's thread that receives the recognized
+ * question (`groups.send`). Debug only, and without it nothing changes.
  */
 private const val EXTRA_VOICE_SCENARIO_ROOM = "onyx.voiceScenarioRoom"
 
-/** La réplique de la pose « PARLE » : la phrase de la capture du propriétaire, mot pour mot. */
+/** The line of the "TALKING" ("PARLE") pose: the owner's capture sentence, word for word. */
 private const val VOICE_DEMO_REPLY = "Ça va bien, merci. Prêt à bosser. Toi, tu veux qu'on attaque quoi ?"
 
-/** La phase demandée par [EXTRA_VOICE_PHASE], ou `null` si le drapeau est absent. */
+/** The phase requested by [EXTRA_VOICE_PHASE], or `null` if the flag is absent. */
 private fun posedVoicePhase(raw: String?): VoicePhase? = when (raw?.trim()?.lowercase()) {
     "idle", "pret", "prêt", "ready" -> VoicePhase.IDLE
     "listening", "ecoute", "écoute" -> VoicePhase.LISTENING
@@ -399,7 +399,7 @@ private fun posedVoicePhase(raw: String?): VoicePhase? = when (raw?.trim()?.lowe
     else -> null
 }
 
-/** L'Activity derrière un `Context` de composition : ses `Intent` portent la maquette de boutique. */
+/** The Activity behind a composition `Context`: its `Intent`s carry the shop stand-in. */
 private fun android.content.Context.findActivity(): android.app.Activity? {
     var current: android.content.Context? = this
     while (current is android.content.ContextWrapper) {
@@ -409,7 +409,7 @@ private fun android.content.Context.findActivity(): android.app.Activity? {
     return null
 }
 
-/** Routes présentées par `.sheet` / `.fullScreenCover` dans les vues la référence correspondantes. */
+/** Routes presented by `.sheet` / `.fullScreenCover` in the corresponding reference views. */
 private val PresentedRoutes = setOf(
     Route.SETTINGS, Route.MODELS, Route.VOICE, Route.COMPOSER_EDITOR, Route.SELECT_TEXT,
     Route.PHOTO, Route.PDF, Route.VIDEO, Route.AUDIO, Route.DOCUMENT, Route.ARCHIVE, Route.CAMERA, Route.TERMINAL, Route.SETUP, Route.CONNECT, Route.WHATS_NEW,
@@ -421,11 +421,11 @@ private val SheetDismissDestinations = setOf(
     Route.CHAT, Route.BOTS, Route.SERVERS, Route.SETTINGS, Route.HIDDEN_BOTS,
 )
 private val SectionRoutes = listOf(Route.CRON, Route.KANBAN, Route.CODE)
-// Bots s'y ajoute : la liste des bots est une destination de la colonne, que le détail présente
-// sans faire disparaître la barre latérale (la tablette : le détail du `NavigationSplitView`).
+// (voice), the question refused by the room, the room that went mute without
+// saying anything, a message still in transit. Never a mute screen.
 private val TwoPaneRoutes = setOf(Route.CHAT, Route.CRON, Route.KANBAN, Route.CODE, Route.BOTS)
 
-/** Transitions de présentation ; les ressorts natifs des sheets/segments restent approximés. */
+/** Presentation transitions; the native springs of sheets/segments remain approximated. */
 private fun onyxRouteTransition(initialState: Route, targetState: Route): ContentTransform {
     if (targetState in PresentedRoutes && initialState !in PresentedRoutes) {
         return (
@@ -442,9 +442,9 @@ private fun onyxRouteTransition(initialState: Route, targetState: Route): Conten
     val initialTab = SectionRoutes.indexOf(initialState)
     val targetTab = SectionRoutes.indexOf(targetState)
     if (initialTab >= 0 && targetTab >= 0 && initialTab != targetTab) {
-        // **Un changement de section ne fait plus glisser la page.** Le volet ouvre l'écran
-        // demandé : la page apparaît sur place, avec un fondu court. Le glissement latéral se
-        // lisait comme « la page qui bouge » à chaque appui sur une tuile ou un raccourci.
+        // **A section change no longer slides the page.** The sidebar opens the requested
+        // screen: the page appears in place, with a short fade. The lateral slide read
+        // as "the page that moves" on every tap of a tile or a shortcut.
         return fadeIn(animationSpec = OnyxMotion.Sites.TabSelection)
             .togetherWith(fadeOut(animationSpec = OnyxMotion.Sites.TabSelection))
     }
@@ -452,10 +452,10 @@ private fun onyxRouteTransition(initialState: Route, targetState: Route): Conten
 }
 
 /**
- * La racine : le thème de l'utilisateur, puis la conversation et les écrans qu'elle ouvre.
+ * The root: the user's theme, then the conversation and the screens it opens.
  *
- * Le thème et l'apparence sont lus ici, si bien qu'un changement dans Réglages → Apparence
- * s'applique à toute l'app immédiatement.
+ * The theme and appearance are read here, so that a change in Settings → Appearance
+ * applies to the whole app immediately.
  */
 @Composable
 fun OnyxApp() {
@@ -464,19 +464,19 @@ fun OnyxApp() {
     val settingsRepo = AppContainer.settings
     val conversationRepo = AppContainer.conversations
 
-    // **L'hôte des calques de la fenêtre principale.** Le menu ancré y vit : il est ainsi dessiné
-    // dans la **fenêtre principale** — là où la source de flou de l'écran existe — et non dans une
-    // `Dialog`, qui ne peut rien échantillonner. C'est ce qui fait du panneau du menu du **verre**
-    // (le contenu réel dessous, flouté et courbé) et non du lavis.
+    // **The host of the main window's layers.** The anchored menu lives there: it is thus drawn
+    // in the **main window** — where the screen's blur source exists — and not in a
+    // `Dialog`, which can sample nothing. That is what makes the **glass** menu panel
+    // (the real content underneath, blurred and curved) and not a wash.
     val overlayHost = remember { OverlayHost() }
 
-    // **L'identité d'une conversation, PAR CONVERSATION** : le **nom de profil de son bot** — la clé
-    // unique de la maison pour résoudre un visage (`BotLook`). C'est `conversationProfile`
-    // (conversation → bot → profil du serveur → `default`) qui la rend, **le même calcul que
-    // l'en-tête et les onglets**. La version d'avant la résolvait **par serveur** (une table
-    // id de serveur → profil), si bien que trois conversations de bots différents du même serveur
-    // montraient le **même** visage tiré du nom — le défaut « mauvaise synchro » du propriétaire.
-    // (Câblage lu plus bas, dans `chatSidebar` : `identityOf = { conversation -> … }`.)
+    // **A conversation's identity, PER CONVERSATION**: the **profile name of its bot** — the
+    // household's unique key for resolving a face (`BotLook`). It is `conversationProfile`
+    // (conversation → bot → server profile → `default`) that renders it, **the same computation as
+    // the header and the tabs**. The previous version resolved it **per server** (a table
+    // server id → profile), so that three conversations of different bots on the same server
+    // showed the **same** face drawn from the name — the owner's "bad sync" defect.
+    // (Wiring read below, in `chatSidebar`: `identityOf = { conversation -> … }`.)
 
     val theme by settingsRepo.theme.collectAsStateWithLifecycle()
     val appearance by settingsRepo.appearance.collectAsStateWithLifecycle()
@@ -484,61 +484,61 @@ fun OnyxApp() {
     val displayName by settingsRepo.displayName.collectAsStateWithLifecycle()
     val autoCards by settingsRepo.autoCardLook.collectAsStateWithLifecycle()
     val autoVoice by settingsRepo.autoVoiceLook.collectAsStateWithLifecycle()
-    // Réglages → Apparence : les visages de bots, leurs photos, leurs couleurs, le texte du chat
-    // et l'orbe vocal (tous portés par `Settings.shared` côté la référence).
+    // // and the voice orb (all carried by `Settings.shared` on the reference side).
+    // and the voice orb (all carried by `Settings.shared` on the reference side).
     val botFaces by settingsRepo.botFaces.collectAsStateWithLifecycle()
     val botPictures by settingsRepo.botPictures.collectAsStateWithLifecycle()
     val botColors by settingsRepo.botColors.collectAsStateWithLifecycle()
     val linkPreviews by settingsRepo.linkPreviews.collectAsStateWithLifecycle()
     val chatTextSize by settingsRepo.chatTextSize.collectAsStateWithLifecycle()
-    // « Noir pur » et « Halo » : les deux réglages d'affichage portés par la carte Apparence.
+    // "Pure black" ("Noir pur") and "Halo": the two display settings carried by the Appearance card.
     val pureBlack by settingsRepo.pureBlack.collectAsStateWithLifecycle()
     val halo by settingsRepo.halo.collectAsStateWithLifecycle()
-    // « Fluid » : la couverture animée des cartes de conversation (variante B), vrai par défaut.
+    // "Fluid": the animated cover of conversation cards (variant B), true by default.
     val fluideCover by settingsRepo.fluideCover.collectAsStateWithLifecycle()
-    // **Le choix de la couverture** : variante, graine, teinte — écrits en préférences (filaments,
+    // **The cover choice**: variant, seed, tint — written to preferences (filaments,
     // graine 3417634283, teinte bleu) et relus ici. C'est lui qui porte la graine du dessin.
     val fluideChoix by settingsRepo.fluideChoix.collectAsStateWithLifecycle()
     val voiceOrb by settingsRepo.voiceOrb.collectAsStateWithLifecycle()
     val orbLight by settingsRepo.orbLight.collectAsStateWithLifecycle()
-    // Le volet de gauche des deux panneaux, replié ou non : un réglage de l'appareil, donc relu
-    // ici comme les autres réglages d'interface (Apparence, Voix…).
+    // // here like the other interface settings (Appearance, Voice…).
+    // here like the other interface settings (Appearance, Voice…).
     val sidebarCollapsed by settingsRepo.sidebarCollapsed.collectAsStateWithLifecycle()
-    // « Halo » : le verre réagit-il au doigt ? Un seul interrupteur éteint l'appui **non lumineux** —
-    // l'enfoncement des petites surfaces et l'assombrissement des grandes — voir `GlassTouch.kt`.
-    // L'écran des Réglages qui l'affiche est porté par un autre lot ; ici on **lit** la clé et on la
-    // pose, rien de plus.
+    // "Halo": does the glass react to the finger? A single switch turns off the **non-luminous** press —
+    // // The Settings screen that shows it is carried by another batch; here we **read** the key and
+    // The Settings screen that shows it is carried by another batch; here we **read** the key and
+    // set it, nothing more.
     val glassHalo by settingsRepo.glassHalo.collectAsStateWithLifecycle()
-    // Le volet du Chat — sa mémoire est **par largeur** (voir `OnyxSidebarState`) : la
-    // surimpression du téléphone et le panneau posé de la tablette ont chacun la leur, si bien
-    // qu'ouvrir l'un ne laisse pas l'autre ouvert.
+    // // phone overlay and the tablet's docked panel each have their own, so that
+    // // opening one does not leave the other open.
+    // opening one does not leave the other open.
     val sidebarState = com.onyx.app.ui.sidebar.rememberOnyxSidebarState()
-    // La langue de l'app — le même stockage que le réglage Système / Français / English. Un lien
-    // « tout en un » peut la poser dès la configuration. On la pose **avant de dessiner**, et tout
-    // l'arbre est remonté sous `key(appLanguage)` : un changement de langue se voit tout de suite.
+    // The app's language — the same storage as the System / Français / English setting. An
+    // "all-in-one" link can set it as early as configuration. It is set **before drawing**, and the whole
+    // tree is remounted under `key(appLanguage)`: a language change is seen right away.
     val appLanguage by settingsRepo.language.collectAsStateWithLifecycle()
 
-    // Les photos des bots arrivent une fois le roster lu : l'état est tenu ici pour que les
-    // visages de toute l'app le voient, où qu'ils soient dessinés.
+    // Bot pictures arrive once the roster is read: the state is held here so that the
+    // faces of the whole app see it, wherever they are drawn.
     var botPicturesByName by remember { mutableStateOf<Map<String, androidx.compose.ui.graphics.ImageBitmap>>(emptyMap()) }
 
     CompositionLocalProvider(
         com.onyx.app.ui.design.LocalBotFaces provides botFaces,
         com.onyx.app.ui.design.LocalBotPictures provides if (botPictures) botPicturesByName else emptyMap(),
-        // Le réglage « Halo » : posé **au-dessus** de tout l'arbre, donc lu par chaque vitre. Éteint,
-        // la surface est inerte au doigt — aucune lumière, aucun appui (voir `GlassTouch.kt`).
+        // The "Halo" setting: set **above** the whole tree, so read by every pane. Switched off,
+        // the surface is inert to the finger — no light, no press (see `GlassTouch.kt`).
         com.onyx.app.ui.design.LocalGlassHalo provides glassHalo,
-        // « Fluid » : posé au-dessus de tout l'arbre, donc lu par chaque carte de conversation.
-        // Éteint, la carte reprend l'ancienne couverture déterministe.
+        // "Fluid": set above the whole tree, so read by every conversation card.
+        // Switched off, the card falls back to the old deterministic cover.
         com.onyx.app.ui.design.LocalFluideEnabled provides fluideCover,
-        // **Le choix de la couverture** : variante, graine et teinte, posés au-dessus de tout
-        // l'arbre — c'est ce qui fait qu'une carte dessine le matériau retenu (filaments, graine de
-        // la planche, teinte bleu) et non plus une teinte tirée de la conversation.
+        // **The cover choice**: variant, seed and tint, set above the whole
+        // tree — that is what makes a card draw the chosen material (filaments, seed from
+        // the board, blue tint) and no longer a tint drawn from the conversation.
         com.onyx.app.ui.design.LocalFluideChoix provides fluideChoix,
     ) {
     androidx.compose.runtime.key(appLanguage) {
     OnyxAppTheme(theme = theme, appearance = appearance, colors = themeColors[theme.id], pureBlack = pureBlack, halo = halo) {
-        // Le verrou couvre tout : on ne voit rien de l'app avant de s'être authentifié.
+        // The lock covers everything: nothing of the app is seen before authenticating.
         val appLock = remember { AppLock(context) }
         var locked by remember { mutableStateOf(appLock.isEnabled) }
         var leftAt by remember { mutableLongStateOf(0L) }
@@ -567,36 +567,36 @@ fun OnyxApp() {
             factory = viewModelFactory { initializer { SettingsViewModel(servers, settingsRepo) } },
         )
 
-        // **La coquille ne lit plus l'etat du chat : elle lit sa projection stable.**
-        //
-        // `state` etait l'etat **entier**, et il est republié a chaque publication de texte - 33
-        // fois par seconde pendant une reponse. La racine (5 000 lignes) rejouait donc a chaque
-        // jeton, avec trois balayages complets du fil (sous-agents, approbations, questions
-        // d'agent) que le texte qui s'ecrit ne change pourtant pas. `ShellState` (voir son
-        // fichier) ne porte que ce que la coquille lit vraiment, et son egalite structurelle est
+        // //
+        // // `state` was the **entire** state, and it was republished on every text publication - 33
+        // // times per second during a reply. The root (5,000 lines) thus replayed on every
+        // // token, with three full sweeps of the thread (subagents, approvals, agent
+        // // questions) that the text being written does not change. `ShellState` (see its
+        // // file) carries only what the shell actually reads, and its structural equality is
+        // // stable from one token to the next: **the root no longer recomposes during a stream.**
         // stable d'un jeton a l'autre : **la racine ne recompose plus pendant un flux.**
         val chatState = chatViewModel.state.collectAsStateWithLifecycle()
         val state by remember { derivedStateOf { ShellState.of(chatState.value) } }
         val history by chatViewModel.history.collectAsStateWithLifecycle()
         // La raison d'un import de conversations qui n'a pas abouti, quand il y en a une.
         val serverImportNote by chatViewModel.importNote.collectAsStateWithLifecycle()
-        // Les serveurs enregistrés, relus pour la liste unifiée (« All Servers »).
+        // The registered servers, read back for the unified list ("All Servers").
         val serverList by servers.servers.collectAsStateWithLifecycle()
 
-        // Les adresses du réseau de ce téléphone, lues une fois : ce que le mode « Simple » propose
-        // en plus des serveurs déjà enregistrés. Relire les interfaces à chaque recomposition ne
-        // servirait à rien et coûterait cher.
-        // **Énuméré au premier besoin, pas à chaque démarrage.**
-        //
-        // `localAddresses()` parcourt les interfaces réseau du téléphone : un coût payé à **chaque**
-        // lancement, sur le thread principal, pour une suggestion que seuls les écrans de connexion
-        // affichent. La valeur est donc calculée à la première ouverture de l'un d'eux, puis gardée.
+        // This phone's network addresses, read once: what the "Simple" mode offers
+        // // recomposition would serve no purpose and would be costly.
+        // would serve no purpose and would be costly.
+        // //
+        // // `localAddresses()` walks the phone's network interfaces: a cost paid at **every**
+        // // launch, on the main thread, for a suggestion that only the connection screens
+        // launch, on the main thread, for a suggestion that only the connection screens
+        // show. The value is thus computed on the first opening of one of them, then kept.
         val setupLocalAddresses = remember {
             lazy(LazyThreadSafetyMode.NONE) { com.onyx.app.ui.setup.SetupSuggestions.localAddresses() }
         }
 
-        // Le roster est lu tôt : la conversation ouverte le dit deux fois — son fil (le visage, le
-        // nom, le placeholder) et les notifications, qui nomment le bot dans son fil.
+        // // name, the placeholder) and the notifications, which name the bot in its thread.
+        // name, the placeholder) and the notifications, which name the bot in its thread.
         val botsViewModel: BotsViewModel = viewModel(
             key = "bots-" + state.server.id + state.server.configSignature,
             factory = viewModelFactory {
@@ -606,39 +606,39 @@ fun OnyxApp() {
                         faces = BotFaceStore(context.applicationContext),
                         activity = BotActivityStore(context.applicationContext),
                         groupRooms = com.onyx.app.data.local.GroupRoomStore(context.applicationContext),
-                        // Le dernier roster réussi : il tient la première frame, avant le réseau.
+                        // The last successful roster: it holds the first frame, before the network.
                         roster = com.onyx.app.data.local.BotRosterCache(context.applicationContext),
                     )
                 }
             },
         )
         val botsState by botsViewModel.state.collectAsStateWithLifecycle()
-        // Doublure de QA (`am start -e onyx.demoBots true`) : l'émulateur qui capture n'a aucun
-        // Dashboard, donc aucun roster à lire, et la liste des mentions `@` a besoin de bots pour
-        // se montrer. Le la référence a le même crochet (`-echo.demoBots`), et la doublure ne prend la
-        // place du serveur que sur cette demande explicite.
+        // QA stand-in (`am start -e onyx.demoBots true`): the emulator that captures has no
+        // Dashboard, thus no roster to read, and the list of `@` mentions needs bots to
+        // show itself. The reference has the same hook (`-echo.demoBots`), and the stand-in only takes the
+        // server's place on this explicit request.
         val demoBotsRun = remember {
             context.findActivity()?.intent?.getBooleanExtra(EXTRA_DEMO_BOTS, false) == true
         }
         val bots = if (demoBotsRun) BotRosterStandIn.bots() else botsState.bots
-        // Ce que la liste des mentions `@` propose : `BotRoster.listed` — le principal d'abord,
-        // les bots cachés écartés, aucun quand le principal est seul.
+        // // hidden bots set aside, none when the main one is alone.
+        // hidden bots set aside, none when the main one is alone.
         val mentionRoster = remember(bots, state.server.displayName) {
             BotMentions.rosterForMentions(bots, state.server.displayName.ifBlank { "Onyx" })
         }
-        // Le visage d'un profil, résolu **une fois** et lu par la liste comme par une salle : la
-        // table du roster (le choix du téléphone puis `ui_meta.onyx.face`, réunis par
-        // `withSwiftFaces`) et les visages que les bots portent déjà — une doublure de
-        // démonstration comprise. Une salle qui lisait le choix local seul montrait un autre visage
-        // que la liste pour le même bot.
+        // The face of a profile, resolved **once** and read by the list as by a room: the
+        // roster table (the phone's choice then `ui_meta.onyx.face`, gathered by
+        // `withSwiftFaces`) and the faces the bots already carry — a demonstration stand-in
+        // included. A room that read the local choice alone showed a different face
+        // from the list for the same bot.
         val faceResolver = remember(bots, botsState.faces) {
             com.onyx.app.ui.bots.BotFaceResolver.of(
                 resolved = bots.mapNotNull { bot -> bot.faceCode?.let { code -> bot.name to code } }.toMap() +
                     botsState.faces,
             )
         }
-        // Le nom de qui parle dans la conversation ouverte : le libellé du bot quand c'en est un,
-        // sinon le nom d'agent des Réglages (ou celui du serveur quand il est vide).
+        // The name of who speaks in the open conversation: the bot's label when it is one,
+        // otherwise the agent name from Settings (or the server's when it is empty).
         val openConversation = history.firstOrNull { it.id == state.conversationId }
         val openConversationBot = openConversation?.let { conversation ->
             botOfConversation(conversation, bots, state.server.displayName)
@@ -646,17 +646,17 @@ fun OnyxApp() {
         val threadName = openConversationBot?.label(state.server.displayName)
             ?: state.server.displayName.ifBlank { "Onyx" }
 
-        // Le briseur de boucle : le drapeau « restauration en cours » est posé ici, avant que la
-        // route, l'onglet et le brouillon ne soient restaurés, et effacé dès le premier dessin
-        // passé. Un démarrage qui le retrouve déjà posé est un démarrage **de secours** : Chat,
-        // brouillon sans sa pièce jointe, onglet oublié — donc jamais deux fois le même plantage.
+        // The loop breaker: the "restoration in progress" flag is set here, before the
+        // route, tab and draft are restored, and cleared as soon as the first drawing has
+        // passed. A startup that finds it already set is a **fallback** startup: Chat,
+        // draft without its attachment, forgotten tab — thus never the same crash twice.
         val startupGuard = remember { com.onyx.app.ui.StartupGuard.with(context.applicationContext) }
         val startPlan = remember { startupGuard.begin() }
 
         var route by rememberSaveable { mutableStateOf(Route.CHAT.name) }
-    // Pile de navigation : le geste de retour Android (bord d'écran) et le bouton doivent
-    // remonter à l'écran précédent, comme le swipe-back d'la référence — et non fermer l'app. `route`
-    // reste la valeur courante pour tout le code existant ; les affectations passent par `navTo`.
+    // Navigation stack: the Android back gesture (screen edge) and the button must
+    // go back up to the previous screen, like the reference's swipe-back — and not close the app. `route`
+    // remains the current value for all existing code; assignments go through `navTo`.
     val backStack = remember { mutableStateListOf<String>() }
     fun navTo(target: String) {
         route = navigateWithBackStack(route, target, backStack)
@@ -668,30 +668,30 @@ fun OnyxApp() {
     }
 
     /**
-     * Quitte un écran dont l'état est vide. La route vide **n'entre pas** dans la pile : y revenir
+     * Leaves a screen whose state is empty. The empty route **does not enter** the stack: returning to it
      * n'aurait aucun sens (sa charge utile n'existe plus), et l'y laisser avalait le retour — voir
      * [navigateLeavingEmpty]. À appeler **hors de la composition** (`LaunchedEffect`) : un `navTo`
-     * écrit pendant la composition est une écriture d'état pendant la composition.
+     * written during composition is a state write during composition.
      */
     fun navFromEmpty(target: String) {
         route = navigateLeavingEmpty(route, target, backStack)
     }
 
     /**
-     * Le démarrage lui-même : en secours (le précédent n'a pas atteint son premier dessin), on
-     * revient sur Chat et on écarte la pièce jointe du brouillon — puis on efface le drapeau dès
+     * The startup itself: as a fallback (the previous one did not reach its first drawing), we
+     * return to Chat and set aside the draft attachment — then clear the flag as soon as
      * le premier dessin, pour que le lancement suivant soit normal.
      */
     LaunchedEffect(Unit) {
         if (startPlan.dropDraftAttachments) {
-            // On **retombe** sur Chat sans l'empiler : revenir en arrière depuis ce Chat ne doit
-            // pas ramener sur l'écran qui a tué le lancement précédent.
+            // We **fall back** onto Chat without stacking it: going back from this Chat must
+            // not return to the screen that killed the previous launch.
             route = navigateLeavingEmpty(route, Route.CHAT.name, backStack)
             chatViewModel.discardDraftAttachments()
         }
-        // Un dessin réussi, puis une courte marge : une image refusée par le moteur de rendu
-        // lève au premier ou au deuxième dessin, et le drapeau doit encore être là pour que le
-        // lancement suivant sache qu'il faut revenir en arrière.
+        // A successful drawing, then a short margin: an image refused by the rendering engine
+        // raises at the first or second drawing, and the flag must still be there so that the
+        // next launch knows it must go back.
         withFrameNanos { }
         kotlinx.coroutines.delay(900)
         startupGuard.settled()
@@ -702,52 +702,52 @@ fun OnyxApp() {
         var editorPath by rememberSaveable { mutableStateOf<String?>(null) }
         var contextEditor by remember { mutableStateOf<Triple<String, String, String>?>(null) }
         var contextFileName by rememberSaveable { mutableStateOf<String?>(null) }
-        // La page d'où l'on vient, pour que « retour » ramène au bon endroit.
+        // The page we come from, so that "back" returns to the right place.
         var contextReturn by rememberSaveable { mutableStateOf(Route.CONTEXT.name) }
         var selectedBot by remember { mutableStateOf<BotProfile?>(null) }
-        // **Le fil dont on change le visage.** Ouvre-t-on l'identité du bot **depuis une
-        // conversation** : le visage choisi est celui de ce fil (`Conversation.faceCode`), et lui
-        // seul change. Depuis l'onglet « Bots », c'est le visage du bot — celui que suivent ses
+        // **The thread whose face is being changed.** Is the bot identity opened **from a
+        // // alone changes. From the "Bots" tab, it is the bot's face — the one followed by its
+        // alone changes. From the "Bots" tab, it is the bot's face — the one followed by its
         // fils qui n'ont pas le leur. `null` = on est venu de la liste des bots.
         var faceConversation by remember { mutableStateOf<Conversation?>(null) }
-        // Le bot **en cours de création** : son nom et son visage. « Change Face » de l'écran
-        // « New Bot » n'avait nulle part où poser son choix — l'écran de visage s'ouvre sur un bot
-        // du serveur, et un bot qui n'existe pas encore n'en est pas un. Le geste ne faisait donc
-        // rien, et le visage du modèle restait le seul possible.
+        // The bot **being created**: its name and its face. "Change Face" on the
+        // "New Bot" screen had nowhere to put its choice — the face screen opens on a bot
+        // // nothing, and the template's face remained the only possible one.
+        // nothing, and the template's face remained the only possible one.
         var newBotName by rememberSaveable { mutableStateOf<String?>(null) }
         var newBotFaceCode by rememberSaveable { mutableStateOf<String?>(null) }
-        // La salle choisie dans la liste des bots : elle teinte sa rangée et pré-remplit le chat
-        // de groupe avec ses membres (le fil d'une salle du serveur n'est pas encore porté).
+        // The room chosen in the bot list: it tints its row and pre-fills the group
+        // chat with its members (a server room's thread is not yet carried).
         var openedRoom by remember { mutableStateOf<GroupChat?>(null) }
         var botCronProfile by rememberSaveable { mutableStateOf<String?>(null) }
-        // Le bot dont la voix se règle (`BotVoicePicker`), ouvrable depuis son éditeur comme de
-        // son menu de tuile : le profil est gardé pour qu'un processus recréé retrouve le bon.
+        // The bot whose voice is being set (`BotVoicePicker`), openable from its editor as from
+        // its tile menu: the profile is kept so that a recreated process finds the right one.
         var botVoiceProfile by rememberSaveable { mutableStateOf<String?>(null) }
         var renaming by remember { mutableStateOf(false) }
-        // « Let bots message each other » : la question d'abord, comme le confirmationDialog la référence.
+        // "Let bots message each other": the question first, like the reference's confirmationDialog.
         var askingLetBotsMessage by remember { mutableStateOf(false) }
-        // Ce que le réglage « laisser les bots se parler » a donné : sans ça, l'appui ne montrait
-        // rien du tout, ni réussite ni échec (« ça fonctionne pas »).
+        // What the "let bots talk to each other" setting gave: without it, the press showed
+        // nothing at all, neither success nor failure ("it doesn't work").
         var letBotsOutcome by remember { mutableStateOf<String?>(null) }
         var editingPrefix by remember { mutableStateOf<Int?>(null) }
         var patchText by remember { mutableStateOf<String?>(null) }
         var selectedText by remember { mutableStateOf<String?>(null) }
         var skillName by remember { mutableStateOf<String?>(null) }
-        // Le brouillon d'une démonstration, quand « En faire un skill » ouvre l'éditeur : le nom
-        // proposé et le Markdown converti. Nul, l'éditeur est celui d'aujourd'hui, à l'identique.
+        // A demonstration's draft, when "Make it a skill" opens the editor: the proposed
+        // name and the converted Markdown. Null, the editor is today's, identically.
         var skillSeed by remember { mutableStateOf<SkillEditorSeed?>(null) }
-        // **La routine proposée par une compétence** (« En faire une routine ») : posée ici, elle
-        // est consommée par l'écran des horaires, qui ouvre son brouillon déjà rempli. Nulle, rien
-        // ne change pour les autres chemins.
+        // **The routine proposed by a skill** ("Make it a routine"): set here, it
+        // is consumed by the schedules screen, which opens its draft already filled. Null, nothing
+        // changes for the other paths.
         var routineSeed by remember { mutableStateOf<com.onyx.app.data.skill.SkillRoutine.Seed?>(null) }
-        // **Une démonstration demandée depuis le fil** (« Enseigner une compétence » du « + ») : la
-        // demande survit à la navigation, l'écran de l'ordinateur la consomme à l'arrivée.
+        // **A demonstration requested from the thread** ("Teach a skill" from the "+"): the
+        // request survives navigation, the computer screen consumes it on arrival.
         var teachRequested by remember { mutableStateOf(false) }
         var openingRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
         var subagentAgent by remember { mutableStateOf<com.onyx.app.data.model.SubagentActivity?>(null) }
-        // Doublure de QA des sous-agents (`onyx.subagentDemo`) : le roster et le fil injectés,
-        // faute de Dashboard et d'agent sur un émulateur. Sans le drapeau, la liste reste vide et
-        // rien n'est injecté.
+        // QA stand-in for subagents (`onyx.subagentDemo`): the injected roster and thread,
+        // for lack of Dashboard and agent on an emulator. Without the flag, the list stays empty and
+        // nothing is injected.
         val subagentDemoRun = remember {
             context.findActivity()?.intent?.getBooleanExtra(EXTRA_SUBAGENT_DEMO, false) == true
         }
@@ -759,12 +759,12 @@ fun OnyxApp() {
                 chatViewModel.seedSubagentDemo(com.onyx.app.ui.chat.SubagentStandIn.conversation(at))
             }
         }
-        // La doublure de **défilement** : un fil long posé une fois, pour mesurer les images.
+        // The **scrolling** stand-in: a long thread set once, to measure frames.
         val threadDemo = remember {
             val intent = context.findActivity()?.intent
             if (intent?.getBooleanExtra(EXTRA_THREAD_DEMO, false) == true) {
-                // Le compte et la présence des étapes d'outils sont **réglables** : c'est ce qui
-                // permet de comparer deux fils au même appareil (`--ei onyx.threadDemoCount 40`,
+                // The tool-step count and presence are **adjustable**: that is what
+                // allows comparing two threads on the same device (`--ei onyx.threadDemoCount 40`,
                 // `--ez onyx.threadDemoPlain true`).
                 intent.getIntExtra("onyx.threadDemoCount", com.onyx.app.ui.chat.ThreadStandIn.DefaultCount) to
                     !intent.getBooleanExtra("onyx.threadDemoPlain", false)
@@ -777,8 +777,8 @@ fun OnyxApp() {
             chatViewModel.seedSubagentDemo(com.onyx.app.ui.chat.ThreadStandIn.messages(count, withTools))
         }
         val shownSubagents = if (subagentDemoRun && demoSubagents.isNotEmpty()) demoSubagents else state.subagents
-        // La doublure du **menu « / »** (`onyx.slashDemo`) : la liste que la passerelle rendrait,
-        // posée pour pouvoir la voir et la mesurer sur un émulateur qui n'en a pas.
+        // The **"/" menu** stand-in (`onyx.slashDemo`): the list the gateway would return,
+        // set so it can be seen and measured on an emulator that has none.
         val slashDemoItems = remember {
             if (context.findActivity()?.intent?.getBooleanExtra(EXTRA_SLASH_DEMO, false) == true) {
                 com.onyx.app.ui.chat.SlashStandIn.items
@@ -786,17 +786,17 @@ fun OnyxApp() {
                 null
             }
         }
-        // La doublure du relevé d'agent (`onyx.ledgerDemo <cas>`) : elle apporte le monde que
-        // l'écran lit d'ordinaire sur le serveur — le fil, le roster, le registre et la table de
-        // prix. Absente, l'écran lit le serveur ; rien d'autre ne change.
+        // The agent ledger stand-in (`onyx.ledgerDemo <case>`): it brings the world the
+        // screen normally reads on the server — the thread, the roster, the registry and the price
+        // table. Absent, the screen reads the server; nothing else changes.
         val ledgerStandIn = remember {
             com.onyx.app.ui.ledger.LedgerStandIn.of(
                 context.findActivity()?.intent?.getStringExtra(EXTRA_LEDGER_DEMO).orEmpty(),
             )
         }
-        // La doublure **ouvre son écran** : sans Dashboard ni agent, il n'y a rien d'autre à poser,
-        // et la capture doit pouvoir viser le relevé sans traverser la feuille du fil (qui, elle,
-        // est atteinte par le menu « … » de l'en-tête — c'est le chemin réel, et il reste entier).
+        // The stand-in **opens its screen**: without Dashboard or agent, there is nothing else to set,
+        // and the capture must be able to target the ledger without crossing the thread sheet (which,
+        // for its part, is reached by the "…" menu of the header — that is the real path, and it stays whole).
         LaunchedEffect(ledgerStandIn) {
             if (ledgerStandIn != null) navTo(Route.LEDGER.name)
         }
@@ -806,29 +806,29 @@ fun OnyxApp() {
                 .getOrNull()?.models.orEmpty()
         }
 
-        // ---- Le sélecteur de modèle (fonction 2) : la feuille, ses modèles, ses préférences ----
-        // Le niveau de réflexion vit déjà dans les Réglages ; la feuille le relit comme le fait
-        // l'écran des modèles, un seul état pour les deux.
+        // ---- The model picker (feature 2): the sheet, its models, its preferences ----
+        // The reasoning level already lives in Settings; the sheet reads it back as the
+        // models screen does, a single state for both.
         val currentReasoning by settingsRepo.reasoningEffort.collectAsStateWithLifecycle()
         var showModelSheet by remember { mutableStateOf(false) }
         /**
-         * **La feuille des modèles de l'éditeur d'un bot.** Elle vit ici, avec les autres feuilles,
-         * pour deux raisons : le catalogue se lit dans l'effet qui surveille `showModelSheet` et
-         * `roomModelBot` (il suffit d'y ajouter ce drapeau), et la feuille doit se dessiner
-         * **par-dessus** l'écran d'identité, pas dedans.
+         * The bot editor's models sheet.** It lives here, with the other sheets,
+         * for two reasons: the catalogue is read in the effect that watches `showModelSheet` and
+         * `roomModelBot` (adding this flag there is enough), and the sheet must be drawn
+         * above** the identity screen, not inside it.
          */
         var editorModelSheet by remember { mutableStateOf(false) }
-        // La feuille de modèle ouverte **depuis une salle** : le nom du bot visé. Une salle n'a pas
-        // de conversation à un bot, si bien que sans ce nom la feuille parlerait du serveur au lieu
-        // de ce bot ; le choix s'écrit sur son profil (`profiles.configure`), et c'est le modèle
+        // The sheet is open **from a room**: the name of the target bot. A room has no
+        // conversation to a bot, so that without this name the sheet would talk about the server instead of
+        // this bot; the choice is written on its profile (`profiles.configure`), and that is the model
         // qu'Hermes lui donne **dans la salle** comme dans ses propres conversations.
         var roomModelBot by remember { mutableStateOf<String?>(null) }
         var modelChoices by remember(state.server.id) { mutableStateOf<List<com.onyx.app.ui.design.ModelChoice>>(emptyList()) }
         var modelChoicesLoading by remember(state.server.id) { mutableStateOf(false) }
-        // Les profils Hermes et l'état de leur liste — le local du profil `default`, les distants du
-        // profil `kilo`, et un profil injoignable marqué sans effacer les autres.
+        // The Hermes profiles and their list state — the `default` profile's local ones, the
+        // `kilo` profile's remote ones, and an unreachable profile marked without erasing the others.
         var modelProfiles by remember(state.server.id) { mutableStateOf<List<com.onyx.app.ui.design.ProfileView>>(emptyList()) }
-        // Favoris et récents de l'appareil : ce qui n'appartient qu'à ce téléphone, par serveur.
+        // Device favourites and recents: what belongs only to this phone, per server.
         val modelPrefs = remember(context) {
             com.onyx.app.data.local.ModelPreferenceStore(
                 com.onyx.app.data.local.PrefsRenameStore(
@@ -841,14 +841,14 @@ fun OnyxApp() {
         }
         var modelFavourites by remember(state.server.id) { mutableStateOf(modelPrefs.favourites(state.server.id)) }
         var modelRecents by remember(state.server.id) { mutableStateOf(modelPrefs.recents(state.server.id)) }
-        // La ligne **« Mode rapide »** de la feuille : le serveur l'expose-t-il ? Les transports à
-        // registre seulement ; sinon la feuille ne la dessine pas (voir `rememberModelFastMode`).
+        // // transports; otherwise the sheet does not draw it (see `rememberModelFastMode`).
+        // transports; otherwise the sheet does not draw it (see `rememberModelFastMode`).
         val modelFastMode = com.onyx.app.ui.models.rememberModelFastMode(
             state.server,
             state.serverSessionId ?: state.conversationId,
         )
-        // Le catalogue n'est lu **que** quand la feuille s'ouvre : une requête en moins au démarrage.
-        // Il est lu **par profil** (le registre, puis les modèles de chaque profil) : la feuille
+        // // It is read **per profile** (the registry, then each profile's models): the sheet
+        // // thus shows all profiles, not the gateway's single alias.
         // montre ainsi tous les profils, pas le seul alias de la passerelle.
         LaunchedEffect(showModelSheet, roomModelBot, editorModelSheet, state.server.id) {
             if (!showModelSheet && roomModelBot == null && !editorModelSheet) return@LaunchedEffect
@@ -861,17 +861,17 @@ fun OnyxApp() {
         }
         var photoSet by remember { mutableStateOf<List<com.onyx.app.data.model.Attachment>>(emptyList()) }
         var photoIndex by remember { mutableStateOf(0) }
-        // Le PDF montré dans le lecteur de l'app : son adresse et son nom.
+        // The PDF shown in the app's reader: its address and its name.
         var pdfSource by remember { mutableStateOf<com.onyx.app.ui.chat.PdfSource?>(null) }
-        // La vidéo montrée dans le lecteur de l'app : son adresse et son nom.
+        // The video shown in the app's reader: its address and its name.
         var videoSource by remember { mutableStateOf<com.onyx.app.ui.chat.VideoSource?>(null) }
         // Le son, le document texte et l'archive ouverts depuis l'onglet Fichiers.
         var soundSource by remember { mutableStateOf<com.onyx.app.ui.chat.SoundSource?>(null) }
         var documentSource by remember { mutableStateOf<com.onyx.app.ui.chat.DocumentSource?>(null) }
         var archiveSource by remember { mutableStateOf<com.onyx.app.ui.chat.DocumentSource?>(null) }
         var prefixDraft by remember { mutableStateOf<SpokenPrefix?>(null) }
-        // Le scanner et sa confirmation sont des feuilles au-dessus du formulaire d'origine.
-        // Le brouillon vit ici pour ne pas être perdu quand la caméra prend toute la surface.
+        // // The draft lives here so it is not lost when the camera takes the whole surface.
+        // The draft lives here so it is not lost when the camera takes the whole surface.
         var setupDraft by remember(state.server.id) { mutableStateOf(state.server) }
         var setupScannerOpen by remember { mutableStateOf(false) }
         var setupOffer by remember { mutableStateOf<SetupCodeOffer?>(null) }
@@ -882,13 +882,13 @@ fun OnyxApp() {
         var forceFirstRunSetup by remember { mutableStateOf(false) }
         var setupOffersEditing by remember { mutableStateOf(true) }
         var setupCodeEditing by remember { mutableStateOf(false) }
-        // La langue demandée par un lien « tout en un », posée à la **fin** de la configuration :
-        // la changer pendant que les champs se remplissent remonterait l'écran et les effacerait.
+        // The language requested by an "all-in-one" link, set at the **end** of configuration:
+        // changing it while the fields are being filled would remount the screen and erase them.
         var pendingLanguage by remember { mutableStateOf("") }
         val spokenPrefixes by settingsRepo.spokenPrefixes.collectAsStateWithLifecycle()
         var renameText by remember { mutableStateOf("") }
 
-        // Les cartes de départ suivent l'historique sans le relire à chaque recomposition.
+        // The start cards follow the history without re-reading it on every recomposition.
         LaunchedEffect(history.size, state.messagesSize) {
             if (state.messagesSize == 0) {
                 startCards = chatViewModel.startCards()
@@ -897,23 +897,23 @@ fun OnyxApp() {
 
         val scope = rememberCoroutineScope()
 
-        // « Repartir de zéro » : l'état de sa confirmation, et le corps de l'action lui-même —
-        // écrit **une fois**, pour le crayon de l'en-tête, la commande « Nouvelle conversation » et
-        // l'entrée du menu.
+        // "Start fresh": its confirmation's state, and the action's body itself —
+        // written **once**, for the header's pencil, the "New Conversation" command and
+        // the menu entry.
         var confirmingFresh by remember { mutableStateOf(false) }
 
-        /**
-         * La **feuille de compte du volet** : le rond de l'initiale du pied, ou le nom et l'adresse
-         * de la tête, l'ouvrent. Elle dit l'état **réellement mesuré** de la passerelle et porte les
-         * cinq gestes de la connexion ; c'est une feuille de la famille existante, posée par-dessus
-         * le volet (qui reste ouvert derrière).
+        /** The **sidebar's account sheet**: the initial's circle at the foot, or the name and address
+         * of the head, open it. It tells the **actually measured** state of the gateway and carries the
+         * five connection gestures; it is a sheet of the existing family, set above
+         * the sidebar (which stays open behind).
+* the sidebar (which stays open behind).
          */
         var accountSheetOpen by remember { mutableStateOf(false) }
 
-        /**
-         * Ouvre une conversation neuve avec **le même bot** : le contexte repart à neuf, et
-         * l'ancienne reste dans l'historique, entière. Une conversation vide et jamais servie est
-         * reprise au lieu d'en empiler une deuxième.
+        /** Opens a new conversation with **the same bot**: the context starts anew, and
+         * the old one stays in the history, whole. An empty conversation never served is
+         * taken back instead of stacking a second one.
+* taken back instead of stacking a second one.
          */
         fun startFreshConversation() {
             val next = freshConversationForPencil(
@@ -923,17 +923,17 @@ fun OnyxApp() {
                 serverId = state.server.id,
                 mainName = state.server.displayName,
             )
-            // Une conversation de bot se garde tout de suite : c'est ce qui la met dans la liste
-            // sous son nom, et ce que l'en-tête relit pour son visage.
+            // // under its name, and what the header reads back for its face.
+            // under its name, and what the header reads back for its face.
             if (openConversationBot != null && history.none { it.id == next.id }) {
                 scope.launch { conversationRepo.save(next) }
             }
             chatViewModel.open(next)
         }
 
-        /**
-         * Ouvre un fichier joint avec le lecteur qui lui convient : le lecteur de PDF de l'app,
-         * le visualiseur d'images, ou l'app du système qui sait lire le reste.
+        /** Opens an attached file with the reader that suits it: the app's PDF reader,
+         * the image viewer, or the system app that can read the rest.
+* the image viewer, or the system app that can read the rest.
          */
         fun openFile(uri: android.net.Uri, name: String, mime: String) {
             when (com.onyx.app.ui.chat.FileViewers.kind(name, mime)) {
@@ -959,8 +959,8 @@ fun OnyxApp() {
                 }
 
                 com.onyx.app.ui.chat.FileViewerKind.VIDEO -> {
-                    // La vidéo se lit dans l'app, comme le PDF et l'image : sa première image sert
-                    // de vignette dans le fil, et l'appui ouvre le lecteur.
+                    // The video is played in the app, like the PDF and the image: its first frame serves
+                    // as a thumbnail in the thread, and the tap opens the player.
                     videoSource = com.onyx.app.ui.chat.VideoSource(
                         uri = uri,
                         name = name.ifEmpty { uri.lastPathSegment?.substringAfterLast('/') ?: "Video" },
@@ -971,9 +971,9 @@ fun OnyxApp() {
                 com.onyx.app.ui.chat.FileViewerKind.EXTERNAL -> {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         setDataAndType(
-                            // **Une copie durable se partage par le FileProvider, jamais en
-                            // `file://`** : depuis Android 7, une `file://` confiée à une autre app
-                            // lève `FileUriExposedException` et l'appui ne fait rien. Les pièces
+                            // // `file://`**: since Android 7, a `file://` handed to another app
+                            // `file://`**: since Android 7, a `file://` handed to another app
+                            // raises `FileUriExposedException` and the press does nothing. Attachments
                             // jointes vivent maintenant sous `filesDir`, donc cette conversion
                             // n'est pas un confort — c'est ce qui les rend ouvrables.
                             shareableUri(context, uri),
@@ -990,18 +990,18 @@ fun OnyxApp() {
             }
         }
 
-        /**
-         * Un fichier de l'onglet **Fichiers**, déjà sur le téléphone, ouvert selon sa **famille**.
-         *
-         * C'est le seul endroit qui répond à « qu'est-ce qu'un appui fait ? » pour cet onglet : une
-         * image, une vidéo, un son, un PDF et un texte ont chacun leur lecteur de la maison, une
-         * archive d'alignement de fichiers montre son contenu, et tout le reste — comme un type
-         * inconnu — part à l'application du système, qui est prévenue. **Aucune branche ne fait
-         * rien** : c'est ce que le test de câblage vérifie, famille par famille.
+        /** A file of the **Files** tab, already on the phone, opened according to its **family**.
+* A file of the **Files** tab, already on the phone, opened according to its **family**.
+         * It is the only place that answers "what does a press do?" for this tab: an
+         * image, a video, a sound, a PDF and a text each have their household reader, an
+         * archive alignment shows its content, and all the rest — like an unknown
+         * type — goes to the system app, which is warned. **No branch does
+         * nothing**: that is what the wiring test verifies, family by family.
+* nothing**: that is what the wiring test verifies, family by family.
          */
         fun openConversationFile(uri: android.net.Uri, name: String, mime: String) {
             when (com.onyx.app.data.model.fileOpenRoute(name, mime)) {
-                // Les lecteurs déjà en place : l'image, la vidéo, le PDF et le système.
+                // Readers already in place: the image, the video, the PDF and the system.
                 com.onyx.app.data.model.FileOpenRoute.PHOTO,
                 com.onyx.app.data.model.FileOpenRoute.VIDEO,
                 com.onyx.app.data.model.FileOpenRoute.PDF,
@@ -1051,8 +1051,8 @@ fun OnyxApp() {
         }
 
         /**
-         * Ce qu'un lien « tout en un » applique **au-delà** du serveur : l'adresse des voix, le pont
-         * « Ordinateur » (adresse + jeton) et la langue de l'app. Un ancien lien n'a rien de tout
+* What an "all-in-one" link applies **beyond** the server: the voices' address, the
+* "Computer" bridge (address + token) and the app's language. An old link has none of
          * cela : la fonction ne fait alors rien.
          */
         suspend fun applySetupExtras(code: com.onyx.app.data.model.SetupCode) {
@@ -1063,12 +1063,12 @@ fun OnyxApp() {
         }
 
         /**
-         * Ce que le mode « Simple » applique après sa découverte. Le jeton du pont que le serveur
-         * annonce est **le même secret** que celui de la passerelle : l'utilisateur n'en retient qu'un.
+* What "Simple" mode applies after its discovery. The bridge token that the server
+* announces is **the same secret** as the gateway's: the user only remembers one.
          *
-         * La langue, elle, est mise de côté : la changer tout de suite remonterait l'écran de
+* The language, for its part, is set aside: changing it right away would remount the
          * configuration sous `key(appLanguage)` et **effacerait les deux champs en cours**. Elle
-         * s'applique donc à la fin de la configuration — au premier lancement, comme le contrat le
+* is thus applied at the end of configuration — at first launch, as the contract
          * demande.
          */
         suspend fun applyDiscovery(found: com.onyx.app.data.net.DiscoveredSetup) {
@@ -1078,7 +1078,7 @@ fun OnyxApp() {
             if (found.language.isNotEmpty()) pendingLanguage = found.language
         }
 
-        /** La langue demandée par un lien, posée quand la configuration est finie. */
+/** The language requested by a link, set when configuration is done. */
         fun applyPendingLanguage() {
             val language = pendingLanguage
             if (language.isEmpty()) return
@@ -1086,11 +1086,11 @@ fun OnyxApp() {
             scope.launch { settingsRepo.setLanguage(language) }
         }
 
-        // La langue du micro et le mode mains-libres viennent des Réglages.
-        // La langue **donnée au moteur** : le choix de la personne, sinon celle de l'interface.
+        // The microphone language and the hands-free mode come from Settings.
+        // The language **given to the engine**: the person's choice, otherwise the interface's.
         val speechLocale by settingsRepo.speechLocaleResolved.collectAsStateWithLifecycle()
         val handsFreeByDefault by settingsRepo.handsFreeByDefault.collectAsStateWithLifecycle()
-        // « Reconnaître hors ligne » : faux par défaut, et le **seul** chemin vers le hors ligne.
+// "Recognize offline": false by default, and the **only** path to offline.
         val offlineRecognition by settingsRepo.offlineRecognition.collectAsStateWithLifecycle()
         val returnSends by settingsRepo.returnSends.collectAsStateWithLifecycle()
 
@@ -1102,9 +1102,9 @@ fun OnyxApp() {
         val talkOver by settingsRepo.talkOver.collectAsStateWithLifecycle()
         val earpieceAtEar by settingsRepo.earpieceAtEar.collectAsStateWithLifecycle()
 
-        // La maquette de la chaîne vocale (`onyx.voiceScenario`) : un moteur **alimenté par un
-        // fichier audio** prend la place du reconnaisseur, et un lecteur de test la place de la
-        // voix — c'est ce qui rend la boucle complète rejouable sur un émulateur sans micro.
+        // // audio file** takes the recognizer's place, and a test player takes the voice's
+        // place — that is what makes the full loop replayable on an emulator without a microphone.
+        // place — that is what makes the full loop replayable on an emulator without a microphone.
         val voiceScenario = remember {
             if (!com.onyx.app.BuildConfig.DEBUG) null
             else VoiceScenarioDemo.from(
@@ -1134,9 +1134,9 @@ fun OnyxApp() {
             voice.onQuestion = if (voiceScenario == null) {
                 onSoloVoiceQuestion
             } else {
-                // La maquette se répond **à elle-même** : sur un émulateur il n'y a ni serveur ni
-                // agent, et c'est bien la **boucle** qu'on veut voir (écoute → question →
-                // réflexion → réponse → reprise), pas la réponse d'un agent.
+                // thinking → reply → resume), not an agent reply.
+                // // thinking → reply → resume), not an agent's reply.
+                // thinking → reply → resume), not an agent's reply.
                 { _ ->
                     scope.launch {
                         delay(700)
@@ -1144,20 +1144,20 @@ fun OnyxApp() {
                     }
                 }
             }
-            // « Stop » dit par-dessus la réponse : le tour qui s'écrit côté serveur n'a plus de
-            // raison de continuer (`conversation.cancel()` d'la référence).
+            // a reason to continue (the reference's `conversation.cancel()`).
+            // a reason to continue (the reference's `conversation.cancel()`).
             voice.onStoppedByWord = { chatViewModel.stop() }
             onDispose { voice.release() }
         }
 
-        // La vitesse de lecture et l'interruption suivent les Réglages, sans recréer la session.
+        // Playback speed and interruption follow Settings, without recreating the session.
         val stopPhrases by settingsRepo.stopPhrases.collectAsStateWithLifecycle()
-        // La langue de **réponse** choisie : elle pilote la voix qui lit, pas seulement la
-        // consigne envoyée au modèle. Sans ce lien, « Répondre en Français » sur une app anglaise
-        // se lisait avec une voix anglaise — la réponse et sa lecture ne se parlaient plus.
+        // // instruction sent to the model. Without this link, "Reply in French" on an English app
+        // was read with an English voice — the reply and its reading no longer spoke to each other.
+        // was read with an English voice — the reply and its reading no longer spoke to each other.
         val replyLanguage by settingsRepo.replyLanguage.collectAsStateWithLifecycle()
-        // La voix de chaque bot (`Settings.botVoices`) : c'est elle qui fait que deux bots de la
-        // même salle ne lisent pas de la même voix.
+        // same room from reading in the same voice.
+// same room from reading in the same voice.
         val botVoicesHere by settingsRepo.botVoices.collectAsStateWithLifecycle()
 
         LaunchedEffect(
@@ -1183,30 +1183,30 @@ fun OnyxApp() {
                 kokoroToken = kokoroToken,
                 kokoroVoice = kokoroVoice,
                 hermesServer = state.server,
-                // Les voix réglées pour les bots de ce serveur (`Settings.botVoicesHere`) : la clé
-                // de l'effet est la carte elle-même, donc un réglage relance la lecture.
+                // of the effect is the map itself, so a setting restarts playback.
+                // key is the map itself, so a setting restarts playback.
                 botVoices = settingsRepo.botVoicesHere(state.server.id),
             )
             voice.talkOver = talkOver
-            // « Earpiece when raised to your ear » : téléphone levé à l'oreille, la réponse s'y
-            // joue comme un appel (capteur de proximité → écouteur).
+            // played there like a call (proximity sensor → earpiece).
+            // played there like a call (proximity sensor → earpiece).
             voice.earRoutingEnabled = earpieceAtEar
-            // « Reconnaître hors ligne » : éteint (le défaut), l'intention ne porte **pas**
-            // `EXTRA_PREFER_OFFLINE` — c'est la reconnaissance **en ligne** qui est le défaut, et
-            // le hors ligne qui est un souhait. Allumé, l'écoute tente l'appareil seul et bascule
-            // en ligne d'elle-même si le moteur n'a pas la langue.
+            // `EXTRA_PREFER_OFFLINE` — it is **online** recognition that is the default, and
+            // offline that is a wish. On, listening tries the device alone and switches
+            // online by itself if the engine does not have the language.
+            // online by itself if the engine does not have the language.
             voice.offlineRecognition = offlineRecognition
             voice.stopPhrases = stopPhrases
-            // La voix qui lit parle la **langue de réponse** choisie. « Automatique » laisse la
-            // langue du micro — donc celle de l'interface — décider : ce qui est dit et ce qui
-            // est lu se parlent alors la même langue.
+            // microphone language — thus the interface's — to decide: what is said and what
+            // is read then speak the same language.
+            // is read then speak the same language.
             voice.replyLanguageTag = SettingsRepository.replyLanguageTag(replyLanguage) ?: speechLocale
-            // **La reprise de l'écoute est ce que « mains libres » veut dire.** Elle n'était armée
-            // que pour la maquette de QA : dans une vraie conversation, chaque réponse rendait la
-            // main (« PRÊT »), et il fallait **toucher la bulle à chaque phrase**. L'écoute reprend
-            // donc d'elle-même — les phrases d'arrêt (« arrête d'écouter », « c'est tout ») et le
-            // bouton rouge restent les seules sorties, et `listenAfterSpeech` continue de décider
-            // cas par cas (une réponse dictée, un tour sans suite, n'ouvrent pas le micro).
+            // only for the QA stand-in: in a real conversation, every reply gave the
+            // hand back ("READY"), and one had to **touch the bubble on every sentence**. Listening thus
+            // resumes by itself — the stop phrases ("stop listening", "that's all") and the
+            // red button remain the only exits, and `listenAfterSpeech` keeps deciding
+            // case by case (a dictated reply, a turn with no follow-up, do not open the microphone).
+            // case by case (a dictated reply, a turn with no follow-up, do not open the microphone).
             voice.autoRelisten = true
         }
 
@@ -1219,18 +1219,18 @@ fun OnyxApp() {
         val spoken by voice.spoken.collectAsStateWithLifecycle()
         val handsFree by voice.handsFree.collectAsStateWithLifecycle()
         val speech by voice.engine.state.collectAsStateWithLifecycle()
-        // Le niveau des points : celui du moteur **et** celui du micro que l'app ouvre elle-même
-        // quand le moteur n'en livre aucun (`VoiceSession.listenLevel`). Sans lui, un moteur muet
-        // laissait sept points parfaitement plats sous « À L'ÉCOUTE ».
+        // when the engine delivers none (`VoiceSession.listenLevel`). Without it, a mute engine
+        // left seven perfectly flat dots under "LISTENING".
+        // left seven perfectly flat dots under "LISTENING".
         val listenLevel by voice.listenLevel.collectAsStateWithLifecycle()
 
-        // Le diagnostic d'écoute : « on n'entend rien » depuis cinq secondes, et le dernier échec
-        // **définitif** du moteur (l'écoute est alors déjà close). L'un et l'autre se voient à
-        // l'écran avec une action — jamais un écran qui prétend écouter sans rien dire.
+        // **definitive** failure (listening is then already closed). Both are shown on
+        // screen with an action — never a screen that claims to listen without saying anything.
+        // screen with an action — never a screen that claims to listen without saying anything.
         val noSound by voice.noSound.collectAsStateWithLifecycle()
         val engineFailure by voice.failure.collectAsStateWithLifecycle()
-        // **La panne d'écoute jugée sur les faits du moteur** : jamais démarré, aucune trame,
-        // trames sans un mot. C'est ce qui empêche l'écran de rester muet sur « À L'ÉCOUTE »
+        // frames without a word. That is what keeps the screen from staying mute on "LISTENING"
+        // while nothing comes in — including when the microphone level itself was moving.
         // alors que rien ne rentre — y compris quand le niveau du micro, lui, bougeait.
         val voiceTrouble by voice.trouble.collectAsStateWithLifecycle()
 
@@ -1245,10 +1245,10 @@ fun OnyxApp() {
             }
         }
 
-        // La permission des notifications. Le réglage « M'alerter en arrière-plan » est **allumé
-        // par défaut**, mais Android ne laisse rien publier sans elle : sans la permission, le
-        // service de premier plan ne peut pas tenir le processus, et le travail d'un bot meurt
-        // quand Onyx s'endort. On la demande donc au premier lancement — le seul moment où elle
+        // // by default**, but Android lets nothing publish without it: without the permission, the
+        // foreground service cannot hold the process, and a bot's work dies
+        // when Onyx goes to sleep. It is thus requested at first launch — the only moment it
+        // is requested without a user gesture.
         // se demande sans geste de l'utilisateur.
         val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (!granted) {
@@ -1256,9 +1256,9 @@ fun OnyxApp() {
             }
         }
 
-        // On la demande au premier lancement. Android n'affiche plus le dialogue après un refus :
-        // l'appel est donc sans conséquence si la personne a dit non, et elle peut revenir par
-        // Réglages → Notifications.
+        // the call is thus harmless if the person said no, and she can return via
+        // Settings → Notifications.
+        // Settings → Notifications.
         LaunchedEffect(Unit) {
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
             val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -1280,8 +1280,8 @@ fun OnyxApp() {
         }
 
         /**
-         * La permission du micro manque et rien ne se réparera depuis l'app : l'action du bandeau
-         * ouvre les réglages du système pour Onyx, jamais un bouton qui réessaie dans le vide.
+         * The microphone permission is missing and nothing will be fixed from the app: the banner's
+         * action opens the system settings for Onyx, never a button that retries in the void.
          */
         fun openVoiceAppSettings() {
             val intent = android.content.Intent(
@@ -1291,7 +1291,7 @@ fun OnyxApp() {
             runCatching { context.startActivity(intent) }
         }
 
-        /** « Réessayer » : une écoute neuve si le micro est permis, la demande sinon. */
+/** "Try again": a fresh listening if the microphone is permitted, the request otherwise. */
         fun retryVoiceListening() {
             voiceProblem = null
             val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
@@ -1304,25 +1304,25 @@ fun OnyxApp() {
             }
         }
 
-        // Le tour est fini : l'agent lit sa réponse, puis se remet à écouter en mains-libres.
+        // The turn is over: the agent reads its reply, then goes back to listening in hands-free.
         LaunchedEffect(state.isStreaming, route) {
             if (route != Route.GROUP_VOICE.name && !state.isStreaming && voice.phase.value == VoicePhase.THINKING) {
-                // Lu **au moment de l'effet** : le texte n'a pas a entrer dans la projection de
-                // la coquille, qui ne doit pas changer a chaque jeton.
+                // Read **at the moment of the effect**: the text must not enter the shell's
+                // projection, which must not change at every token.
                 val reply = chatState.value.messages.lastOrNull { it.role == Role.ASSISTANT }?.text
-                // La réponse se lit **de la voix du bot de la conversation ouverte** : c'est le
-                // `readAloud(_, speaker: conversation.bot?.profile)` du modèle. Sans ce profil, le
-                // réglage « Voix » du bot était ignoré en mode vocal.
+                // template's `readAloud(_, speaker: conversation.bot?.profile)`. Without this profile, the
+                // bot's "Voice" setting was ignored in voice mode.
+                // bot's "Voice" setting was ignored in voice mode.
                 voice.finishTurn(reply, speaker = openConversationBot?.name)
             }
         }
 
-        // Le suivi du tour dans la barre d'état ne vit plus ici : il est tenu par la portée du
-        // processus (`AppContainer.work`), branchée sur le magasin de tours. L'écran ne lui dit
-        // que ce qu'il a sous les yeux, un peu plus bas — sinon un tour fini sans écran (activité
-        // détruite, autre app au premier plan) n'aurait plus personne pour l'annoncer.
+        // process scope (`AppContainer.work`), wired to the turn store. The screen only tells it
+        // what it has in view, a little further down — otherwise a turn finished without a screen (activity
+        // destroyed, another app in the foreground) would have nobody left to announce it.
+        // destroyed, another app in the foreground) would have nobody left to announce it.
 
-        // Une page d'agent qui a posé une question reçoit la réponse par ce bus.
+        // An agent page that asked a question receives the answer through this bus.
         LaunchedEffect(state.messagesSize, state.isStreaming) {
             if (!state.isStreaming) {
                 chatState.value.messages.lastOrNull { it.role == com.onyx.app.data.model.Role.ASSISTANT }
@@ -1331,7 +1331,7 @@ fun OnyxApp() {
             }
         }
 
-        // Le widget d'écran d'accueil suit la dernière réponse et le remplissage du contexte.
+        // The home-screen widget follows the latest reply and the context fill.
         LaunchedEffect(state.messagesSize, state.isStreaming) {
             if (!state.isStreaming) {
                 val used = chatState.value.messages.lastOrNull { it.usage?.contextUsed != null }?.usage?.contextUsed
@@ -1343,21 +1343,21 @@ fun OnyxApp() {
         val pendingApprovals = state.pendingApprovals
         val notifyInBackground by settingsRepo.notifyInBackground.collectAsStateWithLifecycle()
         val notificationSound by settingsRepo.notificationSound.collectAsStateWithLifecycle()
-        // « Appels pour une réponse » : un tour en attente de décision fait sonner le téléphone.
+        // "Calls for an answer": a turn awaiting a decision rings the phone.
         val phoneRings by settingsRepo.phoneRings.collectAsStateWithLifecycle()
         val phoneRingsTalk by settingsRepo.phoneRingsTalk.collectAsStateWithLifecycle()
-        // `lifecycle.currentState` ne doit pas être lu pendant la composition (lint
-        // LifecycleCurrentStateInComposition : la valeur ne serait jamais recomposée). On suit
-        // donc les événements du cycle de vie.
+        // LifecycleCurrentStateInComposition: the value would never be recomposed). We thus follow
+        // lifecycle events.
+        // lifecycle events.
         val lifecycleOwner = LocalLifecycleOwner.current
         var inForeground by remember { mutableStateOf(true) }
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
-                    // `ON_START`/`ON_STOP`, pas `ON_RESUME`/`ON_PAUSE` : une pause va avec tout ce
-                    // qui passe devant l'app — un dialogue, le volet des notifications, une demande
-                    // d'autorisation. Le service de premier plan n'a rien à y faire, et la personne
-                    // n'a rien demandé.
+                    // that passes in front of the app — a dialog, the notification shade, a permission
+                    // request. The foreground service has nothing to do there, and the person
+                    // asked for nothing.
+                    // asked for nothing.
                     Lifecycle.Event.ON_START -> inForeground = true
                     Lifecycle.Event.ON_STOP -> inForeground = false
                     else -> Unit
@@ -1367,8 +1367,8 @@ fun OnyxApp() {
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
 
-        // Ce que l'utilisateur a sous les yeux : le suivi du travail ne le lui notifie pas. Le
-        // suivi lui-même vit dans la portée du processus — ici on ne fait que le renseigner.
+        // // tracking itself lives in the process scope — here we only inform it.
+        // tracking itself lives in the process scope — here we only inform it.
         LaunchedEffect(state.conversationId, route, inForeground) {
             if (AppContainer.isInstalled) {
                 AppContainer.work.watching(
@@ -1378,7 +1378,7 @@ fun OnyxApp() {
             }
         }
         DisposableEffect(Unit) {
-            // L'activité s'en va : plus rien n'est sous les yeux, le suivi doit pouvoir notifier.
+            // The activity leaves: nothing is in view anymore, tracking must be able to notify.
             onDispose { if (AppContainer.isInstalled) AppContainer.work.watching(null, false) }
         }
 
@@ -1405,8 +1405,8 @@ fun OnyxApp() {
                             )
                         }
                     }
-                    // Le tour attend une décision : le téléphone sonne (Réglages → Phone → Calls),
-                    // sauf la nuit. Refusé ou sans réponse, la notification habituelle prend sa place.
+                    // except at night. Refused or unanswered, the usual notification takes its place.
+                    // except at night. Refused or unanswered, the usual notification takes its place.
                     val rings = phoneRings && !settingsRepo.quietNow() &&
                         CallRinger.ring(
                             context,
@@ -1424,8 +1424,8 @@ fun OnyxApp() {
             }
         }
 
-        // Les questions de l'agent — question, sudo, secret — se répondent de la même façon, avec
-        // une action « Reply » quand la saisie en ligne suffit.
+        // // a "Reply" action when inline input is enough.
+        // a "Reply" action when inline input is enough.
         val pendingQuestions = state.pendingQuestions
         LaunchedEffect(pendingQuestions.map { it.notificationId }, inForeground, notifyInBackground, notificationSound, phoneRings, phoneRingsTalk) {
             if (inForeground) {
@@ -1473,31 +1473,31 @@ fun OnyxApp() {
             }
         }
 
-        // Ce qui vient de l'extérieur : un partage, une question de l'assistant, un raccourci.
+        // What comes from outside: a share, an assistant question, a shortcut.
         val pendingIntake by ShareInbox.pending.collectAsStateWithLifecycle()
         val pendingShare by ShareInbox.pendingFile.collectAsStateWithLifecycle()
         val voiceRequested by ShareInbox.voiceRequested.collectAsStateWithLifecycle()
-        // « Capture rapide » demandée depuis l'extérieur (raccourci de l'illustration) : l'app
-        // s'ouvre sur la note, **sans toucher à la conversation ouverte**.
+        // "Quick capture" requested from outside (the illustration's shortcut): the app
+        // opens on the note, **without touching the open conversation**.
         val captureRequested by ShareInbox.captureRequested.collectAsStateWithLifecycle()
-        // Le raccourci **« Coffre de secrets »** (menu de l'icône) : l'app s'ouvre sur le coffre,
-        // sans toucher à la conversation ouverte.
+        // **"Secrets vault"** shortcut (icon menu): the app opens on the vault,
+        // without touching the open conversation.
         val vaultRequested by ShareInbox.vaultRequested.collectAsStateWithLifecycle()
 
-        // Un **lien de modèle de bot** reçu de l'extérieur (navigateur, autre app, texte partagé) :
-        // il n'entre pas dans le composeur, il ouvre l'aperçu du modèle — et l'ajout ne se fait
-        // qu'après l'avoir vu.
+        // it does not enter the composer, it opens the template preview — and the addition
+        // only happens after seeing it.
+        // only happens after seeing it.
         val pendingTemplate by ShareInbox.pendingTemplate.collectAsStateWithLifecycle()
         var importLink by remember { mutableStateOf<String?>(null) }
         var importBusy by remember { mutableStateOf(false) }
         var importProblem by remember { mutableStateOf<String?>(null) }
-        // Le bot dont la feuille de partage est ouverte, et ce que la préparation a rendu.
+        // The bot whose share sheet is open, and what the preparation returned.
         var sharingBot by remember { mutableStateOf<BotProfile?>(null) }
         var templateShare by remember { mutableStateOf<BotTemplateOfferOutcome?>(null) }
 
-        // « L'app reparaît » : les notes en attente retentent leur remise, comme le
-        // `CaptureInbox.file()` appelé quand l'app revient au premier plan dans la référence.
-        // Sans ça, une note restée en attente n'aurait reparti qu'au prochain appui.
+        // "The app reappears": pending notes retry their filing, like the
+        // `CaptureInbox.file()` called when the app returns to the foreground on the reference.
+        // Without it, a note left pending would only have left again on the next press.
         LaunchedEffect(Unit) { com.onyx.app.data.capture.QuickCapture.fileNow() }
 
         LaunchedEffect(
@@ -1511,7 +1511,7 @@ fun OnyxApp() {
             val question = pendingIntake
             val shared = pendingShare
             when {
-                // Un lien de modèle : l'aperçu, jamais le composeur. Rien ne part avant « Ajouter ».
+                // A template link: the preview, never the composer. Nothing leaves before "Add".
                 pendingTemplate != null -> {
                     importProblem = null
                     importBusy = false
@@ -1519,8 +1519,8 @@ fun OnyxApp() {
                     ShareInbox.consume()
                 }
 
-                // Un fichier partagé se joint au message : le texte du partage, s'il y en a un,
-                // part avec lui, comme le fait le bouton d'envoi du composeur.
+                // A shared file is attached to the message: the share's text, if there is one,
+                // leaves with it, as the composer's send button does.
                 shared != null -> {
                     chatViewModel.addAttachments(listOf(android.net.Uri.parse(shared.uri)))
                     question?.let { chatViewModel.sendText(it, clearInput = false) }
@@ -1545,7 +1545,7 @@ fun OnyxApp() {
                     navTo(Route.QUICK_CAPTURE.name)
                 }
 
-                // Le raccourci du coffre : la page du Coffre, et rien d'autre — aucun texte n'entre
+                // the composer, the open conversation stays intact.
                 // dans le composeur, la conversation ouverte reste intacte.
                 vaultRequested -> {
                     ShareInbox.consume()
@@ -1572,8 +1572,8 @@ fun OnyxApp() {
                 offersEditing = setupOffersEditing,
                 newServerId = servers::newId,
                 onInstall = { config, activate ->
-                    // `upsert` active le serveur par défaut ; l'import d'un code peut vouloir
-                    // garder l'ancien actif — c'est lui qui décide.
+                    // `upsert` activates the server by default; importing a code may want to
+                    // keep the old one active — it is the one that decides.
                     servers.upsert(config, activate = activate)
                 },
                 onRemoveAdded = { added, previous ->
@@ -1601,10 +1601,10 @@ fun OnyxApp() {
             return@OnyxAppTheme
         }
 
-        // Maquette de boutique. la référence a `-echo.voiceDemo` pour la même raison : le simulateur n'a
-        // pas de micro, et l'émulateur non plus. C'est un crochet **debug seulement** —
-        // `BuildConfig.DEBUG` est une constante fausse dans l'APK de release, où ce chemin
-        // n'existe donc pas. `am start -n com.onyx.app/.MainActivity -e onyx.voiceDemo true`.
+        // Shop stand-in. The reference has `-echo.voiceDemo` for the same reason: the simulator has no
+        // microphone, and neither does the emulator. It is a **debug-only** hook —
+        // `BuildConfig.DEBUG` is a false constant in the release APK, where this path
+        // thus does not exist. `am start -n com.onyx.app/.MainActivity -e onyx.voiceDemo true`.
         val voicePose = remember {
             if (!com.onyx.app.BuildConfig.DEBUG) null
             else posedVoicePhase(context.findActivity()?.intent?.getStringExtra(EXTRA_VOICE_PHASE))
@@ -1613,25 +1613,25 @@ fun OnyxApp() {
             if (!com.onyx.app.BuildConfig.DEBUG) null
             else context.findActivity()?.intent?.getStringExtra(EXTRA_VOICE_PROBLEM)
         }
-        // L'alerte « on n'entend rien » posée pour une capture : elle passe par le **même** chemin
-        // que la vraie (le bandeau et son action), pour que la capture montre le rendu réel.
+        // as the real one (the banner and its action), so that the capture shows the real rendering.
+        // as the real one (the banner and its action), so that the capture shows the real rendering.
         val posedNoSound = remember {
             com.onyx.app.BuildConfig.DEBUG &&
                 context.findActivity()?.intent?.getBooleanExtra(EXTRA_VOICE_NO_SOUND, false) == true
         }
 
-        // Ce que l'écran vocal dit quand l'écoute n'aboutit pas, et **l'action** qui va avec :
-        //  - la permission du micro refusée → ouvrir les réglages du système (rien ne se répare
-        //    depuis l'app) ;
-        //  - « on n'entend rien » après cinq secondes, ou l'échec définitif du moteur → « Réessayer ».
-        // Un bandeau, jamais un code technique seul ; et jamais un écran qui prétend écouter sans
+        //  - microphone permission refused → open the system settings (nothing is fixed
+        //    from the app);
+        //  - "nothing is heard" after five seconds, or the engine's definitive failure → "Try again".
+        // A banner, never a technical code alone; and never a screen that claims to listen without
+        // saying anything.
         // rien dire.
         val voiceNoSound = noSound || posedNoSound
         val listenProblem = posedProblem
             ?: voiceProblem
-            // La panne d'écoute vient **avant** le niveau du micro : elle sait dire « le moteur
-            // n'a jamais démarré » ou « le moteur reçoit des trames et ne rend rien », que le seul
-            // niveau ne peut pas distinguer — et c'est ce qui laissait l'écran muet.
+            // never started" or "the engine receives frames and returns nothing", which the level
+            // alone cannot distinguish — and that is what left the screen mute.
+            // level alone cannot distinguish — and that is what left the screen mute.
             ?: voiceTrouble.message
             ?: if (voiceNoSound) {
                 "I can't hear anything — check your microphone."
@@ -1652,20 +1652,20 @@ fun OnyxApp() {
                 (voicePose != null ||
                     context.findActivity()?.intent?.getBooleanExtra(EXTRA_VOICE_DEMO, false) == true)
         }
-        // La maquette vocale : l'émulateur n'a **pas de micro**, donc le niveau du moteur reste à
-        // zéro et la vague ne bougerait pas d'un pixel — c'est justement ce que la capture d'un
-        // propriétaire montrait, sept points identiques. La pose injecte donc une **parole
-        // simulée** (des syllabes, des silences) pour que la vague soit vérifiable. Déclaré comme
-        // état **injecté** dans le rapport ; sans le drapeau, il n'est jamais lu et rien ne change.
+        // The same for a room's voice scene (`-e onyx.groupVoiceDemo speaking`): a
+        // scripted room, without server or microphone, to show the speech scene and exercise it.
+        // owner's capture showed, seven identical dots. The pose thus injects **simulated
+        // speech** (syllables, silences) so that the wave is verifiable. Declared as
+        // **injected** state in the report; without the flag, it is never read and nothing changes.
         val demoVoiceLevel = rememberVoiceDemoLevel(voiceDemo)
-        // La même chose pour la scène vocale d'une salle (`-e onyx.groupVoiceDemo speaking`) : une
-        // salle scriptée, sans serveur ni micro, pour montrer la scène de parole et l'éprouver.
+        // The stand-in wired to a **real room**: it does not take navigation, it is the
+        // person who opens their room and taps "Talk" (`GroupVoice.ask` -> `groups.send`).
         val groupVoiceDemoOn = remember {
             com.onyx.app.BuildConfig.DEBUG &&
                 context.findActivity()?.intent?.getStringExtra(EXTRA_GROUP_VOICE_DEMO) != null
         }
         // La maquette branchee sur une **vraie salle** : elle ne prend pas la navigation, c'est la
-        // personne qui ouvre sa salle et touche « Parler » (`GroupVoice.ask` -> `groups.send`).
+        // person who opens their room and taps "Talk" (`GroupVoice.ask` -> `groups.send`).
         val scenarioRoomWanted = remember {
             com.onyx.app.BuildConfig.DEBUG &&
                 context.findActivity()?.intent?.getBooleanExtra(EXTRA_VOICE_SCENARIO_ROOM, false) == true
@@ -1675,26 +1675,26 @@ fun OnyxApp() {
                 voiceProblem = null
                 navTo(Route.GROUP_VOICE.name)
             } else if (voiceScenario != null && !scenarioRoomWanted) {
-                // La maquette de la chaîne vocale ouvre l'écran vocal et se met **en mains
-                // libres** : c'est ce qui fait entrer la boucle (écoute → question → réponse →
+                // must survive (that is exactly what the capture shows).
+                // free: that is what starts the loop (listen → question → reply →
                 // reprise) et ce qui affiche la phrase d'aide.
                 voiceProblem = posedProblem
                 if (!voice.handsFree.value) voice.toggleHandsFree()
                 navTo(Route.VOICE.name)
             } else if (voiceDemo) {
-                // La pose d'une capture ne pose que l'écran : le drapeau du problème, s'il est là,
-                // doit survivre (c'est justement ce que la capture montre).
+                // device without an address stayed stuck on it: "Skip" and "Done" saved
+                // an empty draft, the screen reappeared, and both buttons seemed dead.
                 voiceProblem = posedProblem
                 navTo(Route.VOICE.name)
             }
         }
 
-        // Aucun serveur utilisable : l'écran de connexion, comme au premier lancement d'la référence — mais
-        // seulement tant qu'il n'a pas été traversé. Sans ce drapeau (`Settings.setupDone`), un
-        // appareil sans adresse restait bloqué dessus : « Ignorer » et « Terminé » enregistraient
-        // un brouillon vide, l'écran se réaffichait, et les deux boutons paraissaient morts.
-        // La maquette de boutique passe outre : elle ne parle à aucun serveur, elle pose l'écran
-        // vocal.
+        // No usable server: the connection screen, as on the reference's first launch — but
+        // only as long as it has not been crossed. Without this flag (`Settings.setupDone`), a
+        // device without an address stayed stuck on it: "Skip" and "Done" ("Terminé") saved
+        // an empty draft, the screen reappeared, and both buttons seemed dead.
+        // The shop stand-in overrides it: it talks to no server, it sets the voice
+        // screen.
         val setupDone by settingsViewModel.setupDone.collectAsStateWithLifecycle()
         val firstRunSetup = (!state.server.isUsable && !setupDone) || forceFirstRunSetup
         if (firstRunSetup && !voiceDemo && !groupVoiceDemoOn && voiceScenario == null) {
@@ -1707,10 +1707,10 @@ fun OnyxApp() {
                     settingsViewModel.setSetupDone(true)
                     forceFirstRunSetup = false
                 },
-                // « Ignorer » sort **toujours**, tout de suite, sans test : c'est la porte de
-                // sortie. Il ne sauvegarde un brouillon que s'il porte une adresse (un brouillon
-                // vide écraserait la configuration existante) et, quand un serveur déjà enregistré
-                // est utilisable, il y revient — l'app reste utilisable sans être configurée.
+                // "Skip" **always** exits, right away, without a test: it is the way
+                // out. It only saves a draft if it carries an address (an empty
+                // draft would overwrite the existing configuration) and, when an already registered server
+                // is usable, it returns to it — the app stays usable without being configured.
                 onSkip = {
                     if (skipSavesDraft(setupDraft)) {
                         settingsViewModel.open(setupDraft)
@@ -1733,19 +1733,19 @@ fun OnyxApp() {
                 },
                 onDiscover = { address, key ->
                     val found = com.onyx.app.data.net.OnyxDiscovery.discover(address, key)
-                    // « Une clé » : quand le serveur annonce lui-même les bots, son Dashboard vit à
-                    // la **même adresse** que le chat — et sous la même clé. Le mode « Simple » n'a
-                    // donc rien de plus à demander : ni second serveur, ni identifiant, ni mot de
-                    // passe. Rien à faire pour un serveur qui n'annonce pas le Dashboard.
+                    // "A key": when the server itself announces the bots, its Dashboard lives at
+                    // the **same address** as the chat — and under the same key. "Simple" mode thus has
+                    // **What "Simple" mode offers**: the already known addresses, in order of
+                    // relevance. The current server, the phone's network, the previous gateway,
                     if (found.declaresDashboard) {
                         setupDraft = setupDraft.copy(serveBaseUrl = address.trim())
                     }
                     found
                 },
                 onApplyDiscovery = { found -> scope.launch { applyDiscovery(found) } },
-                // **Ce que le mode « Simple » propose** : les adresses déjà connues, dans l'ordre de
-                // pertinence. Le serveur en cours, le réseau du téléphone, la passerelle précédente,
-                // les autres serveurs enregistrés.
+                // **What "Simple" mode offers**: the already known addresses, in order of
+                // relevance. The current server, the phone's network, the previous gateway,
+                // the other registered servers.
                 suggestions = com.onyx.app.ui.setup.SetupSuggestions.known(
                     current = com.onyx.app.ui.setup.setupAddressOf(state.server),
                     local = setupLocalAddresses.value,
@@ -1758,8 +1758,8 @@ fun OnyxApp() {
                         .drop(1)
                         .map(::setupAddressOf),
                 ),
-                // Le lien de configuration du brouillon, **sans ses secrets** : le « Copier » de la
-                // barre de titre. Rien à copier tant qu'aucune adresse n'est saisie.
+                // The draft's configuration link, **without its secrets**: the title bar's
+                // "Copy". Nothing to copy as long as no address is entered.
                 setupLink = if (setupDraft.isUsable) {
                     setupLinkFor(setupDraft)
                 } else {
@@ -1769,18 +1769,18 @@ fun OnyxApp() {
             return@OnyxAppTheme
         }
 
-        // Un changement de serveur (URL comprise) relance la lecture du roster et des
-        // conversations : sinon l'ancienne erreur — « Unable to resolve host … » — restait
-        // affichée alors que la nouvelle adresse répondait déjà, et « Réessayer » la rejouait.
+        // A server change (URL included) restarts reading the roster and the
+        // // The open thread's memory, server by server: the reference's `ServerSwitcher` records the
+        // that was being read there, not only that server's most recent one.
         LaunchedEffect(state.server.id, state.server.configSignature) {
             botsViewModel.rebind(state.server)
             botsViewModel.refresh()
             conversationRepo.load()
         }
 
-        // La mémoire du fil ouvert, serveur par serveur : `ServerSwitcher` d'la référence enregistre la
-        // conversation qu'on quitte avant de basculer. Revenir sur un serveur rouvre donc le fil
-        // qu'on y lisait, pas seulement le plus récent de ce serveur.
+        // conversation being left before switching. Returning to a server thus reopens the thread
+        // that was being read there, not only that server's most recent one.
+        // that was being read there, not only that server's most recent one.
         val lastThreadByServer = remember { androidx.compose.runtime.mutableStateMapOf<String, String>() }
         LaunchedEffect(state.server.id, state.conversationId, history) {
             val id = state.conversationId ?: return@LaunchedEffect
@@ -1792,9 +1792,9 @@ fun OnyxApp() {
             if (thread != null && thread.id != state.conversationId) chatViewModel.open(thread)
         }
 
-        // Les marques de lecture des conversations : ce que ce téléphone a vu de chacune, comme
-        // `ChatActivity.seen` d'la référence — il n'y a pas de registre serveur de lecture ici. « Mark as
-        // Unread » écrit 0, « Mark as Read » l'heure courante, et la rangée les lit.
+        // The conversations' read marks: what this phone has seen of each, like
+        // the reference's `ChatActivity.seen` — there is no server-side read registry here. "Mark as
+        // Unread" writes 0, "Mark as Read" the current time, and the row reads them.
         val conversationMarks = remember { BotActivityStore(context) }
         var unreadMarks by remember { mutableStateOf(emptyMap<String, Double?>()) }
         LaunchedEffect(history.size, state.conversationId, state.server.configSignature) {
@@ -1803,10 +1803,10 @@ fun OnyxApp() {
             }
         }
 
-        // Le tap d'une tuile de bot : son **chat** (le `openBot` d'la référence), jamais son éditeur. Sa
-        // conversation est celle que son `canonical_session` désigne (`BotProfile.chatId`), gardée
-        // pour le retrouver ; un bot sans chat nommé en ouvre une neuve, que le premier tour lie au
-        // serveur — le port n'ayant pas de transport de sessions, il ne peut pas la faire là-bas.
+        // A bot tile's tap: its **chat** (the reference's `openBot`), never its editor. Its
+        // conversation is the one its `canonical_session` designates (`BotProfile.chatId`), kept
+        // to find it again; a bot without a named chat opens a new one, which the first turn ties to the
+        // server — the port having no session transport, it cannot do it there.
         val openBotChat: (BotProfile) -> Unit = { bot ->
             val chat = botChatToOpen(
                 bot = bot,
@@ -1816,13 +1816,13 @@ fun OnyxApp() {
             )
             if (history.none { it.id == chat.id }) scope.launch { conversationRepo.save(chat) }
             chatViewModel.open(chat)
-            // Le chat du bot est ouvert : ce qu'il a dit est vu, comme `activity.botSeen` d'la référence.
+            // The bot's chat is open: what it said is seen, like the reference's `activity.botSeen`.
             botsViewModel.markBotSeen(bot)
             navTo(Route.CHAT.name)
         }
 
-        // « Mark as Read » / « Mark as Unread » d'une conversation, comme le `setUnread` d'la référence :
-        // la marque est écrite ici et la liste la relit tout de suite.
+        // "Mark as Read" / "Mark as Unread" for a conversation, like the reference's `setUnread`:
+        // the mark is written here and the list reads it back right away.
         val setConversationUnread: (Conversation, Boolean) -> Unit = { conversation, unread ->
             val key = "conversation:" + conversation.id
             if (unread) {
@@ -1837,19 +1837,19 @@ fun OnyxApp() {
             unreadMarks = unreadMarks + (conversation.id to conversationMarks.seen(state.server.configSignature, key))
         }
 
-        // « Pictures from Hermes » : les photos du roster, une fois par lancement et par profil.
+        // (`onyx_bot_faces`), its seen activity and its place in the order (`onyx_bot_activity`),
         LaunchedEffect(botPictures, botsState.bots) {
             if (botPictures) botsViewModel.loadPictures()
         }
         LaunchedEffect(botsViewModel) {
             botsViewModel.pictures.collect { botPicturesByName = it }
         }
-        // L'état local de l'app est indexé par **nom de profil** : le visage et la visibilité d'un
-        // bot (`onyx_bot_faces`), son activité vue et sa place dans l'ordre (`onyx_bot_activity`),
-        // et le rattachement de ses conversations par leur titre (`conversations.json`). Après un
-        // renommage côté serveur (par ex. `ancien-nom` → `nom-courant`), ces entrées sont sous
-        // l'ancien nom : la migration les reporte sur le nom courant, **une seule fois** — le
-        // journal des renommages la rend idempotente (la relancer ne rejoue ni n'écrase rien).
+        // (`onyx_bot_faces`), its seen activity and its place in the order (`onyx_bot_activity`),
+        // and the attachment of its conversations by their title (`conversations.json`). After a
+        // server-side rename (e.g. `ancien-nom` → `nom-courant`), these entries are under
+        // the old name: the migration moves them to the current name, **once only** — the
+        // rename journal makes it idempotent (re-running it neither replays nor overwrites anything).
+        // rename journal makes it idempotent (re-running it neither replays nor overwrites anything).
         val profileMigration = remember(context) { profileStateMigration(context) }
         LaunchedEffect(botsState.bots, botsState.hidden, history.size, state.server.configSignature) {
             val roster = (botsState.bots + botsState.hidden).distinctBy { it.name }
@@ -1861,17 +1861,17 @@ fun OnyxApp() {
                 val before = history.firstOrNull { it.id == updated.id }
                 if (before != null && before.title != updated.title) conversationRepo.save(updated)
             }
-            // Le roster a été lu **sous l'ancien nom** : s'il y a eu report, on le relit pour que
-            // le visage migré se montre tout de suite (et pas seulement au prochain rafraîchissement).
+            // The roster was read **under the old name**: if a transfer occurred, it is read again so that
+            // // Creating, renaming and removing a project: the sheets live **here**, once, for
             if (outcome.applied.isNotEmpty()) botsViewModel.refresh()
         }
-        // Les projets du serveur (dossiers de travail), lus par le RPC du Dashboard — la source
-        // de la section « Projects » et de `ProjectSessionsView`.
+        // The server's projects (work folders), read by the Dashboard RPC — the source
+        // of the "Projects" section and of `ProjectSessionsView`.
         var serverProjects by remember(state.server.id, state.server.configSignature) {
             mutableStateOf<List<com.onyx.app.data.net.ServerProject>>(emptyList())
         }
-        // Créer, renommer et retirer un projet : les feuilles vivent **ici**, une seule fois, pour
-        // la liste comme pour l'écran d'un projet. `projectRevision` force la relecture de l'arbre.
+        // Creating, renaming and removing a project: the sheets live **here**, once, for
+        // the list as for a project's screen. `projectRevision` forces re-reading the tree.
         var projectCreating by remember { mutableStateOf(false) }
         var projectRenaming by remember {
             mutableStateOf<com.onyx.app.data.net.ServerProject?>(null)
@@ -1882,7 +1882,7 @@ fun OnyxApp() {
         var projectProblem by remember { mutableStateOf<String?>(null) }
         var projectRevision by remember { mutableStateOf(0) }
 
-        /** Un geste sur un projet : l'appel, puis la relecture de l'arbre ; l'échec se dit. */
+        /** A gesture on a project: the call, then re-reading the tree; failure is reported. */
         fun runProjectAction(work: suspend () -> Unit) {
             scope.launch {
                 try {
@@ -1913,26 +1913,26 @@ fun OnyxApp() {
                 }
             }.getOrDefault(emptyList())
         }
-        // Le projet ouvert, et la session dont on regarde l'usage (les deux routes nouvelles).
+        // // The **in-force** model of the conversation whose usage is being viewed: the same source as
         var selectedProject by remember { mutableStateOf<com.onyx.app.data.net.ServerProject?>(null) }
         var usageSummary by remember { mutableStateOf<com.onyx.app.data.net.SessionSummary?>(null) }
         var usageFetchId by remember { mutableStateOf<String?>(null) }
-        // Le profil Hermes qui porte la session : celui du bot de la conversation, sinon celui du
-        // serveur. Les sessions s'écrivent par profil ; sans lui, la fiche d'usage interroge la
-        // base `default` et n'y trouve pas la ligne d'un bot (le défaut signalé).
+        // // The bots chosen in "New Group Chat", set on the room when it opens.
+        // The bots chosen in "New Group Chat", set on the room when it opens.
+        // `default` database and does not find a bot's row there (the reported defect).
         var usageProfile by remember { mutableStateOf<String?>(null) }
-        // Le modèle **en vigueur** de la conversation dont on regarde l'usage : la même source que
-        // l'en-tête (`ModelInForce`). Sans lui, la fiche d'usage nommait le modèle figé de la
-        // session (`session.usage.model`), qui ne suit pas un changement de modèle.
+        // // System back: the edge gesture, the button and the predictive back declared in the manifest
+        // are handled in the layout (see the `BackHandler` of the `BoxWithConstraints`), which knows
+        // whether the screen is in two panes and which route is presented.
         var usageModel by remember { mutableStateOf<String?>(null) }
-        // Les bots choisis dans « New Group Chat », posés sur la salle à son ouverture.
+        // The bots chosen in "New Group Chat", set on the room when it opens.
         var groupPicked by remember { mutableStateOf<Set<String>?>(null) }
-        /** Le nom donné à la salle dans la feuille (`NewGroupChatView`), ou celui d'une salle gardée ici. */
+        /** The name given to the room in the sheet (`NewGroupChatView`), or that of a room kept here. */
         var groupTitle by remember { mutableStateOf<String?>(null) }
 
         /**
          * Ouvre une salle depuis la liste. Une salle du serveur montre son journal (`GroupRoomScreen`,
-         * `groups.log`) ; une salle **gardée ici**, faute de Dashboard, ouvre son fil local avec ses
+         * `groups.log`); a room **kept here**, for lack of Dashboard, opens its local thread with its
          * membres — le serveur ne la connaît pas.
          */
         fun openGroup(room: GroupChat) {
@@ -1950,16 +1950,16 @@ fun OnyxApp() {
             navTo(Route.GROUP_CHAT.name)
         }
 
-        // Retour système : le geste du bord, le bouton et le retour prédictif déclaré au manifeste
-        // sont traités dans la mise en page (voir le `BackHandler` du `BoxWithConstraints`), qui sait
-        // si l'écran est en deux panneaux et quelle route est présentée.
+        // the bots kept their old model. We read the provider of the entry actually
+        // shown in the sheet, and only fall back on the prefix if it is missing.
+        // whether the screen is in two panes and which route is presented.
 
 
-        // **Le fournisseur vient du CATALOGUE, pas du préfixe du modèle.** `providerOf("deepseek/…")`
-        // rendait « deepseek », alors que ce modèle est servi par **kilocode** : le gateway
-        // n'écrivait donc pas le choix (le couple modèle/fournisseur ne correspondait à rien), et
-        // les bots gardaient leur ancien modèle. On lit le fournisseur de l'entrée réellement
-        // affichée dans la feuille, et on ne retombe sur le préfixe que si elle manque.
+        // The provider comes from the CATALOGUE, not from the model prefix.** `providerOf("deepseek/…")`
+        // returned "deepseek", whereas this model is served by **kilocode**: the gateway
+        // thus did not write the choice (the model/provider pair matched nothing), and
+        // the bots kept their old model. We read the provider of the entry actually
+        // // Is the open conversation a bot's? (`BotProfile.chatId`, the server's
         fun providerForChosen(model: String?): String? {
             if (model.isNullOrBlank()) return null
             return modelChoices.firstOrNull { it.id == model }?.provider
@@ -1967,49 +1967,49 @@ fun OnyxApp() {
         }
 
         val chatPane: @Composable (Boolean, (@Composable () -> Unit)?) -> Unit = { showListButton, sidebarToggle ->
-            // La conversation ouverte est-elle celle d'un bot ? (`BotProfile.chatId`, le
-            // `canonical_session` du serveur.) Elle le dit deux fois : l'en-tête du fil montre son
-            // visage et son nom, et — sous « Bot colors in their chats » — ses bulles et ses
-            // boutons prennent la couleur de son visage, comme `ContentView` côté la référence
-            // (`BotFace.chatColors`) ; les groupes gardent celle du thème.
+            // the roster arrives over the network, after the screen — what the conversation retained
+            // of its bot holds the top bar meanwhile, instead of Onyx's blue face.
+            // face and its name, and — under "Bot colors in their chats" — its bubbles and its
+            // buttons take the color of its face, like the reference's `ContentView`
+            // (`BotFace.chatColors`); groups keep the theme's.
             val openedConversation = history.firstOrNull { it.id == state.conversationId }
             val openedConversationBot = openedConversation?.let { conversation ->
-                // **Le roster d'abord, la mémoire ensuite** (`botOfConversationOrRemembered`) :
-                // le roster arrive par le réseau, après l'écran — ce que la conversation a retenu
-                // de son bot tient la barre du haut entre-temps, au lieu du visage bleu d'Onyx.
+                // the send carry **exactly** that name (the order: conversation → bot → server → default).
+                // `null` for a plain conversation: the "bot" stage then hands over to the server.
+                // // **The values read here, not in the effect.** The `LaunchedEffect` key was the bot's only
                 botOfConversationOrRemembered(conversation, bots, state.server.displayName)
             }
-            // **Le modèle du bot de la conversation** alimente la source unique du modèle en vigueur
-            // (`ChatUiState.modelInForce`) : c'est ce qui fait que la pilule du haut nomme le modèle du
-            // bot — celui que la feuille de modèle vient d'écrire dans `FaceKeys.model` — et que
-            // l'envoi porte **exactement** ce nom (l'ordre : conversation → bot → serveur → défaut).
-            // `null` pour une conversation simple : l'étage « bot » passe alors la main au serveur.
-            // **Les valeurs lues ici, pas dans l'effet.** La clé de `LaunchedEffect` était le seul
-            // *nom* du bot : changer son modèle ne la changeait pas, donc l'effet ne se rejouait
-            // jamais et l'en-tête gardait l'ancien modèle jusqu'à la réouverture de l'écran
-            // (« c'est pas synchro en temps réel »). Le modèle et le profil sont maintenant lus
-            // **avant** l'effet et portés par ses clés : tout choix se propage au tour suivant.
+            // ("it's not synced in real time"). The model and the profile are now read
+            // **before** the effect and carried by its keys: every choice propagates to the next turn.
+            // bot — the one the model sheet just wrote to `FaceKeys.model` — and what makes
+            // the send carry **exactly** that name (the order: conversation → bot → server → default).
+            // `null` for a plain conversation: the "bot" stage then hands over to the server.
+            // **The values read here, not in the effect.** The `LaunchedEffect` key was the bot's only
+            // *name*: changing its model did not change it, so the effect never replayed
+            // and the header kept the old model until the screen was reopened
+            // ("it's not synced in real time"). The model and the profile are now read
+            // `null` (plain conversation) lets the server profile decide; `""` (the main
             val botModelInForce = openedConversationBot?.let(botsViewModel::modelOf)
             val botProfileInForce =
                 openedConversationBot?.let { if (it.isDefault) "" else it.name }
             LaunchedEffect(openedConversationBot?.name, botModelInForce, botProfileInForce) {
                 chatViewModel.setBotModel(botModelInForce)
-                // **La liaison bot → profil** : la conversation d'un bot tourne dans **son** profil.
-                // `null` (conversation simple) laisse le profil du serveur décider ; `""` (le profil
-                // principal, `isDefault`) laisse la passerelle sur son profil par défaut. C'est ce
-                // que l'envoi porte au tour (`ChatUiState.botProfile` → `profile` de session).
+                // marker, the header's) designates the conversation's bot; a plain
+                // conversation has no profile of its own — it is the main agent, then, whose profile
+                // is the one carrying `isDefault`. If neither exists, nothing is provided:
+                // the marker keeps its old behavior instead of looking like a dead control.
                 chatViewModel.setBotProfile(botProfileInForce)
             }
-            // **Le bot dont on ouvre l'identité.** Le visage du fil (le repère de la barre du
-            // bas, celui de l'en-tête) désigne le bot de la conversation ; une conversation
-            // simple n'a pas de profil à elle — c'est l'agent principal, alors, dont le profil
+            // **The bot whose identity is being opened.** The thread's face (the bottom bar's
+            // marker, the header's) designates the conversation's bot; a plain
+            // conversation has no profile of its own — it is the main agent, then, whose profile
             // est celui qui porte `isDefault`. Si aucun des deux n'existe, on ne fournit rien :
-            // le repère garde son ancien comportement au lieu d'avoir l'air d'un contrôle mort.
+            // the marker keeps its old behavior instead of looking like a dead control.
             val openBotIdentity: (() -> Unit)? =
                 (openedConversationBot ?: bots.firstOrNull { it.isDefault })?.let { profile ->
                     {
                         selectedBot = profile
-                        // L'identité s'ouvre **depuis ce fil** : le visage choisi sera le sien.
+                        // The identity opens **from this thread**: the chosen face will be its own.
                         faceConversation = openedConversation
                         navTo(Route.BOT_EDITOR.name)
                     }
@@ -2028,19 +2028,19 @@ fun OnyxApp() {
             ChatScreen(
                 stateFlow = chatState,
                 startCards = startCards,
-                // Démarrage de secours : le lancement précédent est mort en restaurant cet
-                // onglet — on rouvre sur Chat plutôt que de refaire le même dessin.
+                // A "/" menu line chosen: the text enters the field and the menu closes
+                // again, instead of staying open on the command just taken.
                 startOnChatTab = startPlan.chatTab,
-                // « Shown in the header and the message box » : le nom des Réglages → Apparence.
+                // "Shown in the header and the message box": the name from Settings → Appearance.
                 assistantName = displayName.trim(),
                 onInputChange = chatViewModel::onInputChange,
-                // Une ligne du menu « / » choisie : le texte entre dans le champ et le menu se
+                // requested from the server (the thread opens on its last page, not on 500 messages).
                 // referme, au lieu de rester ouvert sur la commande qu'on vient de prendre.
                 onPickSlash = chatViewModel::pickSlash,
                 onSend = chatViewModel::send,
                 onSteer = chatViewModel::steer,
-                // « Messages précédents » au-delà de ce qui est chargé : la page d'avant se
-                // demande au serveur (le fil s'ouvre sur sa dernière page, pas sur 500 messages).
+                // "Earlier messages" beyond what is loaded: the previous page is
+                // requested from the server (the thread opens on its last page, not on 500 messages).
                 onLoadEarlier = chatViewModel::loadEarlier,
                 onConsumeSlash = chatViewModel::consumeSlash,
                 onStop = chatViewModel::stop,
@@ -2048,42 +2048,42 @@ fun OnyxApp() {
                 onClearError = chatViewModel::clearError,
                 onNewConversation = { startFreshConversation() },
                 onOpenConversations = if (showListButton) {
-                    // La liste des conversations n'est plus un **écran** : c'est le volet. Le geste
+                    // the list is not a destination, it is a panel.
                     // du bord, comme le contrôle de la barre, l'ouvre donc au lieu d'ouvrir la
-                    // route qui le portait — celle-ci a été retirée.
+                    // route that carried it — that route has been removed.
                     { sidebarState.open() }
                 } else {
-                    // Replié, c'est le contrôle de la barre (`sidebar.left`) qui rouvre le volet :
-                    // la liste n'est pas une destination, c'est un panneau.
+                    // // **screen** (`Route.MODELS`): one gesture, two renderings, and the owner landed
+                    // on the other one. It is the same picker as the card's chip (`onOpenModelSheet`):
                     null
                 },
-                // **La pilule du haut ouvre la feuille du sélecteur.**
-                // La seconde ligne du titre — le nom du modèle, avec son chevron — ouvrait l'**écran**
-                // des modèles (`Route.MODELS`) : un geste, deux dessins, et le propriétaire tombait
-                // sur l'autre. C'est le même sélecteur que la puce de la carte (`onOpenModelSheet`) :
-                // un seul geste → une seule feuille.
-                // **La pilule du haut ouvre la feuille du sélecteur de modèle.**
-                // La seconde ligne du titre — le nom du modèle, avec son chevron — ouvrait l'**écran**
-                // des modèles (`Route.MODELS`) : un geste, deux dessins, et le propriétaire tombait sur
-                // l'autre. La feuille de modèle n'avait plus **aucune** porte sur le téléphone (la puce
-                // du compositeur n'est dessinée que sur une carte non-plaque) : elle est donc
-                // inatteignable sans ce branchement. L'écran des modèles garde ses deux autres portes
-                // (Réglages → Modèles, et la page des capacités).
+                // **The top pill opens the picker sheet.**
+                // The title's second line — the model name, with its chevron — opened the models
+                // **screen** (`Route.MODELS`): one gesture, two renderings, and the owner landed
+                // on the other one. It is the same picker as the card's chip (`onOpenModelSheet`):
+                // one gesture → one sheet.
+                // **The top pill opens the model picker.**
+                // The second line of the title — the model name, with its chevron — opened the
+                // models **screen** (`Route.MODELS`): one gesture, two renderings, and the owner
+                // landed on the other one. On the phone it is this sheet that is in force:
+                // the model sheet keeps its own door (`onOpenModelSheet`), and the models
+                // screen keeps its two others (Settings → Models, and the capabilities page).
+                //
                 onPickModel = { showModelSheet = true },
                 onModelCommand = {
-                    // « /model » : on baisse la demande puis on ouvre le sélecteur, exactement
-                    // comme la pilule du haut.
+                    // // **The face is a door.** The fourth marker of the bottom bar and the
+                    // **The face is a door.** The fourth marker of the bottom bar and the
                     chatViewModel.consumeModelPickerRequest()
                     showModelSheet = true
                 },
                 onOpenSettings = { navTo(Route.SETTINGS.name) },
-                // **Le visage est une porte.** Le quatrième repère de la barre du bas et le
-                // visage de l'en-tête ouvrent l'**identité du bot de la conversation** — visage,
-                // nom, voix, ce qu'il fait, personnalité, modèle, outils, compétences —, la même
-                // page que « Modifier » du menu d'une tuile. C'était le défaut signalé : le lot
-                // de la plaque avait changé le **dessin** du quatrième repère (le visage au lieu
+                // the lightbulb) without changing its **routing**, which still opened the
+                // "Ideas" page.
+                // name, voice, what it does, personality, model, tools, skills —, the same
+                // page as "Edit" in a tile's menu. That was the reported defect: the plate
+                // batch had changed the fourth marker's **drawing** (the face instead of
                 // de l'ampoule) sans changer son **routage**, qui ouvrait encore la page
-                // « Idées ».
+                // "Ideas" page.
                 onOpenBotIdentity = openBotIdentity,
                 onOpenVoice = {
                     readingMessageId = null
@@ -2099,8 +2099,8 @@ fun OnyxApp() {
                         readingMessageId = message.id
                         // **La voix du bot de la conversation**, comme `TranscriptView.readAloud`
                         // (`voiceSession.readAloud(message.text, speaker: conversation.bot?.profile)`).
-                        // Sans ce profil, « Lire à voix haute » lisait une réponse de bot avec la
-                        // voix d'Onyx : le réglage « Voix » du bot ne changeait rien.
+                        // Without this profile, "Read aloud" read a bot's reply with
+                        // Onyx's voice: the bot's "Voice" setting changed nothing.
                         voice.speak(
                             message.text,
                             listenAfterSpeech = false,
@@ -2125,20 +2125,20 @@ fun OnyxApp() {
                         scope.launch { shareTranscript(context, chatViewModel.exportMarkdown(threadName), title) }
                     })
                     add(MenuItem("New Conversation", Symbols.SquareAndPencil) { chatViewModel.newConversation() })
-                    // « Repartir de zéro » : la même chose que le crayon, mais la question d'abord
+                    // "Start fresh": the same as the pencil, but the question first
                     // — l'ancienne reste dans l'historique, et c'est la confirmation qui le dit.
                     add(MenuItem("Start fresh", Symbols.ArrowCounterclockwise) { confirmingFresh = true })
-                    // « Capture rapide » : une note en passant, depuis le fil, sans quitter ce
-                    // qu'on regarde (la note part dans sa propre conversation, « Notes »).
+                    // that answers "what did the agent do, and how much did it cost?" has its
+                    // place. It replaces no existing entry.
                     add(MenuItem("Take a note", Symbols.SquareAndPencil) { navTo(Route.QUICK_CAPTURE.name) })
                     add(MenuItem("Computer", Symbols.DesktopComputer) { navTo(Route.COMPUTER.name) })
                     add(MenuItem("Terminal", Symbols.Terminal) { navTo(Route.TERMINAL.name) })
-                    // « Relevé de l'agent » : c'est **le** menu du fil, donc c'est ici que l'écran
-                    // qui répond à « qu'est-ce que l'agent a fait, et combien ça a coûté ? » a sa
-                    // place. Il ne remplace aucune entrée existante.
-                    // **Son pictogramme, pas celui du voisin.** Il portait `ChartBar`, la même
-                    // icône que « Consommation et coût » — deux destinations, un seul glyphe dans
-                    // la même feuille. Un relevé est une **pièce écrite** (un rapport consigné), pas
+                    // a curve: `DocOnClipboard`, from the household family.
+                    // that answers "what did the agent do, and how much did it cost?" has its
+                    // place. It replaces no existing entry.
+                    // **Its pictogram, not its neighbour's.** It carried `ChartBar`, the same
+                    // icon as "Usage & cost" — two destinations, a single glyph in
+                    // the same sheet. A ledger is a **written piece** (a logged report), not
                     // une courbe : `DocOnClipboard`, de la famille de la maison.
                     add(MenuItem("Agent ledger", Symbols.DocOnClipboard) { navTo(Route.LEDGER.name) })
                     add(MenuItem("Settings", Symbols.Gearshape) { navTo(Route.SETTINGS.name) })
@@ -2158,9 +2158,9 @@ fun OnyxApp() {
                 onRestore = chatViewModel::requestRestore.let { request -> { message -> request(message.id) } },
                 onConfirmRestore = chatViewModel::confirmRestore,
                 onCancelRestore = chatViewModel::cancelRestore,
-                // LOT branche : « Brancher à partir d'ici » suit **exactement** le chemin de la
-                // restauration (un message visé, une confirmation, un effet) — trois lignes ici,
-                // la mécanique vivant dans le ViewModel et le dépôt.
+                // LOT branch: "Branch from here" follows **exactly** the restore path
+                // (a targeted message, a confirmation, an effect) — three lines here,
+                // the mechanics living in the ViewModel and the repository.
                 onBranch = chatViewModel::requestBranch.let { request -> { message -> request(message.id) } },
                 onConfirmBranch = chatViewModel::confirmBranch,
                 onCancelBranch = chatViewModel::cancelBranch,
@@ -2177,16 +2177,16 @@ fun OnyxApp() {
                     navTo(Route.SUBAGENT.name)
                 },
                 onOpenSubagents = { navTo(Route.SUBAGENTS.name) },
-                // LOT organisation-fil-competences : l'arrêt d'un sous-agent depuis sa carte du
-                // fil — le **vrai** `subagent.interrupt` du Dashboard (le même appel que l'écran
-                // des tâches), jamais un bouton dessiné pour rien.
+                // `subagent.interrupt` can succeed. The stop is resolved **locally**,
+                // exactly as the tasks screen already does for this flag — and the
+                // report says that it is a simulation. Without the flag, it is the real
                 onStopSubagent = { agent ->
                     if (subagentDemoRun) {
-                        // Doublure de QA : l'émulateur n'a ni Dashboard ni agent, donc aucun
-                        // `subagent.interrupt` ne peut aboutir. L'arrêt se résout **en local**,
-                        // exactement comme l'écran des tâches le fait déjà pour ce drapeau — et le
+                        // QA stand-in: the emulator has neither Dashboard nor agent, so no
+                        // `subagent.interrupt` can succeed. The stop is resolved **locally**,
+                        // exactly as the tasks screen already does for this flag — and the
                         // rapport dit que c'est une simulation. Sans le drapeau, c'est la vraie
-                        // route qui est appelée.
+                        // route that is called.
                         demoSubagents = demoSubagents.map { row ->
                             if (row.id == agent.id) {
                                 row.copy(
@@ -2203,9 +2203,9 @@ fun OnyxApp() {
                 },
                 subagentAgents = if (subagentDemoRun) demoSubagents else null,
                 slashDemoItems = slashDemoItems,
-                // **« Enseigner une compétence »** — la ligne du « + », comme « Teach a task » de la
-                // référence. Elle ne dessine rien ici : la démonstration se capture sur
-                // l'ordinateur connecté, donc elle y mène et l'écran ouvre sa feuille. La ligne
+                // **"Teach a skill"** — the "+" line, like the reference's "Teach a task".
+                // It draws nothing here: the demonstration is captured on
+                // the connected computer, so it leads there and the screen opens its sheet. The line
                 // n'existe que si ce serveur porte des identifiants Dashboard — sans eux, aucune
                 // route `onyx-record` n'existe et un bouton ne serait qu'un mensonge.
                 onTeachTask = if (state.server.hasServeCredentials) {
@@ -2217,7 +2217,7 @@ fun OnyxApp() {
                     null
                 },
                 // **La carte de prise en main du navigateur.** Elle ouvre le panneau depuis le
-                // fil : c'est le geste que l'agent ne peut pas faire à la place de la personne.
+                // thread: that is the gesture the agent cannot do in the person's place.
                 onOpenBrowser = if (state.server.hasServeCredentials) {
                     { navTo(Route.BROWSER_SCREEN.name) }
                 } else {
@@ -2243,12 +2243,12 @@ fun OnyxApp() {
                 onRemoveAttachment = chatViewModel::removeAttachment,
                 onOpenLocalFile = { uri, name, mime -> openConversationFile(uri, name, mime) },
                 onOpenDelivered = { file ->
-                    // Une pièce jointe de CET appareil (galerie, partage, sélecteur) n'est pas un
-                    // fichier du serveur : la demander au Dashboard faisait répondre
+                    // A file attached from THIS device (gallery, share, picker) is not a
+                    // server file: asking the Dashboard for it made it answer
                     // `400 Path must be absolute` et affichait un code nu. Elle s'ouvre sur place.
-                    // Sinon un fichier livré s'ouvre selon sa **famille** : les lecteurs de la
-                    // maison (image, vidéo, son, PDF, texte, archive) quand il y en a un,
-                    // l'application du système sinon. Il passe d'abord par le cache du téléphone.
+                    // Otherwise a delivered file opens according to its **family**: the household
+                    // readers (image, video, sound, PDF, text, archive) when there is one,
+                    // the system app otherwise. It first goes through the phone's cache.
                     val external = com.onyx.app.data.model.fileOpenRoute(
                         file.name,
                         com.onyx.app.ui.chat.FileViewers.mimeFor(file.name),
@@ -2290,29 +2290,29 @@ fun OnyxApp() {
                 speechLocale = speechLocale,
                 chatTextScale = com.onyx.app.ui.theme.ResolvedTheme.chatTextScale(chatTextSize),
                 linkPreviews = linkPreviews,
-                // L'en-tête du fil : le visage et le nom du bot dont c'est la conversation, sinon
-                // ceux de Onyx (ajout volontaire côté Android).
-                // Le visage du **fil** (s'il en a un) passe avant celui du bot : l'en-tête, les
-                // bulles et le repère du bas montrent ce que la ligne de la liste montre.
+                // // The chip's second segment: the reasoning level. A **local** fallback does not
+                // offer the configured model's steps — so we do not write a step that drives
+                // nothing (the in-force model name, for its part, stays named by the chip).
+                // bubbles and the bottom marker show what the list's row shows.
                 threadBot = openedConversationBot?.let { profile ->
                     openedConversation?.faceCode?.let { code -> profile.copy(faceCode = code) } ?: profile
                 },
-                // **Rien de faux à l'écran pendant la synchronisation.** Si la conversation est
-                // ouverte, que le roster n'a pas encore répondu et que rien (ni le roster, ni la
-                // mémoire de la conversation) ne dit de quel bot il s'agit, l'en-tête reste **nu** :
-                // ni visage bleu d'Onyx, ni « @default » — le temps que la réponse arrive.
+                // **Nothing fake on screen during synchronization.** If the conversation is
+                // open, the roster has not answered yet and nothing (neither the roster nor the
+                // conversation's memory) says which bot it is, the header stays **bare**:
+                // neither Onyx's blue face, nor "@default" — until the answer arrives.
                 threadBotUnknown = openedConversation != null &&
                     openedConversationBot == null && bots.isEmpty() && botsState.loading,
-                // La liste des mentions `@` du composeur : les bots du roster, comme la section
-                // « Bots » les montre.
+                // // for all its conversations and routines**. It is set above the
+                // // conversation; the choice is remembered (per bot on the server, here for the plain
                 mentionBots = mentionRoster,
                 sidebarToggle = sidebarToggle,
-                // La **puce du modèle** de la carte ouvre la feuille du sélecteur de modèle
-                // (fonction 1 → 2). Le second segment de la puce est le niveau de réflexion.
+                // The card's **model chip** opens the model picker sheet
+                // (feature 1 → 2). The chip's second segment is the reasoning level.
                 onOpenModelSheet = { showModelSheet = true },
-                // Le second segment de la puce : le niveau de réflexion. Un repli **local** ne
-                // propose pas les crans du modèle configuré — on n'écrit donc pas un cran qui ne
-                // pilote rien (le nom du modèle en force, lui, reste nommé par la puce).
+                // conversation; the choice is remembered (per bot on the server, here for the plain
+                // conversation), and it survives a restart.
+                // nothing (the in-force model name, for its part, stays named by the chip).
                 reasoningLabel = com.onyx.app.ui.design.ModelFallback.reflectionLabel(
                     com.onyx.app.ui.design.ReasoningLevels
                         .label(currentReasoning)
@@ -2322,15 +2322,15 @@ fun OnyxApp() {
                 ),
             )
             }
-            // La **feuille du sélecteur de modèle** : le modèle choisi devient **celui de ce bot,
-            // pour toutes ses conversations et ses routines**. Elle est posée par-dessus la
-            // conversation ; le choix se mémorise (par bot sur le serveur, ici pour la conversation
-            // simple), et il survit à une relance.
+            // // kept locally — that is what makes it survive a force stop.
+            // for all its conversations and routines**. It is set above the
+            // on its side the choice is indeed per conversation — here, writing it would be false.
+            // // A plain conversation: the active server's model, as the models
             if (showModelSheet) {
                 com.onyx.app.ui.models.ModelSheet(
                     models = modelChoices,
-                    // Le modèle **en force** porte la coche — sous repli, c'est l'entrée réellement
-                    // servie (locale) qui est cochée, jamais le modèle configuré.
+                    // The **in-force** model carries the check mark — under fallback, it is the entry actually
+                    // served (local) that is checked, never the configured model.
                     currentModel = state.modelInForce,
                     reasoning = currentReasoning,
                     favourites = modelFavourites,
@@ -2341,12 +2341,12 @@ fun OnyxApp() {
                     onPickModel = { model ->
                         val bot = openedConversationBot ?: selectedBot
                         if (bot != null) {
-                            // Le modèle d'un bot : écrit sur le serveur (`profiles.configure`) et
-                            // gardé localement — c'est ce qui le fait survivre à un arrêt forcé.
+                            // // applies to **all** its conversations, that of a plain conversation is
+                            // // the server's. The reference writes "For this conversation" because
                             botsViewModel.setModel(bot, model, providerForChosen(model))
                         } else {
-                            // Une conversation simple : le modèle du serveur actif, comme l'écran
-                            // des modèles le fait.
+                            // A plain conversation: the active server's model, as the models
+                            // screen does.
                             settingsViewModel.open(state.server)
                             settingsViewModel.update { it.copy(model = model) }
                             settingsViewModel.saveAndClose()
@@ -2360,16 +2360,16 @@ fun OnyxApp() {
                         modelPrefs.setFavourite(state.server.id, id, favourite)
                         modelFavourites = modelPrefs.favourites(state.server.id)
                     },
-                    // La **portée réelle** du choix, dite à droite du titre : le modèle d'un bot
-                    // vaut pour **toutes** ses conversations, celui d'une conversation simple est
-                    // celui du serveur. La référence écrit « Pour cette conversation » parce que
-                    // chez elle le choix est bien par conversation — ici, l'écrire serait faux.
+                    // // routines, start fresh, edit, duplicate, delete) then the household's.
+                    // // A single table for both places that show this menu — the sidebar and the "Bots"
+                    // // page —, so that neither can forget one of them.
+                    // on its side the choice is indeed per conversation — here, writing it would be false.
                     scope = if (openedConversationBot != null) {
                         com.onyx.app.ui.models.ModelScope.BOT
                     } else {
                         com.onyx.app.ui.models.ModelScope.SERVER
                     },
-                    // La **ligne « Mode rapide »** : `null` quand le serveur ne l'expose pas — la
+                    // The **"Fast mode" line**: `null` when the server does not expose it — the
                     // feuille ne peint alors pas la ligne (voir `rememberModelFastMode`).
                     fastMode = modelFastMode,
                     onDismiss = { showModelSheet = false },
@@ -2377,12 +2377,12 @@ fun OnyxApp() {
             }
         }
 
-        // ————— Hunks : le menu d'une carte de bot (lot « menu d'un bot ») —————
-        // La table des gestes du menu d'une carte de bot : **les neuf entrées de la référence**
-        // (épingler, masquer, ouvrir la dernière session, une conversation neuve avec le bot, ses
-        // routines, repartir à zéro, modifier, dupliquer, supprimer) puis celles de la maison.
-        // Une seule table pour les deux endroits qui montrent ce menu — le volet et la page
-        // « Bots » —, si bien qu'aucune des deux ne peut en oublier une.
+        // ————— Hunks: a bot card's menu ("a bot's menu" batch) —————
+        // The table of gestures of a bot card's menu: **the reference's nine entries**
+        // // "New conversation with <the name>": a **fresh** conversation of the bot (the
+        // // thread's pencil makes the same choice), kept right away so that it is in the
+        // // list under its name.
+        // "Bots" page —, so that neither can forget one of them.
         val openBotConversation: (BotProfile, Conversation) -> Unit = { bot, conversation ->
             openingRect = null
             chatViewModel.open(conversation)
@@ -2399,8 +2399,8 @@ fun OnyxApp() {
                     ?.let { recent -> openBotConversation(bot, recent) }
             },
             onNewChat = { bot ->
-                // « Nouvelle conversation avec <le nom> » : une conversation **neuve** du bot (le
-                // crayon du fil fait le même choix), gardée tout de suite pour qu'elle soit dans la
+                // // The bot's chat is **archived** (it stays in the history, whole): a
+                // // new conversation opens, without the history.
                 // liste sous son nom.
                 val next = freshConversationForPencil(
                     current = null,
@@ -2419,7 +2419,7 @@ fun OnyxApp() {
             },
             onStartFresh = { bot ->
                 scope.launch {
-                    // Le chat du bot est **archivé** (il reste dans l'historique, entier) : une
+                    // The bot's chat is **archived** (it stays in the history, whole): a
                     // conversation neuve s'ouvre, sans l'historique.
                     if (botsViewModel.archiveChat(bot) == null) {
                         val fresh = freshConversationForPencil(
@@ -2436,14 +2436,14 @@ fun OnyxApp() {
             },
             onEdit = { bot ->
                 selectedBot = bot
-                // Venu de la liste des bots : le visage réglé ici est celui du **bot**.
+                // Came from the bot list: the face set here is the **bot's**.
                 faceConversation = null
                 navTo(Route.BOT_EDITOR.name)
             },
             onDuplicate = { bot -> scope.launch { botsViewModel.duplicate(bot) } },
             onDelete = { bot -> scope.launch { botsViewModel.deleteBot(bot) } },
-            // « Partager comme modèle » : la feuille s'ouvre tout de suite ; le lien se lit sur le
-            // serveur (`SOUL.md`, outils, compétences) et arrive dans la feuille quand il est prêt.
+            // "Share as template": the sheet opens right away; the link is read on the
+            // server (`SOUL.md`, tools, skills) and arrives in the sheet when it is ready.
             onShareTemplate = { bot ->
                 sharingBot = bot
                 templateShare = null
@@ -2464,9 +2464,9 @@ fun OnyxApp() {
             hasRecent = { bot -> botRecentConversation(bot, history, botsState.bots, state.server.displayName) != null },
         )
 
-        // ————— « Partager comme modèle » : la feuille du lien, et l'arrivée d'un lien —————
-        // Le lien se lit une fois par ouverture : son `SOUL.md`, ses jeux d'outils, ses compétences.
-        // Tant qu'il n'est pas là, la feuille attend — elle ne montre jamais un lien partiel.
+        // ————— "Share as template": the link sheet, and the arrival of a link —————
+        // The link is read once per opening: its `SOUL.md`, its tool sets, its skills.
+        // As long as it is not there, the sheet waits — it never shows a partial link.
         LaunchedEffect(sharingBot) {
             val bot = sharingBot ?: return@LaunchedEffect
             templateShare = botsViewModel.templateOffer(bot)
@@ -2482,7 +2482,7 @@ fun OnyxApp() {
                 },
             )
         }
-        // L'aperçu d'un lien reçu : obligatoire avant l'ajout, et l'ajout écrit un vrai profil.
+        // The preview of a received link: mandatory before adding, and adding writes a real profile.
         importLink?.let { link ->
             BotTemplateImportSheet(
                 link = link,
@@ -2497,7 +2497,7 @@ fun OnyxApp() {
                                 importBusy = false
                                 importLink = null
                                 // Un ajout partiel se dit sur la liste des bots : la feuille se
-                                // ferme parce que le bot existe, pas parce que tout est passé.
+                                // the write, and the failure is reported instead of staying mute.
                                 botsViewModel.reportPartialImport(outcome)
                             }
 
@@ -2517,55 +2517,55 @@ fun OnyxApp() {
             )
         }
 
-        // « Let bots message each other » installe le réglage serveur : la question d'abord, puis
-        // l'écriture, et l'échec se dit au lieu de rester muet.
-        //
-        // La route Bots se présente, en largeur étendue, dans le panneau de détail : la barre
-        // latérale reste à sa gauche, comme le détail d'un `NavigationSplitView` sur la tablette — la
-        // flèche de retour n'y a alors pas d'objet, les sessions se choisissant dans la colonne.
+        // the write, and the failure is reported instead of staying mute.
+        // the write, and the failure is reported instead of staying mute.
+        // // "Schedules…" from a tile's menu: the bot's schedules, like `scheduling = bot`.
+        // bar stays to its left, like the detail of a `NavigationSplitView` on the tablet — the
+        // back arrow then has no object there, sessions being chosen in the column.
+        // side bar stays to its left, like the detail of a `NavigationSplitView` on the tablet — the
         val botsPane: @Composable (Boolean, (@Composable () -> Unit)?) -> Unit = { wideDetail, sidebarControl ->
             BotsScreen(
                 viewModel = botsViewModel,
                 onBack = if (wideDetail) null else ({ if (!navBack()) navTo(Route.SETTINGS.name) }),
-                // Le tap d'une tuile ouvre son chat (`openBot` d'la référence) ; l'éditeur est une entrée du
-                // menu, atteinte à l'appui long.
+                // A tile's tap opens its chat (the reference's `openBot`); the editor is an entry of the
+                // menu, reached on long press.
                 onOpenBotChat = openBotChat,
                 onEditBot = { bot ->
                     selectedBot = bot
                     navTo(Route.BOT_EDITOR.name)
                 },
-                // « Change Face… » du menu d'une tuile : le sélecteur de visage du bot.
+                // // Opened from the list: the room takes its members back, with no imposed name.
                 onChangeFace = { bot ->
                     selectedBot = bot
                     navTo(Route.BOT_FACE.name)
                 },
-                // « Schedules… » du menu d'une tuile : les horaires du bot, comme `scheduling = bot`.
+                // // left, instead of opening a new conversation: the same defect as the
                 onSchedules = { bot ->
                     selectedBot = bot
                     botCronProfile = bot.name
                     navTo(Route.BOT_SCHEDULES.name)
                 },
-                // « Voice… » du menu d'une tuile : la voix du bot, qui se règle pour lui seul.
+                // // list's "Bots" section: same source, thus same badges.
                 onVoice = { bot ->
                     selectedBot = bot
                     botVoiceProfile = bot.name
                     navTo(Route.BOT_VOICE.name)
                 },
-                // Le menu de la carte : les neuf entrées de la référence puis celles de la maison.
+                // The card's menu: the reference's nine entries then the household's.
                 botMenu = botMenuTable,
                 onGroupChat = {
-                    // Ouverte depuis la liste : la salle reprend ses membres, sans nom imposé.
+                    // // Dashboard there remains the API path, a profile and its own key (`Add Bot`).
                     groupPicked = null
                     groupTitle = null
-                    // **Et la salle précédemment ouverte est oubliée.** Sans cela, la route
-                    // `GROUP_CHAT` retrouvait `openedRoom` et réaffichait la salle qu'on venait de
-                    // quitter, au lieu d'ouvrir une conversation neuve : le même défaut que le
+                    // **And the previously opened room is forgotten.** Without that, the `GROUP_CHAT`
+                    // route found `openedRoom` again and redisplayed the room just
+                    // left, instead of opening a new conversation: the same defect as the
                     // crayon, par une autre porte.
                     openedRoom = null
                     navTo(Route.GROUP_CHAT.name)
                 },
-                // La grille des bots lit l'activité des conversations déjà chargées, comme la
-                // section « Bots » de la liste : même source, donc mêmes pastilles.
+                // The bot grid reads the activity of already loaded conversations, like the
+                // list's "Bots" section: same source, thus same badges.
                 conversations = history,
                 groups = botsState.groups,
                 hasDashboard = state.server.canAdminister,
@@ -2574,8 +2574,8 @@ fun OnyxApp() {
                 onOpenGroup = { room -> openGroup(room) },
                 onRoomSeen = { room -> botsViewModel.markRoomSeen(room) },
                 onNewBot = {
-                    // « New Bot » fait un profil sur son serveur (`BotEditor(.new)`) ; sans
-                    // Dashboard il reste la voie de l'API, un profil et sa propre clé (`Add Bot`).
+                    // "New Bot" makes a profile on its server (`BotEditor(.new)`); without
+                    // Dashboard there remains the API path, a profile and its own key (`Add Bot`).
                     if (state.server.canAdminister) {
                         selectedBot = null
                         navTo(Route.BOT_EDITOR.name)
@@ -2590,12 +2590,12 @@ fun OnyxApp() {
             )
         }
 
-        /**
-         * Le retour d'un écran **porté par le volet** : il dépile le volet, un niveau à la fois.
-         *
-         * Le même écran (`Cron`, `Kanban`, `Code`) sert les deux présentations : dans le volet, sa
-         * flèche de retour ramène à la liste ; dans l'app, elle remonte la pile de routes comme
-         * avant. C'est `sidebarState.isNavigating` qui tranche — jamais un second écran dupliqué.
+        /** The back of a screen **carried by the sidebar**: it pops the sidebar, one level at a time.
+         * The back of a screen **carried by the sidebar**: it pops the sidebar, one level at a time.
+         * The same screen (`Cron`, `Kanban`, `Code`) serves both presentations: in the sidebar, its
+         * back arrow returns to the list; in the app, it goes back up the route stack as
+         * before. It is `sidebarState.isNavigating` that decides — never a second duplicated screen.
+         * before. It is `sidebarState.isNavigating` that decides — never a second duplicated screen.
          */
         val paneBack: () -> Unit = { sidebarState.popDestination() }
 
@@ -2606,32 +2606,32 @@ fun OnyxApp() {
             )
             CronScreen(
                 viewModel = cronViewModel,
-                // **Le brouillon venu d'une compétence.** L'éditeur de skill a enregistré la
-                // compétence puis posé cette graine : l'écran s'ouvre sur une routine neuve dont le
-                // titre et l'invite sont déjà là — l'horaire et la destination restent à choisir.
+                // The draft coming from a skill.** The skill editor saved the
+                // // The reference's `topRow`: in two panes, the board carries the list's section picker
+                // // above its capsules (Chat / Cron / Kanban / Code), like `KanbanView(topRow:)`.
                 seed = routineSeed,
                 onSeedUsed = { routineSeed = null },
-                // Une pile vide (l'onglet ouvert depuis la liste, ou depuis les Réglages) retombe
-                // sur la **liste des conversations** — jamais sur les Réglages, d'où l'on vient
-                // pourtant d'entrer (`onOpenCron` des Réglages). Porté par le volet, ce même
-                // retour **dépile le volet** : la flèche revient à la liste. Hors du volet, le
-                // repli est le fil — la liste des conversations n'est plus une route.
+                // An empty stack (the tab opened from the list, or from Settings) falls back
+                // on the **conversation list** — never on Settings, from which one has
+                // nevertheless just entered (`onOpenCron` from Settings). Carried by the sidebar, this same
+                // back **pops the sidebar**: the arrow returns to the list. Outside the sidebar, the
+                // fallback is the thread — the conversation list is no longer a route.
                 onBack = if (wideDetail) null else {
                     val inApp: () -> Unit = ({ if (!navBack()) navTo(Route.CHAT.name) })
-                    // La flèche **et** le geste dépilent la même pile : celle du volet seulement
-                    // quand c'est **cet** écran qu'il porte. `isNavigating` disait « un écran
-                    // quelconque est ouvert là-dedans » — même fermé, même invisible : la flèche
-                    // dépilait alors un volet qu'on ne voyait pas, et le premier appui n'avait
-                    // aucun effet visible (mesuré).
+                    // The arrow **and** the gesture pop the same stack: the sidebar's only
+                    // when it is **this** screen that it carries. `isNavigating` said "some
+                    // screen is open in there" — even closed, even invisible: the arrow
+                    // then popped a sidebar one did not see, and the first press had no
+                    // visible effect (measured).
                     if (sidebarState.destination == Route.CRON.name) paneBack else inApp
                 },
                 sidebarControl = sidebarControl,
             )
         }
 
-        // Le `topRow` d'la référence : en deux panneaux, le tableau porte le sélecteur de section de la
-        // liste au-dessus de ses capsules (Chat / Cron / Kanban / Code), comme `KanbanView(topRow:)`.
-        // La section active est Kanban : cette rangée ne se dessine que sur la route du tableau.
+        // The reference's `topRow`: in two panes, the board carries the list's section picker
+        // above its capsules (Chat / Cron / Kanban / Code), like `KanbanView(topRow:)`.
+        // The active section is Kanban: this row is only drawn on the board's route.
         val kanbanTopRow: @Composable () -> Unit = {
             androidx.compose.foundation.layout.Box(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -2655,7 +2655,7 @@ fun OnyxApp() {
             }
         }
 
-        // L'écran Code : ses filtres, ses sessions et son compositeur. Le dépôt, la copie de travail
+        // The Code screen: its filters, its sessions and its composer. The repository, the working copy
         // et la branche viennent du serveur ; la fiche d'une session est tenue ici et le dit.
         val codePane: @Composable (Boolean, (@Composable () -> Unit)?) -> Unit = { wideDetail, sidebarControl ->
             val codeViewModel: CodeViewModel = viewModel(
@@ -2666,8 +2666,8 @@ fun OnyxApp() {
                             config = state.server,
                             storage = PreferencesCodeSessionStorage(context),
                             turns = AppContainer.turns,
-                            // Chaque message démarre sa propre session : une **vraie** session
-                            // Hermes est ouverte, et le statut suit le tour réel qu'elle lance.
+                            // Each message starts its own session: a **real** Hermes
+                            // session is opened, and the status follows the real turn it launches.
                             starter = { text, _ ->
                                 chatViewModel.newConversation()
                                 chatViewModel.sendText(text, clearInput = false)
@@ -2679,12 +2679,12 @@ fun OnyxApp() {
             )
             CodeScreen(
                 viewModel = codeViewModel,
-                // Le retour revient **là d'où l'on vient** : la liste des conversations, pas l'onglet.
-                // Porté par le volet, il **dépile le volet** ; hors du volet, le repli est le fil.
+                // // of the list, not from Settings — sending back there lost the previous page. Carried
+                // // by the sidebar, it **pops the sidebar**; outside the sidebar, the fallback is the thread.
                 onBack = if (wideDetail) null else {
                     val inApp: () -> Unit = ({ if (!navBack()) navTo(Route.CHAT.name) })
-                    // Même règle que les autres sections : la flèche ne dépile le volet que s'il
-                    // porte **cet** écran (voir Planifiés).
+                    // // Same rule as the other sections: the arrow only pops the sidebar if it
+                    // by the sidebar, it **pops the sidebar**; outside the sidebar, the fallback is the thread.
                     if (sidebarState.destination == Route.CODE.name) paneBack else inApp
                 },
                 sidebarControl = sidebarControl,
@@ -2699,23 +2699,23 @@ fun OnyxApp() {
             )
             KanbanScreen(
                 viewModel = kanbanViewModel,
-                // Le retour revient **là d'où l'on vient** : le tableau s'ouvre depuis les onglets
-                // de la liste, pas depuis Réglages — y renvoyer perdait la page précédente. Porté
-                // par le volet, il **dépile le volet** ; hors du volet, le repli est le fil.
+                // Back returns **where one comes from**: the board opens from the tabs
+                // of the list, not from Settings — sending back there lost the previous page. Carried
+                // by the sidebar, it **pops the sidebar**; outside the sidebar, the fallback is the thread.
                 onBack = if (wideDetail) null else {
                     val inApp: () -> Unit = ({ if (!navBack()) navTo(Route.CHAT.name) })
-                    // Même règle que les autres sections : la flèche ne dépile le volet que s'il
-                    // porte **cet** écran (voir Planifiés).
+                    // Same rule as the other sections: the arrow only pops the sidebar if it
+                    // carries **this** screen (see Scheduled).
                     if (sidebarState.destination == Route.KANBAN.name) paneBack else inApp
                 },
                 topRow = topRow,
                 sidebarControl = sidebarControl,
                 onAskOnyx = { question ->
-                    // « Demander à Onyx » ouvre une conversation neuve avec la question.
+                    // "Ask Onyx" opens a new conversation with the question.
                     chatViewModel.newConversation()
                     chatViewModel.sendText(question, clearInput = false)
-                    // Deux panneaux : la conversation est à côté du tableau, on y reste. Compact :
-                    // elle s'ouvre par-dessus, comme le panneau du téléphone. Porté par le volet,
+                    // Two panes: the conversation is next to the board, we stay there. Compact:
+                    // it opens above, like the phone's panel. Carried by the sidebar,
                     // la conversation prend la main et le volet repart de sa liste.
                     if (!wideDetail) {
                         sidebarState.clearDestinations()
@@ -2726,49 +2726,49 @@ fun OnyxApp() {
         }
 
         /**
-         * Les **tuiles** du volet : les écrans de l'app, deux par rangée. Chaque intitulé ouvre un
-         * écran qui existe **vraiment** ici — la correspondance avec la disposition de la référence
-         * (Planifiés, Compétences, Outils, Réglages) est relevée dans le rapport de lot.
+         * The sidebar's **tiles**: the app's screens, two per row. Each label opens a
+         * screen that **really** exists here — the correspondence with the reference's layout
+         * (Scheduled, Skills, Tools, Settings) is noted in the batch report.
          */
-        // **Une destination, un seul point d'entrée.** La liste est celle de
-        // [com.onyx.app.ui.sidebar.SidebarDestinations], et elle ne contient **que** les écrans que
-        // la barre du bas ne donne pas : l'onglet « Fichiers » montre les pièces du fil, la tuile
-        // « Fichiers du serveur » ouvre le navigateur du serveur — deux écrans, deux mots. La tuile
-        // « Réglages », elle, a été **retirée** : la roue dentée de la tête du volet ouvre le même
-        // écran, dans le même panneau, et deux entrées adjacentes pour un écran ne sont pas deux
+        // // The order and the selection come from the **local** setting (`SettingsRepository.sidebarTiles`,
+        // // key `sidebar_tiles`), and no longer from the frozen list: a removed tile **stays** in
+        // // the catalogue (the edit mode's library returns it in one press), and an added tile
+        // // opens **exactly** the screen it opened — `paneScreen` below has not moved.
+        // "Settings", for its part, has been **removed**: the gear in the sidebar's head opens the same
+        // screen, in the same panel, and two adjacent entries for one screen are not two
         // chemins. Un test mesure les deux recouvrements (`SidebarDestinationsTest`) :
-        // réintroduire une tuile qui double un onglet, ou les Réglages, le fait échouer.
+        // reintroducing a tile that duplicates a tab, or Settings, makes it fail.
         val sidebarTiles = com.onyx.app.ui.sidebar.SidebarDestinations.tiles
 
-        // ---- **La grille de raccourcis, telle que la personne l'a composée** ------------------
-        // L'ordre et la sélection viennent du réglage **local** (`SettingsRepository.sidebarTiles`,
-        // clé `sidebar_tiles`), et non plus de la liste figée : une tuile retirée **reste** dans le
-        // catalogue (la bibliothèque du mode édition la rend en un appui), et une tuile ajoutée
-        // ouvre **exactement** l'écran qu'elle ouvrait — `paneScreen` ci-dessous n'a pas bougé.
+        // // content, the sidebar's foot ("New conversation" and the initial circle) intact. The
+        // // sidebar no longer closes — it is the exact opposite of the previous choice, which closed it on
+        // the opening of a tile and forced one to reopen it to see where one had just arrived.
+        // //
+        // // The screen carried **is the same screen as before** (`CronScreen`, `CapabilitiesScreen`,
         val tileIds by settingsRepo.sidebarTiles.collectAsStateWithLifecycle()
         val shownTiles = com.onyx.app.ui.sidebar.SidebarTileLayout.resolve(tileIds)
         val tileLibrary = com.onyx.app.ui.sidebar.SidebarTileLayout.library(tileIds)
 
-        // ---- Le volet, **conteneur de navigation** --------------------------------------------
-        // Une tuile ouvre son écran **dans le volet** : flèche de retour, titre, sous-titre et
-        // contenu, le pied du volet (« Nouvelle conversation » et le rond d'initiale) intact. Le
-        // volet ne se referme plus — c'est l'inverse exact du choix précédent, qui le fermait à
-        // l'ouverture d'une tuile et obligeait à le rouvrir pour voir où l'on venait d'arriver.
-        //
-        // L'écran porté **est le même écran qu'avant** (`CronScreen`, `CapabilitiesScreen`,
-        // `InsightsScreen`…), avec ses fonctions : on change seulement **où** il s'affiche.
+        // // page, and the sidebar starts again from its list so as not to stay set on a stale screen.
+        // // What a sidebar entry leaves **behind it**: the page left — the screen the
+        // // sidebar carried — enters the **route stack** before the destination. It is the rule
+        // // "back returns the original page" applied to leaving the sidebar: without it, the
+        // twenty Settings rows of the sidebar threw away the page left (it entered **neither** of
+        // the two stacks) and back returned the thread, never Settings.
+        // // The sidebar, for its part, starts again from its list and **closes**: as an overlay it covers the whole
+        // // window, so staying open set a stale screen above the one just
         val panePush: (String) -> Unit = { id -> sidebarState.pushDestination(id) }
-        // Une destination que le volet ne porte pas — un écran de l'app plus profond, comme
-        // « Apparence » depuis les Réglages — reprend le chemin d'avant : elle s'ouvre en pleine
-        // page, et le volet repart de sa liste pour ne pas rester posé sur un écran périmé.
-        // Ce qu'une entrée du volet laisse **derrière elle** : la page quittée — l'écran que le
-        // volet portait — entre dans la **pile de routes** avant la destination. C'est la règle
-        // « le retour rend la page d'origine » appliquée à la sortie du volet : sans elle, les
-        // vingt rangées des Réglages du volet jetaient la page quittée (elle n'entrait dans
-        // **aucune** des deux piles) et le retour rendait le fil, jamais les Réglages.
-        // Le volet, lui, repart de sa liste et **se referme** : en surimpression il couvre toute la
-        // fenêtre, donc rester ouvert posait un écran périmé par-dessus celui qu'on venait
-        // d'ouvrir — mesuré sur l'appareil : « je ressors dans le volet ».
+        // A destination the sidebar does not carry — a deeper app screen, like
+        // "Appearance" from Settings — takes the previous path: it opens full
+        // page, and the sidebar starts again from its list so as not to stay set on a stale screen.
+        // What a sidebar entry leaves **behind it**: the page left — the screen the
+        // sidebar carried — enters the **route stack** before the destination. It is the rule
+        // "back returns the original page" applied to leaving the sidebar: without it, the
+        // twenty Settings rows of the sidebar threw away the page left (it entered **neither** of
+        // the two stacks) and back returned the thread, never Settings.
+        // // The model lives on the server: we rewrite it there, and the repository
+        // // persists it. The screen has done its job, the sidebar returns to its list.
+        // opening — measured on the device: "I come back out into the sidebar".
         val paneLeave: (String) -> Unit = { id ->
             val quittee = sidebarState.destination?.takeIf { it != id }
             if (quittee != null) navTo(quittee)
@@ -2789,8 +2789,8 @@ fun OnyxApp() {
                         reasoningEffort = effort,
                         onPickReasoning = { value -> scope.launch { settingsRepo.setReasoningEffort(value) } },
                         onPick = { model ->
-                            // Le modèle vit sur le serveur : on l'y réécrit, et le dépôt le
-                            // persiste. L'écran a fini son office, le volet revient à sa liste.
+                            // The model lives on the server: we rewrite it there, and the repository
+                            // persists it. The screen has done its job, the sidebar returns to its list.
                             settingsViewModel.open(state.server)
                             settingsViewModel.update { it.copy(model = model) }
                             settingsViewModel.saveAndClose()
@@ -2798,16 +2798,16 @@ fun OnyxApp() {
                         },
                         onBack = paneBack,
                         serverSessionId = state.serverSessionId,
-                        // Le modèle **en force** de la conversation ouverte : la bonne entrée est
-                        // cochée (et nommée) même quand un repli la sert hors de la liste exposée.
+                        // The **in-force** model of the open conversation: the right entry is
+                        // checked (and named) even when a fallback serves it outside the exposed list.
                         inForceModel = state.modelInForce,
                     )
                 }
 
-                // La tuile « Compétences » a été **retirée** : « Capacités » — la tuile *Capabilities*
-                // de la référence — porte déjà la famille des compétences (liste groupée, compte,
-                // recherche, interrupteur, lecture, catalogue). L'éditeur, seul geste qui n'y vivait
-                // pas, y est **porté** (`onEditSkill`) : il reste donc atteignable depuis l'écran.
+                // The "Skills" tile has been **removed**: "Capabilities" — the reference's *Capabilities*
+                // tile — already carries the skills family (grouped list, count,
+                // search, switch, reading, catalogue). The editor, the only gesture that did not live there,
+                // is **carried** there (`onEditSkill`): it thus remains reachable from the screen.
                 Route.SKILL_EDITOR.name -> SkillEditorScreen(
                     server = state.server,
                     existing = skillName,
@@ -2842,9 +2842,9 @@ fun OnyxApp() {
                 Route.FILE_EDITOR.name -> {
                     val path = editorPath
                     if (path == null) {
-                        // Pas de chemin : il n'y a rien à montrer. On ne navigue **pas** pendant la
-                        // composition (la route vide n'entre pas dans la pile) — le volet revient à
-                        // sa liste, exactement comme le repli d'état vide des autres routes.
+                        // No path: there is nothing to show. We do **not** navigate during
+                        // composition (an empty route does not enter the stack) — the sidebar returns to
+                        // its list, exactly like the empty-state fallback of the other routes.
                         LaunchedEffect(Unit) { paneBack() }
                     } else {
                         val paneEditorViewModel: FileEditorViewModel = viewModel(
@@ -2858,8 +2858,8 @@ fun OnyxApp() {
                     }
                 }
 
-                // **« Le Coffre »** dans le volet : empilé par sa ligne des Réglages. Le retour dépile
-                // le volet et rend donc les Réglages, la page quittée.
+                // **"The Vault"** in the sidebar: stacked by its Settings row. Back pops
+                // the sidebar and thus returns Settings, the page left.
                 Route.VAULT.name -> VaultScreen(
                     server = state.server,
                     onBack = paneBack,
@@ -2875,15 +2875,15 @@ fun OnyxApp() {
                     )
                 }
 
-                // **« Capacités »** — la tuile *Capabilities* de la référence : ce que l'agent peut
-                // utiliser dans les nouvelles conversations (compétences, jeux d'outils, MCP). C'est
-                // le **même** écran que la route pleine page ; ici il se dessine **dans** le volet et
-                // son retour **dépile le volet** ([paneBack]), comme les autres tuiles.
+                // **"Capabilities"** — the reference's *Capabilities* tile: what the agent can
+                // use in new conversations (skills, tool sets, MCP). It is
+                // the **same** screen as the full-page route; here it is drawn **in** the sidebar and
+                // its back **pops the sidebar** ([paneBack]), like the other tiles.
                 Route.CAPABILITIES.name -> CapabilitiesScreen(
                     server = state.server,
                     onBack = paneBack,
-                    // L'éditeur vit désormais ici : « Nouvelle compétence » et « Modifier » empilent
-                    // sa page **dans le volet**, un niveau plus loin — le retour rend « Capacités ».
+                    // The editor now lives here: "New skill" and "Edit" stack
+                    // its page **in the sidebar**, one level further — back returns "Capabilities".
                     onEditSkill = { name ->
                         skillName = name
                         skillSeed = null
@@ -2891,10 +2891,10 @@ fun OnyxApp() {
                     },
                 )
 
-                // **« Configuration »** — la tuile *Config* de la référence. Chez elle, la roue de
-                // la tête ouvre les Réglages de l'app et cette tuile la configuration de la
-                // **passerelle** : deux écrans différents. Onyx garde la même séparation — la roue
-                // reste le seul accès aux Réglages, cette tuile ouvre la page de la passerelle.
+                // **"Configuration"** — the reference's *Config* tile. On its side, the gear of
+                // the head opens the app's Settings and this tile the **gateway**
+                // configuration: two different screens. Onyx keeps the same separation — the gear
+                // remains the only access to Settings, this tile opens the gateway page.
                 Route.GATEWAY.name -> {
                     val paneGatewayViewModel: GatewayViewModel = viewModel(
                         key = "gateway-" + state.server.id + state.server.configSignature,
@@ -2907,10 +2907,10 @@ fun OnyxApp() {
                     )
                 }
 
-                // **« Archives »** — la tuile *Archived* de la référence, créée ici : la liste des
-                // conversations rangées de cet appareil, avec de quoi les ressortir. Une rangée
+                // // carried here; its row only exists if the probe proves the capability.
+                // archived conversations of this device, with what is needed to bring them back. A row
                 // ouvre la conversation dans le fil (le volet repart de sa racine, comme les autres
-                // gestes de la liste qui **sortent** du volet).
+                // // The pages the sidebar also carries (Models, Files, Scheduled, Kanban,
                 Route.ARCHIVED.name -> ArchivedScreen(
                     conversations = history,
                     onOpen = { conversation ->
@@ -2927,13 +2927,13 @@ fun OnyxApp() {
 
                 Route.SETTINGS.name -> SettingsScreen(
                     viewModel = settingsViewModel,
-                    // Le **Coffre** : sa page est empilée dans le volet, comme les autres tuiles
-                    // portées ici ; sa ligne n'existe que si la sonde prouve la capacité.
+                    // **The Vault**: its page is stacked in the sidebar, like the other tiles
+                    // carried here; its row only exists if the probe proves the capability.
                     onOpenVault = { panePush(Route.VAULT.name) },
                     onOpenBrowser = { paneLeave(Route.BROWSER_SCREEN.name) },
                     onDone = paneBack,
-                    // Les pages que le volet porte aussi (Modèles, Fichiers, Planifiés, Kanban,
-                    // Compétences, Outils, Aperçus) s'ouvrent **dans** le volet ; les autres sont
+                    // The pages the sidebar also carries (Models, Files, Scheduled, Kanban,
+                    // Skills, Tools, Insights) open **in** the sidebar; the others are
                     // des pages de l'app et la prennent, comme avant.
                     onOpenModels = { panePush(Route.MODELS.name) },
                     onOpenFiles = { panePush(Route.FILES.name) },
@@ -2971,8 +2971,8 @@ fun OnyxApp() {
                     },
                 )
 
-                // Une tuile sans écran ici ne devrait pas exister (`SidebarDestinations.paneScreens`
-                // est mesuré par un test) ; on ne dessine rien plutôt que d'inventer un écran.
+                // A tile without a screen here should not exist (`SidebarDestinations.paneScreens`
+                // is measured by a test); we draw nothing rather than invent a screen.
                 else -> Unit
             }
         }
@@ -2984,18 +2984,18 @@ fun OnyxApp() {
         }
 
         /**
-         * Le volet lui-même, tel qu'il se dessine dans les deux largeurs : la tête avec la
-         * passerelle et son voyant, la recherche, le sélecteur *Chats / Bots*, les tuiles, les
+         * The sidebar itself, as it is drawn in both widths: the head with the
+         * gateway and its indicator, the search, the *Chats / Bots* selector, the tiles, the
          * projets, les filtres et la liste. Les **bots** ne sont pas dans la liste : ils vivent
          * dans la position *Bots*, avec les salons.
          */
         val chatSidebar: @Composable () -> Unit = {
-            // **Les deux résolveurs du volet, calculés une fois par état de bots.**
+            // **The sidebar's two resolvers, computed once per bots state.**
             //
-            // Ils sont les **clés** du `remember` qui construit les rangées (`ChatSidebarHost`) :
-            // recréés à chaque recomposition de cet écran, ils faisaient rebâtir toutes les rangées
-            // — et toutes leurs vitres — à chaque fois, ce qui se sentait au défilement de la liste.
-            // Ils ne dépendent que des bots, du serveur et du nom affiché.
+            // The keys of the `remember` that builds the rows (`ChatSidebarHost`):
+            // recreated on every recomposition of this screen, they made all the rows be rebuilt
+            // — and all their panes — every time, which was felt when scrolling the list.
+            // They only depend on the bots, the server and the displayed name.
             val knownBots = remember(botsState.bots, botsState.hidden) {
                 (botsState.bots + botsState.hidden).distinctBy { it.name }
             }
@@ -3012,17 +3012,17 @@ fun OnyxApp() {
                     )
                 }
             }
-            // **La mise à jour de l'app** : le contrôle est **gratuit** (l'API publique de
-            // GitHub, sans compte ni clé) et **ponctuel** — une fois au lancement, une fois à
-            // l'ouverture du volet. Un `null` (pas de réseau, GitHub indisponible) ne dit rien
-            // à l'écran : le tiroir reste ce qu'il est.
+            // **The app update**: the check is **free** (GitHub's public API,
+            // without account or key) and **occasional** — once at launch, once at
+            // the sidebar's opening. A `null` (no network, GitHub unavailable) says nothing
+            // // The face of a sidebar row, by **the single resolution** — the same instance as
             val updateGate = remember { com.onyx.app.ui.sidebar.UpdateGate(context) }
             val updateOffer by updateGate.offer.collectAsStateWithLifecycle()
             LaunchedEffect(updateGate) { updateGate.refresh() }
-            // Le visage d'une ligne du volet, par **la résolution unique** — la même instance que
-            // le fil, la salle et la scène vocale. Ce n'était pas le cas : ce lambda refaisait le
-            // calcul (`knownBots.firstOrNull { … }?.faceCode ?: botsState.faces[name]`), une
-            // seconde écriture de la règle qui pouvait diverger de `BotFaceResolver`.
+            // The face of a sidebar row, by **the single resolution** — the same instance as
+            // the thread, the room and the voice scene. That was not the case: this lambda redid the
+            // computation (`knownBots.firstOrNull { … }?.faceCode ?: botsState.faces[name]`), a
+            // second writing of the rule that could diverge from `BotFaceResolver`.
             val faceCodeOf: (String) -> String? = remember(faceResolver) {
                 faceResolver::codeOf
             }
@@ -3031,22 +3031,22 @@ fun OnyxApp() {
                 onRetryServer = chatViewModel::retryServerConversations,
                 serverName = state.server.displayName,
                 serverAddress = state.server.serveBaseUrl.ifBlank { state.server.baseUrl },
-                // Joignable : le Dashboard répond. Non joignable : la dernière lecture a échoué.
-                // « Pas encore su » : ni l'un ni l'autre — l'app n'a pas encore interrogé.
+                // // "Not known yet": neither one — the app has not queried yet.
+                // "Not known yet": neither one — the app has not queried yet.
                 reachable = when {
                     botsState.problem != null -> false
                     state.server.canAdminister && !botsState.loading -> true
                     else -> null
                 },
                 agentName = displayName.trim().ifEmpty { "Onyx" },
-                // La marque **et le visage** d'une conversation se résolvent sur le **nom de profil de
-                // son bot** — le même calcul que l'en-tête et les onglets (`conversationProfile`) :
-                // par conversation, jamais par serveur.
-                //
-                // **Mémoïsé.** Ces deux résolveurs sont les **clés** du `remember` qui construit les
-                // rangées du volet : recreés à chaque recomposition de l'écran, ils faisaient
-                // rebâtir toutes les rangées — et toutes leurs vitres — à chaque fois, ce qui se
-                // sentait au défilement. Ils ne dépendent que des bots, du serveur et du nom affiché.
+                // A conversation's **mark and face** resolve on the **profile name of
+                // its bot** — the same computation as the header and the tabs (`conversationProfile`):
+                // per conversation, never per server.
+                // // **Memoized.** These two resolvers are the **keys** of the `remember` that builds the
+                // **Memoized.** These two resolvers are the **keys** of the `remember` that builds the
+                // sidebar's rows: recreated on every recomposition of the screen, they made
+                // all the rows — and all their panes — be rebuilt every time, which was
+                // felt when scrolling. They only depend on the bots, the server and the displayed name.
                 identityOf = identityOf,
                 conversations = history,
                 liveKinds = botsState.liveKinds,
@@ -3058,27 +3058,27 @@ fun OnyxApp() {
                 roomKinds = botsState.roomKinds,
                 projects = serverProjects,
                 faceCodeOf = faceCodeOf,
-                // Onyx n'a pas de compte : le rond du pied porte **le signe de la maison** — la
-                // rune du lanceur sur son disque teinté. Il portait l'initiale de la passerelle
-                // (« O »), faute de mieux : une initiale n'est pas un signe.
+                // launcher rune on its tinted disk. It carried the gateway's initial
+                // ("O"), for lack of better: an initial is not a sign.
+                // ("O"), for lack of better: an initial is not a sign.
                 tiles = shownTiles,
                 tileLibrary = tileLibrary,
-                // **Le réglage est écrit tout de suite** (clé dédiée `sidebar_tiles`) : un appareil
-                // tué au milieu de la composition retrouve la grille qu'il montrait, et l'ordre.
+                // killed mid-composition finds the grid it was showing, and the order.
+                // // A tile **stacks its screen in the sidebar** — it no longer closes it. That is the
                 onSetTileLayout = { ids -> scope.launch { settingsRepo.setSidebarTiles(ids) } },
-                // Une tuile **empile son écran dans le volet** — elle ne le ferme plus. C'est la
-                // correction demandée : « quand je clique par exemple sur Aperçus, on reste dans le
-                // volet ». Le choix précédent faisait l'inverse (`navTo` puis `close()`), et le
-                // propriétaire devait rouvrir le volet pour voir où il venait d'arriver.
+                // requested fix: "when I click for example on Insights, we stay in the
+                // sidebar". The previous choice did the opposite (`navTo` then `close()`), and the
+                // owner had to reopen the sidebar to see where he had just arrived.
+                // owner had to reopen the sidebar to see where he had just arrived.
                 onOpenTile = { id ->
                     sidebarState.pushDestination(id)
                 },
-                // La roue dentée et le rond d'initiale sont la destination de la tuile
-                // « Réglages » : elle s'ouvre dans le volet, comme les autres.
+                // tile: it opens in the sidebar, like the others.
+                // "Settings" tile: it opens in the sidebar, like the others.
                 onOpenSettings = {
                     sidebarState.pushDestination(Route.SETTINGS.name)
                 },
-                // **La mise à jour** : la carte du volet, le téléchargement, et l'écarter.
+                // its gestures live. Settings keeps its two paths (the gear
                 updateOffer = updateOffer,
                 onDownloadUpdate = {
                     updateOffer?.let(updateGate::download)
@@ -3087,17 +3087,17 @@ fun OnyxApp() {
                     updateGate.dismiss()
                 },
                 onOpenAccount = {
-                    // Le rond de l'initiale — et le nom de la passerelle dans la tête du volet —
-                    // ouvrent la feuille de compte (n° 8) : c'est là que vivent l'état de la
-                    // connexion et ses gestes. Les Réglages gardent leurs deux chemins (la roue
-                    // dentée de la tête, et la première rangée de la feuille).
+                    // The initial circle — and the gateway's name in the sidebar's head —
+                    // open the account sheet (no. 8): that is where the connection's state and
+                    // its gestures live. Settings keeps its two paths (the gear
+                    // of the head, and the sheet's first row).
                     accountSheetOpen = true
                 },
-                // Les gestes de la liste et du pied **sortent** du volet : ils ouvrent une
-                // conversation ou une page, donc la pile d'écrans du volet repart de sa racine.
+                // conversation or a page, so the sidebar's screen stack starts again from its root.
+                // The row becomes the thread: the opening cover starts from its bounds,
                 onOpenConversation = { conversation, rect ->
-                    // La rangée devient le fil : la couverture d'ouverture part de ses limites,
-                    // comme la rangée de la liste le faisait.
+                    // The row becomes the thread: the opening cover starts from its bounds,
+                    // as the list's row did.
                     openingRect = rect
                     chatViewModel.open(conversation)
                     paneLeave(Route.CHAT.name)
@@ -3108,7 +3108,7 @@ fun OnyxApp() {
                     paneLeave(Route.CHAT.name)
                     sidebarState.close()
                 },
-                // Le menu d'une rangée et la barre de sélection : les gestes de l'écran retiré,
+                // held in the sidebar.
                 // tenus dans le volet.
                 onSetConversationUnread = setConversationUnread,
                 onPinConversation = { conversation, pinned ->
@@ -3120,9 +3120,9 @@ fun OnyxApp() {
                 onRenameConversation = { conversation, title ->
                     scope.launch { conversationRepo.rename(conversation.id, title) }
                 },
-                // « Créer un fil » : une branche locale (copie du transcript) ouverte à part. Le
-                // serveur d'Onyx n'a pas de route pour bifurquer une session, la branche vit donc
-                // sur ce téléphone — c'est dit à l'appelant, jamais promis au serveur.
+                // Onyx server has no route to fork a session, the branch thus lives
+                // on this phone — it is told to the caller, never promised to the server.
+                // on this phone — it is told to the caller, never promised to the server.
                 onCreateThreadConversation = { conversation ->
                     scope.launch {
                         conversationRepo.fork(conversation.id)?.let { branch ->
@@ -3132,14 +3132,14 @@ fun OnyxApp() {
                         }
                     }
                 },
-                // Le retour en arrière du bandeau : une conversation supprimée est rétablie. Le
-                // rétablissement défait la **marque** de suppression — sans quoi le dépôt refuserait
-                // de la réécrire (une suppression est définitive pour tout autre chemin).
+                // restoration undoes the deletion **mark** — without which the repository would refuse
+                // to rewrite it (a deletion is final for any other path).
+                // // The deletion **reaches the source of truth**: the conversation leaves the
                 onRestoreConversation = { conversation -> scope.launch { conversationRepo.restore(conversation) } },
-                // La suppression **porte jusqu'à la source de vérité** : la conversation quitte le
-                // serveur (route `session.delete`, celle de l'écran d'un projet), puis le téléphone.
-                // Sans cela le registre gardait la session et la conversation revenait — c'était le
-                // défaut signalé : « je la retrouve ». Un échec serveur ne rend pas muet : la
+                // server (`session.delete` route, that of a project's screen), then the phone.
+                // Without that the registry kept the session and the conversation came back — it was the
+                // reported defect: "I find it again". A server failure does not make it mute: the
+                // local deletion did take place.
                 // suppression locale, elle, a eu lieu.
                 onDeleteConversation = { conversation ->
                     chatViewModel.delete(conversation)
@@ -3153,21 +3153,21 @@ fun OnyxApp() {
                     }
                 },
                 onOpenUsageConversation = { conversation ->
-                    // « Usage & cost » : la fiche d'usage de cette conversation (la route
-                    // `SESSION_USAGE`), comme le menu d'une rangée de l'écran retiré.
+                    // route), like the menu of a row of the removed screen.
+                    // `SESSION_USAGE` route), like the menu of a row of the removed screen.
                     usageSummary = com.onyx.app.data.net.SessionSummary.of(conversation)
                     usageFetchId = conversation.serverSessionId
                     // Le profil **du bot** de cette conversation : c'est lui qui porte sa ligne au
-                    // registre. `conversationProfile` lit la décision unique (`ProfileInForce`).
+                    // the registry. `conversationProfile` reads the single decision (`ProfileInForce`).
                     usageProfile = com.onyx.app.ui.bots.conversationProfile(
                         conversation,
                         bots,
                         state.server,
                         state.server.displayName,
                     )
-                    // Le modèle EN VIGUEUR de cette conversation (`ModelInForce`) : celui de son
-                    // bot, sinon celui du serveur — la même décision que l'en-tête. Une seule
-                    // source pour le nom affiché, le prix cherché et les compteurs.
+                    // source for the displayed name, the looked-up price and the counters.
+                    // bot's, otherwise the server's — the same decision as the header. A single
+                    // source for the displayed name, the looked-up price and the counters.
                     usageModel = com.onyx.app.ui.design.ModelInForce.inForce(
                         null,
                         botOfConversation(conversation, bots, state.server.displayName)?.model,
@@ -3178,8 +3178,8 @@ fun OnyxApp() {
                 },
                 onArchiveConversations = { ids -> scope.launch { conversationRepo.archiveAll(ids) } },
                 onDeleteConversations = { ids ->
-                    // Le lot part du serveur, puis du téléphone : les conversations visées n'ont de
-                    // session serveur que celles qui ont parlé — les autres n'ont rien à retirer.
+                    // The batch starts from the server, then from the phone: the targeted conversations only have a
+                    // server session for those that have spoken — the others have nothing to remove.
                     val going = history.filter { it.id in ids }
                     scope.launch {
                         runCatching {
@@ -3191,17 +3191,17 @@ fun OnyxApp() {
                     }
                     scope.launch { conversationRepo.deleteAll(ids) }
                 },
-                // « Réessayer » de la tête du volet : la liste des bots et celle des
-                // conversations sont relues, comme la carte de problème de l'écran retiré.
+                // conversation list are read again, like the removed screen's problem card.
+                // conversation list are read again, like the removed screen's problem card.
                 onRetry = {
                     botsViewModel.refresh()
                     scope.launch { conversationRepo.load() }
                 },
                 onOpenBot = { openBotChat(it); sidebarState.clearDestinations(); sidebarState.close() },
-                // Le menu d'une carte de bot dans le volet : la même table que la page « Bots ».
+                // // What failed (duplicate, start fresh, delete): the model's word, shown
                 botMenu = botMenuTable,
-                // Ce qui a échoué (dupliquer, repartir à zéro, supprimer) : le mot du modèle, montré
-                // dans la position *Bots* — une action qui échoue ne reste pas muette.
+                // What failed (duplicate, start fresh, delete): the model's word, shown
+                // in the *Bots* position — an action that fails does not stay mute.
                 botNotice = botsState.problem,
                 onDismissBotNotice = botsViewModel::dismissProblem,
                 onNewBot = {
@@ -3210,37 +3210,37 @@ fun OnyxApp() {
                     sidebarState.close()
                 },
                 onOpenRoom = { room -> openGroup(room); sidebarState.clearDestinations(); sidebarState.close() },
-                // La création d'une salle vit dans l'écran des bots : le « + » y mène en un geste —
-                // et, comme les autres entrées du volet, il **referme le volet** en ouvrant son
-                // écran : sans ça il restait ouvert par-dessus la liste des bots, seul cas de tous
+                // // screen: without that it stayed open above the bot list, the only case of all
+                // // the sidebar's choices.
+                // screen: without that it stayed open above the bot list, the only case of all
                 // les choix du volet.
                 onNewRoom = { navTo(Route.BOTS.name); sidebarState.close() },
                 onNewProject = { projectCreating = true },
                 onOpenProject = { project ->
                     selectedProject = project
-                    // Le volet se referme **aussi** ici : c'était la seconde entrée qui le laissait
-                    // ouvert sur l'écran ouvert.
+                    // The sidebar closes **also** here: it was the second entry that left it
+                    // open on the open screen.
                     navTo(Route.PROJECT_SESSIONS.name)
                     sidebarState.close()
                 },
-                // Ce que le volet porte : `null` quand il montre sa liste. **Replié**, le volet
-                // montre sa racine — et le retour système ne lui appartient plus, il ne mange donc
-                // pas un retour pour dépiler un écran qu'on ne voit pas.
+                // a back to pop a screen one does not see.
+                // shows its root — and system back no longer belongs to it, it thus does not consume
+                // a back to pop a screen one does not see.
                 destination = sidebarState.destination.takeIf { sidebarState.isOpen },
                 destinationContent = paneScreenFor.takeIf { sidebarState.isOpen },
                 onPaneBack = paneBack,
-                // L'état du volet porte le **mode recherche** (n° 7) : c'est lui qui permet au
+                // // in the sidebar, `ChatSidebarHost`).
                 // retour de quitter la recherche avant de refermer le volet (le gestionnaire est
                 // dans le volet, `ChatSidebarHost`).
                 sidebarState = sidebarState,
             )
         }
 
-        // Le clavier est traité **ici, une seule fois** : la zone de l'app se réduit au-dessus du
-        // clavier (`imePadding`), puis l'inset est consommé pour que les écrans internes ne
-        // s'en décalent pas une seconde fois. Sans ça, un champ bas d'un formulaire long
-        // (« Identifiant » de la configuration) restait sous le clavier : la zone défilante
-        // gardait toute la hauteur de l'écran, donc Compose n'avait rien à faire remonter.
+        // // shift by it a second time. Without that, a low field of a long form
+        // // ("Identifier" of the configuration) stayed under the keyboard: the scrolling area
+        // // kept the whole screen height, so Compose had nothing to lift.
+        // ("Identifier" of the configuration) stayed under the keyboard: the scrolling area
+        // kept the whole screen height, so Compose had nothing to lift.
         CompositionLocalProvider(LocalOverlayHost provides overlayHost) {
         BoxWithConstraints(
             modifier = Modifier
@@ -3248,84 +3248,84 @@ fun OnyxApp() {
                 .imePadding()
                 .consumeWindowInsets(WindowInsets.ime),
         ) {
-            // La géométrie du `NavigationSplitView` : volet borné (320…400 dp, jamais plus de
-            // 40 % de la fenêtre), détail qui garde 360 dp, et — quand les deux minima ne tiennent
-            // pas ensemble — un seul panneau. Le volet replié laisse le détail prendre tout.
-            // Le **mode** du volet est décidé par la largeur, ici même : étroit, il recouvre le fil
-            // (surimpression) ; large, il est posé à côté. Chaque mode a **sa** mémoire, si bien
-            // qu'un volet ouvert sur une tablette ne s'invite pas en surimpression sur un téléphone.
+            // // together — a single pane. The collapsed sidebar leaves the detail taking everything.
+            // // The sidebar's **mode** is decided by the width, right here: narrow, it covers the thread
+            // // (overlay); wide, it is set beside. Each mode has **its** memory, so that
+            // // a sidebar opened on a tablet does not invite itself as an overlay on a phone.
+            // (overlay); wide, it is set beside. Each mode has **its** memory, so that
+            // a sidebar opened on a tablet does not invite itself as an overlay on a phone.
             val sidebarMode = sidebarModeFor(maxWidth, androidx.compose.ui.platform.LocalDensity.current.fontScale)
             LaunchedEffect(sidebarMode) { sidebarState.updateMode(sidebarMode) }
-            // Ce que le réglage gardé était : on l'écrit de nouveau pour qu'un lancement suivant
-            // retrouve la même disposition sur grand écran.
+            // What the kept setting was: we write it again so that a following launch
+            // finds the same layout on a large screen.
             LaunchedEffect(sidebarMode, sidebarState.isOpen) {
                 if (sidebarMode == SidebarMode.DOCKED) {
                     settingsRepo.setSidebarCollapsed(!sidebarState.isOpen)
                 }
             }
-            // La géométrie des deux panneaux : replié, le détail prend tout. L'ouverture vient de
-            // l'état du volet — le même que celui de la surimpression. Quand le volet **porte un
-            // écran**, il prend la largeur d'un écran (`content`) : la colonne de la liste
-            // l'écraserait (voir `sidebarContentWidthFor`).
+            // // screen**, it takes a screen's width (`content`): the list column
+            // // would crush it (see `sidebarContentWidthFor`).
+            // screen**, it takes a screen's width (`content`): the list column
+            // would crush it (see `sidebarContentWidthFor`).
             val layout = listDetailLayout(
                 maxWidth,
                 fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale,
                 collapsed = sidebarMode == SidebarMode.DOCKED && !sidebarState.isOpen,
                 content = sidebarState.isNavigating,
             )
-            // Le **même** contrôle dans les deux largeurs : un seul appui ouvre ce qui est fermé,
-            // referme ce qui est ouvert. C'est ce qui rend le volet réversible sans jamais demander
-            // deux gestes — l'icône ne change pas, seul le libellé dit ce que le prochain appui fera.
+            // // two gestures — the icon does not change, only the label says what the next press will do.
+            // closes what is open. That is what makes the sidebar reversible without ever asking
+            // two gestures — the icon does not change, only the label says what the next press will do.
             val sidebarToggleControl: @Composable () -> Unit = {
                 SidebarToggleControl(
                     open = sidebarState.isOpen,
                     onClick = { sidebarState.toggle() },
                 )
             }
-            // Le contrôle de la barre : `sidebar.left`, **dans les deux états**. C'est ce qui rend
-            // le retour au volet un seul appui — la même pastille replie (« Replier la liste ») et
-            // déplie (« Déplier la liste »), que le volet soit posé ou non, et le même état que la
-            // surimpression. Deux contrôles distincts obligeaient auparavant à viser celui qui
-            // était dessiné : c'était le second geste à supprimer.
+            // // expands ("Expand the list"), whether the sidebar is docked or not, and the same state as the
+            // // overlay. Two distinct controls previously forced one to aim at the one that
+            // // was drawn: that was the second gesture to remove.
+            // the overlay. Two distinct controls previously forced one to aim at the one that
+            // was drawn: that was the second gesture to remove.
             val expandControl: (@Composable () -> Unit)? = if (layout.twoPanes) sidebarToggleControl else null
             val collapseControl: (@Composable () -> Unit)? = expandControl
-            // En surimpression (téléphone étroit, paysage, pliable replié), l'écran porte le volet :
-            // la **même** enveloppe les sert tous, si bien que le contrôle de la barre les ouvre tous
-            // de la même façon, et que le retour matériel les referme tous.
+            // // the same way, and that hardware back closes them all.
+            // the **same** wrapper serves them all, so that the bar's control opens them all
+            // the same way, and that hardware back closes them all.
             val withSidebar: @Composable (inner: @Composable () -> Unit) -> Unit = { inner ->
                 SidebarScaffold(state = sidebarState, sidebar = { chatSidebar() }, content = { inner() })
             }
-            // Le bord de l'écran est au retour système (une app ne peut s'en soustraire qu'en
-            // partie : Android plafonne l'exclusion à 200 dp par bord, mesuré sur cet appareil).
-            // Le geste du bord gauche — celui du `SidePanel` d'la référence — *révèle donc la liste des
-            // conversations* par le retour lui-même, au lieu de fermer l'app comme il le faisait
-            // sur les cinq géométries relevées : au pied de la pile il ouvre la liste, la liste
-            // ouverte il la referme (le retour reste donc entier quand le panneau est ouvert), et
-            // plus bas dans la pile il remonte comme avant. Deux panneaux : la liste est déjà là,
-            // le retour n'a plus qu'à remonter la pile — jamais de fermeture de l'app.
-            // Le retour (bouton ou geste du bord) ne doit **jamais** être avalé : s'il n'y a rien à
-            // dépiler, on remonte à l'écran qui a du sens. Avant, sur Réglages en deux panneaux,
-            // la pile était vide, `navBack()` rendait faux et le geste ne faisait **rien** — « je
-            // peux même pas faire retour avec le bord de l'écran ».
-            // Deux panneaux : la **racine** est le fil — le détail le peint aussi bien pour Chat que
-            // pour la liste des conversations, qui vit à gauche. Au pied de la pile, le retour n'est
-            // donc plus consommé : il rend la main au système, comme sur un téléphone. La règle est
-            // partagée et mesurée ([routeBackHandled]).
+            // // partly: Android caps the exclusion at 200 dp per edge, measured on this device).
+            // // The left-edge gesture — that of the reference's `SidePanel` — *thus reveals the conversation
+            // The left-edge gesture — that of the reference's `SidePanel` — *thus reveals the conversation
+            // list* through back itself, instead of closing the app as it did
+            // on the five geometries surveyed: at the foot of the stack it opens the list, the list
+            // open it closes it (back thus stays whole when the panel is open), and
+            // lower in the stack it goes back as before. Two panes: the list is already there,
+            // back only has to go back up the stack — never a closing of the app.
+            // // pop, we go back to the screen that makes sense. Before, on Settings in two panes,
+            // // the stack was empty, `navBack()` returned false and the gesture did **nothing** — "I
+            // // can't even go back with the screen edge".
+            // // Two panes: the **root** is the thread — the detail paints it as well for Chat as
+            // // for the conversation list, which lives on the left. At the foot of the stack, back is
+            // // thus no longer consumed: it hands control back to the system, as on a phone. The rule is
+            // // shared and measured ([routeBackHandled]).
+            // shared and measured ([routeBackHandled]).
             val backHandled = routeBackHandled(
                 currentRoute = route,
                 backStack = backStack,
                 twoPanes = layout.twoPanes,
                 chatRoute = Route.CHAT.name,
             )
-            // **Le repli d'un retour à pile vide — une seule règle pour les trois gestes.**
-            // La flèche de l'en-tête (dans la page), le bouton retour du système et le geste du
-            // bord descendent la **même** descente : on remonte la pile d'abord (`navBack`), et le
-            // repli ne sert **que** quand elle est vide. Il vient ici de la **table des retours**
-            // ([TableDesRetours]) — jamais d'une cible écrite en dur. Les flèches des pages
-            // écrivent ce même repli à leur site d'appel (`if (!navBack()) navTo(<repli>)`) : les
-            // deux cibles ne peuvent plus diverger, et `ArrowInnerLockTest` compare l'une à
-            // l'autre, en nommant tout écart. (La page de contexte est la seule dont le repli est
-            // un **état**, `contextReturn` — sa ligne de table le dit.)
+            // **The fallback of an empty-stack back — a single rule for the three gestures.**
+            // // **The fallback of an empty-stack back — a single rule for the three gestures.**
+            // // The header's arrow (in the page), the system back button and the edge
+            // // gesture follow the **same** descent: we pop the stack first (`navBack`), and the
+            // // fallback is only used **when** it is empty. It comes here from the **back table**
+            // // ([TableDesRetours]) — never from a hard-coded target. The pages' arrows
+            // // write this same fallback at their call site (`if (!navBack()) navTo(<fallback>)`): the
+            // // two targets can no longer diverge, and `ArrowInnerLockTest` compares one to
+            // // the other, naming any discrepancy. (The context page is the only one whose fallback is
             fun repliDeRetour(): String =
                 if (route == Route.CONTEXT_EDITOR.name) {
                     contextReturn
@@ -3339,23 +3339,23 @@ fun OnyxApp() {
                 }
             }
 
-            // Chaque route garde son état sauvegardé (position de défilement comprise) : la route
-            // qui sort de la composition le laisse ici, et le retour la retrouve **pile où elle
-            // était** — avant, revenir d'un sous-écran ramenait en haut de la page précédente.
+            // Each route keeps its saved state (scroll position included): the route
+            // that leaves composition leaves it here, and back finds it **exactly where it
+            // was** — before, returning from a sub-screen brought back to the top of the previous page.
             val routeStates = rememberSaveableStateHolder()
 
             AnimatedContent(
                 targetState = Route.valueOf(route),
                 transitionSpec = {
                     if (layout.twoPanes && initialState in TwoPaneRoutes && targetState in TwoPaneRoutes) {
-                        // La colonne ne glisse pas avec le détail : comme NavigationSplitView.
+                        // The column does not slide with the detail: like NavigationSplitView.
                         EnterTransition.None.togetherWith(ExitTransition.None)
                     } else {
                         onyxRouteTransition(initialState, targetState)
                     }
                 },
-                // Le contenu de la route est enregistré dans le calque du verre : une vitre qui
-                // le recouvre (panneau de menu, bouton flottant) y voit ce qui passe derrière.
+                // // The route's content is recorded in the glass layer: a pane that
+                // // covers it (menu panel, floating button) sees what passes behind it.
                 modifier = Modifier
                     .fillMaxSize()
                     .then(LocalBackdrop.current?.let { Modifier.recordBackdrop(it) } ?: Modifier),
@@ -3363,15 +3363,15 @@ fun OnyxApp() {
             ) { presentedRoute ->
               routeStates.SaveableStateProvider(presentedRoute.name) {
                 if (layout.twoPanes && presentedRoute in TwoPaneRoutes) {
-                    // Le volet est replié : un seul panneau est peint, mais il reste deux
-                    // panneaux « en puissance » — la géométrie garde ses bornes, et le détail
+                    // // panes "in power" — the geometry keeps its bounds, and the detail
+                    // // carries the control that reopens the list.
                     // porte le contrôle qui rouvre la liste.
                     if (presentedRoute == Route.KANBAN) {
-                        // Capture Kanban 2.0 : le tableau et la conversation côte à côte. Le
-                        // tableau tient le panneau de gauche et porte le sélecteur de section
-                        // (le `topRow` d'la référence) ; la conversation celui de droite — « demander à
-                        // Onyx » la remplit sans quitter le tableau. Le volet suit la même
-                        // géométrie bornée que les autres routes, pas un partage 58/42 figé.
+                        // // board holds the left pane and carries the section picker
+                        // // (the reference's `topRow`); the conversation the right one — "ask
+                        // // Onyx" fills it without leaving the board. The sidebar follows the same
+                        // // bounded geometry as the other routes, not a frozen 58/42 split.
+                        // bounded geometry as the other routes, not a frozen 58/42 split.
                         OnyxListDetail(
                             layout = kanbanPairLayout(maxWidth, sidebarCollapsed),
                             sidebar = { kanbanPane(true, kanbanTopRow, collapseControl) },
@@ -3389,7 +3389,7 @@ fun OnyxApp() {
                                     Route.CRON -> cronPane(true, expandControl)
                                     Route.KANBAN -> kanbanPane(true, null, expandControl)
                                     Route.CODE -> codePane(true, expandControl)
-                                    // Les bots gardent la colonne à leur gauche (D6).
+                                    // // The bots keep the column to their left (D6).
                                     Route.BOTS -> botsPane(true, expandControl)
                                     else -> Unit
                                 }
@@ -3401,12 +3401,12 @@ fun OnyxApp() {
             Route.CHAT -> withSidebar { chatPane(true, sidebarToggleControl) }
 
             Route.VOICE -> VoiceScreen(
-                // Les tours **finis** sont calcules une fois dans la projection : la voix
-                // n'affiche que les tours revolus, et les reconstruire ici reparcourt tout le
+                // // only shows finished turns, and rebuilding them here would re-walk the whole
+                // // thread on every recomposition of the root.
                 // fil a chaque recomposition de la racine.
                 history = state.voiceTurns,
-                // `VoiceView`: `Self.demo ? .listening : session.phase` — la maquette montre
-                // l'écoute, l'orbe vit de la même onde, et rien n'est un mensonge : c'est une pose.
+                // // listening, the orb lives on the same wave, and nothing is a lie: it is a pose.
+                // listening, the orb lives on the same wave, and nothing is a lie: it is a pose.
                 phase = voicePose ?: if (voiceDemo) VoicePhase.LISTENING else phase,
                 heard = if (voiceDemo && (voicePose == null || voicePose == VoicePhase.LISTENING)) {
                     VOICE_DEMO_WORDS
@@ -3417,8 +3417,8 @@ fun OnyxApp() {
                 level = if (voiceDemo) demoVoiceLevel.value else listenLevel,
                 streaming = state.isStreaming,
                 handsFree = if (voiceDemo) true else handsFree,
-                // `VoiceView.soloHeader` montre `conversation.title` : le nom donné à la
-                // conversation, sinon sa première question — jamais le nom du serveur.
+                // // conversation, otherwise its first question — never the server's name.
+                // conversation, otherwise its first question — never the server's name.
                 conversationTitle = if (voiceDemo) {
                     VOICE_DEMO_TITLE
                 } else {
@@ -3430,14 +3430,14 @@ fun OnyxApp() {
                 },
                 problem = listenProblem,
                 alertAction = listenAlert,
-                // La phrase d'aide nomme les phrases réellement écoutées (celles réglées par la
-                // personne, sinon celles de base) : plus de mots anglais au-dessus de réglages
-                // français.
+                // The help sentence names the phrases actually listened to (those set by the
+                // person, otherwise the base ones): no more English words above French
+                // settings.
                 stopPhrases = stopPhrases,
                 onToggleHandsFree = voice::toggleHandsFree,
-                // « Parler pendant les réponses » : les trois choix du panneau vocal écrivent le
-                // réglage (le même que Réglages → Voix), qui décide si le micro s'ouvre derrière
-                // une réponse.
+                // "Speak during replies": the three choices of the voice panel write the
+                // setting (the same as Settings → Voice), which decides whether the microphone opens behind
+                // a reply.
                 talkOverReplies = TalkOverChoice.of(talkOver),
                 onTalkOverChange = { choice -> scope.launch { settingsRepo.setTalkOver(choice.setting) } },
                 onRestart = {
@@ -3446,8 +3446,8 @@ fun OnyxApp() {
                         chatState.value.messages.lastOrNull {
                             it.role == com.onyx.app.data.model.Role.ASSISTANT && it.text.isNotBlank()
                         }?.let {
-                            // La relance sort de la voix du bot de la conversation ouverte —
-                            // `replayLastReply()` du modèle passe `conversation.bot?.profile`.
+                            // Replay comes from the open conversation bot's voice —
+                            // the model's `replayLastReply()` passes `conversation.bot?.profile`.
                             voice.speak(it.text, speaker = openConversationBot?.name)
                         }
                     }
@@ -3470,15 +3470,15 @@ fun OnyxApp() {
                 onOpenSettings = { navTo(Route.VOICE_SETTINGS.name) },
                 isPaused = voice.isPaused.collectAsStateWithLifecycle().value,
                 onPauseResume = { if (voice.isPaused.value) voice.resumeSpeaking() else voice.pauseSpeaking() },
-                // Réglages → Apparence : l'orbe et sa lumière sont ceux du réglage, partout.
-                // `VoiceOrb.shown` d'la référence : « Bot faces » éteint remplace la face de Onyx par la
-                // Bubble, pour qu'aucun visage n'apparaisse là.
+                // Settings → Appearance: the orb and its light are those of the setting, everywhere.
+                // The reference's `VoiceOrb.shown`: "Bot faces" off replaces Onyx's face with the
+                // Bubble, so that no face appears there.
                 orb = if (voiceOrb == VoiceOrbChoice.ONYX && !botFaces) VoiceOrbChoice.BUBBLE else voiceOrb,
                 onOrbChange = { orb -> scope.launch { settingsRepo.setVoiceOrb(orb) } },
                 orbLight = orbLight,
                 onOrbLightChange = { light -> scope.launch { settingsRepo.setOrbLight(light) } },
-                // L'orbe est un bouton, comme `VoiceView:123` : son action est celle de la
-                // phase en cours (`VoiceSession.primaryAction`).
+                // The orb is a button, like `VoiceView:123`: its action is that of the
+                // current phase (`VoiceSession.primaryAction`).
                 onOrbClick = {
                     when (phase) {
                         VoicePhase.IDLE, VoicePhase.SPEAKING, VoicePhase.THINKING -> {
@@ -3486,8 +3486,8 @@ fun OnyxApp() {
                                 PackageManager.PERMISSION_GRANTED
                             if (granted) voice.startListening() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                         }
-                        // Rien ne se dit de plus à mi-mots : l'appareil envoie la question dès que
-                        // la phrase se termine ; l'orbe rend donc le repos, sans mentir.
+                        // Nothing more is said mid-word: the device sends the question as soon as
+                        // the sentence ends; the orb thus returns to rest, without lying.
                         VoicePhase.LISTENING -> voice.stop()
                     }
                 },
@@ -3508,17 +3508,17 @@ fun OnyxApp() {
                 viewModel = settingsViewModel,
                 onOpenVault = { navTo(Route.VAULT.name) },
                 onOpenBrowser = { navTo(Route.BROWSER_SCREEN.name) },
-                // « Terminé » referme la feuille : on revient **d'où l'on est venu** (le fil, la
-                // liste, ou une tuile de bot), et non systématiquement sur le fil — ouvrir les
-                // Réglages depuis la liste des conversations et se retrouver dans le fil était
-                // un retour faux.
+                // "Done" closes the sheet: we return **where one came from** (the thread, the
+                // list, or a bot tile), and not systematically to the thread — opening
+                // Settings from the conversation list and ending up in the thread was
+                // a false back.
                 onDone = { if (!navBack()) navTo(Route.CHAT.name) },
                 onOpenAppearance = { navTo(Route.APPEARANCE.name) },
                 onOpenModels = { navTo(Route.MODELS.name) },
                 onOpenVoice = { navTo(Route.VOICE_SETTINGS.name) },
                 onOpenGateway = { navTo(Route.GATEWAY.name) },
-                // Journaux : la ligne des Réglages n'est **jamais** fermée (le journal vocal est
-                // local à l'appareil), là où la Passerelle demande une session du Dashboard.
+                // Logs: the Settings row is **never** closed (the voice journal is
+                // local to the device), whereas the Gateway requires a Dashboard session.
                 onOpenLogs = { navTo(Route.LOGS.name) },
                 onOpenFiles = { navTo(Route.FILES.name) },
                 onOpenCron = { botCronProfile = null; navTo(Route.CRON.name) },
@@ -3541,12 +3541,12 @@ fun OnyxApp() {
                 onOpenNotifications = { navTo(Route.NOTIFICATIONS.name) },
                 onOpenConnectionDetails = { navTo(Route.CONNECTION_DETAILS.name) },
                 onSetContextWindow = settingsViewModel::setContextWindow,
-                // Les Réglages se présentent par-dessus les deux panneaux : leur barre garde le
-                // contrôle du volet, comme les autres routes d'un écran large.
+                // Settings presents itself above the two panes: their bar keeps the
+                // sidebar's control, like the other routes of a large screen.
                 sidebarControl = expandControl ?: collapseControl,
                 onEraseEverything = {
-                    // la référence efface puis ferme la feuille ; ici l'effacement vide aussi la
-                    // conversation ouverte, donc on repart sur une nouvelle.
+                    // the reference erases then closes the sheet; here erasing also empties the
+                    // open conversation, so we start again on a new one.
                     scope.launch {
                         AppContainer.eraseEverything()
                         chatViewModel.newConversation()
@@ -3565,7 +3565,7 @@ fun OnyxApp() {
                     ?: botsState.bots.firstOrNull { it.name == profile }
                     ?: profile?.let { BotProfile(name = it) }
                 if (bot == null) {
-                    // Un processus recréé sans le bot choisi ne doit pas ouvrir le store `default`.
+                    // A recreated process without the chosen bot must not open the `default` store.
                     LaunchedEffect(Unit) { navTo(Route.BOTS.name) }
                 } else {
                     val cronViewModel: CronViewModel = viewModel(
@@ -3584,9 +3584,9 @@ fun OnyxApp() {
                 }
             }
 
-            // « Voice… » : la voix du bot, choisie pour lui seul (`BotVoicePicker`). Le réglage est
-            // écrit tout de suite (`setBotVoice`) ; l'écran relit ce que l'app a gardé, donc la
-            // coche survit à une relance.
+            // "Voice…": the bot's voice, chosen for it alone (`BotVoicePicker`). The setting is
+            // written right away (`setBotVoice`); the screen reads back what the app kept, so the
+            // check mark survives a restart.
             Route.BOT_VOICE -> {
                 val profile = botVoiceProfile
                 val bot = selectedBot?.takeIf { it.name == profile }
@@ -3621,10 +3621,10 @@ fun OnyxApp() {
                     botsViewModel.addLocalBot(profile, title)
                     navTo(Route.BOTS.name)
                 },
-                // Le retour remonte **la pile** d'abord : cet écran s'ouvre aussi du **volet**
-                // (« Nouveau bot » d'un serveur sans identifiants Dashboard, dont la page
-                // précédente est le fil), et `navTo` y laissait une entrée derrière lui — le
-                // retour d'alors ne rendait pas la page quittée, et le suivant la rejouait.
+                // Back pops **the stack** first: this screen also opens from the **sidebar**
+                // ("New bot" of a server without Dashboard credentials, whose
+                // previous page is the thread), and `navTo` left an entry behind it — the
+                // back of that time did not return the page left, and the next replayed it.
                 onBack = { if (!navBack()) navTo(Route.BOTS.name) },
             )
 
@@ -3632,8 +3632,8 @@ fun OnyxApp() {
 
             Route.BOT_EDITOR -> {
                 val bot = selectedBot
-                // Les jeux d'outils et les compétences du bot : lus au serveur à l'ouverture de
-                // l'éditeur, et écrits au geste (voir `BotEditorViewModel`).
+                // The bot's tool sets and skills: read from the server when the
+                // editor opens, and written on the gesture (see `BotEditorViewModel`).
                 val editorViewModel: BotEditorViewModel = viewModel(
                     key = "bot-editor-" + state.server.id + state.server.configSignature + "-" + bot?.name,
                     factory = viewModelFactory {
@@ -3644,19 +3644,19 @@ fun OnyxApp() {
                 var deleteProblem by remember(bot?.name) { mutableStateOf<String?>(null) }
                 BotEditorScreen(
                     bot = bot,
-                    // L'aperçu montre le visage qui s'appliquera : celui du **fil** quand on est
-                    // venu de la conversation, celui du bot sinon.
+                    // The preview shows the face that will apply: the **thread's** when one
+                    // came from the conversation, the bot's otherwise.
                     faceCode = bot?.let { faceConversation?.faceCode ?: botsViewModel.faceFor(it) },
-                    // Le visage choisi dans l'écran dédié, pour un bot en création : il revient ici
-                    // par le même état, et l'aperçu le montre.
+                    // The face chosen on the dedicated screen, for a bot being created: it returns here
+                    // through the same state, and the preview shows it.
                     chosenFaceCode = if (bot == null) newBotFaceCode else null,
                     mainName = state.server.displayName,
                     onFaceChosen = {
                         if (bot != null) navTo(Route.BOT_FACE.name)
                     },
                     onFaceChosenNamed = { _, name ->
-                        // Un bot en création n'existe pas encore sur le serveur : l'écran de
-                        // visage s'ouvre sur lui par son nom, et le choix revient à l'éditeur.
+                        // A bot being created does not exist yet on the server: the face
+                        // screen opens on it by its name, and the choice returns to the editor.
                         if (bot == null) {
                             newBotName = name
                             newBotFaceCode = null
@@ -3678,7 +3678,7 @@ fun OnyxApp() {
                         navTo(Route.BOT_SCHEDULES.name)
                     },
                     onOpenVoice = {
-                        // « Voice… » de l'éditeur : la même feuille que par le menu d'une tuile.
+                        // "Voice…" of the editor: the same sheet as from a tile's menu.
                         botVoiceProfile = bot?.name
                         navTo(Route.BOT_VOICE.name)
                     },
@@ -3687,10 +3687,10 @@ fun OnyxApp() {
                     onPickModel = { model ->
                         selectedBot?.let { botsViewModel.setModel(it, model, providerForChosen(model)) }
                     },
-                    // **« Modèle » ouvre la vraie liste.** Les deux lignes de l'écran
-                    // (« hermes-agent », un identifiant brut) ne disent rien à la personne qui
-                    // règle son bot ; la feuille du fil montre les modèles disponibles, par profil,
-                    // avec recherche, prix et favoris.
+                    // **"Model" opens the real list.** The screen's two lines
+                    // ("hermes-agent", a raw identifier) say nothing to the person who
+                    // sets her bot; the thread sheet shows the available models, per profile,
+                    // with search, price and favourites.
                     onOpenModelSheet = { editorModelSheet = true },
                     toolsets = editorState.toolsets,
                     toolsSelection = editorState.toolsSelection,
@@ -3700,48 +3700,48 @@ fun OnyxApp() {
                     alwaysLoadedSkills = editorState.alwaysLoaded,
                     onToggleSkill = editorViewModel::toggleSkill,
                     onPinSkill = editorViewModel::pinSkill,
-                    // **Pas de porte « Idées » sur la page d'identité** : l'arbitrage de la
-                    // réconciliation refuse la rangée que le lot du visage avait ajoutée. La
-                    // suppression d'Idées/Objectifs (demande du propriétaire) a retiré l'écran, sa
-                    // route, sa destination, sa clé de dictionnaire et cette porte de secours.
-                    // Voir `DeletionIdeasGoalsTest` et `FaceGateIdentityTest`.
+                    // **No "Ideas" door on the identity page**: the reconciliation
+                    // arbitration refuses the row the face batch had added. The
+                    // deletion of Ideas/Goals (owner's request) removed the screen, its
+                    // route, its destination, its dictionary key and this emergency door.
+                    // See `DeletionIdeasGoalsTest` and `FaceGateIdentityTest`.
                     problem = deleteProblem ?: editorState.problem,
                     onSave = { title, about, model, shown ->
-                        // **Un renommage se propage.** Le titre d'une conversation de bot est le
-                        // nom du bot : sans ce report, la liste gardait « coder » et la
-                        // conversation se détachait de son bot (elle perdait son visage).
+                        // **A rename propagates.** A bot conversation's title is the
+                        // bot's name: without this report, the list kept "coder" and the
+                        // conversation detached from its bot (it lost its face).
                         bot?.let { botsViewModel.saveEdit(it, title, about, model, shown) }
                         val nouveauLibelle = title.trim()
-                        // Sans condition de changement : `retitleBot` ne touche que les
-                        // conversations dont le titre n'est pas déjà le nouveau.
-                        //
-                        // **Et seulement celles de CE bot.** La session canonique est ce que le
-                        // serveur donne au profil : sans elle, l'ancienne règle renommait aussi
-                        // les fils d'autres bots qui portaient le même libellé, et renommer un
-                        // bot changeait le nom des autres.
+                        // Without a change condition: `retitleBot` only touches the
+                        // conversations whose title is not already the new one.
+                        // // **And only those of THIS bot.** The canonical session is what the
+                        // **And only those of THIS bot.** The canonical session is what the
+                        // server gives to the profile: without it, the old rule also renamed
+                        // the threads of other bots that carried the same label, and renaming one
+                        // bot changed the name of the others.
                         if (bot != null && nouveauLibelle.isNotBlank()) {
                             scope.launch {
                                 conversationRepo.retitleBot(
                                     profile = bot.name,
-                                    // L'ancien libellé, celui que la liste montrait avant ce geste :
-                                    // il ne sert plus à reconnaître le bot (c'est la session qui le
-                                    // dit), mais à savoir quels titres n'étaient **que** son nom —
-                                    // ceux-là suivent le renommage, les autres non.
+                                    // The old label, the one the list showed before this gesture:
+                                    // it no longer serves to recognize the bot (it is the session that
+                                    // says it), but to know which titles were **only** its name —
+                                    // those follow the rename, the others do not.
                                     fromLabel = bot.label(state.server.displayName),
                                     toLabel = nouveauLibelle,
                                     canonicalSessionId = bot.chatId,
                                 )
                             }
                         }
-                        // **On reste sur la page.** C'est `navTo(Route.BOTS.name)` qui était ici :
-                        // « Enregistrer » renvoyait sur la liste des bots — que le propriétaire lit
-                        // comme « la page de création de bot » — alors qu'il demandait seulement à
-                        // garder ses réglages. `saveEdit` écrit le profil (serveur + copie locale)
-                        // et relit le roster ; l'écran n'a plus aucune raison de partir.
+                        // **We stay on the page.** It was `navTo(Route.BOTS.name)` that was here:
+                        // "Save" sent back to the bot list — which the owner reads
+                        // as "the bot creation page" — whereas he only asked to
+                        // keep his settings. `saveEdit` writes the profile (server + local copy)
+                        // and reads the roster again; the screen has no reason left to leave.
                     },
                     onCreate = { title, about, soul, shown, faceCode ->
-                        // Le profil naît sur le serveur avec le visage de son modèle : l'écran ne
-                        // se ferme qu'une fois qu'il a pris, et un refus se lit ici.
+                        // The profile is born on the server with its template's face: the screen does not
+                        // close until it has taken, and a refusal is read here.
                         scope.launch {
                             val failure = botsViewModel.createBot(
                                 title = title,
@@ -3763,8 +3763,8 @@ fun OnyxApp() {
                         if (target == null) {
                             navTo(Route.BOTS.name)
                         } else {
-                            // La suppression part au serveur : l'écran ne se ferme qu'une fois
-                            // qu'elle a pris, et un refus se lit ici, sans rien effacer.
+                            // The deletion goes to the server: the screen only closes once
+                            // it has taken, and a refusal is read here, without erasing anything.
                             scope.launch {
                                 val failure = botsViewModel.deleteBot(target)
                                 if (failure == null) {
@@ -3778,10 +3778,10 @@ fun OnyxApp() {
                     },
                     onCancel = { if (!navBack()) navTo(Route.BOTS.name) },
                 )
-                // **La feuille des modèles, par-dessus l'identité du bot.** Même composant que le
-                // fil et la salle ; ce que le choix change est écrit sous son titre
-                // (`ModelScope.BOT` : « Pour toutes les conversations de ce bot »), et le choix est
-                // écrit sur le profil du bot — serveur (`profiles.configure`) et copie locale.
+                // // thread and the room; what the choice changes is written under its title
+                // **The models sheet, above the bot's identity.** Same component as the
+                // thread and the room; what the choice changes is written under its title
+                // (`ModelScope.BOT`: "For all this bot's conversations"), and the choice is
                 if (editorModelSheet) {
                     com.onyx.app.ui.models.ModelSheet(
                         models = modelChoices,
@@ -3793,13 +3793,13 @@ fun OnyxApp() {
                         profiles = modelProfiles,
                         scope = com.onyx.app.ui.models.ModelScope.BOT,
                         fallback = state.fallback,
-                        // Pas de « Mode rapide » : ce réglage appartient à une session de
-                        // conversation, et l'identité d'un bot n'en a pas.
+                        // No "Fast mode": this setting belongs to a conversation
+                        // session, and a bot's identity has none.
                         fastMode = null,
                         onPickModel = { model ->
                             bot?.let { botsViewModel.setModel(it, model, providerForChosen(model)) }
-                            // Le roster est relu pour que la rangée « Modèle » montre le choix
-                            // retenu, et le modèle entre dans les récents du serveur.
+                            // The roster is read again so that the "Model" row shows the chosen
+                            // one, and the model enters the server's recents.
                             botsViewModel.refresh()
                             modelPrefs.noteRecent(state.server.id, model)
                             modelRecents = modelPrefs.recents(state.server.id)
@@ -3817,8 +3817,8 @@ fun OnyxApp() {
 
             Route.BOT_FACE -> {
                 val bot = selectedBot
-                // Un bot **en création** n'existe pas encore sur le serveur : l'écran de visage
-                // s'ouvre quand même sur lui, et le choix revient à l'éditeur qui le crée.
+                // A bot **being created** does not exist yet on the server: the face screen
+                // still opens on it, and the choice returns to the editor that creates it.
                 val pendingName = newBotName
                 if (bot == null && pendingName == null) {
                     LaunchedEffect(Unit) { if (!navBack()) navTo(Route.BOTS.name) }
@@ -3829,8 +3829,8 @@ fun OnyxApp() {
                         current = newBotFaceCode,
                         isDefault = false,
                         hasPickedFace = newBotFaceCode != null,
-                        // Un bot qui n'existe pas encore n'a rien à écrire sur le serveur : le
-                        // visage est posé **avec lui**, à la création.
+                        // A bot that does not exist yet has nothing to write on the server: the
+                        // face is set **with it**, at creation.
                         serverBacked = false,
                         keptWithBot = true,
                         onSave = { code ->
@@ -3840,10 +3840,10 @@ fun OnyxApp() {
                         onCancel = { if (!navBack()) navTo(Route.BOT_EDITOR.name) },
                     )
                 } else {
-                    // **Le visage d'un fil ou celui d'un bot ?** Venu de la conversation, le choix
-                    // n'écrit que sur **ce fil** (`Conversation.faceCode`) : les autres conversations
-                    // du même bot gardent le leur — c'était tout le défaut relevé (« ça a changé
-                    // tous les coder »). Venu de l'onglet « Bots », il écrit sur le bot, comme avant.
+                    // **A thread's face or a bot's?** Came from the conversation, the choice
+                    // only writes on **this thread** (`Conversation.faceCode`): the other conversations
+                    // of the same bot keep theirs — that was the whole reported defect ("it changed
+                    // all the coder ones"). Came from the "Bots" tab, it writes on the bot, as before.
                     val thread = faceConversation
                     BotFacePickerScreen(
                         botName = bot.name,
@@ -3854,8 +3854,8 @@ fun OnyxApp() {
                         serverBacked = state.server.hasServeCredentials,
                         onSave = { code ->
                             if (thread != null) {
-                                // Le fil, et lui seul : la conversation est enregistrée avec son
-                                // visage, et la liste relit ce fichier (une seule source).
+                                // The thread, and it alone: the conversation is saved with its
+                                // face, and the list reads this file back (a single source).
                                 scope.launch { conversationRepo.save(thread.copy(faceCode = code)) }
                             } else {
                                 botsViewModel.setFace(bot, code)
@@ -3867,16 +3867,16 @@ fun OnyxApp() {
                 }
             }
 
-            // **La salle est enveloppée par le volet**, comme le fil : sans cette enveloppe, le
-            // contrôle du volet changeait son état sans que rien ne s'ouvre — « le bouton ne fait
-            // rien ». Le même `SidebarScaffold` sert donc le fil et la salle.
+            // **The room is wrapped by the sidebar**, like the thread: without this wrapper, the
+            // sidebar's control changed its state without anything opening — "the button does
+            // nothing". The same `SidebarScaffold` thus serves the thread and the room.
             Route.GROUP_CHAT -> withSidebar {
                 val room = openedRoom
                 if (room != null) {
-                    // Une salle du serveur ouverte depuis la liste : son fil vient d'Hermes lui-même
-                    // (`groups.log` / `groups.state`), et ce qui y est écrit part par `groups.send`.
-                    // Le compositeur local à tours de parole (GroupChatScreen) ne sert plus qu'à une
-                    // salle neuve (« New Group Chat »), dont les membres ne sont pas encore chez Hermes.
+                    // A server room opened from the list: its thread comes from Hermes itself
+                    // (`groups.log` / `groups.state`), and what is written there leaves by `groups.send`.
+                    // The local turn-taking composer (GroupChatScreen) is now only used by a
+                    // new room ("New Group Chat"), whose members are not yet on Hermes's side.
                     val roomViewModel: GroupRoomViewModel = viewModel(
                         key = "room-" + state.server.id + state.server.configSignature + "|" + room.id,
                         factory = viewModelFactory {
@@ -3893,47 +3893,47 @@ fun OnyxApp() {
                     GroupRoomScreen(
                         viewModel = roomViewModel,
                         server = state.server,
-                        // **Le volet**, comme dans un fil de bot : la même pastille, le même geste.
+                        // **The sidebar**, as in a bot thread: the same badge, the same gesture.
                         sidebarToggle = sidebarToggleControl,
                         faceResolver = faceResolver,
-                        // La salle s'ouvre depuis la liste des conversations comme depuis l'onglet
-                        // Bots : le retour revient donc là d'où l'on vient, et ne saute plus
-                        // systématiquement sur Bots.
+                        // The room opens from the conversation list as from the Bots
+                        // tab: back thus returns where one comes from, and no longer jumps
+                        // systematically to Bots.
                         onBack = { if (!navBack()) navTo(Route.BOTS.name) },
-                        // Le crayon : une conversation **neuve de cette salle** — ses membres et son
-                        // nom, un journal neuf chez Hermes (`groups.create`) — ouverte **dans la
-                        // salle** : le même écran, donc la même plaque, les mêmes onglets et les
-                        // mêmes visages. Il ne quitte plus la route : l'ancien chemin vidait
-                        // `openedRoom` et retombait sur le compositeur local de `GroupChatScreen`,
-                        // qui apparaissait par-dessus la plaque pendant la transition (« un second
-                        // compositeur vide en flou, décalé à droite »).
+                        // The pencil: a **new conversation of this room** — its members and its
+                        // name, a new journal on Hermes's side (`groups.create`) — opened **in the
+                        // room**: the same screen, thus the same plate, the same tabs and the
+                        // same faces. It no longer leaves the route: the old path emptied
+                        // `openedRoom` and fell back on the local composer of `GroupChatScreen`,
+                        // which appeared above the plate during the transition ("a second
+                        // empty composer in blur, shifted to the right").
                         onNewConversation = {
-                            // Une salle encore vierge se reprend telle quelle, pour ne pas empiler
-                            // deux conversations vides : la conversation y est déjà neuve.
+                            // A still-blank room is taken as is, so as not to stack
+                            // two empty conversations: the conversation is already new there.
                             if (roomStartsAnotherConversation(roomViewModel.state.value.rows)) {
                                 roomViewModel.startNewConversation { made ->
-                                    // La salle neuve s'ouvre **ici** : la route ne change pas, et
-                                    // son identifiant neuf fait composer son propre fil (état
-                                    // vierge) sous la même plaque. La liste se relit ensuite, pour
-                                    // que la conversation neuve y prenne sa place — comme après
-                                    // toute salle faite.
+                                    // The new room opens **here**: the route does not change, and
+                                    // its new identifier makes it compose its own thread (blank
+                                    // state) under the same plate. The list is then read again, so
+                                    // that the new conversation takes its place there — as after
+                                    // any made room.
                                     openedRoom = roomChat(made, bots)
                                     botsViewModel.refresh()
                                 }
                             }
                         },
-                        // Le bouton Talk de la salle ouvre la scène vocale, qui lit ce fil
-                        // (`GroupRoomFeed`) : les réponses du serveur et celui qui parle.
+                        // The room's Talk button opens the voice scene, which reads this thread
+                        // (`GroupRoomFeed`): the server's replies and who is speaking.
                         onOpenVoice = { navTo(Route.GROUP_VOICE.name) },
-                        // Un fichier de l'onglet Fichiers de la salle s'ouvre comme celui d'une
-                        // conversation : la même route, le même lecteur de famille.
+                        // A file from the room's Files tab opens like that of a
+                        // conversation: the same route, the same family reader.
                         onOpenFile = { uri, name, mime -> openConversationFile(uri, name, mime) },
-                        // Le modèle IA d'un membre, choisi **depuis la salle** : le menu de la salle
-                        // liste ses bots, et la feuille s'ouvre pour celui qu'on touche. Le choix
-                        // s'écrit sur son profil, donc vaut aussi pour ses réponses dans la salle.
+                        // A member's AI model, chosen **from the room**: the room's menu
+                        // lists its bots, and the sheet opens for the one touched. The choice
+                        // is written on its profile, so it also applies to its replies in the room.
                         onPickBotModel = { name -> roomModelBot = name },
                         onEnded = {
-                            // Terminée sur le serveur : la liste la laisse partir.
+                            // // ---- The AI model **of a bot**, set from the room ----
                             openedRoom = null
                             botsViewModel.refresh()
                             navTo(Route.BOTS.name)
@@ -3943,10 +3943,10 @@ fun OnyxApp() {
                         onComposerFocused = { groupComposerFocus = false },
                         chatTextScale = com.onyx.app.ui.theme.ResolvedTheme.chatTextScale(chatTextSize),
                     )
-                    // ---- Le modèle IA **d'un bot**, réglé depuis la salle ----
-                    // Une salle n'a pas de conversation à un bot : la feuille se dessine donc
+                    // ---- The AI model **of a bot**, set from the room ----
+                    // A room has no conversation with a bot: the sheet is thus drawn
                     // au-dessus d'elle, pour le membre choisi dans son menu. Elle lit le `model`
-                    // du profil — celui qu'Hermes sert à ce bot **dans la salle** — et l'écrit par
+                    // `model` — the one Hermes serves to this bot **in the room** — and writes it via
                     // `profiles.configure` (`BotsViewModel.setModel`), comme la feuille d'un chat.
                     val roomModelBotProfile = roomModelBot?.let { name ->
                         bots.firstOrNull { it.name == name } ?: BotProfile(name = name)
@@ -3962,18 +3962,18 @@ fun OnyxApp() {
                             profiles = modelProfiles,
                             scope = com.onyx.app.ui.models.ModelScope.BOT,
                             fallback = state.fallback,
-                            // Pas de « Mode rapide » : ce réglage-là appartient à une session de
-                            // conversation, et la salle n'en a pas — la ligne ne se dessine pas.
+                            // No "Fast mode": this setting belongs to a conversation
+                            // session, and the room has none — the line is not drawn.
                             fastMode = null,
                             onPickModel = { model ->
                                 botsViewModel.setModel(roomModelBotProfile, model, providerForChosen(model))
-                                // **Le roster est relu ; le choix est poussé dans la salle elle-même.**
-                                // `setModel` écrit `profiles.configure` côté serveur et le profil
-                                // local : sans relire le roster, la feuille rouvrait l'ancien modèle
-                                // et la salle ne voyait rien changer — « le changement n'est pas
-                                // pris en temps réel ». La fusion locale donne le nouveau modèle à
-                                // l'écran immédiatement, la relecture confirme ce que le serveur a
-                                // retenu.
+                                // **The roster is read again; the choice is pushed into the room itself.**
+                                // `setModel` writes `profiles.configure` on the server side and the local
+                                // profile: without re-reading the roster, the sheet reopened the old model
+                                // and the room saw nothing change — "the change is not
+                                // taken in real time". The local merge gives the new model to
+                                // the screen immediately, the re-read confirms what the server
+                                // retained.
                                 botsViewModel.refresh()
                                 modelPrefs.noteRecent(state.server.id, model)
                                 modelRecents = modelPrefs.recents(state.server.id)
@@ -3988,8 +3988,8 @@ fun OnyxApp() {
                         )
                     }
                 } else {
-                    // La salle choisie dans la liste : ses membres sont cochés d'avance, comme le
-                    // `NewGroupChatView` d'la référence part des bots de la salle.
+                    // The room chosen in the list: its members are pre-checked, like the
+                    // reference's `NewGroupChatView` starts from the room's bots.
                     val groupViewModel: GroupChatViewModel = viewModel(
                         key = "group-" + state.server.id + state.server.configSignature + "|" + (groupTitle ?: ""),
                         factory = viewModelFactory {
@@ -4002,8 +4002,8 @@ fun OnyxApp() {
                             }
                         },
                     )
-                    // `NewGroupChatView` : les bots choisis dans la feuille deviennent les membres
-                    // qui répondent, comme le `createGroup(named:bots:mainName:)` de la référence.
+                    // that reply, like the reference's `createGroup(named:bots:mainName:)`.
+                    // that reply, like the reference's `createGroup(named:bots:mainName:)`.
                     LaunchedEffect(groupPicked, groupViewModel) {
                         groupPicked?.let { picked ->
                             groupViewModel.setSelected(picked)
@@ -4018,9 +4018,9 @@ fun OnyxApp() {
                             groupTitle = null
                             if (!navBack()) navTo(Route.BOTS.name)
                         },
-                        // Le crayon : une nouvelle conversation de **ce** groupe — le fil repart à
-                        // vide, les bots choisis restent (mêmes membres, même salle). Un fil déjà
-                        // vide est repris tel quel.
+                        // The pencil: a new conversation of **this** group — the thread starts again
+                        // blank, the chosen bots stay (same members, same room). An already
+                        // empty thread is taken as is.
                         onNewConversation = groupViewModel::startNewConversation,
                         onOpenVoice = { navTo(Route.GROUP_VOICE.name) },
                         speechLocale = speechLocale,
@@ -4032,21 +4032,21 @@ fun OnyxApp() {
             }
 
             Route.GROUP_VOICE -> {
-                // Maquette de boutique : une salle scriptée dont la réplique lue est **injectée**,
-                // pour éprouver la scène de parole là où il n'y a ni serveur ni micro (debug seul).
-                //
-                // Et sa variante qui **joue la boucle** : quand le moteur sans micro est posé
-                // (`onyx.voiceScenario`), la salle scriptée **répond** et c'est la vraie session
-                // qui tourne — écoute, question, file des réponses, reprise. C'est ce qui rend la
-                // conversation d'une salle prouvable sur un émulateur.
+                // Shop stand-in: a scripted room whose read line is **injected**,
+                // to exercise the speech scene where there is neither server nor microphone (debug only).
+                // // And its variant that **plays the loop**: when the microphone-less engine is set
+                // And its variant that **plays the loop**: when the microphone-less engine is set
+                // (`onyx.voiceScenario`), the scripted room **answers** and it is the real session
+                // that runs — listening, question, reply queue, resume. That is what makes the
+                // conversation of a room provable on an emulator.
                 val liveDemo = remember(groupVoiceDemoOn, voiceScenario) {
                     if (groupVoiceDemoOn && voiceScenario != null) GroupVoiceDemo.live(scope) else null
                 }
-                // Sur un émulateur sans serveur, la page Journaux de l'app reste hors de portée :
-                // la maquette recopie donc le **journal vocal de l'appareil** dans logcat, ligne par
-                // ligne, pour que les étapes d'une salle se lisent. Le drapeau `onyx.voiceJournal`
-                // fait la même recopie hors maquette — c'est lui qui rend lisible la salle d'un
-                // **vrai** serveur, dont la page Journaux reste, ici, inatteignable. Debug seulement.
+                // On an emulator without a server, the app's Logs page stays out of reach:
+                // the stand-in thus copies the **device's voice journal** into logcat, line by
+                // line, so that a room's steps can be read. The `onyx.voiceJournal` flag
+                // does the same copy outside the stand-in — it is what makes a room of a
+                // **real** server readable, whose Logs page remains, here, unreachable. Debug only.
                 val journalToLogcat = remember {
                     com.onyx.app.BuildConfig.DEBUG &&
                         context.findActivity()?.intent?.getBooleanExtra(EXTRA_VOICE_JOURNAL, false) == true
@@ -4070,11 +4070,11 @@ fun OnyxApp() {
                         null
                     }
                 }
-                // Deux fils peuvent nourrir la scène vocale : celui d'une salle du serveur quand une
-                // est ouverte (`openedRoom` — c'est là que la voix lit les réponses du serveur), et
-                // celui du compositeur local d'une salle neuve, dont les membres ne sont pas encore
-                // chez Hermes. Les deux ViewModels sont pris avec la **même clé** que GROUP_CHAT : la
-                // voix lit et fait avancer le fil déjà ouvert par l'écran, pas une seconde salle.
+                // Two threads can feed the voice scene: that of a server room when one
+                // is open (`openedRoom` — that is where the voice reads the server's replies), and
+                // that of the local composer of a new room, whose members are not yet
+                // on Hermes's side. Both ViewModels are taken with the **same key** as GROUP_CHAT: the
+                // voice reads and advances the thread already opened by the screen, not a second room.
                 val room = openedRoom
                 val roomViewModel: GroupRoomViewModel? = if (room == null) {
                     null
@@ -4105,9 +4105,9 @@ fun OnyxApp() {
                 }
                 val thread: GroupVoiceThread = liveDemo?.thread ?: demo?.thread ?: roomViewModel ?: groupViewModel!!
 
-                // Les visages de la salle, pour l'en-tête et l'orbe : la **même** table que le fil
-                // (`faceResolver`) — sinon un bot montre le visage du salon puis une créature
-                // déduite de son nom dans la scène vocale.
+                // The room's faces, for the header and the orb: the **same** table as the thread
+                // (`faceResolver`) — otherwise a bot shows the room's face then a creature
+                // inferred from its name in the voice scene.
                 val bots = ((liveDemo ?: demo)?.bots ?: if (roomViewModel != null) {
                     val roomState by roomViewModel.state.collectAsStateWithLifecycle()
                     roomState.room.composerBots(roomViewModel.face)
@@ -4116,14 +4116,14 @@ fun OnyxApp() {
                     groupState.bots.filter { it.name in groupState.selected }
                 }).withFaces(faceResolver::codeOf)
 
-                // Les noms de la salle : c'est eux qui disent à la lecture quelle voix va à qui,
-                // pour que deux bots ne lisent pas de la même (`BotVoices`).
+                // The room's names: it is they that tell the reading which voice goes to whom,
+                // so that two bots do not read in the same voice (`BotVoices`).
                 val roster = bots.map { it.name }
                 LaunchedEffect(roster) { voice.output?.setBotRoster(roster) }
 
-                // Le fil de la salle se suit tant que la scène vocale est là, comme le
-                // `.task(id: scenePhase == .active || voice.isOn)` de la référence : les réponses des bots
-                // continuent d'arriver pendant qu'elles sont lues.
+                // The room's thread is followed as long as the voice scene is there, like the
+                // reference's `.task(id: scenePhase == .active || voice.isOn)`: the bots' replies
+                // keep arriving while they are being read.
                 val lifecycleOwner = LocalLifecycleOwner.current
                 LaunchedEffect(lifecycleOwner, room?.id) {
                     val feed = roomViewModel?.feed ?: return@LaunchedEffect
@@ -4135,13 +4135,13 @@ fun OnyxApp() {
                 }
                 val liveSpeakerId by groupVoice.speakerId.collectAsStateWithLifecycle()
                 val isHeld by groupVoice.isHeld.collectAsStateWithLifecycle()
-                // La salle s'est tue **sans rien répondre** : la scène le dit, au lieu de laisser
-                // « les bots discutent » tourner dans le vide.
+                // The room went mute **without answering anything**: the scene says so, instead of letting
+                // "the bots are chatting" spin in a vacuum.
                 val groupStalled by groupVoice.stalled.collectAsStateWithLifecycle()
-                // Ce que la salle a refusé (une question qui n'est pas partie) : sans ça, une bulle
-                // disparaissait sans un mot dans la scène vocale.
+                // What the room refused (a question that did not leave): without that, a bubble
+                // disappeared without a word in the voice scene.
                 val roomProblem by thread.problem.collectAsStateWithLifecycle()
-                // La salle s'est tue sans rien dire : le bandeau le dit, en français.
+                // The room went mute without saying anything: the banner says it, in French.
                 val stalledProblem = if (groupStalled) {
                     OnyxLocalization[
                         "The room didn't answer: its bots are stopped, or the server sent nothing back.",
@@ -4153,18 +4153,18 @@ fun OnyxApp() {
                 val lines by thread.lines.collectAsStateWithLifecycle()
                 val isTalking by thread.isTalking.collectAsStateWithLifecycle()
                 val waitsOnPerson by thread.waitsOnPerson.collectAsStateWithLifecycle()
-                // La file : les réponses qui attendent d'être lues, et le message en route.
+                // The queue: the replies waiting to be read, and the message in transit.
                 val queued by groupVoice.queued.collectAsStateWithLifecycle()
                 val voiceProblemShown by groupVoice.problem.collectAsStateWithLifecycle()
                 val sending by thread.pendingSends.collectAsStateWithLifecycle()
-                // Le niveau de la voix lue : c'est lui qui fait battre la bouche du grand visage.
+                // The level of the read voice: it is what makes the big face's mouth beat.
                 val replyLevel by voice.replyLevel.collectAsStateWithLifecycle()
-                // La maquette pose la scène qu'elle annonce (parole ou écoute) ; sinon, la phase
-                // réelle et le bot que le coordinateur est en train de lire.
+                // The stand-in sets the scene it announces (speech or listening); otherwise, the real
+                // phase and the bot the coordinator is currently reading.
                 val shownPhase = demo?.phase ?: phase
                 val shownSpeaker = demo?.speakerId ?: liveSpeakerId
-                // La réplique de la maquette est simulée : son niveau bat comme une voix, pour que
-                // la bouche du grand visage bouge vraiment sur une capture.
+                // The stand-in's line is simulated: its level beats like a voice, so that
+                // the big face's mouth really moves on a capture.
                 var demoLevel by remember(demo) { mutableFloatStateOf(demo?.level ?: 0f) }
                 LaunchedEffect(demo) {
                     if (demo == null) return@LaunchedEffect
@@ -4175,12 +4175,12 @@ fun OnyxApp() {
                     }
                 }
                 val soundingLevel = if (demo != null) demoLevel else replyLevel
-                // `solIsWorking` de la référence : quelque chose tourne — la voix, ou une salle qui parle.
+                // The reference's `solIsWorking`: something is running — the voice, or a room that is speaking.
                 val groupWorking = shownPhase == VoicePhase.LISTENING || shownPhase == VoicePhase.SPEAKING ||
                     (isTalking && !isHeld) || sending || queued > 0
 
                 LaunchedEffect(groupVoice, demo) {
-                    // La maquette n'ouvre ni micro ni lecture : sa réplique est injectée.
+                    // The stand-in opens neither microphone nor playback: its line is injected.
                     if (demo != null) return@LaunchedEffect
                     voice.onQuestion = groupVoice::ask
                     voiceProblem = null
@@ -4190,9 +4190,9 @@ fun OnyxApp() {
                     if (granted) groupVoice.listen() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                 }
                 DisposableEffect(groupVoice, demo) {
-                    // **L'ordre d'arrêt coupe le tour de la salle**, pas le chat du fil : dire
-                    // « arrête d'écouter » dans une salle doit arrêter les bots, sinon le tour
-                    // repart et le micro se rouvre — l'ordre n'était jamais obéi.
+                    // **The stop order cuts the room's turn**, not the thread's chat: saying
+                    // "stop listening" in a room must stop the bots, otherwise the turn
+                    // starts again and the microphone reopens — the order was never obeyed.
                     val soloStop = voice.onStoppedByWord
                     if (demo == null) voice.onStoppedByWord = { groupVoice.halt() }
                     onDispose {
@@ -4209,15 +4209,15 @@ fun OnyxApp() {
                     heard = heard,
                     spoken = spoken,
                     level = speech.level,
-                    // Le niveau de la réplique lue : la bouche du visage qui parle le suit.
+                    // The level of the read line: the speaking face's mouth follows it.
                     speakingLevel = soundingLevel,
-                    // Une salle est toujours en mains-libres : chaque round rend le micro, et
-                    // l'en-tête de la salle ne dessine donc aucun interrupteur pour ça.
+                    // A room is always in hands-free: each round hands the microphone back, and
+                    // the room's header thus draws no switch for it.
                     handsFree = true,
                     conversationTitle = thread.roomName,
-                    // Ce qui a empêché une réponse se lit **dans la scène** : le micro ou le moteur
-                    // (voix), la question refusée par la salle, la salle qui s'est tue sans rien
-                    // dire, un message encore en route. Jamais un écran muet.
+                    // What prevented a reply is read **in the scene**: the microphone or the engine
+                    // (voice), the question refused by the room, the room that went mute without
+                    // saying anything, a message still in transit. Never a mute screen.
                     problem = voiceProblem ?: roomProblem ?: voiceProblemShown ?: stalledProblem ?: speech.problem,
                     onRestart = groupVoice::replayLast,
                     onStop = {
@@ -4256,26 +4256,26 @@ fun OnyxApp() {
                 )
             }
 
-            // « Connection details » : `ConnectionDetailsView`, ouvert depuis les Réglages.
+            // "Connection details": `ConnectionDetailsView`, opened from Settings.
             Route.CONNECTION_DETAILS -> ConnectionDetailsScreen(
                 server = state.server,
                 onSave = { settingsViewModel.saveConnection(it) },
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
-                // La sonde est refaite quand la signature de la config change : c'est une autre
-                // machine (ou d'autres identifiants) en face, donc d'autres capacités.
+                // The probe is redone when the config signature changes: it is another
+                // machine (or other credentials) in front, thus other capabilities.
                 probe = remember(state.server.configSignature) {
                     com.onyx.app.data.net.ServerProbe(state.server)
                 },
             )
 
-            // « Hidden Bots » : `HiddenBotsView`, ouvert par la tuile « Hidden » de la grille.
+            // "Hidden Bots": `HiddenBotsView`, opened by the grid's "Hidden" tile.
             Route.HIDDEN_BOTS -> HiddenBotsScreen(
                 viewModel = botsViewModel,
                 mainName = state.server.displayName,
                 onBack = { if (!navBack()) navTo(Route.BOTS.name) },
             )
 
-            // « Usage & cost » : `SessionUsageView`.
+            // "Usage & cost": `SessionUsageView`.
             Route.SESSION_USAGE -> {
                 val summary = usageSummary
                 if (summary == null) {
@@ -4292,7 +4292,7 @@ fun OnyxApp() {
                 }
             }
 
-            // « Les sessions d'un projet » : `ProjectSessionsView`.
+            // "A project's sessions": `ProjectSessionsView`.
             Route.PROJECT_SESSIONS -> {
                 val project = selectedProject
                 if (project == null) {
@@ -4311,9 +4311,9 @@ fun OnyxApp() {
                             usageSummary = session
                             usageFetchId = null
                             usageProfile = null
-                            // Une session lue du projet : pas de conversation locale à qui demander
-                            // son bot, donc le modèle en vigueur est celui du serveur — jamais un
-                            // reste de la fiche précédente.
+                            // leftover of the previous sheet.
+                            // for its bot, so the in-force model is the server's — never a
+                            // leftover of the previous sheet.
                             usageModel = com.onyx.app.ui.design.ModelInForce.inForce(
                                 null,
                                 null,
@@ -4322,8 +4322,8 @@ fun OnyxApp() {
                             navTo(Route.SESSION_USAGE.name)
                         },
                         onBack = { if (!navBack()) navTo(Route.CHAT.name) },
-                        // Où déplacer une conversation : les projets qui sont un **dossier**, sans
-                        // celui-ci (le fourre-tout et le dossier personnel ne reçoivent rien).
+                        // Where to move a conversation: the projects that are a **folder**, without
+                        // this one (the catch-all and the personal folder receive nothing).
                         moveTargets = com.onyx.app.data.net.projectFolders(serverProjects)
                             .filter { it.id != project.id },
                         onArchive = { ids ->
@@ -4348,16 +4348,16 @@ fun OnyxApp() {
 
             Route.COMPUTER -> ComputerScreen(
                 session = AppContainer.computerSession,
-                // Le menu du fil ouvre l'ordinateur : en deux panneaux, la page quittée est la
-                // **liste** (qui peint le même fil), donc on dépile avant de se rabattre sur le fil.
+                // The thread menu opens the computer: in two panes, the page left is the
+                // **list** (which paints the same thread), so we pop before falling back on the thread.
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
-                // « Montrer une fois » : la sonde dit si ce serveur sert le compagnon
-                // `onyx-record`, et l'éditeur de skill reçoit le brouillon relu.
+                // "Show once": the probe says whether this server serves the `onyx-record`
+                // companion, and the skill editor receives the draft read back.
                 server = state.server,
                 probe = remember(state.server.configSignature) {
                     com.onyx.app.data.net.ServerProbe(state.server)
                 },
-                // La démonstration demandée depuis le « + » : la feuille s'ouvre ici, une fois.
+                // The demonstration requested from the "+": the sheet opens here, once.
                 teachRequested = teachRequested,
                 onTeachRequestConsumed = { teachRequested = false },
                 onDraftSkill = { name, content ->
@@ -4386,8 +4386,8 @@ fun OnyxApp() {
                     headers = state.server.customHeaders,
                     model = state.server.model,
                     use = state.server.transport,
-                    // Le lien « tout en un » : le même code porte aussi les voix, le pont
-                    // « Ordinateur » et la langue — un seul collage, un seul secret.
+                    // "all-in-one" link: the same code also carries the voices, the
+                    // "Computer" bridge and the language — a single paste, a single secret.
                     voicesURL = kokoroUrl,
                     bridgeURL = AppContainer.computer.address,
                     bridgeToken = AppContainer.computer.token,
@@ -4402,8 +4402,8 @@ fun OnyxApp() {
             Route.VOICE_SETTINGS -> VoiceSettingsScreen(
                 viewModel = settingsViewModel,
                 server = state.server,
-                // La page Voix s'ouvre depuis les Réglages **et** depuis la scène vocale : le
-                // retour revient là d'où l'on vient (le bord de l'écran y revient déjà).
+                // The Voice page opens from Settings **and** from the voice scene: back
+                // returns where one comes from (the screen edge already returns there).
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
                 onOpenListeningLanguage = { navTo(Route.SPEECH_LANGUAGE.name) },
                 onOpenReplyLanguage = { navTo(Route.REPLY_LANGUAGE.name) },
@@ -4442,19 +4442,19 @@ fun OnyxApp() {
             )
 
             Route.SUBAGENT -> {
-                // La ligne la plus fraîche : le fil (ou le roster) la met à jour pendant qu'on
-                // regarde, et l'écran suit — un arrêt effectif doit se voir tout de suite.
+                // The freshest row: the thread (or the roster) updates it while one
+                // watches, and the screen follows — an effective stop must show right away.
                 val agent = subagentAgent?.let { picked -> shownSubagents.firstOrNull { it.id == picked.id } ?: picked }
                 if (agent == null) {
-                    // Hors de la composition : la route vide ne doit pas non plus rester dans la pile.
+                    // Outside composition: the empty route must not stay in the stack either.
                     LaunchedEffect(Unit) { navFromEmpty(Route.CHAT.name) }
                 } else {
-                    // La transcription : lue sur le Dashboard (`subagent.tail`) ; rien à lire si le
-                    // transport ne la porte pas, et l'écran le dit alors au lieu d'attendre.
+                    // transport does not carry it, and the screen then says so instead of waiting.
+                    // transport does not carry it, and the screen then says so instead of waiting.
                     val controllable = agent.hasTranscript && !subagentDemoRun
-                    // Les deux gestes de contrôle, typés explicitement : la doublure de QA les
-                    // résout en local (c'est une simulation, et le rapport le dit), et sans
-                    // transport qui les porte ils ne sont pas proposés du tout.
+                    // locally (it is a simulation, and the report says so), and without a
+                    // transport carrying them they are not offered at all.
+                    // transport carrying them they are not offered at all.
                     val demoSteer: suspend (String) -> Boolean = { text ->
                         demoSubagents = demoSubagents.map {
                             if (it.id == agent.id) it.copy(lastTool = text.take(80)) else it
@@ -4487,7 +4487,7 @@ fun OnyxApp() {
                         onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                         loadTranscript = { current ->
                             if (subagentDemoRun) {
-                                // Transcription **injectée** : l'émulateur n'a pas de Dashboard
+                                // // to serve it. The report says so.
                                 // pour la servir. Le rapport le dit.
                                 val text = com.onyx.app.ui.chat.SubagentStandIn.transcript(current)
                                 SubagentTailView(text = text, available = text.isNotBlank())
@@ -4502,8 +4502,8 @@ fun OnyxApp() {
             }
 
             Route.SUBAGENTS -> {
-                // Le roster du Dashboard (`subagent.list`) complète ce que le fil a vu : sans tour
-                // en cours, c'est la seule source du temps écoulé et du dernier outil.
+                // // in progress, it is the only source of elapsed time and of the last tool.
+                // in progress, it is the only source of elapsed time and of the last tool.
                 LaunchedEffect(Unit) { if (!subagentDemoRun) chatViewModel.refreshSubagentRoster() }
                 SubagentListScreen(
                     subagents = shownSubagents,
@@ -4557,9 +4557,9 @@ fun OnyxApp() {
             Route.VIDEO -> {
                 val source = videoSource
                 if (source == null) {
-                    // Le repli se pose **hors de la composition** (`LaunchedEffect`) : un
-                    // `navTo` écrit pendant la composition laisse le geste de retour sans effet
-                    // quand l'état vide se reproduit (l'entrée repoussée à chaque passage).
+                    // // `navTo` written during composition leaves the back gesture without effect
+                    // // when the empty state reproduces (the entry pushed back on every pass).
+                    // when the empty state reproduces (the entry pushed back on every pass).
                     LaunchedEffect(Unit) { navFromEmpty(Route.CHAT.name) }
                 } else {
                     com.onyx.app.ui.chat.VideoPlayerScreen(
@@ -4601,8 +4601,8 @@ fun OnyxApp() {
                     com.onyx.app.ui.chat.ArchiveScreen(
                         source = source,
                         onClose = { if (!navBack()) navTo(Route.CHAT.name) },
-                        // Une archive qu'on ne sait pas lire sur place n'est pas un échec : elle
-                        // part à l'application du système, qui saura peut-être l'ouvrir.
+                        // goes to the system app, which may know how to open it.
+                        // goes to the system app, which may know how to open it.
                         onOpenExternally = {
                             openFile(
                                 uri = source.uri,
@@ -4614,7 +4614,7 @@ fun OnyxApp() {
                 }
             }
 
-            // « Capture rapide » : une note prise en passant, que l'agent range. Elle se prend
+            // also taken from the illustration's shortcut, without going through the thread.
             // aussi depuis le raccourci de l'illustration, sans passer par le fil.
             Route.QUICK_CAPTURE -> com.onyx.app.ui.capture.QuickCaptureScreen(
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
@@ -4627,7 +4627,7 @@ fun OnyxApp() {
                 } else {
                     SelectableTextScreen(
                         text = text,
-                        // La feuille du fil ouvre la sélection : la page quittée se dépile d'abord.
+                        // The thread sheet opens the selection: the page left is popped first.
                         onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                     )
                 }
@@ -4641,7 +4641,7 @@ fun OnyxApp() {
                     PatchScreen(
                         title = "Change",
                         patch = text,
-                        // Comme la sélection de texte : on remonte la page quittée.
+                        // Like the text selection: we go back up the page left.
                         onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                     )
                 }
@@ -4650,25 +4650,25 @@ fun OnyxApp() {
             Route.TOOLS -> ToolsScreen(
                 server = state.server,
                 scope = scope,
-                // Tuile du **volet** comme ligne des Réglages : le retour rend la page quittée
-                // (le fil), et ne saute pas aux Réglages quand on vient d'ailleurs.
+                // Sidebar tile as Settings row: back returns the page left
+                // (the thread), and does not jump to Settings when one comes from elsewhere.
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
             )
 
-            // La tuile « Compétences » a été **retirée** (« Capacités » la remplace) : sa route a
-            // quitté l'énum avec elle. L'**éditeur**, lui, reste — « Capacités » l'ouvre depuis la
-            // famille des compétences, et son retour rend « Capacités », la page quittée.
+            // The "Skills" tile has been **removed** ("Capabilities" replaces it): its route has
+            // left the enum with it. The **editor**, for its part, stays — "Capabilities" opens it from the
+            // skills family, and its back returns "Capabilities", the page left.
             Route.SKILL_EDITOR -> SkillEditorScreen(
                 server = state.server,
                 existing = skillName,
                 scope = scope,
                 onSaved = { navTo(Route.CAPABILITIES.name) },
                 onBack = { if (!navBack()) navTo(Route.CAPABILITIES.name) },
-                // Un brouillon de démonstration arrive ici, relu sur l'écran Ordinateur : le nom
-                // et le Markdown sont déjà là, l'utilisateur n'a plus qu'à relire et enregistrer.
+                // A demonstration draft arrives here, read back on the Computer screen: the name
+                // and the Markdown are already there, the user only has to read and save.
                 seed = skillSeed,
-                // **« En faire une routine »** : l'éditeur enregistre la compétence puis rend son
-                // nom ; l'écran des horaires s'ouvre avec le brouillon déjà rempli (`SkillRoutine`).
+                // **"Make it a routine"**: the editor saves the skill then returns its
+                // name; the schedules screen opens with the draft already filled (`SkillRoutine`).
                 onMakeRoutine = { name ->
                     routineSeed = com.onyx.app.data.skill.SkillRoutine.from(name)
                     skillSeed = null
@@ -4676,9 +4676,9 @@ fun OnyxApp() {
                 },
             )
 
-            // « Capacités » : les compétences, les jeux d'outils et les serveurs MCP du profil,
-            // chacun avec son interrupteur (le catalogue est une page de cet écran). Depuis le
-            // retrait de la tuile « Compétences », elle porte aussi **l'écriture** d'une compétence.
+            // "Capabilities": the profile's skills, tool sets and MCP servers,
+            // each with its switch (the catalogue is a page of this screen). Since the
+            // removal of the "Skills" tile, it also carries the **writing** of a skill.
             Route.CAPABILITIES -> CapabilitiesScreen(
                 server = state.server,
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
@@ -4689,12 +4689,12 @@ fun OnyxApp() {
                 },
             )
 
-            // **« Le Coffre »** — les secrets du profil, et **jamais** une valeur à l'écran. Il
-            // s'ouvre par sa ligne des Réglages (section « Secrets ») et par le raccourci de
-            // l'icône ; les deux n'existent que si la sonde a prouvé la capacité. Son retour rend
-            // la page quittée, et les Réglages à défaut.
-            // **Le navigateur de l'agent** — son écran, en pleine page. Il s'ouvre par sa ligne des
-            // Réglages (section « Navigateur »), qui n'existe que si le plugin répond.
+            // **"The Vault"** — the profile's secrets, and **never** a value on screen. It
+            // opens by its Settings row ("Secrets" section) and by the icon's shortcut;
+            // both only exist if the probe has proven the capability. Its back returns
+            // the page left, and Settings by default.
+            // **The agent's browser** — its screen, full page. It opens by its row in
+            // Settings ("Browser" section), which only exists if the plugin answers.
             Route.BROWSER_SCREEN -> BrowserScreen(
                 viewModel = viewModel(
                     key = "browser-screen-" + state.server.id + state.server.configSignature,
@@ -4710,9 +4710,9 @@ fun OnyxApp() {
                 onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
             )
 
-            // « Archives » en pleine page : la **même** liste que celle que le volet porte. Elle ne
-            // s'ouvre que par la tuile (qui empile dans le volet) ; cette branche est le repli de
-            // l'appelant hors du volet, et garde la route vivante comme ses voisines.
+            // "Archives" full page: the **same** list as the one the sidebar carries. It only
+            // opens by the tile (which stacks in the sidebar); this branch is the fallback of
+            // the caller outside the sidebar, and keeps the route alive like its neighbours.
             Route.ARCHIVED -> ArchivedScreen(
                 conversations = history,
                 onOpen = { conversation ->
@@ -4726,9 +4726,9 @@ fun OnyxApp() {
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
             )
 
-            // « Relevé de l'agent » : la conversation ouverte (son fil, plus sa ligne du registre
-            // des sessions), ou un bot en cumul — les mêmes rangées, à l'échelle de ce que ce
-            // téléphone lui rattache. Les prix viennent du serveur, et rien n'est calculé sans eux.
+            // "Agent ledger": the open conversation (its thread, plus its row in the session
+            // registry), or a bot in aggregate — the same rows, at the scale of what this
+            // phone attaches to it. Prices come from the server, and nothing is computed without them.
             Route.LEDGER -> AgentLedgerScreen(
                 server = state.server,
                 conversations = history,
@@ -4737,13 +4737,13 @@ fun OnyxApp() {
                 openConversation = history.firstOrNull { it.id == state.conversationId },
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                 standIn = ledgerStandIn,
-                // La rangée « Model » et le prix cherché suivent le modèle **en vigueur** de la
-                // conversation ouverte — la même source que l'en-tête et la fiche d'usage.
+                // The "Model" row and the looked-up price follow the **in-force** model of the
+                // open conversation — the same source as the header and the usage sheet.
                 openModelInForce = state.modelInForce,
             )
 
-            // « Aperçus » : ce que ce profil a consommé sur 7, 30 ou 90 jours. La période est
-            // mémorisée par l'appareil, donc la relire après une relance retrouve le même choix.
+            // "Insights": what this profile consumed over 7, 30 or 90 days. The period is
+            // remembered by the device, so reading it again after a restart finds the same choice.
             Route.INSIGHTS -> {
                 val period by settingsRepo.insightsPeriod.collectAsStateWithLifecycle()
                 InsightsScreen(
@@ -4781,8 +4781,8 @@ fun OnyxApp() {
                     servers = all,
                     activeId = active,
                     scope = scope,
-                    // Ouverts depuis les Réglages **ou** à la fin de la configuration (`SETUP`) : le
-                    // retour remonte donc la pile avant de se rabattre sur les Réglages.
+                    // Opened from Settings **or** at the end of configuration (`SETUP`): back
+                    // thus pops the stack before falling back on Settings.
                     onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
                     onEditConnection = { navTo(Route.SETUP.name) },
                 )
@@ -4799,8 +4799,8 @@ fun OnyxApp() {
                         setupCodeEditing = false
                         if (!navBack()) navTo(Route.SERVERS.name)
                     },
-                    // « Ignorer » ici aussi sort sans rien enregistrer : ouvrir l'éditeur depuis les
-                    // Réglages ne doit pas pouvoir vider un serveur enregistré.
+                    // "Skip" here too exits without saving anything: opening the editor from
+                    // Settings must not be able to empty a registered server.
                     onSkip = {
                         setupCodeEditing = false
                         if (!navBack()) navTo(Route.SERVERS.name)
@@ -4816,17 +4816,17 @@ fun OnyxApp() {
                     },
                     onDiscover = { address, key ->
                         val found = com.onyx.app.data.net.OnyxDiscovery.discover(address, key)
-                        // « Une clé » : le Dashboard vit à la même adresse que le chat — voir la
-                        // note du même geste plus haut.
+                        // "A key": the Dashboard lives at the same address as the chat — see the
+                        // note of the same gesture above.
                         if (found.declaresDashboard) {
                             setupDraft = setupDraft.copy(serveBaseUrl = address.trim())
                         }
                         found
                     },
                     onApplyDiscovery = { found -> scope.launch { applyDiscovery(found) } },
-                    // **Ce que le mode « Simple » propose** : les adresses déjà connues, dans
-                    // l'ordre de pertinence (serveur en cours, réseau du téléphone, passerelle
-                    // précédente, autres serveurs enregistrés).
+                    // **What "Simple" mode offers**: the already known addresses, in
+                    // order of relevance (current server, phone's network, previous
+                    // gateway, other registered servers).
                     suggestions = com.onyx.app.ui.setup.SetupSuggestions.known(
                         current = com.onyx.app.ui.setup.setupAddressOf(state.server),
                         local = setupLocalAddresses.value,
@@ -4839,8 +4839,8 @@ fun OnyxApp() {
                             .drop(1)
                             .map(::setupAddressOf),
                     ),
-                    // Le lien de configuration du brouillon, **sans ses secrets** : le « Copier »
-                    // de la barre de titre.
+                    // The draft's configuration link, **without its secrets**: the title bar's
+                    // "Copy".
                     setupLink = if (setupDraft.isUsable) {
                         setupLinkFor(setupDraft)
                     } else {
@@ -4959,17 +4959,17 @@ fun OnyxApp() {
                     }
 
                     editor == null ->
-                        // **La charge utile de cette branche n'est pas sauvegardable** (`contextEditor`
-                        // est un `remember` : un `Triple` ne va pas dans un `Bundle`). Après une mort
-                        // du processus, on revient donc sur cette route **sans** son éditeur — et le
-                        // repli rendait les **Réglages**, alors que la page quittée est celle que
-                        // `contextReturn` porte (l'éditeur du bot). Le retour ne doit pas atterrir
-                        // ailleurs qu'où l'on était : on rend la page quittée, comme les autres
-                        // écrans à état vide (`navFromEmpty`, la route vide n'entre pas dans la pile).
+                        // **This branch's payload is not saveable** (`contextEditor`
+                        // is a `remember`: a `Triple` does not go into a `Bundle`). After a process
+                        // death, we thus return to this route **without** its editor — and the
+                        // fallback returned **Settings**, whereas the page left is the one
+                        // `contextReturn` carries (the bot's editor). Back must not land
+                        // anywhere other than where one was: we return the page left, like the other
+                        // empty-state screens (`navFromEmpty`, the empty route does not enter the stack).
                         LaunchedEffect(Unit) { navFromEmpty(contextReturn) }
 
                     else -> {
-                        // La personnalité d'un bot garde la route de profil de l'éditeur générique.
+                        // A bot's personality keeps the generic editor's profile route.
                         val (label, purpose, path) = editor
                         val soulProfile = if (contextReturn == Route.BOT_EDITOR.name) path else null
                         val editorViewModel: FileEditorViewModel = viewModel(
@@ -4980,12 +4980,12 @@ fun OnyxApp() {
                         )
                         FileEditorScreen(
                             viewModel = editorViewModel,
-                            // **Un niveau à la fois, comme la branche fichier juste au-dessus.** Le
-                            // retour était écrit `navTo(contextReturn)` : il ne remontait pas la pile
-                            // d'abord, et il ne dépilait `contextReturn` que tant que celle-ci se
-                            // trouvait **au sommet**. Dès que l'écran est atteint d'ailleurs (ou après
-                            // une restauration), il **empile** la page quittée au lieu de la rendre —
-                            // le défaut que `ReturnCoherenceTest` a déjà retiré de cinq autres écrans.
+                            // **One level at a time, like the file branch just above.** Back
+                            // was written `navTo(contextReturn)`: it did not pop the stack
+                            // first, and it only popped `contextReturn` as long as it was
+                            // **at the top**. As soon as the screen is reached from elsewhere (or after
+                            // a restoration), it **stacks** the page left instead of returning it —
+                            // the defect that `ReturnCoherenceTest` has already removed from five other screens.
                             onBack = { if (!navBack()) navTo(contextReturn) },
                             title = label,
                             purpose = purpose,
@@ -5001,8 +5001,8 @@ fun OnyxApp() {
                 )
                 FilesScreen(
                     viewModel = filesViewModel,
-                    // Tuile du **volet** (« Fichiers du serveur ») comme ligne des Réglages : le
-                    // retour rend la page quittée (le fil) — il ne saute pas aux Réglages.
+                    // Sidebar tile ("Server files") as Settings row: back
+                    // returns the page left (the thread) — it does not jump to Settings.
                     onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
                     onOpenFile = { entry ->
                         editorPath = entry.path
@@ -5044,9 +5044,9 @@ fun OnyxApp() {
                     key = "logs-" + state.server.id + state.server.configSignature,
                     factory = viewModelFactory {
                         initializer {
-                            // Sans Dashboard joignable, la page s'ouvre sur le journal **vocal**,
-                            // qui est local à l'appareil — les trois journaux du serveur, eux,
-                            // demandent la Passerelle.
+                            // Without a reachable Dashboard, the page opens on the **voice** journal,
+                            // which is local to the device — the server's three journals, for their part,
+                            // require the Gateway.
                             LogsViewModel(
                                 config = state.server,
                                 localOnly = !state.server.canReachGateway,
@@ -5056,8 +5056,8 @@ fun OnyxApp() {
                 )
                 LogsScreen(
                     viewModel = logsViewModel,
-                    // Le parent logique est **d'où l'on vient** : la Passerelle quand on y était,
-                    // les Réglages sinon (la ligne « Journaux » y est, sans cadenas).
+                    // The logical parent is **where one comes from**: the Gateway when one was there,
+                    // Settings otherwise (the "Logs" row is there, without a padlock).
                     onBack = { if (!navBack()) navTo(Route.SETTINGS.name) },
                 )
             }
@@ -5105,7 +5105,7 @@ fun OnyxApp() {
                 reasoningEffort = effort,
                 onPickReasoning = { value -> scope.launch { settingsRepo.setReasoningEffort(value) } },
                 onPick = { model ->
-                    // Le modèle vit sur le serveur : on l'y réécrit, et le dépôt le persiste.
+                    // The model lives on the server: we rewrite it there, and the repository persists it.
                     settingsViewModel.open(state.server)
                     settingsViewModel.update { it.copy(model = model) }
                     settingsViewModel.saveAndClose()
@@ -5113,8 +5113,8 @@ fun OnyxApp() {
                 },
                 onBack = { if (!navBack()) navTo(Route.CHAT.name) },
                 serverSessionId = state.serverSessionId,
-                // Le modèle **en force** de la conversation ouverte, pour cocher la bonne entrée
-                // (et non le modèle configuré) quand un repli est à l'œuvre.
+                // The **in-force** model of the open conversation, to check the right entry
+                // (and not the configured model) when a fallback is at work.
                 inForceModel = state.modelInForce,
                 )
             }
@@ -5130,17 +5130,17 @@ fun OnyxApp() {
             com.onyx.app.ui.design.OpeningCover(
                 source = openingRect,
                 title = "",
-                // Rien à échanger dessous : le chat est déjà ouvert. La surface se retire à la
-                // fin de son effacement (le `clearing` d'`OpeningCover.run` d'la référence) — l'effacer
-                // dès l'échange coupait le fondu et laissait la couverture disparaître d'un coup.
+                // Nothing to exchange underneath: the chat is already open. The surface withdraws at the
+                // end of its fade (the `clearing` of the reference's `OpeningCover.run`) — erasing it
+                // at the exchange cut the fade and let the cover disappear at once.
                 onFinished = { openingRect = null },
             )
         }
 
-        // La **feuille de compte du volet** : l'état **mesuré** de la passerelle et les cinq gestes
-        // de la connexion. Elle est posée par-dessus le volet, qui reste ouvert derrière ; un appui
-        // à côté, un glissement vers le bas ou le retour matériel la referment, et le retour ferme
-        // **la feuille** avant tout le reste (elle vit dans sa `Dialog`).
+        // **The sidebar's account sheet**: the gateway's **measured** state and the five
+        // connection gestures. It is set above the sidebar, which stays open behind; a press
+        // beside it, a swipe down or hardware back close it, and back closes
+        // **the sheet** before anything else (it lives in its `Dialog`).
         if (accountSheetOpen) {
             AccountSheet(
                 address = state.server.serveBaseUrl.ifBlank { state.server.baseUrl },
@@ -5148,23 +5148,23 @@ fun OnyxApp() {
                 onDismiss = { accountSheetOpen = false },
                 onOpenSettings = { navTo(Route.SETTINGS.name) },
                 onRefreshConversations = {
-                    // La liste est **relue pour de vrai** — le roster et les conversations —, et le
-                    // compte rendu est celui du dépôt **après** la relecture, jamais celui d'avant.
+                    // // report is the repository's **after** the re-read, never the one before.
+                    // report is the repository's **after** the re-read, never the one before.
                     botsViewModel.refresh()
                     conversationRepo.load()
                     conversationRepo.conversations.value.size
                 },
-                // « Se déconnecter », **après** la confirmation : l'écran de configuration, la
-                // même destination que « Configurer Onyx ». Rien n'est supprimé du serveur.
+                // // same destination as "Configure Onyx". Nothing is deleted from the server.
+                // same destination as "Configure Onyx". Nothing is deleted from the server.
                 onDisconnect = { navTo(Route.SETUP.name) },
-                // « Changer ou ajouter une passerelle » : les serveurs enregistrés, leur bascule,
-                // et l'ajout.
+                // // and the addition.
+                // and the addition.
                 onChangeGateway = { navTo(Route.SERVERS.name) },
             )
         }
 
-        // « Let bots message each other? » : la question d'abord, et l'écriture ensuite — la même
-        // `confirmationDialog` qu'la référence, avec ses deux issues.
+        // // `confirmationDialog` as the reference, with its two outcomes.
+        // `confirmationDialog` as the reference, with its two outcomes.
         if (askingLetBotsMessage) {
             OnyxAlert(
                 title = "Let bots message each other?",
@@ -5193,8 +5193,8 @@ fun OnyxApp() {
             )
         }
 
-        // « Repartir de zéro » : la question d'abord, parce que l'entrée ne dit pas d'elle-même
-        // que **l'ancienne reste dans l'historique** — c'est justement ce qui la distingue d'une
+        // // that **the old one stays in the history** — that is exactly what distinguishes it from a
+        // // deletion, and the sentence says so.
         // suppression, et la phrase le dit.
         if (confirmingFresh) {
             OnyxAlert(
@@ -5211,8 +5211,8 @@ fun OnyxApp() {
             )
         }
 
-        // La gestion des projets — créer, renommer, retirer —, **une seule fois** pour la liste et
-        // pour l'écran d'un projet : les feuilles vivent ici, et l'appel part d'ici.
+        // // for a project's screen: the sheets live here, and the call leaves from here.
+        // for a project's screen: the sheets live here, and the call leaves from here.
         com.onyx.app.ui.conversations.ProjectDialogs(
             creating = projectCreating,
             onCreatingChange = { projectCreating = it },
@@ -5226,15 +5226,15 @@ fun OnyxApp() {
                 runProjectAction { com.onyx.app.ui.conversations.ProjectManage.create(state.server, name) }
             },
             onRename = { project, name ->
-                // Le nom change : l'écran ouvert, s'il est celui-là, garde son titre juste.
+                // The name changes: the open screen, if it is that one, keeps its title just.
                 if (selectedProject?.id == project.id) selectedProject = project.copy(label = name)
                 runProjectAction {
                     com.onyx.app.ui.conversations.ProjectManage.rename(state.server, project.id, name)
                 }
             },
             onRemove = { project ->
-                // Retirer le projet **ouvert** ramène à la liste ; le dossier et les conversations,
-                // eux, restent sur le serveur.
+                // Removing the **open** project returns to the list; the folder and the conversations,
+                // for their part, stay on the server.
                 if (selectedProject?.id == project.id) {
                     selectedProject = null
                     if (!navBack()) navTo(Route.CHAT.name)
@@ -5266,13 +5266,13 @@ fun OnyxApp() {
 }
 
 
-/**
- * **Le calque de la fenêtre principale** — le menu ancré y vit.
- *
- * Il est dessiné **au-dessus de la route**, dans la **fenêtre principale** : c'est ce qui lui
- * permet de lire la source de flou de l'écran (posée dans cette fenêtre) et donc de peindre du
- * **verre** plutôt qu'un voile. Un `Dialog` ne lecouldait pas — c'est une autre fenêtre, et le
- * panneau se lisait alors comme un rectangle gris translucide posé sur l'écran.
+/** The main window's layer** — the anchored menu lives there.
+ * **The main window's layer** — the anchored menu lives there.
+ * It is drawn **above the route**, in the **main window**: that is what lets it
+ * read the screen's blur source (set in this window) and thus paint **glass**
+ * rather than a veil. A `Dialog` could not — it is another window, and the
+ * panel then read as a translucent gray rectangle set on the screen.
+ * panel then read as a translucent gray rectangle set on the screen.
  */
 @Composable
 private fun OverlayLayer(host: OverlayHost) {
@@ -5280,13 +5280,13 @@ private fun OverlayLayer(host: OverlayHost) {
     Box(modifier = Modifier.fillMaxSize()) { layer() }
 }
 /**
- * Le niveau d'une **parole simulée** pour la maquette vocale (`onyx.voiceDemo`).
- *
- * L'émulateur n'a pas de micro : sans ce niveau, la pose « à l'écoute » montrerait une vague au
- * repos — sept points à la même hauteur — et rien ne prouverait qu'elle suit la voix. Le signal
- * suit des **syllabes** (montée vive, retombée douce) entrecoupées de respirations, à la manière
+ * The emulator has no microphone: without this level, the "listening" pose would show a wave at
+ * rest — seven dots at the same height — and nothing would prove it follows the voice. The signal
+ * follows **syllables** (sharp rise, gentle fall) interspersed with breaths, in the manner
+ * of a sentence. It is only read under the debug flag: outside the stand-in, the wave takes the
+ * engine's real level (`speech.level`).
  * d'une phrase. Il n'est lu que sous le drapeau de debug : hors de la maquette, la vague prend le
- * niveau réel du moteur (`speech.level`).
+ * engine's real level (`speech.level`).
  */
 @Composable
 private fun rememberVoiceDemoLevel(on: Boolean): State<Float> {

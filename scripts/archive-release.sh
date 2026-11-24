@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Archive les APK release de Onyx : un fichier versionné + son SHA-256 + une ligne de CHANGELOG.
-# Appelé après chaque assembleRelease. Ne réécrit jamais une archive existante.
+# Archives the Onyx release APKs: a versioned file + its SHA-256 + a CHANGELOG line.
+# Called after each assembleRelease. Never rewrites an existing archive.
 set -uo pipefail
 
 ROOT=/home/john/r132/onyx-android
@@ -11,13 +11,13 @@ mkdir -p "$OUT"
 
 if [ ! -f "$OUT/CHANGELOG.md" ]; then
   cat > "$OUT/CHANGELOG.md" <<'EOF'
-# CHANGELOG des APK Onyx
+# Onyx APK CHANGELOG
 
-Une ligne par build livré. `versionCode` est le nombre de commits au moment du build
-(il croît donc toujours : condition pour qu'un APK s'installe par-dessus le précédent).
+One line per delivered build. `versionCode` is the number of commits at build time
+(so it always grows: the condition for an APK to install over the previous one).
 `versionName` = `1.0.0+<versionCode>`.
 
-| date | fichier | module | versionName | versionCode | taille | sha256 |
+| date | file | module | versionName | versionCode | size | sha256 |
 |---|---|---|---|---|---|---|
 EOF
 fi

@@ -4,7 +4,7 @@ import android.content.Context
 import com.onyx.app.data.model.ServerConfig
 import com.onyx.app.data.model.Transport
 
-/** La voiture reprend le serveur OpenAI-compatible actif du téléphone, avec repli local. */
+/** The car reuses the phone's active OpenAI-compatible server, with a local fallback. */
 class CarSettings(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences("onyx_car", Context.MODE_PRIVATE)

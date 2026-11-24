@@ -1,6 +1,6 @@
-"""Banc d'essai du plugin, sans navigateur : le serveur, le ticket, le bail, les refus.
+"""The plugin's test bench, without a browser: the server, the ticket, the lease, the refusals.
 
-Lancé avec le python de l'installation Hermes (aiohttp y est). Ne touche pas à CDP.
+Run with the python of the Hermes installation (aiohttp is there). Does not touch CDP.
 """
 
 import asyncio
@@ -17,7 +17,7 @@ PLUGIN = Path(__file__).resolve().parent
 
 
 def load_plugin() -> types.ModuleType:
-    """Charge `plugins/onyx-browser/` comme un paquet, malgré le tiret du dossier."""
+    """Load `plugins/onyx-browser/` as a package, despite the hyphen in the folder."""
     spec = importlib.util.spec_from_file_location(
         "onyx_browser", PLUGIN / "__init__.py", submodule_search_locations=[str(PLUGIN)]
     )
@@ -41,7 +41,7 @@ async def main() -> int:
         if not ok:
             failures.append(label)
 
-    # --- 1. le bail, sans réseau -----------------------------------------------------------
+    # --- 1. the lease, without network -----------------------------------------------------
     clock = [1000.0]
     s = session_mod.Session(clock=lambda: clock[0])
     check("au départ, l'agent conduit", s.holder == "agent")
@@ -55,14 +55,14 @@ async def main() -> int:
     check("sans trame, une saisie est refusée", s.refusal(0) == "stale")
     seq = s.next_seq()
     check("avec la dernière trame, elle passe", s.refusal(seq) is None)
-    # **Un `seq` plus ancien passe, tant que l'image est récente.** Le serveur diffuse à 8 img/s
-    # pendant que l'humain conduit : le `seq` de l'image affichée est toujours dépassé au moment
-    # du geste. Comparer des `seq` refusait donc *chaque* tap, et l'écran ne servait à rien.
+    # **An older `seq` passes, as long as the image is recent.** The server streams at 8 fps
+    # while the human drives: the `seq` of the displayed image is always out of date at the moment
+    # of the gesture. Comparing `seq` values therefore refused *every* tap, and the screen was useless.
     s.next_seq()
     check("une trame légèrement dépassée passe encore", s.refusal(seq) is None)
-    # Un `seq` que le serveur n'a jamais émis, lui, est refusé.
+    # A `seq` that the server never emitted, however, is refused.
     check("un seq inconnu est refusé", s.refusal(seq + 99) == "stale")
-    # ... et une image vieille de plus de deux secondes ne vaut plus un clic.
+    # ... and an image more than two seconds old is no longer worth a click.
     clock[0] += session_mod.STALE_AFTER_S + 0.5
     check("une image périmée est refusée", s.refusal(seq) == "stale")
     clock[0] -= session_mod.STALE_AFTER_S + 0.5
@@ -70,7 +70,7 @@ async def main() -> int:
     check("rendre la main remet l'agent", s.holder == "agent" and s.epoch == 2)
     check("et une saisie est alors refusée", s.refusal(s.seq) == "no_lease")
 
-    # `abandon()` : le conducteur a disparu, personne n'a rien rendu.
+    # `abandon()`: the driver disappeared, nobody handed anything back.
     attente = session_mod.Waiting(takeover_id="x1", reason="test")
     s.waiting = attente
     s.acquire()
@@ -80,7 +80,7 @@ async def main() -> int:
     s.waiting = None
     s.abandon()
 
-    # --- 2. le ticket ------------------------------------------------------------------------
+    # --- 2. the ticket ------------------------------------------------------------------------
     ticket = s.mint()
     check("un ticket se consomme une fois", s.redeem(ticket.value) is ticket)
     check("le second essai échoue", s.redeem(ticket.value) is None)
@@ -88,10 +88,10 @@ async def main() -> int:
     clock[0] += 31
     check("un ticket périmé ne passe pas", s.redeem(short.value) is None)
 
-    # --- 2 bis. quel onglet montrer ---------------------------------------------------------
-    # Le défaut qui a produit un écran blanc : quand aucun onglet réel n'existe, l'ancien code
-    # rendait silencieusement la session du superviseur — c'est-à-dire l'onglet vide. Les cas
-    # ci-dessous sont les listes d'onglets réellement relevées sur la machine.
+    # --- 2a. which tab to show ---------------------------------------------------------
+    # The defect that produced a blank screen: when no real tab exists, the old code
+    # silently returned the supervisor's session — that is, the empty tab. The cases
+    # below are the tab lists actually observed on the machine.
     cdp_mod = sys.modules["onyx_browser.cdp"]
 
     check("une page web est réelle", cdp_mod.is_real_page("https://github.com/login"))
@@ -100,7 +100,7 @@ async def main() -> int:
     check("une adresse vide non plus", not cdp_mod.is_real_page(""))
 
     class FauxCDP:
-        """Le seam CDP, avec la liste d'onglets qu'on veut éprouver."""
+        """The CDP seam, with the tab list we want to exercise."""
 
         def __init__(self, cibles, urls):
             self.page_session_id = "S0"
@@ -127,7 +127,7 @@ async def main() -> int:
         c._cdp = faux
         return c
 
-    # Le cas réel : github ouvert dans le navigateur qui exécute le tour.
+    # The real case: github open in the browser running the turn.
     reel = controleur(
         [
             {"type": "page", "targetId": "t1", "url": "https://github.com/login"},
@@ -139,7 +139,7 @@ async def main() -> int:
     check("l'état de la page est ok", reel.page_state() == "ok")
     check("l'adresse est celle de la page", reel.current_url() == "https://github.com/login")
 
-    # Un navigateur neuf : about:blank + nouvel onglet. C'est ce que voyait le téléphone.
+    # A fresh browser: about:blank + new tab. This is what the phone saw.
     vide = controleur(
         [
             {"type": "page", "targetId": "t1", "url": "about:blank"},
@@ -155,7 +155,7 @@ async def main() -> int:
         check("on ne capture pas un onglet vide", True)
     check("et il n'y a pas d'adresse à montrer", vide.current_url() == "")
 
-    # Un vrai onglet ouvert ailleurs que dans la session du superviseur (une popup).
+    # A real tab open somewhere other than the supervisor session (a popup).
     popup = controleur(
         [
             {"type": "page", "targetId": "t1", "url": "about:blank"},
@@ -168,7 +168,7 @@ async def main() -> int:
     aucun = controleur([], {})
     check("sans navigateur, la page est absente", aucun.page_state() == "gone")
 
-    # --- 2 ter. le serveur ne présente pas un onglet vide comme une page --------------------
+    # --- 2b. the server does not present an empty tab as a page --------------------
     vrai_controleur = server.Controller
     server.STATE["task_id"] = "tache-vide"
     setattr(server, "Controller", lambda task: vide)
@@ -180,10 +180,10 @@ async def main() -> int:
     server.STATE["task_id"] = None
     server._PAGE.update(at=0.0, state="gone", url="")
 
-    # --- 2 quater. le `task_id` n'est pas un prérequis -------------------------------------
-    # La découverte DevTools (lecture de /proc) n'a pas besoin d'identifiant de tour. Exiger un
-    # `task_id` transformait « pas de superviseur » en « pas de navigateur », et l'écran du
-    # téléphone annonçait une page absente pendant que le Chromium affichait la page.
+    # --- 2c. `task_id` is not a prerequisite -------------------------------------
+    # DevTools discovery (reading /proc) does not need a turn identifier. Requiring a
+    # `task_id` turned "no supervisor" into "no browser", and the phone
+    # screen announced a missing page while the Chromium was displaying the page.
     server.STATE["task_id"] = None
     serveur_vrai = server.Controller
     setattr(server, "Controller", lambda task: reel)
@@ -192,15 +192,15 @@ async def main() -> int:
     check("sans task_id, la page réelle est trouvée", etat["state"] == "ok")
     check("et son adresse est celle de la page", etat["url"] == "https://github.com/login")
     check("le navigateur est vivant", server.page_alive() is True)
-    # On fige l'environnement pour la suite : ce banc ne doit pas dépendre du Chromium de la
-    # machine, qui peut très bien tourner pendant qu'il s'exécute.
+    # We freeze the environment for what follows: this bench must not depend on the machine's
+    # Chromium, which may well be running while it executes.
     setattr(server, "Controller", lambda task: aucun)
     server._PAGE.update(at=0.0, state="gone", url="")
 
-    # --- 3. le serveur -----------------------------------------------------------------------
-    # **Le banc ne doit pas voir les pairs de la machine.** Sur une vraie installation, un autre
-    # processus Hermes tient souvent une page : le plugin refuserait alors le ticket (409), et le
-    # banc croirait que `observe` est cassé. On l'isole donc dans un dossier à lui.
+    # --- 3. the server -----------------------------------------------------------------------
+    # **The bench must not see the machine's peers.** On a real installation, another
+    # Hermes process often holds a page: the plugin would then refuse the ticket (409), and the
+    # bench would believe `observe` is broken. We therefore isolate it in a folder of its own.
     pairs_reels = server.PEERS_DIR
     dossier_pairs = Path(tempfile.mkdtemp(prefix="onyx-browser-selftest-"))
     server.PEERS_DIR = dossier_pairs
@@ -212,9 +212,9 @@ async def main() -> int:
             check("il ne ment pas sur le navigateur", body.get("browser") is False)
             check("il dit que la page est morte", body.get("alive") is False)
 
-        # --- une demande sans page n'est pas une demande ------------------------------------
-        # Hermes ferme un navigateur inactif au bout de deux minutes. La prise en main restait
-        # alors « en attente » pour toujours, et le relais y routait l'écran du téléphone.
+        # --- a request without a page is not a request ------------------------------------
+        # Hermes closes an inactive browser after two minutes. The takeover then stayed
+        # "pending" forever, and the relay routed the phone screen to it.
         attente = session_mod.Waiting(takeover_id="zombie", reason="fantôme")
         server.SESSION.waiting = attente
         server.STATE["task_id"] = "tache-disparue"
@@ -226,7 +226,7 @@ async def main() -> int:
         server.SESSION.waiting = None
         server.STATE["task_id"] = None
 
-        # --- un écran fermé ne garde pas le volant ------------------------------------------
+        # --- a closed screen does not keep the wheel ------------------------------------------
         server.RELEASE_GRACE_S = 0
         server.SESSION.acquire()
         await server._release_when_abandoned()
@@ -255,14 +255,14 @@ async def main() -> int:
             body = await resp.json()
             check("le bail se rend", resp.status == 200 and body.get("holder") == "agent")
 
-        # --- 3 bis. un écran qui arrive chez le mauvais processus -------------------------------
-        # **Deux processus Hermes tournent en parallèle.** Le navigateur de l'agent vit dans celui
-        # qui exécute le tour ; l'autre n'a rien à montrer. L'app se connectait au mauvais, le
-        # relais épinglait le ticket sur lui, et l'écran restait sur « En attente… » pour toujours
-        # alors que la page existait, visible dans l'autre processus.
+        # --- 3a. a screen that arrives at the wrong process -------------------------------
+        # **Two Hermes processes run in parallel.** The agent's browser lives in the one
+        # running the turn; the other has nothing to show. The app connected to the wrong one, the
+        # relay pinned the ticket on it, and the screen stayed on "Waiting…" forever
+        # while the page existed, visible in the other process.
         check("sans pair qui a une page, le ticket est servi", True)
-        # On simule un pair qui a une vraie page. Le pid doit exister : le plugin ne se fie pas à
-        # une fiche périmée, il vérifie que le processus est toujours là.
+        # We simulate a peer that has a real page. The pid must exist: the plugin does not trust
+        # a stale record, it checks that the process is still there.
         pid_pair = os.getppid()
         (dossier_pairs / "999999.json").write_text(
             json.dumps({"pid": pid_pair, "port": 65000, "state": "ok", "ts": time.time()}),
@@ -279,12 +279,12 @@ async def main() -> int:
             body = await resp.json()
         check("et il est servi dès que l'autre processus n'a plus de page", bool(body.get("ticket")))
 
-        # --- le socket, avec un vrai ticket -------------------------------------------------
+        # --- the socket, with a real ticket -------------------------------------------------
         async with client.post("/onyx-browser/observe") as resp:
             ticket = (await resp.json())["ticket"]
         async with client.ws_connect(f"/onyx-browser/ws?ticket={ticket}") as ws:
             await ws.send_json({"type": "watch", "on": True, "takeover": False})
-            # Le pompage peut envoyer un `idle` avant notre réponse : on lit jusqu'au bail.
+            # The pump may send an `idle` before our reply: we read until the lease.
             seen = []
             for _ in range(6):
                 frame = await ws.receive_json(timeout=5)
@@ -292,43 +292,43 @@ async def main() -> int:
                 if frame.get("type") == "lease":
                     break
             check("le WS ouvre avec un ticket et rend le bail", "lease" in seen)
-            # Un ticket ne sert qu'une fois : la seconde poignée de main est refusée.
+            # A ticket is only good once: the second handshake is refused.
             try:
                 async with client.ws_connect(f"/onyx-browser/ws?ticket={ticket}") as again:
                     check("le ticket est à usage unique", False)
             except Exception:
                 check("le ticket est à usage unique", True)
 
-    # --- la trame porte sa taille CSS, et le geste s'y appuie ------------------------------
-    # **Le `css` ne partait pas avec la trame.** Il en était retiré juste avant la diffusion
-    # (`frame.pop("css")`), et l'app recevait donc une taille de zéro : ses gestes étaient
-    # calculés sur un viewport de zéro pixel, et le serveur les rejouait au coin de l'écran.
-    # L'app n'a rien à corriger : c'est le serveur qui ne diffusait pas la mesure.
+    # --- the frame carries its CSS size, and the gesture relies on it ------------------------------
+    # **The `css` did not travel with the frame.** It was stripped just before streaming
+    # (`frame.pop("css")`), and the app therefore received a size of zero: its gestures were
+    # computed on a zero-pixel viewport, and the server replayed them in the corner of the screen.
+    # The app has nothing to fix: it is the server that was not streaming the measurement.
     captured: list[dict] = []
 
     class FauxPompe:
-        """Un contrôleur qui rend une trame en mobile, et note ce que le serveur lui passe."""
+        """A controller that returns a mobile frame, and notes what the server passes it."""
 
         def __init__(self):
             self.css_reçu = (0, 0)
             self.geste = None
-            # **Ce que le serveur demande au navigateur pour la forme de la page.** L'outil posait
-            # le viewport mobile de son côté ; l'app peut prendre la main sans lui, et la page
-            # restait alors en 1280 px écrasés dans la largeur du téléphone.
+            # **What the server asks the browser for the page's shape.** The tool set
+            # the mobile viewport on its own; the app can take control without it, and the page
+            # then stayed at 1280 px squeezed into the phone width.
             self.vues: list[str] = []
 
         def use_phone_viewport(self, *size):
-            # La forme du pouce est calculée par `_phone_css` et passée en arguments : le faux
-            # contrôleur les accepte, comme `Controller.use_phone_viewport(width, height, dpr)`.
+            # The thumb shape is computed by `_phone_css` and passed as arguments: the fake
+            # controller accepts them, like `Controller.use_phone_viewport(width, height, dpr)`.
             self.vues.append("phone")
             return (390, 844)
 
         def repaint_viewport(self, *size):
-            # **Même contrat, autre adresse.** `_pose_viewport` ne pose plus la forme du pouce
-            # par `use_phone_viewport` mais par `repaint_viewport`, qui efface d'abord l'émulation
-            # en place (sans quoi la capture sort en mosaïque). Le double doit exposer la méthode
-            # que le serveur appelle vraiment : sans elle, l'appel levait un `AttributeError` que
-            # `_pose_viewport` avale exprès, et le banc croyait que rien n'avait été demandé.
+            # **Same contract, different address.** `_pose_viewport` no longer sets the thumb shape
+            # through `use_phone_viewport` but through `repaint_viewport`, which first clears the emulation
+            # in place (without which the capture comes out as a mosaic). The double must expose the method
+            # that the server really calls: without it, the call raised an `AttributeError` that
+            # `_pose_viewport` swallows on purpose, and the bench believed nothing had been requested.
             self.vues.append("phone")
             return (390, 844)
 
@@ -365,17 +365,17 @@ async def main() -> int:
     server._controller = lambda: faux
     server.STATE["task_id"] = "tache-de-test"
     server.SESSION.viewport = (390, 844)
-    # Le geste exige le bail : sans lui, il est refusé `no_lease` avant d'atteindre la page.
+    # The gesture requires the lease: without it, it is refused as `no_lease` before reaching the page.
     if server.SESSION.holder != "human":
         server.SESSION.acquire()
     try:
-        # La trame : elle doit contenir `css`.
+        # The frame: it must contain `css`.
         trame = await server._une_trame()
         check("la trame porte sa taille CSS", (trame or {}).get("css") == [390, 844])
         check("et le serveur la garde pour lui", server.SESSION.viewport == (390, 844))
 
-        # Le geste : l'app envoie `css: [0, 0]` (elle n'a pas lu la mesure) — le serveur doit
-        # retomber sur la sienne, et non rejouer le geste sur un viewport de zéro pixel.
+        # The gesture: the app sends `css: [0, 0]` (it did not read the measurement) — the server must
+        # fall back on its own, and not replay the gesture on a zero-pixel viewport.
         client_ws = FauxClient()
         await server._on_frame(
             {
@@ -390,8 +390,8 @@ async def main() -> int:
         )
         check("un css nul retombe sur la mesure du serveur", faux.css_reçu == (390, 844))
 
-        # **Le viewport suit le volant, pas seulement l'outil.** Prendre la main doit mettre la
-        # page à la forme du pouce ; rendre la main doit la remettre en bureau pour l'agent.
+        # **The viewport follows the wheel, not only the tool.** Taking control must put the
+        # page in thumb shape; handing back must put it back in desktop shape for the agent.
         await server._pose_viewport(True)
         await server._pose_viewport(False)
         check("prendre la main pose un viewport de téléphone", faux.vues == ["phone", "desktop"])
@@ -399,12 +399,12 @@ async def main() -> int:
         server._controller = ancien_controleur
         server.STATE["task_id"] = None
 
-    # --- 4. `idle` est un battement, pas une annonce ----------------------------------------
-    # **Envoyé une seule fois, il laissait l'écran dans un silence absolu.** Le chien de garde
-    # de l'app ne comptait que les trames : n'ayant reçu qu'un `idle`, il ne se déclenchait
-    # jamais — et le socket, mort en silence derrière le relais, n'était jamais noticed.
-    # L'écran restait donc sur « En attente… » pour toujours, même quand la page réapparaissait.
-    # Le battement rend le silence interprétable : « vivant mais sans page » ≠ « mort ».
+    # --- 4. `idle` is a heartbeat, not an announcement ----------------------------------------
+    # **Sent only once, it left the screen in absolute silence.** The app's
+    # watchdog only counted frames: having received only one `idle`, it never fired
+    # — and the socket, dead in silence behind the relay, was never noticed.
+    # The screen therefore stayed on "Waiting…" forever, even when the page reappeared.
+    # The heartbeat makes the silence interpretable: "alive but without a page" ≠ "dead".
     recu: list[dict] = []
 
     class FauxSock:
@@ -440,15 +440,15 @@ async def main() -> int:
         server.STATE["clients"] = ancien_clients
         server._peer_avec_page = ancien_peer
 
-    # --- 8. un refus tient pour la conversation et la page --------------------------------
-    # **Sans mémoire, refuser ne servait à rien.** Le tour suivant rappelait l'outil sur la même
-    # page, une demande neuve était publiée, et la carte revenait — à chaque prompt réécrit.
+    # --- 8. a refusal holds for the conversation and the page --------------------------------
+    # **Without memory, refusing was useless.** The next turn called the tool again on the same
+    # page, a fresh request was published, and the card came back — on every rewritten prompt.
     url = "https://github.com/login"
     server.note_declined("api-abc", url)
     check("un refus est retenu", server.declined_recently("api-abc", url))
     check("et il ne vaut que pour sa page", not server.declined_recently("api-abc", "https://autre.test/x"))
     check("et que pour sa conversation", not server.declined_recently("api-autre", url))
-    # L'ancre et la barre finale ne créent pas une seconde page.
+    # The anchor and the trailing slash do not create a second page.
     check("la même page sans ancre reste la même", server.declined_recently("api-abc", url + "#section"))
 
     print()

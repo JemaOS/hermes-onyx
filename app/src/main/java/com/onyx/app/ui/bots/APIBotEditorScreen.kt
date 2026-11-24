@@ -27,10 +27,10 @@ import com.onyx.app.ui.design.OnyxTextField
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * « Add Bot » sur la seule API Hermes (`APIBotEditor`).
+ * "Add Bot" on the sole Hermes API (`APIBotEditor`) ("Ajouter un bot").
  *
- * Un bot est l'un des profils du serveur : le nom de son dossier sous `~/.hermes/profiles`. Onyx
- * ouvre son chat, celui que Hermes Desktop et le Dashboard montrent pour lui.
+ * A bot is one of the server's profiles: the name of its folder under `~/.hermes/profiles`. Onyx
+ * opens its chat, the one Hermes Desktop and the Dashboard show for it.
  */
 @Composable
 fun APIBotEditorScreen(

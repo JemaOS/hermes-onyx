@@ -31,10 +31,10 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 
 /**
- * Les préférences de l'app : thème, apparence, voix et écriture.
+ * The app's preferences: theme, appearance, voice and writing.
  *
- * Miroir de `Settings.shared` côté référence, réduit à ce que les étapes ont porté : Apparence, Voix,
- * Writing. La forme ne change pas — un `StateFlow` lu par l'UI, écrit sur disque au changement.
+ * Mirror of the reference-side `Settings.shared`, reduced to what the steps carried: Appearance, Voice,
+ * Writing. The shape does not change — a `StateFlow` read by the UI, written to disk on change.
  */
 class SettingsRepository(private val store: DataStore<Preferences>) {
 
@@ -48,12 +48,12 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     val theme: StateFlow<OnyxTheme> = _theme.asStateFlow()
 
     /**
-     * Vrai une fois [load] passé : les valeurs portées par les flux sont alors **celles du disque**,
-     * et non les défauts.
+     * True once [load] has run: the values carried by the flows are then **the disk's values**,
+     * not the defaults.
      *
-     * C'est ce que lit le travail de fond ([com.onyx.app.notifications.ReplyWatcher]) : démarré par
-     * Android, il peut interroger le dépôt avant que le chargement du démarrage ne soit fini — et un
-     * réglage éteint se lirait alors comme son défaut.
+     * This is what background work ([com.onyx.app.notifications.ReplyWatcher]) reads: started by
+     * Android, it can query the repository before the startup load is finished — and a
+     * disabled setting would then read as its default.
      */
     private val _loaded = MutableStateFlow(false)
     val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
@@ -62,233 +62,233 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     val appearance: StateFlow<AppearanceMode> = _appearance.asStateFlow()
 
     /**
-     * « Noir pur » (`Settings.pureBlack`) : en apparence **sombre** seulement, les fonds de page
-     * passent au noir absolu — plus doux sur un écran OLED. **Faux par défaut.**
+     * "Pure black" (`Settings.pureBlack`): in **dark** appearance only, page backgrounds
+     * switch to absolute black — gentler on an OLED screen. **False by default.**
      */
     private val _pureBlack = MutableStateFlow(false)
     val pureBlack: StateFlow<Boolean> = _pureBlack.asStateFlow()
 
-    /** « Halo » (`Settings.halo`) : la lumière colorée douce derrière le haut de chaque écran. */
+    /** "Halo" (`Settings.halo`): the soft coloured glow behind the top of each screen. */
     private val _halo = MutableStateFlow(true)
     val halo: StateFlow<Boolean> = _halo.asStateFlow()
 
     /**
-     * « Fluid » : la couverture d'une carte de conversation est le fluide animé (variante B), au
-     * lieu de l'image déterministe. **Vrai par défaut.** Éteint, la carte reprend exactement
-     * l'ancienne couverture — rien d'autre ne change.
+     * "Fluid": a conversation card's cover is the animated fluid (variant B), instead
+     * of the deterministic image. **True by default.** When off, the card falls back to exactly
+     * the old cover — nothing else changes.
      */
     private val _fluideCover = MutableStateFlow(true)
     val fluideCover: StateFlow<Boolean> = _fluideCover.asStateFlow()
 
     /**
-     * **Le matériau du fluide** — le choix que le propriétaire a tranché sur la planche des
-     * variantes : **filaments, graine `3417634283`, teinte bleu**. Trois valeurs **enregistrées**,
-     * relues au démarrage et posées telles quelles dans la carte
-     * ([com.onyx.app.ui.design.LocalFluideChoix]). Avant elles, seule la variante était supposée :
-     * la graine venait de la conversation, donc la teinte tombait sur l'une des six de la maison —
-     * **verte** pour ses conversations — et le choix du propriétaire n'était nulle part.
+     * **The fluid's material** — the choice the owner settled on the variants board:
+     * **filaments, seed `3417634283`, blue hue**. Three **stored** values,
+     * re-read at startup and set as-is on the card
+     * ([com.onyx.app.ui.design.LocalFluideChoix]). Before them, only the variant was assumed:
+     * the seed came from the conversation, so the hue landed on one of the house's six —
+     * **green** for its conversations — and the owner's choice was nowhere.
      */
     private val _fluideChoix = MutableStateFlow(com.onyx.app.ui.design.ChoixCouverture.DEFAUT)
     val fluideChoix: StateFlow<com.onyx.app.ui.design.ChoixCouverture> = _fluideChoix.asStateFlow()
 
-    /** Habillages lus par le compagnon Android Auto via AutoSettingsProvider. */
+    /** Looks read by the Android Auto companion via AutoSettingsProvider. */
     private val _autoCardLook = MutableStateFlow(AutoCardLook.COLOR)
     val autoCardLook: StateFlow<AutoCardLook> = _autoCardLook.asStateFlow()
 
     private val _autoVoiceLook = MutableStateFlow(AutoVoiceLook.BARS)
     val autoVoiceLook: StateFlow<AutoVoiceLook> = _autoVoiceLook.asStateFlow()
 
-    /** La langue du micro et de la lecture ; vide = celle de l'interface. */
+    /** Mic and playback language; empty = the interface's. */
     private val _speechLocale = MutableStateFlow(DEFAULT_SPEECH_LOCALE)
     val speechLocale: StateFlow<String> = _speechLocale.asStateFlow()
 
     /**
-     * La langue **réellement donnée au moteur** : le choix de la personne, sinon celle de
-     * l'interface.
+     * The language **actually given to the engine**: the person's choice, otherwise the
+     * interface's.
      *
-     * L'app était figée sur « fr-FR » : une app en anglais écoutait en français, et les phrases
-     * anglaises étaient mal transcrites — donc jamais reconnues. La langue du micro suit donc
-     * celle de l'interface, tant que la personne n'en a pas choisi une autre.
+     * The app was pinned to "fr-FR": an English app listened in French, and English phrases
+     * were badly transcribed — so never recognised. The mic language therefore follows the
+     * interface's, as long as the person has not chosen another.
      */
     private val _speechLocaleResolved = MutableStateFlow(resolveSpeechLocale(DEFAULT_SPEECH_LOCALE))
     val speechLocaleResolved: StateFlow<String> = _speechLocaleResolved.asStateFlow()
 
     /**
-     * « Reconnaître hors ligne » (`Settings.offlineRecognition`) : **faux par défaut**.
+     * "Recognise offline" (`Settings.offlineRecognition`): **false by default**.
      *
-     * La reconnaissance se fait **en ligne**, avec le moteur de l'appareil. Imposé, le hors ligne
-     * était la cause du `code=13 language-unavailable` : sur un téléphone sans pack hors ligne pour
-     * la langue, le moteur démarrait puis s'arrêtait tout seul. Ce réglage-ci est le **seul**
-     * chemin vers le hors ligne, et un moteur hors ligne qui échoue bascule en ligne de lui-même.
+     * Recognition is **online**, using the device engine. When enforced, offline was the
+     * cause of `code=13 language-unavailable`: on a phone without an offline pack for the
+     * language, the engine started then stopped by itself. This setting is the **only**
+     * path to offline, and an offline engine that fails falls back online on its own.
      */
     private val _offlineRecognition = MutableStateFlow(false)
     val offlineRecognition: StateFlow<Boolean> = _offlineRecognition.asStateFlow()
 
-    /** Le mode vocal se remet-il à écouter après chaque réponse ? */
+    /** Does voice mode start listening again after each reply? */
     private val _handsFreeByDefault = MutableStateFlow(true)
     val handsFreeByDefault: StateFlow<Boolean> = _handsFreeByDefault.asStateFlow()
 
-    /** La touche Entrée du clavier envoie-t-elle le message ? */
+    /** Does the keyboard's Enter key send the message? */
     private val _returnSends = MutableStateFlow(true)
     val returnSends: StateFlow<Boolean> = _returnSends.asStateFlow()
 
-    /** La vitesse de la voix lue (0.5 à 2.0, comme le curseur de la référence). */
+    /** The spoken voice's speed (0.5 to 2.0, like the reference slider). */
     private val _voiceSpeed = MutableStateFlow(1.0f)
     val voiceSpeed: StateFlow<Float> = _voiceSpeed.asStateFlow()
 
-    /** La synthèse choisie : Android, un serveur Kokoro, ou le Hermes du Dashboard. */
+    /** The chosen synthesis: Android, a Kokoro server, or the Dashboard's Hermes. */
     private val _replyVoice = MutableStateFlow(ReplyVoice.ON_DEVICE)
     val replyVoice: StateFlow<ReplyVoice> = _replyVoice.asStateFlow()
 
-    /** Adresse du serveur Kokoro-compatible, vide tant qu'il n'est pas configuré. */
+    /** Address of the Kokoro-compatible server, empty until it is configured. */
     private val _kokoroUrl = MutableStateFlow(DEFAULT_KOKORO_URL)
     val kokoroUrl: StateFlow<String> = _kokoroUrl.asStateFlow()
 
     /**
-     * Le jeton du service vocal, quand il est protégé (mandataire à jeton). **Vide par défaut** :
-     * sans jeton, l'app n'envoie aucun en-tête et parle à un serveur local ouvert comme avant. Il
-     * reste **hors de l'adresse** — il finit dans les copies d'écran et les journaux — et ne voyage
-     * que dans l'en-tête `Authorization` de `KokoroSpeechClient`.
+     * The voice service's token, when it is protected (token proxy). **Empty by default**:
+     * without a token, the app sends no header and talks to an open local server as before. It
+     * stays **out of the address** — it ends up in screenshots and logs — and travels
+     * only in the `Authorization` header of `KokoroSpeechClient`.
      */
     private val _kokoroToken = MutableStateFlow(DEFAULT_KOKORO_TOKEN)
     val kokoroToken: StateFlow<String> = _kokoroToken.asStateFlow()
 
-    /** Voix ou mélange (`am_onyx(2)+bm_george(1)`) demandé à Kokoro. */
+    /** Voice or blend (`am_onyx(2)+bm_george(1)`) requested from Kokoro. */
     private val _kokoroVoice = MutableStateFlow(DEFAULT_KOKORO_VOICE)
     val kokoroVoice: StateFlow<String> = _kokoroVoice.asStateFlow()
 
-    /** La langue des réponses demandée au modèle ; vide = automatique (celle de la question). */
+    /** The reply language requested from the model; empty = automatic (the question's). */
     private val _replyLanguage = MutableStateFlow("")
     val replyLanguage: StateFlow<String> = _replyLanguage.asStateFlow()
 
     /**
-     * La langue de l'interface : `system` (celle d'Android, le défaut), `fr` ou `en`
-     * (`OnyxLanguage`). Le choix ne touche jamais `Locale.getDefault()`.
+     * The interface language: `system` (Android's, the default), `fr` or `en`
+     * (`OnyxLanguage`). The choice never touches `Locale.getDefault()`.
      */
     private val _language = MutableStateFlow(OnyxLanguage.SYSTEM)
     val language: StateFlow<String> = _language.asStateFlow()
 
-    /** Demande trois questions de relance après chaque réponse (« Suggest follow-up questions »). */
+    /** Request three follow-up questions after each reply ("Suggest follow-up questions"). */
     private val _suggestFollowUps = MutableStateFlow(false)
     val suggestFollowUps: StateFlow<Boolean> = _suggestFollowUps.asStateFlow()
 
-    /** Les règles de préfixe parlé, dans l'ordre où elles s'essaient. */
+    /** The spoken prefix rules, in the order they are tried. */
     private val _spokenPrefixes = MutableStateFlow<List<com.onyx.app.ui.settings.voice.SpokenPrefix>>(emptyList())
     val spokenPrefixes: StateFlow<List<com.onyx.app.ui.settings.voice.SpokenPrefix>> = _spokenPrefixes.asStateFlow()
 
-    /** Les façons personnelles de terminer une conversation en mains-libres. */
+    /** Personal ways to end a hands-free conversation. */
     private val _stopPhrases = MutableStateFlow<List<String>>(emptyList())
     val stopPhrases: StateFlow<List<String>> = _stopPhrases.asStateFlow()
 
-    /** L'effort de raisonnement demandé (`Settings.reasoningEfforts`) ; vide = laissé au serveur. */
+    /** The reasoning effort requested (`Settings.reasoningEfforts`); empty = left to the server. */
     private val _reasoningEffort = MutableStateFlow("")
     val reasoningEffort: StateFlow<String> = _reasoningEffort.asStateFlow()
 
     /**
-     * « Parler pendant les réponses » (`Settings.TalkOver`) : jamais, avec un casque seulement
-     * (le défaut de la référence), ou partout. C'est ce réglage, confronté à la route du moment,
-     * qui décide si le micro s'ouvre derrière une réponse — sur le haut-parleur d'un téléphone, il
-     * ne s'ouvre pas, et la voix de synthèse ne peut donc pas revenir par le micro.
+     * "Talk during replies" (`Settings.TalkOver`): never, with headphones only
+     * (the reference default), or everywhere. It is this setting, confronted with the current route,
+     * that decides whether the mic opens behind a reply — on a phone's loudspeaker, it
+     * does not open, and the synthesis voice therefore cannot come back through the mic.
      */
     private val _talkOver = MutableStateFlow(TalkOver.DEFAULT)
     val talkOver: StateFlow<TalkOver> = _talkOver.asStateFlow()
 
     /**
-     * « Earpiece when raised to your ear » (`Settings.earpieceAtEar`) : téléphone levé à
-     * l'oreille, la réponse se joue dans l'écouteur, comme un appel.
+     * "Earpiece when raised to your ear" (`Settings.earpieceAtEar`): phone raised to the
+     * ear, the reply plays in the earpiece, like a call.
      */
     private val _earpieceAtEar = MutableStateFlow(true)
     val earpieceAtEar: StateFlow<Boolean> = _earpieceAtEar.asStateFlow()
 
-    /** Alertes d'approbation reçues pendant que Onyx est en arrière-plan. */
+    /** Approval alerts received while Onyx is in the background. */
     private val _notifyInBackground = MutableStateFlow(true)
     val notifyInBackground: StateFlow<Boolean> = _notifyInBackground.asStateFlow()
 
-    /** Son des alertes ; Android utilise deux canaux, avec et sans son. */
+    /** Alert sound; Android uses two channels, with and without sound. */
     private val _notificationSound = MutableStateFlow(true)
     val notificationSound: StateFlow<Boolean> = _notificationSound.asStateFlow()
 
     /**
-     * « Me prévenir quand une réponse arrive, app fermée » : le surveillant de réponses
-     * ([com.onyx.app.notifications.ReplyWatcher]) relit le journal des sessions suivies toutes les
-     * quinze minutes et publie la réponse arrivée entre-temps. **Vrai par défaut** : sans cela, un
-     * bot qui finit son tour pendant que le téléphone est dans la poche ne s'annonce jamais.
+     * "Notify me when a reply arrives, app closed": the reply watcher
+     * ([com.onyx.app.notifications.ReplyWatcher]) re-reads the tracked sessions' log every
+     * fifteen minutes and publishes the reply that arrived in the meantime. **True by default**: without it, a
+     * bot that finishes its turn while the phone is in a pocket never announces itself.
      */
     private val _replyWatch = MutableStateFlow(true)
     val replyWatch: StateFlow<Boolean> = _replyWatch.asStateFlow()
 
     /**
-     * « Appels pour une réponse » (`phone_call_me` / `phoneRings` de la référence) : une approbation
-     * ou une question **sonne comme un appel** — plein écran sur l'écran verrouillé — au lieu d'une
-     * simple notification. **Faux par défaut** : c'est l'utilisateur qui l'allume (Réglages → Phone
-     * → Calls). Sans lui, tout se comporte comme avant.
+     * "Calls for a reply" (`phone_call_me` / `phoneRings` of the reference): an approval
+     * or a question **rings like a call** — full screen on the lock screen — instead of a
+     * plain notification. **False by default**: the user turns it on (Settings → Phone
+     * → Calls). Without it, everything behaves as before.
      */
     private val _phoneRings = MutableStateFlow(false)
     val phoneRings: StateFlow<Boolean> = _phoneRings.asStateFlow()
 
     /**
-     * Décrocher met Hermes **en ligne** (le mode vocal écoute) au lieu d'ouvrir la conversation :
-     * c'est le `phoneRingsTalk` de la référence, **vrai par défaut** — un appel qu'on décroche est un
-     * appel où l'on parle.
+     * Answering puts Hermes **online** (voice mode listens) instead of opening the conversation:
+     * this is the reference's `phoneRingsTalk`, **true by default** — a call you answer is a
+     * call where you talk.
      */
     private val _phoneRingsTalk = MutableStateFlow(true)
     val phoneRingsTalk: StateFlow<Boolean> = _phoneRingsTalk.asStateFlow()
 
-    /** Les heures de tranquillité : rien ne sonne pendant la plage ([quietFrom] → [quietUntil]). */
+    /** Quiet hours: nothing rings during the window ([quietFrom] → [quietUntil]). */
     private val _quietHours = MutableStateFlow(false)
     val quietHours: StateFlow<Boolean> = _quietHours.asStateFlow()
 
-    /** Le début de la plage de tranquillité, en minutes depuis minuit (22:00 par défaut). */
+    /** The start of the quiet window, in minutes since midnight (22:00 by default). */
     private val _quietFrom = MutableStateFlow(QuietHours.DEFAULT_FROM)
     val quietFrom: StateFlow<Int> = _quietFrom.asStateFlow()
 
-    /** La fin de la plage de tranquillité, en minutes depuis minuit (07:00 par défaut). */
+    /** The end of the quiet window, in minutes since midnight (07:00 by default). */
     private val _quietUntil = MutableStateFlow(QuietHours.DEFAULT_UNTIL)
     val quietUntil: StateFlow<Int> = _quietUntil.asStateFlow()
 
     /**
-     * « Suivi du travail » : ce qu'un bot annonce de son travail — jamais, seulement à la fin
-     * (le défaut), ou à chaque étape avec la notification d'avancement dans la barre d'état.
+     * "Work tracking": what a bot announces about its work — never, only at the end
+     * (the default), or at each step with the progress notification in the status bar.
      */
     private val _workTracking = MutableStateFlow(WorkTracking.DEFAULT)
     val workTracking: StateFlow<WorkTracking> = _workTracking.asStateFlow()
 
-    /** Ce que l'en-tête et la zone de saisie appellent l'assistant ; vide = « Onyx ». */
+    /** What the header and the input area call the assistant; empty = "Onyx". */
     private val _displayName = MutableStateFlow("")
     val displayName: StateFlow<String> = _displayName.asStateFlow()
 
     /**
-     * L'écran de configuration du premier lancement a été traversé (« Skip » ou « Done »).
+     * The first-launch setup screen has been passed ("Skip" or "Done").
      *
-     * C'est le `Settings.setupDone` de la référence. Sans lui, l'écran se réaffichait à chaque
-     * composition tant qu'aucune adresse n'était saisie : les deux boutons paraissaient morts et
-     * l'utilisateur restait enfermé dans le formulaire.
+     * This is the reference's `Settings.setupDone`. Without it, the screen reappeared on each
+     * composition as long as no address was entered: the two buttons seemed dead and
+     * the user stayed trapped in the form.
      */
     private val _setupDone = MutableStateFlow(false)
     val setupDone: StateFlow<Boolean> = _setupDone.asStateFlow()
 
-    /** Les couleurs choisies par thème, clés = identifiants de thème (`Settings.themeColors`). */
+    /** Colours chosen per theme, keys = theme identifiers (`Settings.themeColors`). */
     private val _themeColors = MutableStateFlow<Map<String, ThemeColors>>(emptyMap())
     val themeColors: StateFlow<Map<String, ThemeColors>> = _themeColors.asStateFlow()
 
-    /** « Bot faces » : éteint, chaque bot est son initiale sur un disque de sa couleur. */
+    /** "Bot faces": when off, each bot is its initial on a disc of its colour. */
     private val _botFaces = MutableStateFlow(true)
     val botFaces: StateFlow<Boolean> = _botFaces.asStateFlow()
 
-    /** La voix réglée pour chaque bot, par serveur (`Settings.botVoices`). */
+    /** The voice set for each bot, per server (`Settings.botVoices`). */
     private val _botVoices = MutableStateFlow<Map<String, Map<String, com.onyx.app.voice.BotVoice>>>(emptyMap())
     val botVoices: StateFlow<Map<String, Map<String, com.onyx.app.voice.BotVoice>>> = _botVoices.asStateFlow()
 
     /**
-     * Les voix réglées pour les bots **de ce serveur** (`Settings.botVoicesHere` de la référence) : c'est ce
-     * que la lecture consulte pour donner à chacun la sienne.
+     * The voices set for bots **of this server** (the reference's `Settings.botVoicesHere`): this is what
+     * playback consults to give each one its own.
      */
     fun botVoicesHere(serverId: String): Map<String, com.onyx.app.voice.BotVoice> =
         _botVoices.value[serverId].orEmpty()
 
     /**
-     * Règle la voix d'un bot (`BotVoicePicker` de la référence) ; `null` efface son réglage — le bot reprend
-     * alors une voix de son cru (`BotVoices`). Une fiche vide n'est pas enregistrée.
+     * Sets a bot's voice (the reference's `BotVoicePicker`); `null` clears its setting — the bot then
+     * takes back a voice of its own (`BotVoices`). An empty entry is not stored.
      */
     suspend fun setBotVoice(serverId: String, profile: String, voice: com.onyx.app.voice.BotVoice?) {
         val here = _botVoices.value[serverId].orEmpty().toMutableMap()
@@ -299,83 +299,83 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.BOT_VOICES] = json.encodeToString(BOT_VOICES_SERIALIZER, all) }
     }
 
-    /** « Pictures from Hermes » : la photo du profil Hermes remplace le visage quand il en a une. */
+    /** "Pictures from Hermes": Hermes' profile picture replaces the face when it has one. */
     private val _botPictures = MutableStateFlow(true)
     val botPictures: StateFlow<Boolean> = _botPictures.asStateFlow()
 
-    /** « Bot colors in their chats » : bulles et accent d'un chat prennent la couleur du bot. */
+    /** "Bot colors in their chats": a chat's bubbles and accent take the bot's colour. */
     private val _botColors = MutableStateFlow(true)
     val botColors: StateFlow<Boolean> = _botColors.asStateFlow()
 
     /**
-     * « Link previews » : une fiche avec le titre et l'image de la page sous un message qui
-     * contient un lien (`LinkPreviews`). **Éteint par défaut** : le téléphone ouvre la page
-     * lui-même, donc le site voit la visite, là où Onyx ne parle sinon qu'aux serveurs qu'on lui
-     * a donnés.
+     * "Link previews": a card with the page's title and image under a message that
+     * contains a link (`LinkPreviews`). **Off by default**: the phone opens the page
+     * itself, so the site sees the visit, whereas Onyx otherwise only talks to the servers it
+     * was given.
      */
     private val _linkPreviews = MutableStateFlow(false)
     val linkPreviews: StateFlow<Boolean> = _linkPreviews.asStateFlow()
 
-    /** « Chat text size » : les pas -2…2 autour de la taille système (`Settings.chatTextSizes`). */
+    /** "Chat text size": steps -2…2 around the system size (`Settings.chatTextSizes`). */
     private val _chatTextSize = MutableStateFlow(0)
     val chatTextSize: StateFlow<Int> = _chatTextSize.asStateFlow()
 
-    /** L'orbe du mode vocal (`Settings.voiceOrb`). */
+    /** The voice mode orb (`Settings.voiceOrb`). */
     private val _voiceOrb = MutableStateFlow(VoiceOrbChoice.ONYX)
     val voiceOrb: StateFlow<VoiceOrbChoice> = _voiceOrb.asStateFlow()
 
-    /** Ce qui bouge dans la face de l'orbe (`Settings.orbLight`). */
+    /** What moves inside the orb face (`Settings.orbLight`). */
     private val _orbLight = MutableStateFlow(OrbLight.NEBULA)
     val orbLight: StateFlow<OrbLight> = _orbLight.asStateFlow()
 
     /**
-     * Le volet de gauche des deux panneaux est-il replié ? Réglage **de l'appareil** (comme les
-     * autres réglages d'interface : il vit dans le `DataStore` local, pas sur le serveur) : le
-     * pliable déplié garde la forme que son porteur lui a donnée d'une session à l'autre.
+     * Is the left pane of the two-panel layout collapsed? **Device** setting (like the
+     * other interface settings: it lives in the local `DataStore`, not on the server): the
+     * collapsible, once expanded, keeps the shape its owner gave it from one session to the next.
      */
     private val _sidebarCollapsed = MutableStateFlow(false)
     val sidebarCollapsed: StateFlow<Boolean> = _sidebarCollapsed.asStateFlow()
 
     /**
-     * **« Halo »** : le verre réagit-il au doigt ? Lumière spéculaire, enfoncement à l'appui,
-     * contour illuminé — les trois d'un seul interrupteur.
+     * **"Halo"**: does the glass react to the finger? Specular light, press-in on tap,
+     * illuminated outline — all three from a single switch.
      *
-     * C'est **le seul** réglage que le lot « verre tactile » ajoute ; l'écran qui l'affiche est porté
-     * par un autre lot, qui ajoute justement « Halo ». Ici on ne pose donc que **la clé et sa
-     * lecture** : éteint, l'application fournit `LocalGlassHalo = false` et *tout* est plat, sans
-     * qu'un seul site ait à s'en soucier. Valeur par défaut **vrai** : le verre est vivant comme
-     * dans la référence référence.
+     * It is **the only** setting the "tactile glass" batch adds; the screen that displays it is carried
+     * by another batch, which adds precisely "Halo". Here we therefore only set **the key and its
+     * read**: when off, the application provides `LocalGlassHalo = false` and *everything* is flat, without
+     * a single site having to worry about it. Default value **true**: the glass is alive as
+     * in the reference reference.
      */
     private val _glassHalo = MutableStateFlow(true)
     val glassHalo: StateFlow<Boolean> = _glassHalo.asStateFlow()
 
     /**
-     * La période des aperçus (7, 30 ou 90 jours), **mémorisée** : rouvrir l'écran retrouve la
-     * période qu'on regardait. Comme [sidebarCollapsed], c'est un réglage de l'appareil, écrit dans
-     * le `DataStore` local — il ne part jamais au serveur, et ne suit donc pas le profil.
+     * The insights period (7, 30 or 90 days), **remembered**: reopening the screen finds the
+     * period being viewed. Like [sidebarCollapsed], it is a device setting, written in
+     * the local `DataStore` — it never goes to the server, and so does not follow the profile.
      */
     private val _insightsPeriod = MutableStateFlow(InsightsPeriod.DEFAULT)
     val insightsPeriod: StateFlow<InsightsPeriod> = _insightsPeriod.asStateFlow()
 
     /**
-     * **La grille de raccourcis du volet** — les identifiants des tuiles affichées, dans l'ordre de
-     * la personne. C'est un réglage de **cet appareil** (comme la période des aperçus et le repli du
-     * volet) : il s'écrit dans le `DataStore` local, il ne part jamais au serveur.
+     * **The pane's shortcuts grid** — the identifiers of the displayed tiles, in the
+     * person's order. It is a setting of **this device** (like the insights period and the pane's
+     * collapse): it is written in the local `DataStore`, it never goes to the server.
      *
-     * La valeur par défaut est **la grille d'origine** (`SidebarTileLayout.defaultIds`, les six tuiles
-     * de la référence) : une clé absente, illisible, ou écrite par une version antérieure rend cette
-     * grille-là — jamais une grille vide, et **jamais** l'invalidation d'un réglage déjà stocké.
+     * The default value is **the original grid** (`SidebarTileLayout.defaultIds`, the six tiles
+     * of the reference): an absent, unreadable key, or one written by an earlier version, yields that
+     * grid — never an empty grid, and **never** the invalidation of an already stored setting.
      */
     private val _sidebarTiles = MutableStateFlow(com.onyx.app.ui.sidebar.SidebarTileLayout.defaultIds)
     val sidebarTiles: StateFlow<List<String>> = _sidebarTiles.asStateFlow()
 
     /**
-     * La langue de l'app demandée par un lien de configuration **ou** par le réglage Langue : c'est
-     * le **même** réglage (`Keys.LANGUAGE`, clé `app_language`), porté par [language]/[setLanguage].
-     * Un lien ne crée pas un second réglage, il l'écrit — d'où l'absence d'un second flux ici.
+     * The app language requested by a setup link **or** by the Language setting: it is
+     * the **same** setting (`Keys.LANGUAGE`, key `app_language`), carried by [language]/[setLanguage].
+     * A link does not create a second setting, it writes it — hence the absence of a second flow here.
      */
 
-    /** Lit ce qui a été enregistré ; les valeurs par défaut sont celles de l'app de référence. */
+    /** Reads what was stored; the default values are the reference app's. */
     suspend fun load() {
         val preferences = store.data.first()
         _theme.value = OnyxTheme.fromId(preferences[SettingsKeys.THEME])
@@ -383,13 +383,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         _pureBlack.value = preferences[Keys.PURE_BLACK] ?: false
         _halo.value = preferences[Keys.HALO] ?: true
         _fluideCover.value = preferences[Keys.FLUIDE_COVER] ?: true
-        // **Ce que le propriétaire a enregistré, et rien de plus.** La lecture porte le choix tel
-        // qu'il a été **écrit au geste** ([setFluideChoix], appelé sur la planche des variantes) ;
-        // **aucune clé n'est semée ici** — le démarrage n'écrit jamais. S'il n'y a **aucun** choix
-        // enregistré, la carte prend le défaut **visible** ([ChoixCouverture.DEFAUT] — filaments,
-        // graine `3417634283`, teinte bleu) **sans l'écrire** ; dès qu'un choix existe, c'est **LUI**
-        // qui gagne. Semer au démarrage reviendrait à écraser en silence le choix de l'utilisateur,
-        // ce que le verrou livré (`AppearancePersistenceLockTest`) interdit.
+        // **What the owner stored, and nothing more.** The read carries the choice as
+        // it was **written on gesture** ([setFluideChoix], called on the variants board);
+        // **no key is seeded here** — startup never writes. If there is **no** choice
+        // stored, the card takes the **visible** default ([ChoixCouverture.DEFAUT] — filaments,
+        // seed `3417634283`, blue hue) **without writing it**; as soon as a choice exists, it is **IT**
+        // that wins. Seeding at startup would mean silently overwriting the user's choice,
+        // which the shipped lock (`AppearancePersistenceLockTest`) forbids.
         _fluideChoix.value = com.onyx.app.ui.design.ChoixCouverture.enregistre(
             variante = preferences[Keys.FLUIDE_VARIANTE],
             graine = preferences[Keys.FLUIDE_GRAINE],
@@ -397,51 +397,51 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         )
         _autoCardLook.value = AutoCardLook.fromId(preferences[Keys.AUTO_CARDS])
         _autoVoiceLook.value = AutoVoiceLook.fromId(preferences[Keys.AUTO_VOICE])
-        // La langue du micro : **un choix explicite** d'abord, sinon celle de l'interface.
+        // The mic language: **an explicit choice** first, otherwise the interface's.
         //
-        // L'héritage : avant, « fr-FR » était la valeur **par défaut** — et une entrée du sélecteur
-        // (« Français »). Un « fr-FR » de l'ancienne clé est donc ambigu : le traiter comme un
-        // choix figerait le micro en français sur une app anglaise ; le traiter comme « rien »
-        // supprimerait un choix réel de la personne. La clé **neuve** (`speech_locale_chosen`) lève
-        // l'ambiguïté : elle n'est écrite que par un choix, et c'est elle qui fait foi.
+        // The inheritance: before, "fr-FR" was the **default** value — and an entry of the picker
+        // ("French"). A "fr-FR" from the old key is therefore ambiguous: treating it as a
+        // choice would pin the mic to French on an English app; treating it as "nothing"
+        // would delete a real choice of the person. The **new** key (`speech_locale_chosen`) lifts
+        // the ambiguity: it is only written by a choice, and it is the one that counts.
         _speechLocale.value = preferences[Keys.SPEECH_LOCALE_CHOSEN]
             ?: preferences[Keys.SPEECH_LOCALE]?.takeUnless { it == LEGACY_FIXED_SPEECH_LOCALE }
             ?: DEFAULT_SPEECH_LOCALE
         _handsFreeByDefault.value = preferences[Keys.HANDS_FREE] ?: true
-        // « Reconnaître hors ligne » : **faux par défaut** — le seul chemin vers le hors ligne.
+        // "Recognise offline": **false by default** — the only path to offline.
         _offlineRecognition.value = preferences[Keys.OFFLINE_RECOGNITION] ?: false
         _returnSends.value = preferences[Keys.RETURN_SENDS] ?: true
         _voiceSpeed.value = preferences[Keys.VOICE_SPEED] ?: 1.0f
         _replyVoice.value = ReplyVoice.fromId(preferences[Keys.REPLY_VOICE])
         _kokoroUrl.value = preferences[Keys.KOKORO_URL] ?: DEFAULT_KOKORO_URL
-        // Le jeton du service vocal : la valeur par défaut vient du fichier du mandataire (0600),
-        // injecté à la compilation pour la version de test ; sinon vide, donc aucun en-tête.
+        // The voice service's token: the default value comes from the proxy file (0600),
+        // injected at build time for the test build; otherwise empty, so no header.
         _kokoroToken.value = preferences[Keys.KOKORO_TOKEN] ?: DEFAULT_KOKORO_TOKEN
         _kokoroVoice.value = preferences[Keys.KOKORO_VOICE] ?: DEFAULT_KOKORO_VOICE
         _replyLanguage.value = preferences[Keys.REPLY_LANGUAGE] ?: ""
-        // La langue de l'interface : relue et **réappliquée** ici, pour qu'une remise à zéro des
-        // réglages ramène aussi l'app à la langue d'Android.
+        // The interface language: re-read and **re-applied** here, so that a reset of the
+        // settings also brings the app back to Android's language.
         _language.value = OnyxLanguage.normalize(preferences[Keys.LANGUAGE])
         OnyxLanguage.apply(_language.value)
-        // La langue du micro se résout **après** celle de l'interface : quand rien n'est choisi,
-        // elle en suit la langue.
+        // The mic language resolves **after** the interface's: when nothing is chosen,
+        // it follows the language.
         _speechLocaleResolved.value = resolveSpeechLocale(_speechLocale.value)
-        // Le mode enregistré ; à défaut l'ancien booléen (vrai valait « partout »), à défaut le
-        // défaut de la référence.
+        // The stored mode; failing that the old boolean (true meant "everywhere"), failing that the
+        // reference default.
         _talkOver.value = preferences[Keys.TALK_OVER_MODE]?.let(TalkOver::fromId)
             ?: preferences[Keys.TALK_OVER]?.let(TalkOver::fromLegacy)
             ?: TalkOver.DEFAULT
         _earpieceAtEar.value = preferences[Keys.EARPIECE_AT_EAR] ?: true
         _suggestFollowUps.value = preferences[Keys.SUGGEST_FOLLOW_UPS] ?: false
         _reasoningEffort.value = preferences[Keys.REASONING_EFFORT] ?: ""
-        // **Vrai par défaut** : une app de conversation doit parler en arrière-plan. Le réglage
-        // était à faux, ce qui laissait une installation neuve muette — le travail continuait chez
-        // l'hôte, mais personne n'était prévenu.
+        // **True by default**: a conversation app must speak in the background. The setting
+        // was false, which left a fresh install mute — the work continued at
+        // the host, but nobody was notified.
         _notifyInBackground.value = preferences[Keys.NOTIFY_IN_BACKGROUND] ?: true
         _notificationSound.value = preferences[Keys.NOTIFICATION_SOUND] ?: true
-        // « Me prévenir quand une réponse arrive, app fermée » : vrai par défaut, cf. `_replyWatch`.
+        // "Notify me when a reply arrives, app closed": true by default, cf. `_replyWatch`.
         _replyWatch.value = preferences[Keys.REPLY_WATCH] ?: true
-        // « Appels pour une réponse » et les heures de tranquillité : les quatre clés du lot d'appel.
+        // "Calls for a reply" and quiet hours: the four keys of the call batch.
         _phoneRings.value = preferences[Keys.PHONE_RINGS] ?: false
         _phoneRingsTalk.value = preferences[Keys.PHONE_RINGS_TALK] ?: true
         _quietHours.value = preferences[Keys.QUIET_HOURS] ?: false
@@ -449,13 +449,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             .coerceIn(0, QuietHours.MINUTES_A_DAY - 1)
         _quietUntil.value = (preferences[Keys.QUIET_UNTIL] ?: QuietHours.DEFAULT_UNTIL)
             .coerceIn(0, QuietHours.MINUTES_A_DAY - 1)
-        // Le réglage en trois choix ; à défaut l'ancien booléen (vrai voulait dire « suivre le
-        // tour », faux « ne rien suivre »), à défaut le défaut.
+        // The three-choice setting; failing that the old boolean (true meant "follow the
+        // turn", false "follow nothing"), failing that the default.
         _workTracking.value = preferences[Keys.WORK_TRACKING]?.let(WorkTracking::fromId)
             ?: preferences[Keys.SHOW_LIVE_ACTIVITY]?.let { live -> if (live) WorkTracking.DEFAULT else WorkTracking.NEVER }
             ?: WorkTracking.DEFAULT
-        // Le nom par défaut a changé avec le renommage : un « Onyx » encore enregistré est
-        // l'ancienne valeur par défaut, pas un choix — il redevient vide, donc « Onyx ».
+        // The default name changed with the rename: an "Onyx" still stored is
+        // the old default value, not a choice — it becomes empty again, hence "Onyx".
         _displayName.value = (preferences[Keys.DISPLAY_NAME] ?: "")
             .takeUnless { it.trim().equals("Onyx", ignoreCase = true) }
             .orEmpty()
@@ -463,25 +463,25 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         _botPictures.value = preferences[Keys.BOT_PICTURES] ?: true
         _botColors.value = preferences[Keys.BOT_COLORS] ?: true
         _linkPreviews.value = preferences[Keys.LINK_PREVIEWS] ?: false
-        // L'écran de configuration du premier lancement a-t-il déjà été traversé ?
+        // Has the first-launch setup screen already been passed?
         _setupDone.value = preferences[Keys.SETUP_DONE] ?: false
         _chatTextSize.value = (preferences[Keys.CHAT_TEXT_SIZE] ?: 0)
             .coerceIn(ResolvedTheme.chatTextSizes.first(), ResolvedTheme.chatTextSizes.last())
         _voiceOrb.value = VoiceOrbChoice.fromId(preferences[Keys.VOICE_ORB])
         _orbLight.value = OrbLight.fromId(preferences[Keys.ORB_LIGHT])
         _sidebarCollapsed.value = preferences[Keys.SIDEBAR_COLLAPSED] ?: false
-        // « Halo » : le verre réagit-il au doigt ? Vrai par défaut, comme dans la référence.
+        // "Halo": does the glass react to the finger? True by default, as in the reference.
         _glassHalo.value = preferences[Keys.GLASS_HALO] ?: true
         _insightsPeriod.value = InsightsPeriod.fromDays(preferences[SettingsKeys.INSIGHTS_PERIOD])
-        // La grille de raccourcis : relue **telle qu'elle a été enregistrée** (ordre compris). Ce que
-        // le fichier ne portait pas encore — ou qu'une version antérieure ne connaissait pas — rend la
-        // grille d'origine, jamais une grille amputée (voir `SidebarTileLayout.parse`).
+        // The shortcuts grid: re-read **as it was stored** (order included). What the
+        // file did not yet carry — or an earlier version did not know — yields the
+        // original grid, never an amputated grid (see `SidebarTileLayout.parse`).
         _sidebarTiles.value = com.onyx.app.ui.sidebar.SidebarTileLayout
             .parse(preferences[SettingsKeys.SIDEBAR_TILES])
         _themeColors.value = runCatching {
             json.decodeFromString(THEME_COLORS_SERIALIZER, preferences[Keys.THEME_COLORS].orEmpty())
         }.getOrDefault(emptyMap())
-        // Les voix réglées pour les bots, par serveur puis par profil (`Settings.botVoices`).
+        // The voices set for bots, per server then per profile (`Settings.botVoices`).
         _botVoices.value = runCatching {
             json.decodeFromString(BOT_VOICES_SERIALIZER, preferences[Keys.BOT_VOICES].orEmpty())
         }.getOrDefault(emptyMap())
@@ -492,7 +492,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             )
         }.getOrDefault(emptyList())
         _stopPhrases.value = preferences[Keys.STOP_PHRASES]?.split("\u001F")?.filter { it.isNotEmpty() }.orEmpty()
-        // Le disque a été lu en entier : les flux portent désormais la vérité, pas les défauts.
+        // The disk has been fully read: the flows now carry the truth, not the defaults.
         _loaded.value = true
     }
 
@@ -506,26 +506,26 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[SettingsKeys.APPEARANCE] = appearance.id }
     }
 
-    /** « Noir pur » : les fonds de page au noir absolu en apparence sombre (OLED). */
+    /** "Pure black": page backgrounds at absolute black in dark appearance (OLED). */
     suspend fun setPureBlack(value: Boolean) {
         _pureBlack.value = value
         store.edit { it[Keys.PURE_BLACK] = value }
     }
 
-    /** « Halo » : la lumière colorée douce derrière le haut de chaque écran. */
+    /** "Halo": the soft coloured glow behind the top of each screen. */
     suspend fun setHalo(value: Boolean) {
         _halo.value = value
         store.edit { it[Keys.HALO] = value }
     }
 
     /**
-     * « Fluid » : la couverture de conversation animée (variante B), ou l'ancienne image.
+     * "Fluid": the animated conversation cover (variant B), or the old image.
      *
-     * **C'est ici, et seulement ici, que le CHOIX s'écrit** : activer la couverture de fluide, c'est
-     * **toucher la variante des filaments sur la planche** — à cet instant, le geste de l'utilisateur
-     * enregistre le choix (variante, graine, teinte) par [setFluideChoix]. Le **démarrage ne sème
-     * rien** (`load()` ne fait que relire) : sans quoi il écraserait, à chaque lancement, ce que
-     * l'utilisateur avait choisi — ce que le verrou livré (`AppearancePersistenceLockTest`) refuse.
+     * **This is where, and only here, the CHOICE is written**: enabling the fluid cover means
+     * **touching the filaments variant on the board** — at that instant, the user's gesture
+     * stores the choice (variant, seed, hue) via [setFluideChoix]. **Startup seeds
+     * nothing** (`load()` only re-reads): otherwise it would overwrite, on each launch, what
+     * the user had chosen — which the shipped lock (`AppearancePersistenceLockTest`) refuses.
      */
     suspend fun setFluideCover(value: Boolean) {
         _fluideCover.value = value
@@ -534,9 +534,9 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * **Enregistre le matériau du fluide** — les trois valeurs du choix (variante, graine, teinte).
-     * Elles sont écrites ensemble : un choix à moitié écrit ferait dessiner une teinte que la graine
-     * ne donne pas. C'est ce que le verrou de conformité refuse.
+     * **Stores the fluid's material** — the three values of the choice (variant, seed, hue).
+     * They are written together: a half-written choice would draw a hue that the seed
+     * does not give. This is what the conformance lock refuses.
      */
     suspend fun setFluideChoix(value: com.onyx.app.ui.design.ChoixCouverture) {
         _fluideChoix.value = value
@@ -561,17 +561,17 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val clean = tag.trim()
         _speechLocale.value = clean
         _speechLocaleResolved.value = resolveSpeechLocale(clean)
-        // Le choix part dans la clé **neuve** : c'est elle, et elle seule, qui distingue un choix
-        // explicite d'une valeur héritée. L'ancienne clé reste telle quelle — l'écrire aussi
-        // rendrait le « fr-FR » choisi par la personne indistinguishable du « fr-FR » par défaut.
+        // The choice goes into the **new** key: it is it, and only it, that distinguishes an explicit
+        // choice from an inherited value. The old key stays as is — writing it too
+        // would make the "fr-FR" chosen by the person indistinguishable from the default "fr-FR".
         store.edit { it[Keys.SPEECH_LOCALE_CHOSEN] = clean }
     }
 
     /**
-     * La langue donnée au moteur : le choix de la personne, sinon celle de l'interface.
+     * The language given to the engine: the person's choice, otherwise the interface's.
      *
-     * Une app en anglais écoute en anglais — sans quoi les phrases anglaises sont mal transcrites,
-     * donc jamais reconnues.
+     * An English app listens in English — otherwise English phrases are badly transcribed,
+     * so never recognised.
      */
     private fun resolveSpeechLocale(raw: String): String =
         raw.trim().ifEmpty { defaultSpeechLocale() }
@@ -582,9 +582,9 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * « Reconnaître hors ligne » : le **seul** chemin vers le hors ligne. Éteint (le défaut), la
-     * reconnaissance se fait en ligne ; allumé, le moteur tente l'appareil seul et bascule en ligne
-     * de lui-même s'il n'a pas la langue.
+     * "Recognise offline": the **only** path to offline. Off (the default),
+     * recognition is online; on, the engine tries the device alone and falls back online
+     * on its own if it lacks the language.
      */
     suspend fun setOfflineRecognition(value: Boolean) {
         _offlineRecognition.value = value
@@ -612,7 +612,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.KOKORO_URL] = value }
     }
 
-    /** Le jeton du service vocal protégé ; vide efface l'en-tête et revient au serveur ouvert. */
+    /** The protected voice service's token; empty clears the header and returns to the open server. */
     suspend fun setKokoroToken(value: String) {
         _kokoroToken.value = value
         store.edit { it[Keys.KOKORO_TOKEN] = value }
@@ -629,9 +629,9 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * La langue choisie, posée **avant** la première composition (`OnyxApp` la relit au
-     * démarrage) : le premier écran est déjà dans la bonne langue, sans clignotement dans celle
-     * d'Android. Le reste des réglages, lui, peut arriver un peu après.
+     * The chosen language, set **before** the first composition (`OnyxApp` re-reads it at
+     * startup): the first screen is already in the right language, with no flicker in Android's.
+     * The rest of the settings, however, may arrive a little later.
      */
     suspend fun applyStoredLanguage() {
         val stored = OnyxLanguage.normalize(store.data.first()[Keys.LANGUAGE])
@@ -640,18 +640,18 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * Le thème et l'apparence enregistrés, posés **avant** la première composition — même contrat
-     * que [applyStoredLanguage], et pour la même raison.
+     * The stored theme and appearance, set **before** the first composition — same contract
+     * as [applyStoredLanguage], and for the same reason.
      *
-     * Sans cet appel, `_theme` et `_appearance` restent sur leurs défauts ([OnyxTheme.STANDARD] et
-     * [AppearanceMode.SYSTEM]) jusqu'à ce que [load] ait fini de lire le disque. Or [load] est
-     * lancé **après** `Application.onCreate` (`AppContainer.install`), donc en concurrence avec la
-     * composition de `OnyxApp` : la première image (et toute image jusqu'à la fin de la lecture)
-     * est rendue en **SYSTEM**. Sur un téléphone en clair, cela veut dire **le clair** — alors même
-     * que l'utilisateur a choisi « Sombre » et que le magasin porte `appearance=dark`.
+     * Without this call, `_theme` and `_appearance` stay on their defaults ([OnyxTheme.STANDARD] and
+     * [AppearanceMode.SYSTEM]) until [load] has finished reading the disk. Yet [load] is
+     * started **after** `Application.onCreate` (`AppContainer.install`), so in competition with
+     * the composition of `OnyxApp`: the first frame (and every frame until the end of the read)
+     * is rendered in **SYSTEM**. On a light phone, that means **light** — even though
+     * the user chose "Dark" and the store carries `appearance=dark`.
      *
-     * C'est la seule lecture qui doit précéder la première image ; **aucune écriture** n'a lieu ici,
-     * le choix de l'utilisateur n'est jamais touché au démarrage.
+     * It is the only read that must precede the first frame; **no write** takes place here,
+     * the user's choice is never touched at startup.
      */
     suspend fun applyStoredTheme() {
         val stored = store.data.first()
@@ -660,17 +660,17 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * Change la langue de l'interface.
+     * Changes the interface language.
      *
-     * L'effet est **immédiat en mémoire** (`OnyxLanguage.apply`, avant la première suspension
-     * possible) : l'appelant peut recréer l'activité dans la foulée, l'écran se redessine déjà
-     * dans la nouvelle langue. L'écriture sur disque suit.
+     * The effect is **immediate in memory** (`OnyxLanguage.apply`, before the first possible
+     * suspension): the caller can recreate the activity right away, the screen is already redrawn
+     * in the new language. The write to disk follows.
      */
     suspend fun setLanguage(value: String) {
         val clean = OnyxLanguage.normalize(value)
         _language.value = clean
         OnyxLanguage.apply(clean)
-        // La langue du micro suit celle de l'interface — sauf si la personne en a choisi une.
+        // The mic language follows the interface's — unless the person has chosen one.
         _speechLocaleResolved.value = resolveSpeechLocale(_speechLocale.value)
         store.edit { it[Keys.LANGUAGE] = clean }
     }
@@ -704,7 +704,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         _talkOver.value = value
         store.edit {
             it[Keys.TALK_OVER_MODE] = value.id
-            // L'ancien booléen reste écrit : une version antérieure de l'app relit le même fichier.
+            // The old boolean stays written: an earlier version of the app re-reads the same file.
             it[Keys.TALK_OVER] = value != TalkOver.OFF
         }
     }
@@ -724,38 +724,38 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.NOTIFICATION_SOUND] = value }
     }
 
-    /** « Me prévenir quand une réponse arrive, app fermée » : le surveillant de réponses. */
+    /** "Notify me when a reply arrives, app closed": the reply watcher. */
     suspend fun setReplyWatch(value: Boolean) {
         _replyWatch.value = value
         store.edit { it[Keys.REPLY_WATCH] = value }
     }
 
-    /** « Appels pour une réponse » : faire sonner le téléphone pour une approbation ou une question. */
+    /** "Calls for a reply": make the phone ring for an approval or a question. */
     suspend fun setPhoneRings(value: Boolean) {
         _phoneRings.value = value
         store.edit { it[Keys.PHONE_RINGS] = value }
     }
 
-    /** Décrocher met Hermes en ligne (voix live) plutôt que d'ouvrir la conversation. */
+    /** Answering puts Hermes online (live voice) rather than opening the conversation. */
     suspend fun setPhoneRingsTalk(value: Boolean) {
         _phoneRingsTalk.value = value
         store.edit { it[Keys.PHONE_RINGS_TALK] = value }
     }
 
-    /** Les heures de tranquillité : rien ne sonne pendant la plage. */
+    /** Quiet hours: nothing rings during the window. */
     suspend fun setQuietHours(value: Boolean) {
         _quietHours.value = value
         store.edit { it[Keys.QUIET_HOURS] = value }
     }
 
-    /** Le début de la plage de tranquillité, en minutes depuis minuit. */
+    /** The start of the quiet window, in minutes since midnight. */
     suspend fun setQuietFrom(minute: Int) {
         val clean = minute.coerceIn(0, QuietHours.MINUTES_A_DAY - 1)
         _quietFrom.value = clean
         store.edit { it[Keys.QUIET_FROM] = clean }
     }
 
-    /** La fin de la plage de tranquillité, en minutes depuis minuit. */
+    /** The end of the quiet window, in minutes since midnight. */
     suspend fun setQuietUntil(minute: Int) {
         val clean = minute.coerceIn(0, QuietHours.MINUTES_A_DAY - 1)
         _quietUntil.value = clean
@@ -763,8 +763,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * Rien ne sonne maintenant ? Les heures de tranquillité allumées **et** l'instant dedans —
-     * c'est la seule question que se posent l'appel pour une approbation et l'appel de l'agent.
+     * Is nothing ringing now? Quiet hours on **and** the instant inside them —
+     * it is the only question the approval call and the agent's call ask.
      */
     fun quietNow(millis: Long = System.currentTimeMillis()): Boolean =
         QuietHours.now(QuietHours.minuteOfDay(millis), _quietHours.value, _quietFrom.value, _quietUntil.value)
@@ -774,7 +774,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.WORK_TRACKING] = _workTracking.value.id }
     }
 
-    /** Enregistre le suivi du travail — trois choix, un seul retenu. */
+    /** Stores work tracking — three choices, only one kept. */
     suspend fun setWorkTracking(value: WorkTracking) {
         _workTracking.value = value
         store.edit { it[Keys.WORK_TRACKING] = value.id }
@@ -790,7 +790,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.SETUP_DONE] = value }
     }
 
-    /** Enregistre les couleurs par thème ; une entrée retirée repart sur les couleurs du thème. */
+    /** Stores the colours per theme; a removed entry falls back to the theme's colours. */
     suspend fun setThemeColors(value: Map<String, ThemeColors>) {
         _themeColors.value = value
         store.edit { it[Keys.THEME_COLORS] = json.encodeToString(THEME_COLORS_SERIALIZER, value) }
@@ -832,21 +832,21 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[Keys.ORB_LIGHT] = light.id }
     }
 
-    /** Replie ou déplie le volet de gauche des deux panneaux, sur cet appareil. */
+    /** Collapses or expands the left pane of the two-panel layout, on this device. */
     suspend fun setSidebarCollapsed(value: Boolean) {
         _sidebarCollapsed.value = value
         store.edit { it[Keys.SIDEBAR_COLLAPSED] = value }
     }
 
-    /** « Halo » : le verre réagit-il au doigt ? Éteint, tout est plat (voir [glassHalo]). */
+    /** "Halo": does the glass react to the finger? Off, everything is flat (see [glassHalo]). */
     suspend fun setGlassHalo(value: Boolean) {
         _glassHalo.value = value
         store.edit { it[Keys.GLASS_HALO] = value }
     }
 
     /**
-     * Mémorise la période des aperçus. Écrite **immédiatement** (pas à la fermeture de l'écran) :
-     * un appareil tué pendant qu'on regardait la période la retrouve au lancement suivant.
+     * Remembers the insights period. Written **immediately** (not when the screen closes):
+     * a device killed while viewing the period finds it again on the next launch.
      */
     suspend fun setInsightsPeriod(period: InsightsPeriod) {
         _insightsPeriod.value = period
@@ -854,11 +854,11 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     /**
-     * **Mémorise la grille de raccourcis du volet** : les tuiles affichées, dans leur ordre.
+     * **Remembers the pane's shortcuts grid**: the displayed tiles, in their order.
      *
-     * Écrite **immédiatement** (un appareil tué au milieu de la composition retrouve la grille qu'il
-     * montrait), et toujours **ramenée dans ses bornes** avant d'être écrite — au plus douze, au moins
-     * quatre — si bien que le fichier ne peut pas porter une grille que l'écran refuserait de dessiner.
+     * Written **immediately** (a device killed in the middle of composition finds the grid it
+     * was showing), and always **brought back within its bounds** before being written — at most twelve, at least
+     * four — so that the file cannot carry a grid that the screen would refuse to draw.
      */
     suspend fun setSidebarTiles(ids: List<String>) {
         val clean = com.onyx.app.ui.sidebar.SidebarTileLayout.normalize(ids)
@@ -868,14 +868,14 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         }
     }
 
-    /** Remet la grille de raccourcis à **la grille d'origine** (les six tuiles de la référence). */
+    /** Resets the shortcuts grid to **the original grid** (the reference's six tiles). */
     suspend fun resetSidebarTiles() {
         setSidebarTiles(com.onyx.app.ui.sidebar.SidebarTileLayout.defaultIds)
     }
 
     /**
-     * Remet **tous** les réglages à leurs valeurs d'origine, comme `Settings.shared.reset()` de la référence :
-     * les préférences sont effacées, puis relues — ce sont les défauts de `load()` qui reviennent.
+     * Resets **all** settings to their original values, like the reference's `Settings.shared.reset()`:
+     * the preferences are cleared, then re-read — what comes back are the defaults of `load()`.
      */
     suspend fun reset() {
         store.edit { it.clear() }
@@ -887,19 +887,19 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val AUTO_VOICE = stringPreferencesKey("carPlayVoice")
         val SPEECH_LOCALE = stringPreferencesKey("speech_locale")
         /**
-         * La clé **d'après** : celle qui porte un choix **explicite** de la personne.
+         * The key **after**: the one that carries an **explicit** choice of the person.
          *
-         * L'héritage est ambigu : avant, « fr-FR » était la valeur **par défaut** *et* une entrée
-         * du sélecteur (« Français »). Un « fr-FR » stocké pouvait donc être l'un ou l'autre, et
-         * l'écraser au hasard aurait supprimé un choix réel. Une clé neuve, écrite seulement quand
-         * la personne choisit, lève l'ambiguïté : le « fr-FR » de l'ancienne clé est une valeur
-         * héritée, le « fr-FR » de la neuve est un choix.
+         * The inheritance is ambiguous: before, "fr-FR" was the **default** value *and* an entry
+         * of the picker ("French"). A stored "fr-FR" could therefore be either, and
+         * overwriting it at random would have deleted a real choice. A new key, written only when
+         * the person chooses, lifts the ambiguity: the "fr-FR" of the old key is an inherited
+         * value, the "fr-FR" of the new one is a choice.
          */
         val SPEECH_LOCALE_CHOSEN = stringPreferencesKey("speech_locale_chosen")
         val HANDS_FREE = booleanPreferencesKey("hands_free_by_default")
         /**
-         * « Reconnaître hors ligne ». Clé neuve, **fausse par défaut** : un appareil qui n'a jamais
-         * rien réglé reconnaît en ligne (avant, le hors ligne était imposé à tout le monde).
+         * "Recognise offline". New key, **false by default**: a device that has never
+         * set anything recognises online (before, offline was enforced on everyone).
          */
         val OFFLINE_RECOGNITION = booleanPreferencesKey("offline_recognition")
         val RETURN_SENDS = booleanPreferencesKey("return_sends")
@@ -907,80 +907,80 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val REPLY_VOICE = stringPreferencesKey("replyVoice")
         val KOKORO_URL = stringPreferencesKey("kokoroURL")
         val KOKORO_VOICE = stringPreferencesKey("kokoroVoice")
-        /** Le jeton du service vocal protégé ; il ne va jamais dans `kokoroURL`. */
+        /** The protected voice service's token; it never goes into `kokoroURL`. */
         val KOKORO_TOKEN = stringPreferencesKey("kokoroToken")
         val REPLY_LANGUAGE = stringPreferencesKey("reply_language")
-        /** La langue de l'interface (`OnyxLanguage`) : un réglage propre à cette app. */
+        /** The interface language (`OnyxLanguage`): a setting specific to this app. */
         val LANGUAGE = stringPreferencesKey("app_language")
         val TALK_OVER = booleanPreferencesKey("talk_over")
-        /** `Settings.talkOver` de la référence est un choix à trois états, pas un booléen. */
+        /** The reference's `Settings.talkOver` is a three-state choice, not a boolean. */
         val TALK_OVER_MODE = stringPreferencesKey("talk_over_mode")
-        /** La clé de la référence, mot pour mot : `Settings.Keys.earpieceAtEar`. */
+        /** The reference key, word for word: `Settings.Keys.earpieceAtEar`. */
         val EARPIECE_AT_EAR = booleanPreferencesKey("earpieceAtEar")
         val SUGGEST_FOLLOW_UPS = booleanPreferencesKey("suggest_follow_ups")
         val REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
         val NOTIFY_IN_BACKGROUND = booleanPreferencesKey("notify_in_background")
         val NOTIFICATION_SOUND = booleanPreferencesKey("notification_sound")
         /**
-         * « Me prévenir quand une réponse arrive, app fermée » : la clé du surveillant de réponses.
-         * Neuve et **vraie par défaut** — une app qui n'a jamais rien réglé surveille ses sessions.
+         * "Notify me when a reply arrives, app closed": the reply watcher's key.
+         * New and **true by default** — an app that has never set anything watches its sessions.
          */
         val REPLY_WATCH = booleanPreferencesKey("reply_watch")
-        /** « Appels pour une réponse » et sa suite : les clés du lot d'appel. */
+        /** "Calls for a reply" and its suite: the keys of the call batch. */
         val PHONE_RINGS = booleanPreferencesKey("phoneRings")
         val PHONE_RINGS_TALK = booleanPreferencesKey("phoneRingsTalk")
         val QUIET_HOURS = booleanPreferencesKey("quietHours")
         val QUIET_FROM = intPreferencesKey("quietFrom")
         val QUIET_UNTIL = intPreferencesKey("quietUntil")
-        /** L'ancien booléen, gardé pour la reprise : un vrai valait « suivre le tour ». */
+        /** The old boolean, kept for recovery: a true meant "follow the turn". */
         val SHOW_LIVE_ACTIVITY = booleanPreferencesKey("show_live_activity")
-        /** « Suivi du travail » : `never`, `finish` ou `step`. */
+        /** "Work tracking": `never`, `finish` or `step`. */
         val WORK_TRACKING = stringPreferencesKey("work_tracking")
         val STOP_PHRASES = stringPreferencesKey("stop_phrases")
         val SPOKEN_PREFIXES = stringPreferencesKey("spoken_prefixes")
         val DISPLAY_NAME = stringPreferencesKey("display_name")
-        /** La clé de la référence, mot pour mot : `Settings.Keys.setupDone`. */
+        /** The reference key, word for word: `Settings.Keys.setupDone`. */
         val SETUP_DONE = booleanPreferencesKey("setupDone")
         val THEME_COLORS = stringPreferencesKey("themeColors")
-        // Les clés portent les mêmes noms que `Settings.Keys` de la référence.
+        // The keys carry the same names as the reference's `Settings.Keys`.
         val BOT_FACES = booleanPreferencesKey("botFaces")
         val BOT_PICTURES = booleanPreferencesKey("botPictures")
         val BOT_COLORS = booleanPreferencesKey("botColors")
-        /** La clé de la référence, mot pour mot : `Settings.Keys.botVoices`. */
+        /** The reference key, word for word: `Settings.Keys.botVoices`. */
         val BOT_VOICES = stringPreferencesKey("botVoices")
-        // La clé de la référence, mot pour mot : `Settings.Keys.linkPreviews`.
+        // The reference key, word for word: `Settings.Keys.linkPreviews`.
         val LINK_PREVIEWS = booleanPreferencesKey("linkPreviews")
         val CHAT_TEXT_SIZE = intPreferencesKey("chatTextSize")
         val VOICE_ORB = stringPreferencesKey("voiceOrb")
         val ORB_LIGHT = stringPreferencesKey("orbLight")
-        /** Le volet de gauche des deux panneaux, replié ou non (réglage de l'appareil). */
+        /** The left pane of the two-panel layout, collapsed or not (device setting). */
         val SIDEBAR_COLLAPSED = booleanPreferencesKey("sidebarCollapsed")
-        /** « Noir pur » : les fonds au noir absolu en sombre (OLED). Même nom que `Settings.Keys`. */
+        /** "Pure black": backgrounds at absolute black in dark mode (OLED). Same name as `Settings.Keys`. */
         val PURE_BLACK = booleanPreferencesKey("pureBlack")
-        /** « Halo » : la lumière douce derrière le haut de chaque écran. Même nom que `Settings.Keys`. */
+        /** "Halo": the soft glow behind the top of each screen. Same name as `Settings.Keys`. */
         val HALO = booleanPreferencesKey("halo")
-        /** « Fluid » : la couverture de conversation animée. Vraie par défaut. */
+        /** "Fluid": the animated conversation cover. True by default. */
         val FLUIDE_COVER = booleanPreferencesKey("fluideCover")
         /**
-         * **Le matériau du fluide** : la variante retenue, la graine du tracé et la teinte nommée.
-         * Écrites ensemble par `setFluideChoix` ; relues par `load()`. Ce sont ces trois clés qui
-         * portent le **choix du propriétaire** (filaments, graine `3417634283`, teinte bleu) d'un
-         * démarrage à l'autre — sans elles, la carte réinventait la teinte à chaque dessin.
+         * **The fluid's material**: the chosen variant, the stroke's seed and the named hue.
+         * Written together by `setFluideChoix`; re-read by `load()`. It is these three keys that
+         * carry the **owner's choice** (filaments, seed `3417634283`, blue hue) from one
+         * startup to the next — without them, the card reinvented the hue on each draw.
          */
         val FLUIDE_VARIANTE = stringPreferencesKey("fluideVariante")
         val FLUIDE_GRAINE = longPreferencesKey("fluideGraine")
         val FLUIDE_TEINTE = stringPreferencesKey("fluideTeinte")
         /**
-         * « Halo » : le verre réagit-il au doigt ? Clé propre à l'app (il n'y a pas d'entrée
-         * correspondante dans `Settings.Keys` de la référence — le verre liquide y est toujours vivant),
-         * **vraie par défaut**.
+         * "Halo": does the glass react to the finger? Key specific to the app (there is no matching
+         * entry in the reference's `Settings.Keys` — liquid glass there is always alive),
+         * **true by default**.
          */
         val GLASS_HALO = booleanPreferencesKey("glassHalo")
     }
 
     private val THEME_COLORS_SERIALIZER = MapSerializer(String.serializer(), ThemeColors.serializer())
 
-    /** `Settings.botVoices` : par serveur, puis par profil de bot. */
+    /** `Settings.botVoices`: per server, then per bot profile. */
     private val BOT_VOICES_SERIALIZER: kotlinx.serialization.KSerializer<Map<String, Map<String, com.onyx.app.voice.BotVoice>>> =
         MapSerializer(String.serializer(), MapSerializer(String.serializer(), com.onyx.app.voice.BotVoice.serializer()))
 
@@ -989,13 +989,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         const val DEFAULT_KOKORO_VOICE = "am_onyx(2)+bm_george(1)"
 
         /**
-         * Le jeton du service vocal pour la **version de test** : il vient du fichier `0600` du
-         * mandataire, lu à la compilation (voir `app/build.gradle.kts`) — jamais du dépôt, jamais
-         * affiché. Absent, il reste vide : l'app parle alors à un serveur ouvert, comme avant.
+         * The voice service's token for the **test build**: it comes from the proxy's `0600`
+         * file, read at build time (see `app/build.gradle.kts`) — never from the repository, never
+         * displayed. Absent, it stays empty: the app then talks to an open server, as before.
          */
         val DEFAULT_KOKORO_TOKEN: String = com.onyx.app.BuildConfig.VOICE_TOKEN
 
-        /** Les langues de l'app : la première entrée vide veut dire « Système ». */
+        /** The app's languages: the first empty entry means "System". */
         val APP_LANGUAGES = listOf(
             "" to "System",
             "fr" to "Français",
@@ -1003,8 +1003,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         )
 
         /**
-         * La locale à poser pour un code de langue ; `null` veut dire **Système** (on ne touche pas à
-         * celle du téléphone). Pur, donc éprouvable sans Android.
+         * The locale to set for a language code; `null` means **System** (the phone's is not
+         * touched). Pure, so testable without Android.
          */
         fun localeFor(code: String): java.util.Locale? {
             val clean = code.trim().lowercase().substringBefore('-').take(5)
@@ -1013,7 +1013,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
                 .getOrNull()?.takeIf { it.language.isNotEmpty() }
         }
 
-        /** Les sept niveaux d'effort, dans l'ordre de la référence ; `""` = « Default ». */
+        /** The seven effort levels, in the reference's order; `""` = "Default". */
         val REASONING_EFFORTS = listOf(
             "" to "Default",
             "none" to "None",
@@ -1026,23 +1026,23 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         )
 
         /**
-         * La langue de reconnaissance quand la personne n'en a pas choisi : **celle de
-         * l'interface**. Vide veut dire « automatique » — l'app était figée sur « fr-FR », et une
-         * app en anglais écoutait en français.
+         * The recognition language when the person has not chosen one: **the interface's**.
+         * Empty means "automatic" — the app was pinned to "fr-FR", and an
+         * English app listened in French.
          */
         const val DEFAULT_SPEECH_LOCALE = ""
 
         /**
-         * La valeur **figée** d'avant : les installs d'avant stockaient « fr-FR » sans que ce
-         * soit un choix. Elle est ramenée à « automatique » au chargement (voir `load()`).
+         * The **pinned** value from before: installs from before stored "fr-FR" without it
+         * being a choice. It is brought back to "automatic" on load (see `load()`).
          */
         const val LEGACY_FIXED_SPEECH_LOCALE = "fr-FR"
 
-        /** La langue de reconnaissance par défaut : celle de l'interface. */
+        /** The default recognition language: the interface's. */
         fun defaultSpeechLocale(): String =
             if (com.onyx.app.localization.OnyxLocalization.isFrench()) "fr-FR" else "en-US"
 
-        /** Les langues de réponse proposées ; la première entrée vide veut dire « automatique ». */
+        /** The offered reply languages; the first empty entry means "automatic". */
         val REPLY_LANGUAGES = listOf(
             "" to "Automatic",
             "fr" to "Français",
@@ -1054,7 +1054,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             "nl" to "Nederlands",
         )
 
-        /** La phrase ajoutée aux consignes, mot pour mot comme côté référence. */
+        /** The sentence added to the instructions, word for word as on the reference side. */
         fun replyInstruction(code: String): String? {
             val name = REPLY_LANGUAGES.firstOrNull { it.first == code }?.second ?: return null
             return "Always reply in $name, whatever language the user writes or speaks in, " +
@@ -1062,11 +1062,11 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         }
 
         /**
-         * La langue de **lecture** d'une langue de réponse choisie : le code court (« fr », « en »)
-         * devient l'étiquette que le lecteur attend (« fr-FR », « en-US »).
+         * The **playback** language of a chosen reply language: the short code ("fr", "en")
+         * becomes the tag the reader expects ("fr-FR", "en-US").
          *
-         * `null` pour « automatique » : la voix suit alors la langue du micro, donc celle de
-         * l'interface. C'est ce qui rend la lecture cohérente avec ce qui est dit.
+         * `null` for "automatic": the voice then follows the mic language, hence the
+         * interface's. This is what makes playback consistent with what is said.
          */
         fun replyLanguageTag(code: String): String? = when (code) {
             "fr" -> "fr-FR"
@@ -1079,7 +1079,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             else -> null
         }
 
-        /** Les langues proposées, celles que les moteurs embarqués connaissent le mieux. */
+        /** The offered languages, the ones the embedded engines know best. */
         val SPEECH_LOCALES = listOf(
             "" to "Automatic",
             "fr-FR" to "Français",

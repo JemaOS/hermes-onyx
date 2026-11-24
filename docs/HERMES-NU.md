@@ -1,63 +1,63 @@
-# « Hermes nu » — ce qu'Onyx voit d'un serveur sans compagnon
+# "Bare Hermes" — what Onyx sees on a server without the companion
 
-L'objectif du client est simple à énoncer : **quelqu'un installe Onyx, branche le Hermes de son PC,
-et tout ce qui s'affiche fonctionne.** Ce document dit comment on le vérifie, et ce qui a été
-mesuré.
+The client's goal is simple to state: **someone installs Onyx, connects the Hermes on
+their PC, and everything that appears on screen works.** This document explains how that is
+verified, and what has been measured.
 
-## La chaîne à prouver
-
-```
-serveur sans le plugin  →  route absente  →  sonde : NO  →  l'entrée n'est pas dessinée
-```
-
-Chaque maillon est vérifiable séparément, et c'est ce qui rend la règle tenable.
-
-## Ce qui a été mesuré
-
-**1. Un `HERMES_HOME` vierge ne monte aucune route de compagnon.**
-Sur un home neuf avec `plugins.enabled: []`, l'application Hermes ne monte que les plugins
-embarqués : `hermes-achievements` et `kanban`. Aucune route `/api/plugins/onyx-vault/*` n'apparaît
-dans la table de routage.
-
-**2. Un plugin désactivé répond 404, pas 500 ni une page vide.**
-C'est écrit dans les tests du coffre eux-mêmes (`plugins/onyx-vault/tests/test_dashboard_mount.py`,
-cas `[6]`) :
+## The chain to prove
 
 ```
-plugin désactivé -> 404 {"detail":"Plugin not found"}
+server without the plugin  →  route absent  →  probe: NO  →  the entry is not drawn
 ```
 
-**3. Une requête non authentifiée répond 401 avant tout routage.**
-Mesuré sur le dashboard en marche : `/api/plugins/onyx-vault/health` sans session → `401`. C'est
-important pour la sonde, et c'est pour ça qu'elle classe :
+Each link can be verified separately, and that is what makes the rule tenable.
 
-| Statut | Classe | Conséquence |
+## What has been measured
+
+**1. A blank `HERMES_HOME` mounts no companion routes.**
+On a fresh home with `plugins.enabled: []`, the Hermes application mounts only the bundled
+plugins: `hermes-achievements` and `kanban`. No `/api/plugins/onyx-vault/*` route appears
+in the routing table.
+
+**2. A disabled plugin returns 404, not 500 and not an empty page.**
+This is stated in the vault's own tests (`plugins/onyx-vault/tests/test_dashboard_mount.py`,
+case `[6]`):
+
+```
+plugin disabled -> 404 {"detail":"Plugin not found"}
+```
+
+**3. An unauthenticated request returns 401 before any routing.**
+Measured on the running dashboard: `/api/plugins/onyx-vault/health` without a session → `401`. This
+matters for the probe, and it is why the probe classifies as follows:
+
+| Status | Class | Consequence |
 |---|---|---|
-| `2xx` | `YES` | l'entrée est dessinée |
-| `404` / `405` / `501` | `NO` | l'entrée **n'existe pas** |
-| `401` / `403` / `5xx` | `UNKNOWN` | « Not confirmed » — jamais un oui |
+| `2xx` | `YES` | the entry is drawn |
+| `404` / `405` / `501` | `NO` | the entry **does not exist** |
+| `401` / `403` / `5xx` | `UNKNOWN` | "Not confirmed" — never a yes |
 
-Un `401` n'est pas une absence : c'est « je n'ai pas pu demander ». La sonde ne le grave pas en
-cache, et l'écran écrit « Not confirmed » au lieu de promettre ou de cacher.
+A `401` is not an absence: it means "I could not ask". The probe does not persist it to
+cache, and the screen shows "Not confirmed" instead of promising or hiding.
 
-**4. Côté client, `NO` ferme la porte.**
-`ServerProbeTest` fige : `404 → Support.NO`, `UNKNOWN` traité comme `NO` par `allows()`, et
-`CapabilityLabelTest` fige ce que l'écran écrit dans chaque cas.
+**4. On the client side, `NO` closes the door.**
+`ServerProbeTest` pins down: `404 → Support.NO`, `UNKNOWN` treated as `NO` by `allows()`, and
+`CapabilityLabelTest` pins down what the screen shows in each case.
 
-## Ce que ça donne pour l'utilisateur
+## What this means for the user
 
-| Fonction | Hermes nu | Avec le compagnon |
+| Feature | Bare Hermes | With the companion |
 |---|---|---|
-| Chat, bots, rooms, voix, Computer, Kanban, Cron, Code, fichiers | marche | marche |
-| Skills par `/`, partage de modèle, capacités du serveur | marche | marche |
-| Meneur de room, passage de main (v1 client) | marche | marche |
-| Coffre de secrets | **entrée absente** | marche |
-| Démonstration → skill | **entrée absente** | marche |
+| Chat, bots, rooms, voice, Computer, Kanban, Cron, Code, files | works | works |
+| Skills via `/`, model sharing, server capabilities | works | works |
+| Room leader, handover (client v1) | works | works |
+| Secrets vault | **entry absent** | works |
+| Demo → skill | **entry absent** | works |
 
-## Ce qui reste à faire pour que ce soit une recette, pas une intention
+## What remains to make this a recipe rather than an intention
 
-- Un test **instrumenté** sur appareil : brancher l'app sur un Hermes nu et vérifier qu'aucune
-  entrée de coffre n'apparaît. Aujourd'hui la chaîne est prouvée par ses deux extrémités (serveur
-  et unités Kotlin), pas par un parcours d'écran.
-- Le même parcours sur un Hermes **avec** le compagnon, pour vérifier que l'entrée apparaît *après*
-  la sonde, sans redémarrage de l'app.
+- An **instrumented** on-device test: connect the app to a bare Hermes and check that no
+  vault entry appears. Today the chain is proved from both ends (server and Kotlin unit
+  tests), not by a screen walkthrough.
+- The same walkthrough on a Hermes **with** the companion, to check that the entry appears *after*
+  the probe, without restarting the app.

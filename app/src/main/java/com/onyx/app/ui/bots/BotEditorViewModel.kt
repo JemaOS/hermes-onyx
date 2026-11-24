@@ -19,38 +19,38 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Les jeux d'outils et les compétences du bot que l'éditeur montre. */
+/** The bot's toolsets and skills that the editor shows. */
 data class BotEditorUiState(
-    /** Tous les jeux que le serveur propose (`BotToolsList` de la référence). */
+    /** All the toolsets the server offers (`BotToolsList` in the reference). */
     val toolsets: List<GatewayToolset> = emptyList(),
-    /** Ceux du profil principal : ce que le bot suit quand il n'a pas de liste à lui. */
+    /** Those of the main profile: what the bot follows when it has no list of its own. */
     val mainToolsets: Set<String> = emptySet(),
-    /** Ceux de ce bot ; `null` : ceux du principal, comme `toolsets` côté référence. */
+    /** Those of this bot; `null`: the main ones, like `toolsets` in the reference. */
     val toolsSelection: Set<String>? = null,
-    /** Ses compétences, chacune allumée ou non. */
+    /** Its skills, each switched on or off. */
     val skills: List<DashboardSkill> = emptyList(),
-    /** Celles qu'il lit en entier au début de chaque message. */
+    /** Those it reads in full at the start of every message. */
     val alwaysLoaded: Set<String> = emptySet(),
     val loading: Boolean = true,
-    /** Ce qui a empêché une lecture ou une écriture, prêt à être montré. */
+    /** What prevented a read or a write, ready to be shown. */
     val problem: String? = null,
 )
 
 /**
- * Les réglages d'un bot que l'éditeur écrit **au moment du geste**, comme l'éditeur de la référence :
- * ses jeux d'outils (`BotEditor:203`), ses compétences (`:214`).
+ * The settings of a bot that the editor writes **at the moment of the gesture**, like the reference editor:
+ * its toolsets (`BotEditor:203`), its skills (`:214`).
  *
- * référence écrit les compétences et les épingles sitôt touchées (`toggleSkill`, `setAlwaysLoadedSkills`
- * de `HermesServeClient`) et les jeux d'outils à l'enregistrement (`BotChange.toolsets`) ; ce port
- * écrit les jeux d'outils au geste aussi, comme il le fait déjà pour le modèle
- * (`BotsViewModel.setModel`), pour qu'un interrupteur ait un effet visible et durable.
+ * The reference writes skills and pins as soon as they are touched (`toggleSkill`, `setAlwaysLoadedSkills`
+ * of `HermesServeClient`) and toolsets on save (`BotChange.toolsets`); this port
+ * writes toolsets on the gesture too, as it already does for the model
+ * (`BotsViewModel.setModel`), so that a switch has a visible and lasting effect.
  *
- * Aucune écriture ne se contente d'animer l'écran : chacune part au serveur, et un refus est
- * remonté dans [BotEditorUiState.problem] avec l'état remis comme avant.
+ * No write merely animates the screen: each one goes to the server, and a refusal is
+ * surfaced in [BotEditorUiState.problem] with the state restored as before.
  */
 class BotEditorViewModel(
     private val config: ServerConfig,
-    /** Le profil du bot édité ; `null` : un bot qui n'existe pas encore n'a rien à lire. */
+    /** The profile of the edited bot; `null`: a bot that does not exist yet has nothing to read. */
     private val profile: String?,
 ) : ViewModel() {
 
@@ -59,7 +59,7 @@ class BotEditorViewModel(
 
     private val skills = ServeSkillsApi(ServeClient(config))
 
-    /** Lecture unique à l'ouverture, comme le `loaded` de la référence : rouvrir ne doit rien réécrire. */
+    /** Single read on open, like the `loaded` of the reference: reopening must write nothing back. */
     private var loaded = false
 
     init {
@@ -85,8 +85,8 @@ class BotEditorViewModel(
                 } finally {
                     rpc.close()
                 }
-                // Un bot qui a exactement les jeux du principal suit le principal : c'est `nil`
-                // côté référence, et la ligne « Same as … » reste cochée.
+                // A bot that has exactly the main profile's toolsets follows the main profile: that is `nil`
+                // in the reference, and the "Same as …" row stays checked.
                 val selection = own?.enabled?.takeIf { it != main.enabled }
                 val list = profile?.let { skills.skills(it) } ?: emptyList()
                 val preloaded = profile?.let { skills.alwaysLoaded(it) }?.toSet() ?: emptySet()
@@ -111,11 +111,11 @@ class BotEditorViewModel(
     }
 
     /**
-     * Les jeux d'outils du bot, écrits au serveur tout de suite (`profiles.configure`
-     * `enabled_toolsets`, comme `BotChange.toolsets` de la référence). `null` : ceux du principal.
+     * The bot's toolsets, written to the server right away (`profiles.configure`
+     * `enabled_toolsets`, like `BotChange.toolsets` in the reference). `null`: the main profile's.
      *
-     * Le geste n'est gardé que si le serveur l'a pris : sans Dashboard (ou sans liste à écrire),
-     * rien ne change à l'écran et l'écran le dit, plutôt que de montrer un choix qui n'existe pas.
+     * The gesture is kept only if the server accepted it: without a Dashboard (or without a list to write),
+     * nothing changes on screen and the screen says so, rather than showing a choice that does not exist.
      */
     fun setToolsSelection(selection: Set<String>?) {
         val bot = profile ?: return
@@ -125,8 +125,8 @@ class BotEditorViewModel(
         _state.update { it.copy(toolsSelection = selection, problem = null) }
         viewModelScope.launch {
             try {
-                // Sans Dashboard, l'écriture ne partirait nulle part : on le dit, plutôt que de
-                // laisser l'interrupteur allumé sur un réglage que personne n'a.
+                // Without a Dashboard, the write would go nowhere: we say so, rather than
+                // leaving the switch on for a setting that nobody has.
                 if (!config.hasServeCredentials) {
                     throw TransportError.MissingApiKey
                 }
@@ -149,7 +149,7 @@ class BotEditorViewModel(
         }
     }
 
-    /** Allume ou éteint une compétence pour ce bot seul (`PUT api/skills/toggle`). */
+    /** Switches a skill on or off for this bot alone (`PUT api/skills/toggle`). */
     fun toggleSkill(skill: DashboardSkill, enabled: Boolean) {
         val bot = profile ?: return
         val before = _state.value
@@ -157,7 +157,7 @@ class BotEditorViewModel(
         _state.update { state ->
             state.copy(
                 skills = state.skills.map { if (it.name == skill.name) it.copy(enabled = enabled) else it },
-                // Éteinte, elle n'est de toute façon pas lue : l'épingle tombe avec elle.
+                // Switched off, it is not read anyway: the pin falls with it.
                 alwaysLoaded = if (enabled) state.alwaysLoaded else state.alwaysLoaded - skill.name,
                 problem = null,
             )
@@ -165,8 +165,8 @@ class BotEditorViewModel(
         viewModelScope.launch {
             try {
                 skills.toggle(skill.name, enabled, bot)
-                // Elle était épinglée, elle ne peut plus l'être : la liste est réécrite, comme le
-                // `pin(skill, false)` de la référence après une compétence éteinte.
+                // It was pinned, it can no longer be: the list is rewritten, like the
+                // `pin(skill, false)` of the reference after a skill is switched off.
                 if (!enabled && wasPinned) writeAlwaysLoaded(bot, _state.value.alwaysLoaded.toList())
             } catch (error: CancellationException) {
                 throw error
@@ -186,7 +186,7 @@ class BotEditorViewModel(
         }
     }
 
-    /** Épingle une compétence, ou la détache : tout la liste est écrite d'un coup. */
+    /** Pins a skill, or unpins it: the whole list is written at once. */
     fun pinSkill(skill: DashboardSkill, pinned: Boolean) {
         val bot = profile
         if (bot == null) return
@@ -217,14 +217,14 @@ class BotEditorViewModel(
         skills.setAlwaysLoaded(names.sorted(), bot)
     }
 
-    /** Le texte d'une erreur, tel que l'app le montre ailleurs. */
+    /** The text of an error, as the app shows it elsewhere. */
     private fun Exception.said(): String = when (this) {
         is TransportError -> userMessage()
         else -> message ?: OnyxLocalization["Couldn't load the bots"]
     }
 
     companion object {
-        /** Le profil principal, toujours nommé `default` côté serveur. */
+        /** The main profile, always named `default` on the server. */
         const val MAIN_PROFILE = "default"
     }
 }

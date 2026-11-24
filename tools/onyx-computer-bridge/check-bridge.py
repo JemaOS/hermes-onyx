@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Éprouve le pont « Ordinateur » de bout en bout, sans l'app.
+"""Exercise the "Computer" bridge end to end, without the app.
 
-Ce que le script vérifie, et qui doit apparaître dans le journal du pont :
+What the script checks, and what must appear in the bridge log:
 
-1. un jeton absent ou faux est refusé (la session se ferme) ;
-2. une entrée **sans la main** est refusée (`not_holder`) ;
-3. `take` donne la main, `tap` clique vraiment (l'appelant compare ensuite l'écran) ;
-4. `type` frappe vraiment les caractères, accents compris ;
-5. `run` sans `approved` est refusé (`needs_approval`) ; avec `approved`, la commande part ;
-6. `release` rend la main et une entrée redevient refusée.
+1. a missing or wrong token is refused (the session closes);
+2. input **without control** is refused (`not_holder`);
+3. `take` grants control, `tap` really clicks (the caller then compares the screen);
+4. `type` really types the characters, accents included;
+5. `run` without `approved` is refused (`needs_approval`); with `approved`, the command runs;
+6. `release` hands control back and input is refused again.
 
-Usage :
+Usage:
     check-bridge.py --token-file ~/.onyx-computer-bridge/token --tap 320,180
 """
 
@@ -59,7 +59,7 @@ async def main() -> int:
     args = parser.parse_args()
     token = Path(args.token_file).read_text(encoding="utf-8").strip()
 
-    # 1. un jeton faux ne passe pas.
+    # 1. a wrong token does not get through.
     try:
         ws = await connect(args.url, "faux-jeton")
         await asyncio.wait_for(ws.recv(), timeout=5)
@@ -85,7 +85,7 @@ async def main() -> int:
                 continue
             return message
 
-    # 2. sans la main, une entrée est refusée.
+    # 2. without control, input is refused.
     denied = await send({"t": "tap", "id": 1, "x": 10, "y": 10})
     print(f"sans la main : {denied.get('t')} / {denied.get('reason')}")
 

@@ -16,11 +16,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 /**
- * L'image d'une caméra qui tourne, remplissant le cadre qu'on lui donne (`CameraPreview`).
+ * The image of a running camera, filling the frame it is given (`CameraPreview`).
  *
- * référence branche une `AVCaptureVideoPreviewLayer` ; ici, CameraX : le même parti — la vue de
- * prévisualisation remplit son cadre, l'image est recadrée au centre, et rien n'est pris tant que
- * la personne n'a pas déclenché.
+ * the reference wires an `AVCaptureVideoPreviewLayer`; here, CameraX: the same approach — the
+ * preview view fills its frame, the image is centre-cropped, and nothing is captured until
+ * the person has triggered it.
  */
 @Composable
 fun CameraPreview(

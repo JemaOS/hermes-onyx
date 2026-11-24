@@ -3,23 +3,23 @@ package com.onyx.app.ui.bots
 import com.onyx.app.data.model.serve.BotProfile
 
 /**
- * La doublure de QA du roster : les bots d'exemple, pour un appareil qui n'a aucun Dashboard où
- * les lire.
+ * The roster's QA stand-in: the sample bots, for a device that has no Dashboard where
+ * to read them.
  *
- * Le la référence a exactement la même chose — `ConversationsView.demoBots`
- * (Echo/Views/ConversationsView:2268), posé dans le `BotDirectory` quand
- * `-echo.demoBots` est passé au lancement. Ici c'est l'extra `onyx.demoBots` (`am start -e
- * onyx.demoBots true`) qui la pose. Rien ne la lit autrement : sans l'extra, le roster est
- * celui du serveur, ou vide.
+ * The reference has exactly the same thing — `ConversationsView.demoBots`
+ * (Echo/Views/ConversationsView:2268), placed in the `BotDirectory` when
+ * `-echo.demoBots` is passed at launch. Here it is the extra `onyx.demoBots` (`am start -e
+ * onyx.demoBots true`) that places it. Nothing reads it otherwise: without the extra, the roster is
+ * the server's, or empty.
  *
- * Les quatre bots sont ceux de la doublure de la référence, avec leurs mêmes noms et libellés :
- * le profil principal (`@hermes`, sans titre), `scout` (« Scout »), `writer` (« Quill ») et
- * `fixit` (« Fix-it ») — de quoi voir la liste des mentions `@` avec plusieurs bots, l'ordre du
- * roster (principal, puis le plus récemment parlé) et le filtrage par ce qui suit le « @ ».
+ * The four bots are those of the reference stand-in, with their same names and labels:
+ * the main profile (`@hermes`, without a title), `scout` ("Scout"), `writer` ("Quill") and
+ * `fixit` ("Fix-it") — enough to see the list of `@` mentions with several bots, the roster's
+ * order (main, then the most recently spoken to) and the filtering by what follows the "@".
  */
 object BotRosterStandIn {
 
-    /** Les profils de la doublure, avec leurs dates d'activité relatives à [now]. */
+    /** The stand-in profiles, with their activity dates relative to [now]. */
     fun bots(now: Long = System.currentTimeMillis()): List<BotProfile> = listOf(
         BotProfile(
             name = "default",

@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Pose — ou vérifie — le numéro de la prochaine version d'Onyx.
+# Sets — or checks — the next Onyx version number.
 #
-# **La règle** : un build ne porte *jamais* un numéro inférieur à la ligne publiée.
+# **The rule**: a build *never* carries a number lower than the published line.
 #
-# Défaut relevé par le propriétaire : l'app proposait « la version 1.3.17 est sortie »
-# juste après qu'on lui eut livré un APK « 1.3.6 », « 1.3.7 », « 1.3.8 » — des numéros
-# **déjà publiés** par un autre auteur, et plus bas que la ligne réelle (1.3.17). Deux
-# personnes qui incrémentent chacune depuis leur `gradle.properties` réutilisent les
-# mêmes numéros : l'APK livré naît périmé, et l'app a raison de proposer une mise à jour.
+# Defect reported by the owner: the app offered "version 1.3.17 is out"
+# right after it had been shipped an APK "1.3.6", "1.3.7", "1.3.8" — numbers
+# **already published** by another author, and lower than the actual line (1.3.17). Two
+# people each incrementing from their own `gradle.properties` reuse the
+# same numbers: the shipped APK is born stale, and the app is right to offer an update.
 #
-# Le numéro se lit donc **sur GitHub**, pas dans le fichier :
+# The number is therefore read **from GitHub**, not from the file:
 #
-#     scripts/release-version.sh            # pose le numéro suivant dans gradle.properties
-#     scripts/release-version.sh --check    # n'écrit rien ; échoue si le numéro est trop bas
+#     scripts/release-version.sh            # sets the next number in gradle.properties
+#     scripts/release-version.sh --check    # writes nothing; fails if the number is too low
 #
-# `versionName` reste *dérivé* (`1.3.<code - base>`, voir app/build.gradle.kts) : il n'y a
-# qu'une seule chose à écrire, et elle ne peut pas diverger du nom affiché.
+# `versionName` remains *derived* (`1.3.<code - base>`, see app/build.gradle.kts): there is
+# only one thing to write, and it cannot diverge from the displayed name.
 set -euo pipefail
 
 REPO="${ONYX_REPO:-JemaOS/hermes-onyx}"
@@ -29,7 +29,7 @@ BASE="$(sed -n 's/^onyx\.versionBase=\([0-9]\+\).*/\1/p' "$PROPS" | head -1)"
 CURRENT="$(sed -n 's/^onyx\.versionCode=\([0-9]\+\).*/\1/p' "$PROPS" | head -1)"
 [ -n "$BASE" ] && [ -n "$CURRENT" ] || { echo "onyx.versionBase / onyx.versionCode absents de $PROPS" >&2; exit 2; }
 
-# La ligne publiée : le plus grand numéro de patch parmi les tags `v1.3.N`.
+# The published line: the highest patch number among the `v1.3.N` tags.
 PUBLISHED="$(curl -sf -m 25 "https://api.github.com/repos/$REPO/releases?per_page=100" | python3 -c '
 import json, re, sys
 base = int(sys.argv[1])

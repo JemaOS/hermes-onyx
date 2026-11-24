@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Mesure d'une réponse qui s'écrit : la scène « beaucoup d'informations » du propriétaire.
+# Measurement of a response being written: the owner's "lots of information" scene.
 #
-# usage : measure-stream.sh <tag> [secondes] [paquet]
-#   ADB     chemin d'adb (défaut : celui du SDK local)
-#   SERIAL  appareil ciblé, si plusieurs sont branchés
+# usage: measure-stream.sh <tag> [seconds] [package]
+#   ADB     path to adb (default: the local SDK one)
+#   SERIAL  targeted device, if several are connected
 #
-# Le gateways factice (tools/perf/mock-gateway.py) doit tourner sur l'hôte : l'app y pointe
-# (http://10.0.2.2:19200, modèle « mock-1 »). On ouvre la conversation la plus récente, on envoie
-# une question, et on **ne touche plus à rien** : ce qui est mesuré est le coût du flux seul.
+# The mock gateway (tools/perf/mock-gateway.py) must run on the host: the app points to it
+# (http://10.0.2.2:19200, model "mock-1"). We open the most recent conversation, send
+# a question, and **do not touch anything else**: what is measured is the cost of the stream alone.
 #
-# Sortie : $OUT/<tag>-stream-gfxinfo.txt, $OUT/<tag>-stream-framestats.txt, $OUT/<tag>-stream.png
+# Output: $OUT/<tag>-stream-gfxinfo.txt, $OUT/<tag>-stream-framestats.txt, $OUT/<tag>-stream.png
 set -u
 
 ADB=${ADB:-$(command -v adb || echo "$HOME/android-toolchain/sdk/platform-tools/adb")}
@@ -23,11 +23,11 @@ ADB="$ADB ${SERIAL:+-s $SERIAL}"
 $ADB shell am force-stop "$PKG"
 $ADB shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 8
-# La carte « Continuer » de l'accueil.
+# The "Continue" card on the home screen.
 $ADB shell input tap 540 1098
 sleep 5
-# Le champ d'écriture ([85,1806][995,1948] sur 1080×2400), puis le clavier se referme : le bouton
-# « envoyer » n'est atteignable qu'une fois le clavier rangé.
+# The writing field ([85,1806][995,1948] on 1080×2400), then the keyboard closes: the
+# "send" button is only reachable once the keyboard is put away.
 $ADB shell input tap 540 1877
 sleep 2
 $ADB shell input text "mesure"

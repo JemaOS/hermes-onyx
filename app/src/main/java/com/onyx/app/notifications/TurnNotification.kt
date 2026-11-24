@@ -13,27 +13,27 @@ import com.onyx.app.MainActivity
 import com.onyx.app.core.R
 
 /**
- * La notification d'avancement d'un tour : étape, durée, progression, bouton **Arrêter**.
+ * The progress notification of a turn: step, duration, progress, **Stop** button.
  *
- * Un seul exemplaire dans la barre d'état — l'identifiant est fixe — et deux façons de la tenir :
- * le service de fond ([TurnService]) quand Android accepte de le démarrer, et une publication
- * directe ([TurnNotifier.notifyProgress]) quand il le refuse (démarrage depuis l'arrière-plan,
- * par exemple). Le contenu, lui, est **le même** : une seule fonction le construit, donc les deux
- * chemins ne peuvent pas diverger.
+ * A single instance in the status bar — the identifier is fixed — and two ways of keeping it up:
+ * the foreground service ([TurnService]) when Android agrees to start it, and a direct
+ * publication ([TurnNotifier.notifyProgress]) when it refuses (a start from the background,
+ * for example). The content itself is **the same**: a single function builds it, so the two
+ * paths cannot diverge.
  *
- * Sur Android 16 elle prend le style « progression » et demande à être promue en **Live Update** :
- * le système peut alors la suivre en pastille de barre d'état (Android 16 QPR1 et plus), hors de
- * l'écran de notifications.
+ * On Android 16 it takes the "progress" style and asks to be promoted to a **Live Update**:
+ * the system can then follow it as a status bar chip (Android 16 QPR1 and later), outside of
+ * the notification screen.
  */
 object TurnNotification {
 
-    /** L'identifiant de la notification d'avancement : un tour à la fois dans la barre d'état. */
+    /** The identifier of the progress notification: one turn at a time in the status bar. */
     const val PROGRESS_ID = 41
 
-    /** La clé de la demande de promotion en Live Update (Android 16 QPR1). */
+    /** The key of the Live Update promotion request (Android 16 QPR1). */
     private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
 
-    /** Enregistre le canal ; Android ne modifie jamais un canal que l'utilisateur a réglé. */
+    /** Registers the channel; Android never modifies a channel the user has configured. */
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -49,7 +49,7 @@ object TurnNotification {
         )
     }
 
-    /** La notification, telle que la publient le service et le repli. */
+    /** The notification, as published by the service and by the fallback. */
     fun build(context: Context, conversationId: String, title: String, phase: String, percent: Int?): Notification {
         val thread = title.ifBlank { NotificationCopy.ONYX }
         val localizedPhase = context.notificationLabel(phase.ifBlank { "Answering…" })
@@ -59,8 +59,8 @@ object TurnNotification {
             Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        // « Arrêter » part d'un récepteur : il arrête le tour dans le magasin du processus, même
-        // quand aucun écran n'est ouvert (voir [TurnStopReceiver]).
+        // "Arrêter" ("Stop") goes through a receiver: it stops the turn in the process store, even
+        // when no screen is open (see [TurnStopReceiver]).
         val stop = PendingIntent.getBroadcast(
             context,
             1,
@@ -71,9 +71,9 @@ object TurnNotification {
         )
 
         if (Build.VERSION.SDK_INT >= 36) {
-            // Android 16 : le style « progression » et le texte court font de la notification un
-            // Live Update, suivi par le système au-dessus de l'écran d'accueil — en pastille de
-            // barre d'état sur un appareil qui a la promotion.
+            // Android 16: the "progress" style and the short text turn the notification into a
+            // Live Update, followed by the system above the home screen — as a status bar
+            // chip on a device that has the promotion.
             val style = Notification.ProgressStyle()
             if (percent != null) {
                 style.setProgress(percent.coerceIn(0, 100))
@@ -88,14 +88,14 @@ object TurnNotification {
                 .setContentText(localizedPhase)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                // Le canal laisse passer le son de la notification de fin ; l'avancement, lui,
-                // se met à jour en silence — jamais de son ni de vibration à chaque étape.
+                // The channel lets the sound of the finished notification through; the progress
+                // one updates silently — never a sound or vibration at each step.
                 .setSound(null)
                 .setVibrate(null)
                 .setContentIntent(open)
                 .setShortCriticalText(localizedPhase)
-                // La demande de promotion n'est exposée qu'à partir d'Android 16 QPR1 : à
-                // `compileSdk 36` on l'écrit par sa clé, comme le recommande la documentation.
+                // The promotion request is only exposed from Android 16 QPR1 onward: with
+                // `compileSdk 36` it is written by its key, as the documentation recommends.
                 .addExtras(Bundle().apply { putBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, true) })
                 .setStyle(style)
                 .addAction(Notification.Action.Builder(null, context.notificationLabel("Stop"), stop).build())

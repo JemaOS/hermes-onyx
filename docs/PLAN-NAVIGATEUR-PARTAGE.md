@@ -1,78 +1,78 @@
-# Navigateur de l'agent en direct, et prise en main depuis le téléphone
+# Live agent browser, and takeover from the phone
 
-**L'architecture de référence.** Ce document est normatif, pas une esquisse : il fixe les décisions,
-le contrat filaire complet, les fichiers touchés des deux côtés, les règles de sécurité et les
-critères qui disent « c'est fini ». Ce qui n'y est pas écrit n'est pas dans le périmètre.
+**The reference architecture.** This document is normative, not a sketch: it fixes the decisions,
+the complete wire contract, the files touched on both sides, the security rules and the
+criteria that say "this is done". What is not written here is not in scope.
 
-État : **M1 → M3 écrits** sur la branche `lot/browser-screen` (plugin, relais `onyx-one`, écran
-Onyx, verrous). Reste de la v1 : `fill` (le coffre côté serveur), la carte dans le fil, et l'essai
-réel sur github.com. Voir §9 pour le détail de ce qui est fait.
+Status: **M1 → M3 written** on the `lot/browser-screen` branch (plugin, `onyx-one` relay, Onyx
+screen, locks). Remaining for v1: `fill` (the vault on the server side), the card in the thread, and the real
+test on github.com. See §9 for details of what is done.
 
 ---
 
-## 0. Décisions à valider
+## 0. Decisions to validate
 
-| # | Question | Défaut recommandé | Pourquoi |
+| # | Question | Recommended default | Why |
 |---|---|---|---|
-| D1 | **Où vit le serveur ?** | Un **plugin de plateforme** `onyx-browser`, avec son **propre serveur aiohttp** (pas une route du Dashboard) | Un plugin de Dashboard reçoit l'app FastAPI pour du REST ; c'est `register(ctx)` + `register_tool` des plugins de **plateforme** qui donne l'outil bloquant — et `dots` prouve, sur cette même version, qu'un plugin de plateforme peut tenir son propre WebSocket derrière un proxy TLS |
-| D2 | **Budget de latence ?** | 3 img/s au repos, **8 img/s** en conduite | 3 suffit pour lire un formulaire ; 8 rend le tap et la frappe utilisables |
-| D3 | **Périmètre ?** | **Téléphone seulement** en v1 | L'app web de Dots n'a que la carte, pas l'écran ; on l'ajoutera si le besoin existe |
+| D1 | **Where does the server live?** | A **platform plugin** `onyx-browser`, with its **own aiohttp server** (not a Dashboard route) | A Dashboard plugin receives the FastAPI app for REST; it is `register(ctx)` + `register_tool` from **platform** plugins that provides the blocking tool — and `dots` proves, on this same version, that a platform plugin can hold its own WebSocket behind a TLS proxy |
+| D2 | **Latency budget?** | 3 img/s at rest, **8 img/s** while driving | 3 is enough to read a form; 8 makes tap and typing usable |
+| D3 | **Scope?** | **Phone only** in v1 | Dots' web app only has the card, not the screen; we'll add it if the need arises |
 
-Ces trois défauts sont la **base de ce document** : tout ce qui suit est écrit pour eux. Un veto sur
-l'une des lignes se répercute sur les sections concernées (§2 pour D1, §3 pour D2, §5 pour D3).
+These three defaults are the **basis of this document**: everything that follows is written for them. A veto on
+one of the rows carries over to the relevant sections (§2 for D1, §3 for D2, §5 for D3).
 
 ---
 
-## 1. Objectif, et non-objectifs
+## 1. Objective, and non-objectives
 
-**Objectif.** Quand l'agent bute sur une page qui exige un humain — connexion, mot de passe, 2FA,
-captcha, mur de consentement — il **demande**, le téléphone affiche son navigateur en direct, tu
-agis dessus (tap, glisser, frappe), tu rends la main, et il **continue dans le même tour**, sur la
-même page, déjà connecté.
+**Objective.** When the agent hits a page that requires a human — login, password, 2FA,
+captcha, consent wall — it **asks**, the phone displays its browser live, you
+act on it (tap, drag, type), you hand back, and it **continues in the same turn**, on the
+same page, already logged in.
 
-**Non-objectifs de la v1** (à écrire dans les notes de version, pour que personne ne les attende) :
+**v1 non-objectives** (to be written in the release notes, so that nobody expects them):
 
-- pas de sélecteur de fichier, pas de téléchargement, pas d'onglets, pas de pincer-zoomer ;
-- pas de passkeys / WebAuthn (impossible par frappe) ;
-- pas de flux dans l'app web ;
-- pas de conduction automatique par l'agent : il *demande*, il ne prend pas.
+- no file picker, no download, no tabs, no pinch-to-zoom;
+- no passkeys / WebAuthn (impossible by typing);
+- no stream in the web app;
+- no automatic driving by the agent: it *asks*, it does not take.
 
 ---
 
 ## 2. Architecture
 
 ```
-Onyx (téléphone)                          Hermes serve + plugin onyx-browser (le profil)
+Onyx (phone)                              Hermes serve + onyx-browser plugin (the profile)
 ─────────────────                         ───────────────────────────────────────────────
-                                          browser_request_takeover(reason)   ← outil bloquant
-browser.observe        ── JSON-RPC ───▶   ticket à usage unique (30 s) + viewer_id
+                                          browser_request_takeover(reason)   ← blocking tool
+browser.observe        ── JSON-RPC ───▶   single-use ticket (30 s) + viewer_id
                        ◀── ticket ────
-WS /api/browser/ws     ── trames ─────▶   JPEG 0.6 / q55, 3 img/s (8 en conduite)
-  input {seq, action, x, y, dy, text} ──▶ CDP Input.*        (refusé si pas de bail)
-  done  {id, note}      ────────────────▶ débloque l'outil, l'agent reprend
+WS /api/browser/ws     ── frames ─────▶   JPEG 0.6 / q55, 3 img/s (8 while driving)
+  input {seq, action, x, y, dy, text} ──▶ CDP Input.*        (refused if no lease)
+  done  {id, note}      ────────────────▶ releases the tool, the agent resumes
 browser.lease.acquire  ── JSON-RPC ───▶   holder: human        ← « You're driving »
 browser.lease.release  ── JSON-RPC ───▶   holder: agent        ← « Hand back »
-                       ◀── display.lease ── fan-out vers tous les clients
+                       ◀── display.lease ── fan-out to all clients
 ```
 
-**Pourquoi pas le schéma de Dots.** Dots refait à la main ce que Hermes a déjà :
-`display.observe` mint un ticket à usage unique (`tui_gateway/methods_display.py:152`), un
-WebSocket sert la vue (`hermes_cli/web_routers/display.py:75`), et un **bail** dit qui conduit
-(`tui_gateway/contracts/display.py`, `DisplayLease(holder: agent|human, epoch)`). On reprend ces
-formes et on n'invente que la **source** : au lieu du Xvnc d'un bot, le Chromium de l'agent.
+**Why not Dots' scheme.** Dots hand-rolls what Hermes already has:
+`display.observe` mints a single-use ticket (`tui_gateway/methods_display.py:152`), a
+WebSocket serves the view (`hermes_cli/web_routers/display.py:75`), and a **lease** says who is
+driving (`tui_gateway/contracts/display.py`, `DisplayLease(holder: agent|human, epoch)`). We reuse these
+shapes and invent only the **source**: instead of a bot's Xvnc, the agent's Chromium.
 
-Le `epoch` est la pièce qu'on garde absolument : il bouge à chaque transition réelle, donc une
-saisie calculée sous un bail périmé se détecte au lieu de cliquer ailleurs. Dots n'a rien de tel —
-chez lui, `takeover` n'est qu'un accélérateur de flux, et le serveur applique les saisies sans
-vérifier qui conduit.
+The `epoch` is the piece we absolutely keep: it moves on every real transition, so an
+input computed under an expired lease is detected instead of clicking somewhere else. Dots has nothing like it —
+for Dots, `takeover` is only a stream accelerator, and the server applies inputs without
+checking who is driving.
 
-### 2.1 Le rendu : un viewport de téléphone, pas un bureau réduit
+### 2.1 Rendering: a phone viewport, not a shrunken desktop
 
-Dots rend la page à ~1280 px puis la **réduit** à la largeur du téléphone : le texte du formulaire
-devient minuscule, les cases à cocher font trois pixels, et le tap demande de viser. On ne fait pas ça.
+Dots renders the page at ~1280 px then **shrinks** it to the phone width: the form text
+becomes tiny, checkboxes are three pixels, and tapping requires aiming. We don't do that.
 
-Au début de la prise en main — **avant** toute frappe — le serveur pose un viewport de téléphone sur
-la page de l'agent :
+At the start of the takeover — **before** any typing — the server sets a phone viewport on
+the agent's page:
 
 ```
 Emulation.setDeviceMetricsOverride {
@@ -81,329 +81,329 @@ Emulation.setDeviceMetricsOverride {
 Emulation.setUserAgentOverride { userAgent: <UA mobile> }
 ```
 
-Trois conséquences, toutes voulues :
+Three consequences, all intended:
 
-- le site sert **sa version mobile** : texte lisible, cibles larges, un tap = un pouce ;
-- la trame envoyée est **1:1** avec ce que tu vois : plus de décalage entre l'image et le doigt ;
-- la trame est plus petite pour la même lisibilité → moins d'octets par seconde.
+- the site serves **its mobile version**: readable text, wide targets, one tap = one thumb;
+- the frame sent is **1:1** with what you see: no more offset between the image and the finger;
+- the frame is smaller for the same legibility → fewer bytes per second.
 
-Précautions, dans l'ordre :
+Precautions, in order:
 
-1. le changement **reflue la page** : il est posé au moment où la prise en main commence, jamais
-   pendant une saisie ;
-2. certains sites forcent leur version bureau (URL `?desktop=true`, cookie) : dans ce cas le viewport
-   ne suffit pas et on retombe sur le rendu réduit, sans casser le flux ;
-3. à la fin de la prise en main, le viewport d'origine est **rendu** (`Emulation.clearDeviceMetricsOverride`)
-   pour que l'agent retrouve la page telle qu'il la connaissait.
+1. the change **reflows the page**: it is applied at the moment the takeover begins, never
+   during an input;
+2. some sites force their desktop version (`?desktop=true` URL, cookie): in that case the viewport
+   is not enough and we fall back to the shrunken rendering, without breaking the stream;
+3. at the end of the takeover, the original viewport is **restored** (`Emulation.clearDeviceMetricsOverride`)
+   so the agent finds the page as it knew it.
 
 ---
 
-## 3. Le contrat filaire
+## 3. The wire contract
 
-### Routes HTTP (sur le plugin, relayées par `onyx-one`)
+### HTTP routes (on the plugin, relayed by `onyx-one`)
 
-**Corrigé à l'implémentation** : le plugin n'est pas le Dashboard, donc ses routes ne passent pas par
-`ServeRpc` (JSON-RPC du Dashboard). Elles sont du REST, sur sa propre origine, et `onyx-one` les
-relaie sous `/onyx-browser/` avec la clé de l'app.
+**Corrected at implementation**: the plugin is not the Dashboard, so its routes do not go through
+`ServeRpc` (the Dashboard's JSON-RPC). They are REST, on its own origin, and `onyx-one` relays them
+under `/onyx-browser/` with the app's key.
 
-| Route | Corps | Résultat |
+| Route | Body | Result |
 |---|---|---|
 | `GET  /onyx-browser/health` | — | `{ok, browser, lease, watching, frames, pending}` |
 | `POST /onyx-browser/observe` | — | `{ok, ticket, path: "/onyx-browser/ws", viewer_id, expires_in: 30}` |
-| `POST /onyx-browser/lease` | `{action: "acquire"\|"release", note?}` | `{ok, holder, epoch}` — `409 lease_held` si un autre conduit |
+| `POST /onyx-browser/lease` | `{action: "acquire"\|"release", note?}` | `{ok, holder, epoch}` — `409 lease_held` if someone else is driving |
 
-Erreurs : `401 token` (boucle locale ou jeton), `409 lease_held` (un autre conduit déjà), et sur le
+Errors: `401 token` (loopback or token), `409 lease_held` (someone else is already driving), and on the
 socket `refused {reason}` ∈ `stale`, `no_lease`, `no_page`, `action`.
 
-### Trames du WebSocket
+### WebSocket frames
 
-**Téléphone → serveur**
+**Phone → server**
 
-| `type` | Champs | Effet |
+| `type` | Fields | Effect |
 |---|---|---|
-| `watch` | `on`, `takeover` | ouvre/ferme le flux ; `takeover` passe la cadence à 8 img/s |
-| `input` | `seq`, `action` ∈ `click\|scroll\|type\|key\|fill`, `x`,`y` (fractions 0..1), `dy`, `text` (≤ 2000), `key`, `secret` | rejoué sur la page |
-| `done` | `id`, `note` | rend la main, débloque l'outil |
+| `watch` | `on`, `takeover` | opens/closes the stream; `takeover` raises the rate to 8 img/s |
+| `input` | `seq`, `action` ∈ `click\|scroll\|type\|key\|fill`, `x`,`y` (fractions 0..1), `dy`, `text` (≤ 2000), `key`, `secret` | replayed on the page |
+| `done` | `id`, `note` | hands back, releases the tool |
 
-**Serveur → téléphone**
+**Server → phone**
 
-| `type` | Champs |
+| `type` | Fields |
 |---|---|
-| `frame` | `seq`, `data` (JPEG base64), `url`, `title`, `width`, `height`, `css` (viewport CSS `[w,h]`), `live`, `ts` |
-| `idle` | — (aucun navigateur ouvert, le flux continue de sonder à 1,5 s) |
+| `frame` | `seq`, `data` (base64 JPEG), `url`, `title`, `width`, `height`, `css` (CSS viewport `[w,h]`), `live`, `ts` |
+| `idle` | — (no browser open, the stream keeps polling at 1.5 s) |
 | `lease` | `holder`, `viewer_hash`, `epoch` |
 | `refused` | `seq`, `reason` ∈ `stale\|no_lease\|no_page\|origin` |
 
-Le `seq` est **monotone par connexion** : il sert à refuser une saisie calculée sur une image
-périmée (§7).
+The `seq` is **monotonic per connection**: it is used to refuse an input computed on a stale
+image (§7).
 
-> **`css` est obligatoire dans la trame.** C'est la taille du viewport en pixels CSS, et c'est
-> elle qui dit à l'app où poser le doigt : le geste part en fractions de l'image (0..1), et le
-> serveur le multiplie par cette taille. Sans elle, l'app calcule ses gestes sur un viewport de
-> zéro pixel — et le clic atterrit au coin de l'écran. Le serveur la diffuse donc **avec** la
-> trame ; il en garde aussi une copie pour lui, et retombe dessus si l'app envoie une taille
-> nulle (app plus ancienne, ou trame reçue avant la correction).
+> **`css` is mandatory in the frame.** It is the viewport size in CSS pixels, and it is what
+> tells the app where to put the finger: the gesture starts in fractions of the image (0..1), and the
+> server multiplies it by that size. Without it, the app computes its gestures on a viewport of
+> zero pixels — and the click lands in the corner of the screen. The server therefore broadcasts it **with** the
+> frame; it also keeps a copy for itself, and falls back to it if the app sends a
+> zero size (older app, or frame received before the fix).
 
 ---
 
-## 4. Serveur — le plugin `onyx-browser`
+## 4. Server — the `onyx-browser` plugin
 
-**Plugin de plateforme**, pas plugin de Dashboard. La différence n'est pas cosmétique : c'est
-`register(ctx)` qui donne `register_tool` (l'outil bloquant) et les crochets `pre/post_tool_call`
-d'où vient le `task_id` du navigateur. Un plugin de Dashboard, lui, ne reçoit que l'app FastAPI, pour
-du REST.
+**Platform plugin**, not a Dashboard plugin. The difference is not cosmetic: it is
+`register(ctx)` that provides `register_tool` (the blocking tool) and the `pre/post_tool_call`
+hooks from which the browser's `task_id` comes. A Dashboard plugin, by contrast, only receives the FastAPI app, for
+REST.
 
-C'est le montage de `dots` (`server/hermes-plugin-dots/adapter.py`) — `register(ctx)` y déclare
-`browser_request_takeover` (`adapter.py:1874`) et le plugin y tient **son propre** `aiohttp`
-(`web.AppRunner` + `TCPSite`, derrière un proxy TLS). On ne touche donc pas à `hermes serve`.
+This is the `dots` setup (`server/hermes-plugin-dots/adapter.py`) — `register(ctx)` there declares
+`browser_request_takeover` (`adapter.py:1874`) and the plugin holds **its own** `aiohttp` there
+(`web.AppRunner` + `TCPSite`, behind a TLS proxy). We therefore do not touch `hermes serve`.
 
 ```
 plugins/onyx-browser/
   plugin.yaml   # kind: platform ; requires: DOTS-like token (BROWSER_TOKEN) ; bind 127.0.0.1:8788
-  __init__.py   # register(ctx) : l'outil + les crochets de task_id
-  adapter.py    # capture, input, bail, capture d'identifiants
-  server.py     # aiohttp : /onyx-browser/ws, /onyx-browser/health (ticket à usage unique)
+  __init__.py   # register(ctx): the tool + the task_id hooks
+  adapter.py    # capture, input, lease, credential capture
+  server.py     # aiohttp: /onyx-browser/ws, /onyx-browser/health (single-use ticket)
 ```
 
-**Conséquence opérationnelle** : le plugin écoute sur son propre port (8788), comme `dots` sur 8787.
-Il faut une règle de proxy vers ce port dans le tunnel qui expose déjà la passerelle — une ligne de
-configuration, pas du code.
+**Operational consequence**: the plugin listens on its own port (8788), like `dots` on 8787.
+A proxy rule to that port is needed in the tunnel that already exposes the gateway — one line of
+configuration, not code.
 
-### Ce qu'on réutilise tel quel
+### What we reuse as is
 
-- `SUPERVISOR_REGISTRY.capture(task_id, timeout=…)` → `tools/browser_supervisor.py:518` (vérifié
-  présent sur cette machine) ;
-- `Target.getTargets` + `Target.attachToTarget(flatten)` pour viser la **vraie** page (le
-  superviseur est épinglé au premier onglet, souvent vide) — l'heuristique de Dots
-  (`adapter.py:1367`) est correcte, on la reprend ;
-- `Page.getLayoutMetrics` → `cssVisualViewport` (la taille qu'on mappera) ;
-- `Page.captureScreenshot(jpeg, quality=55, optimizeForSpeed, clip=viewport, scale=0.6)` ;
-- `Page.getNavigationHistory` → `url` + `title` pour la barre d'adresse ;
-- `Input.dispatchMouseEvent` / `insertText` / `dispatchKeyEvent` — **exactement** le mapping de
-  Dots (`adapter.py:1400-1425`), qui est juste.
+- `SUPERVISOR_REGISTRY.capture(task_id, timeout=…)` → `tools/browser_supervisor.py:518` (verified
+  present on this machine);
+- `Target.getTargets` + `Target.attachToTarget(flatten)` to target the **real** page (the
+  supervisor is pinned to the first tab, often empty) — Dots' heuristic
+  (`adapter.py:1367`) is correct, we reuse it;
+- `Page.getLayoutMetrics` → `cssVisualViewport` (the size we will map);
+- `Page.captureScreenshot(jpeg, quality=55, optimizeForSpeed, clip=viewport, scale=0.6)`;
+- `Page.getNavigationHistory` → `url` + `title` for the address bar;
+- `Input.dispatchMouseEvent` / `insertText` / `dispatchKeyEvent` — **exactly** Dots'
+  mapping (`adapter.py:1400-1425`), which is correct.
 
-### Ce qu'on écrit
+### What we write
 
-1. **L'outil** `browser_request_takeover(reason)` : outil bloquant sur le thread de l'agent
-   (`threading.Event`), plafond **15 min**, rend `{status: done|timeout, note}`. Enregistré dans un
-   jeu d'outils `onyx` (offert dans les conversations Onyx seulement).
-   C'est le point non négociable : **Hermes ferme son navigateur à la fin du tour** ; sans outil
-   bloquant, la prise en main n'a pas d'objet.
-2. **La route WS** `/api/browser/ws` : ticket à usage unique (30 s), même forme que
-   `display.observe` ; `watch`/`input`/`done` en entrée, `frame`/`idle`/`lease`/`refused` en sortie.
-3. **Le bail** : `holder`, `viewer_hash`, `epoch`, et l'événement `browser.lease` diffusé à tous les
-   clients (le modèle de `tui_gateway/contracts/display.py`).
-4. **Le garde de saisie** (§7) : la seule règle que Dots n'a pas.
-5. **Le viewport mobile** (§2.1) : posé au début de la prise en main, rendu à la fin.
-6. **La détection du formulaire de connexion** (§6.2) : au moment du `done`, le serveur relève
-   l'hôte de la page et la présence d'un champ `type=password` dans le dernier formulaire soumis, et
-   rend ces deux faits dans la réponse de l'outil — la proposition d'enregistrement s'appuie dessus.
+1. **The tool** `browser_request_takeover(reason)`: blocking tool on the agent's thread
+   (`threading.Event`), cap **15 min**, returns `{status: done|timeout, note}`. Registered in an
+   `onyx` toolset (offered in Onyx conversations only).
+   This is the non-negotiable point: **Hermes closes its browser at the end of the turn**; without a blocking
+   tool, the takeover has no point.
+2. **The WS route** `/api/browser/ws`: single-use ticket (30 s), same shape as
+   `display.observe`; `watch`/`input`/`done` as input, `frame`/`idle`/`lease`/`refused` as output.
+3. **The lease**: `holder`, `viewer_hash`, `epoch`, and the `browser.lease` event broadcast to all
+   clients (the `tui_gateway/contracts/display.py` model).
+4. **The input guard** (§7): the only rule Dots does not have.
+5. **The mobile viewport** (§2.1): set at the start of the takeover, restored at the end.
+6. **Login form detection** (§6.2): at the moment of `done`, the server records
+   the page's host and the presence of a `type=password` field in the last submitted form, and
+   returns these two facts in the tool's response — the save proposal relies on them.
 
 ---
 
-## 5. Onyx — les fichiers
+## 5. Onyx — the files
 
-### Nouveaux
+### New
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `core/…/data/net/BrowserScreenApi.kt` | `browser.observe` / `lease.*` / `status`, les modèles (`BrowserFrame`, `BrowserLease`, `ScreenInput`) |
-| `core/…/data/net/BrowserScreenClient.kt` | le WS (OkHttp) : watch, input, done ; reconnexion ; rien d'autre |
-| `app/…/ui/browser/BrowserScreenViewer.kt` | l'écran : image, barre d'adresse, commandes de prise en main, bouton « Rendre la main » |
-| `app/…/ui/browser/BrowserScreenViewModel.kt` | l'état : dernière trame, `seq`, bail, erreurs — **hors** de la portée de composition du fil |
-| `app/src/test/…/browser/BrowserScreenTest.kt` | les verrous (voir §8) |
+| `core/…/data/net/BrowserScreenApi.kt` | `browser.observe` / `lease.*` / `status`, the models (`BrowserFrame`, `BrowserLease`, `ScreenInput`) |
+| `core/…/data/net/BrowserScreenClient.kt` | the WS (OkHttp): watch, input, done; reconnection; nothing else |
+| `app/…/ui/browser/BrowserScreenViewer.kt` | the screen: image, address bar, takeover controls, « Rendre la main » ("Hand back") button |
+| `app/…/ui/browser/BrowserScreenViewModel.kt` | the state: last frame, `seq`, lease, errors — **outside** the thread's composition scope |
+| `app/src/test/…/browser/BrowserScreenTest.kt` | the locks (see §8) |
 
-### Réutilisés, sans les copier
+### Reused, without copying them
 
-- `ServeRpc` (`core/…/ServeRpc.kt:44`) pour les méthodes — le même canal que la feuille de contexte ;
-- `ComputerStream.viewWidthFor(paneWidthPx, screenWidth)` : la largeur d'image demandée se **négocie**,
-  on ne code pas 60 % en dur (Dots le fait en dur) ;
-- `ServerProbe` / `ServerCapability` : `BROWSER("api/plugins/onyx-browser/health")`, sur le modèle de
-  `VAULT` — la ligne, la tuile et le raccourci n'existent que si la sonde répond ;
-- `BoundedImages` pour le décodage borné, si les trames arrivent en pleine taille ;
-- les cartes d'outils du fil pour la carte `takeover` (pending / expired / handed back).
+- `ServeRpc` (`core/…/ServeRpc.kt:44`) for the methods — the same channel as the context sheet;
+- `ComputerStream.viewWidthFor(paneWidthPx, screenWidth)`: the requested image width is **negotiated**,
+  we do not hardcode 60 % (Dots hardcodes it);
+- `ServerProbe` / `ServerCapability`: `BROWSER("api/plugins/onyx-browser/health")`, modeled on
+  `VAULT` — the row, the tile and the shortcut exist only if the probe responds;
+- `BoundedImages` for bounded decoding, if frames arrive at full size;
+- the thread's tool cards for the `takeover` card (pending / expired / handed back).
 
-### Ce qu'on ne réutilise **pas**
+### What we do **not** reuse
 
-`ComputerTouch` : c'est un **pointeur relatif**, excellent pour un bureau 3840×2160, mauvais pour une
-page web. Ici le tap est **absolu** — on clique là où on voit le champ.
+`ComputerTouch`: it is a **relative pointer**, excellent for a 3840×2160 desktop, bad for a
+web page. Here the tap is **absolute** — you click where you see the field.
 
-### Règles de performance (les mêmes que le lot 1.3.35)
+### Performance rules (the same as in 1.3.35)
 
-- décodage **hors** du thread principal, un `Bitmap` réutilisé par trame, jamais un par image ;
-- l'état des trames vit dans **sa propre portée** : une image à 3 img/s ne doit pas recomposer le
-  fil — c'est le défaut qu'on a mis trois versions à corriger (`GlassScrollFreeze`,
-  `WorkingPreviewLine`) ;
-- `watch { on: false }` sur `onDispose` **et** sur `ON_STOP` : rien ne défile en arrière-plan ;
-- la saisie est **étranglée** (~30/s max) et annulée si `seq` a changé.
+- decoding **off** the main thread, one `Bitmap` reused per frame, never one per image;
+- the frame state lives in **its own scope**: an image at 3 img/s must not recompose the
+  thread — this is the defect it took three versions to fix (`GlassScrollFreeze`,
+  `WorkingPreviewLine`);
+- `watch { on: false }` on `onDispose` **and** on `ON_STOP`: nothing scrolls in the background;
+- input is **throttled** (~30/s max) and cancelled if `seq` has changed.
 
 ---
 
-## 6. Le coffre — remplir, et enregistrer au login
+## 6. The vault — filling, and saving at login
 
-Le coffre n'est pas un accessoire : c'est ce qui fait passer la feature de « je tape mon mot de passe
-sur mon téléphone » à « l'agent se connecte sans jamais le lire ». Deux gestes, deux directions.
+The vault is not an accessory: it is what moves the feature from "I type my password
+on my phone" to "the agent logs in without ever reading it". Two gestures, two directions.
 
-### 6.1 Remplir (`fill`)
+### 6.1 Filling (`fill`)
 
-Si `ServerCapability.VAULT` est prouvée, la prise en main offre les secrets du profil
-(`vault.list` : nom + empreinte `••••de`) :
+If `ServerCapability.VAULT` is proven, the takeover offers the profile's secrets
+(`vault.list`: name + `••••de` fingerprint):
 
 ```
-input { action: "fill", secret: "reddit", seq: 412 }     ← aucun secret ne circule
-serveur : vault.reveal("reddit") en mémoire → Input.insertText(...)
+input { action: "fill", secret: "reddit", seq: 412 }     ← no secret travels
+server: vault.reveal("reddit") in memory → Input.insertText(...)
 ```
 
-Le mot de passe ne touche ni le téléphone, ni l'IME, ni le presse-papiers, ni le WebSocket, ni le
-modèle. C'est **strictement mieux** que la version Dots, où le champ de saisie est un
-`BasicTextField` **en clair** (`TakeoverControls`) : pas de masquage, pas de clavier mot de passe.
+The password touches neither the phone, nor the IME, nor the clipboard, nor the WebSocket, nor the
+model. This is **strictly better** than the Dots version, where the input field is a
+`BasicTextField` **in clear text** (`TakeoverControls`): no masking, no password keyboard.
 
-Conditions, sinon on ne le fait pas :
+Conditions, otherwise we don't do it:
 
-1. le secret porte son **origine** (`used_by`) et l'injection est **refusée** si
-   `Page.getNavigationHistory` ne rend pas cette origine — refus **côté serveur** ;
-2. l'injection exige `holder == human` ;
-3. le coffre ne rend **jamais** de valeur à l'app : la route de lecture n'existe pas, et on n'en
-   ajoute pas.
+1. the secret carries its **origin** (`used_by`) and the injection is **refused** if
+   `Page.getNavigationHistory` does not return that origin — refusal **on the server side**;
+2. injection requires `holder == human`;
+3. the vault **never** returns a value to the app: the read route does not exist, and we do not
+   add one.
 
-### 6.2 Enregistrer au login (`capture`)
+### 6.2 Saving at login (`capture`)
 
-Quand la page soumise était un formulaire de connexion, la prise en main propose d'**enregistrer**
-les identifiants dans le coffre — **jamais d'elle-même**.
+When the submitted page was a login form, the takeover offers to **save**
+the credentials in the vault — **never on its own**.
 
-**Pas d'écriture automatique.** Le serveur ne voit que des `type {text}` sur un champ focalisé : il
-ne sait pas *ce qu'il écrit*. Une écriture automatique reviendrait à laisser **la page** décider de
-ce qui entre dans le coffre, sous le nom qu'elle choisit — un coffre qui accepte des écritures
-dictées par la page n'est plus un coffre.
+**No automatic write.** The server only sees `type {text}` on a focused field: it
+does not know *what it is writing*. An automatic write would amount to letting **the page** decide
+what enters the vault, under the name it chooses — a vault that accepts writes
+dictated by the page is no longer a vault.
 
-Le chemin est donc explicite, et il ne demande **aucune route serveur nouvelle** :
+The path is therefore explicit, and it requires **no new server route**:
 
 ```
 app → POST vault.put { profile, name: "reddit", value, used_by: ["reddit.com"] }
-     ← { fingerprint: "••••de", created: true }        (la valeur ne revient jamais)
+     ← { fingerprint: "••••de", created: true }        (the value never comes back)
 ```
 
-`VaultApi.put(name, value, profile, usedBy)` existe déjà côté Onyx, avec `used_by`, sans valeur dans
-le retour et sans journal. Le serveur n'a rien à apprendre.
+`VaultApi.put(name, value, profile, usedBy)` already exists on the Onyx side, with `used_by`, with no value in
+the return and no log. The server has nothing to learn.
 
-**D'où vient la valeur** :
+**Where the value comes from**:
 
-| Cas | Comportement |
+| Case | Behavior |
 |---|---|
-| identifiants tapés sur le téléphone | l'app les garde dans le ViewModel jusqu'au `done`, puis les efface après l'écriture |
-| identifiants injectés par `fill` | rien à enregistrer : ils viennent du coffre |
+| credentials typed on the phone | the app keeps them in the ViewModel until `done`, then erases them after the write |
+| credentials injected by `fill` | nothing to save: they come from the vault |
 
-**Les cinq règles** (un verrou de test par règle, §8) :
+**The five rules** (one test lock per rule, §8):
 
-1. **jamais sans geste** — aucune écriture déclenchée par la page, par l'agent ou par un timer ;
-2. **lié à l'origine** — `used_by` porte l'hôte de la page soumise, et `fill` refusera ce secret hors
-   de cette origine ;
-3. **la valeur est effacée** du ViewModel dès l'écriture, et le champ est masqué pendant la frappe ;
-4. **seulement sur un vrai formulaire de connexion** — un champ `type=password` dans le formulaire
-   soumis ; sinon on ne devine pas, on ne propose rien ;
-5. **aucun journal, aucun fichier** — `VaultApi.put` ne journalise pas la valeur, contrat déjà écrit.
+1. **never without a gesture** — no write triggered by the page, by the agent or by a timer;
+2. **bound to the origin** — `used_by` carries the host of the submitted page, and `fill` will refuse this secret outside
+   that origin;
+3. **the value is erased** from the ViewModel as soon as it is written, and the field is masked while typing;
+4. **only on a real login form** — a `type=password` field in the submitted form;
+   otherwise we do not guess, we propose nothing;
+5. **no log, no file** — `VaultApi.put` does not log the value, a contract already written.
 
-### 6.3 Deux entrées par compte
+### 6.3 Two entries per account
 
-Le coffre tient **une valeur par nom**, et une connexion en demande deux. Convention, pas un nouveau
-format :
+The vault holds **one value per name**, and a login asks for two. A convention, not a new
+format:
 
 ```
-reddit        → le mot de passe    used_by: ["reddit.com"]
-reddit-email  → l'adresse          used_by: ["reddit.com"]
+reddit        → the password    used_by: ["reddit.com"]
+reddit-email  → the address     used_by: ["reddit.com"]
 ```
 
-`fill` les remplit **dans l'ordre** (adresse, puis mot de passe), et l'empreinte affichée à côté du
-champ dit lequel vient de partir. Le nom est pré-rempli à partir de l'hôte (`reddit.com` → `reddit`),
-et reste modifiable.
+`fill` fills them **in order** (address, then password), and the fingerprint displayed next to the
+field says which one was just sent. The name is pre-filled from the host (`reddit.com` → `reddit`),
+and remains editable.
 
-### 6.4 Ce que ça donne, en pratique
+### 6.4 What it looks like, in practice
 
-Reddit : l'agent demande, tu remplis depuis le coffre ou tu tapes une fois, tu enregistres d'un geste,
-tu rends la main. La fois suivante, la même page se remplit **sans que tu tapes rien**, et l'agent
-poste. Le mot de passe n'a jamais quitté le serveur, et il n'est jamais passé par le modèle.
+Reddit: the agent asks, you fill from the vault or you type once, you save with one gesture,
+you hand back. The next time, the same page fills **without you typing anything**, and the agent
+posts. The password never left the server, and it never went through the model.
 
 ---
 
-## 7. Sécurité — les six règles
+## 7. Security — the six rules
 
-1. **Le jeton est la frontière.** Le WS exige le ticket à usage unique de `browser.observe` (30 s),
-   jamais le jeton d'appairage en clair dans l'URL.
-2. **Pas de saisie sans bail.** `input` refusé si `holder != human` → `refused {reason: "no_lease"}`.
-   (Dots ne le fait pas : chez lui le drapeau ne change que la cadence.)
-3. **Pas de saisie périmée.** Un `seq` nul, inconnu, ou postérieur à la dernière trame émise →
-   `refused {reason: "stale"}` ; de même, un geste calculé sur une image de plus de deux
-   secondes → `refused {reason: "stale"}`. C'est le garde qui empêche de cliquer sur un champ qui
-   a bougé.
-   > *Pourquoi deux secondes et pas « la dernière trame ».* Le serveur diffuse à 8 img/s pendant
-   > que l'humain conduit : le `seq` de la trame **affichée** est forcément déjà dépassé au
-   > moment où le doigt se pose. Comparer des `seq` refusait donc *chaque* geste, et l'écran ne
-   > servait plus à rien. La règle compare une **durée**, pas un compteur : deux secondes
-   > couvrent le temps de réaction humain (regarder, viser, poser le doigt) et pas plus. Le `seq`
-   > reste vérifié — il refuse un numéro que le serveur n'a jamais émis.
-4. **Un seul conducteur.** `browser.lease.acquire` quand un autre conduit → `5302 LEASE_HELD` ; les
-   autres appareils reçoivent `lease {holder: "human", viewer_hash}` et restent en lecture.
-5. **Rien dans le modèle.** `input` ne touche que CDP : aucun chemin de `screen_input` vers
-   l'historique ou vers le prompt. À vérifier par un test, pas par une intention.
-6. **L'origine est la seule clé des secrets.** Un `fill` ou un `capture` dont l'hôte ne correspond
-   pas à `used_by` est refusé côté serveur (`refused {reason: "origin"}`) — jamais côté app, jamais
-   « avec un avertissement ».
+1. **The token is the boundary.** The WS requires the single-use ticket from `browser.observe` (30 s),
+   never the pairing token in clear text in the URL.
+2. **No input without a lease.** `input` refused if `holder != human` → `refused {reason: "no_lease"}`.
+   (Dots does not do this: for Dots the flag only changes the rate.)
+3. **No stale input.** A `seq` that is zero, unknown, or later than the last emitted frame →
+   `refused {reason: "stale"}`; likewise, a gesture computed on an image more than two
+   seconds old → `refused {reason: "stale"}`. This is the guard that prevents clicking on a field that
+   has moved.
+   > *Why two seconds and not "the last frame".* The server broadcasts at 8 img/s while
+   > the human is driving: the `seq` of the **displayed** frame is necessarily already past by the
+   > time the finger lands. Comparing `seq` values therefore refused *every* gesture, and the screen
+   > became useless. The rule compares a **duration**, not a counter: two seconds
+   > cover human reaction time (look, aim, place the finger) and no more. The `seq`
+   > is still checked — it refuses a number the server never emitted.
+4. **A single driver.** `browser.lease.acquire` when someone else is driving → `5302 LEASE_HELD`; the
+   other devices receive `lease {holder: "human", viewer_hash}` and remain read-only.
+5. **Nothing in the model.** `input` only touches CDP: no path from `screen_input` to
+   history or to the prompt. To be verified by a test, not by an intention.
+6. **The origin is the only key to secrets.** A `fill` or a `capture` whose host does not match
+   `used_by` is refused on the server side (`refused {reason: "origin"}`) — never on the app side, never
+   "with a warning".
 
 ---
 
-## 8. Tests et verrous (le style du dépôt)
+## 8. Tests and locks (the repository's style)
 
-| Verrou | Ce qu'il tient |
+| Lock | What it holds |
 |---|---|
-| `BrowserScreenTest` (pur) | le mapping fractions → viewport CSS, le refus `stale`, le refus `no_lease`, la cadence (3 / 8 img/s) |
-| `BrowserCapabilityTest` | la tuile, la ligne et le raccourci n'apparaissent **que** si `ServerCapability.BROWSER` répond ; aucune entrée morte |
-| `BrowserNoModelLeakTest` | aucun champ de `ScreenInput` n'atteint `ChatViewModel` / l'historique (garde par lecture de source, comme `VaultScreenTest`) |
-| `BrowserThreadPerfTest` | `BrowserScreenViewer` ne lit pas l'état du fil ; une trame ne recompose que l'écran |
-| `VaultCaptureTest` | **aucune écriture** sans geste ; `used_by` porte l'hôte ; la valeur est effacée du ViewModel après l'écriture ; rien n'est proposé sans `type=password` |
-| `VaultFillOriginTest` | un `fill` dont l'origine ne correspond pas à `used_by` est **refusé côté serveur** (`refused {reason: "origin"}`) |
-| tests du plugin (côté serveur) | `browser.observe` rend un ticket à usage unique ; `input` sans bail est refusé ; l'outil rend `timeout` à 15 min |
+| `BrowserScreenTest` (pure) | the fractions → CSS viewport mapping, the `stale` refusal, the `no_lease` refusal, the rate (3 / 8 img/s) |
+| `BrowserCapabilityTest` | the tile, the row and the shortcut appear **only** if `ServerCapability.BROWSER` responds; no dead entry |
+| `BrowserNoModelLeakTest` | no field of `ScreenInput` reaches `ChatViewModel` / history (guard by reading the source, like `VaultScreenTest`) |
+| `BrowserThreadPerfTest` | `BrowserScreenViewer` does not read the thread state; a frame recomposes only the screen |
+| `VaultCaptureTest` | **no write** without a gesture; `used_by` carries the host; the value is erased from the ViewModel after the write; nothing is proposed without `type=password` |
+| `VaultFillOriginTest` | a `fill` whose origin does not match `used_by` is **refused on the server side** (`refused {reason: "origin"}`) |
+| plugin tests (server side) | `browser.observe` returns a single-use ticket; `input` without a lease is refused; the tool returns `timeout` at 15 min |
 
-Aucun test ne mesure de fps réel : pas d'appareil sur la machine de build. Le protocole de mesure de
-`AUDIT-PERFORMANCE.md` §6 s'applique si tu veux des chiffres.
+No test measures real fps: no device on the build machine. The measurement protocol in
+`docs/PERF-MESURE-2026-11-05.md` applies if you want numbers.
 
 ---
 
-## 9. Les lots
+## 9. The lots
 
-| Lot | Contenu | Fini quand |
+| Lot | Content | Done when |
 |---|---|---|
-| **M1 — le tube** | plugin : outil bloquant + `browser.observe` + WS qui diffuse des trames JPEG + viewport mobile (§2.1), sans input | un test de bout en bout montre 3 img/s, une trame 390×844 et un `done` qui débloque l'outil |
-| **M2 — la main** | `input` (click, scroll, type, key) + bail + refus `no_lease` / `stale` | on se connecte à un site de test depuis l'écran, et une saisie sans bail est refusée |
-| **M3 — Onyx** | l'écran Compose, le ViewModel, la sonde `BROWSER`, la carte `takeover` dans le fil | tout M2 est faisable depuis le téléphone, sans recomposer le fil |
-| **M4 — le coffre** | `fill` + `capture` (enregistrer au login) + liaison d'origine + empreinte | le mot de passe ne quitte jamais le serveur ; un `fill` sur une autre origine est refusé ; aucune écriture sans geste |
+| **M1 — the pipe** | plugin: blocking tool + `browser.observe` + WS broadcasting JPEG frames + mobile viewport (§2.1), without input | an end-to-end test shows 3 img/s, a 390×844 frame and a `done` that releases the tool |
+| **M2 — the hand** | `input` (click, scroll, type, key) + lease + `no_lease` / `stale` refusals | we log in to a test site from the screen, and an input without a lease is refused |
+| **M3 — Onyx** | the Compose screen, the ViewModel, the `BROWSER` probe, the `takeover` card in the thread | everything in M2 can be done from the phone, without recomposing the thread |
+| **M4 — the vault** | `fill` + `capture` (save at login) + origin binding + fingerprint | the password never leaves the server; a `fill` on another origin is refused; no write without a gesture |
 
-**Brûlé à l'écriture (2026-11-05)** : le `capture` est fait côté app (`VaultApi.put`, origine liée,
-geste explicite, champ masqué) ; le `fill` **reste à faire** — il demande que le plugin lise le
-coffre, donc une route serveur privilégiée qui n'existe pas encore.
+**Locked in at writing (2026-11-05)**: `capture` is done on the app side (`VaultApi.put`, origin bound,
+explicit gesture, masked field); `fill` **remains to be done** — it requires the plugin to read the
+vault, hence a privileged server route that does not exist yet.
 
-Chaque lot se termine par un commit + notes de version + les trois APK, comme d'habitude.
-
----
-
-## 10. Risques, dits franchement
-
-- **Le seam CDP est une API interne.** `SUPERVISOR_REGISTRY.capture` peut changer entre deux
-  versions de Hermes. Le README de Dots l'écrit lui-même. Conséquence : le plugin peut casser à une
-  mise à jour, et il doit le dire clairement quand il ne trouve plus le seam (message, pas silence).
-- **3 img/s, ce n'est pas du partage d'écran.** Un captcha en grille d'images est pénible. Si ça
-  devient bloquant, la parade est `Page.startScreencast` (vrai flux), pas une cadence plus haute.
-- **Coût CPU serveur** : un JPEG plein cadre toutes les 300 ms (120 ms en conduite).
-- **Profils fantômes.** Si deux onglets sont ouverts, « la dernière vraie page » peut être le mauvais.
-- **Session et durée de vie du profil navigateur** : à mesurer avant de promettre « tu restes
-  connecté » (voir la conversation du 5/11).
+Each batch ends with a commit + release notes + the three APKs, as usual.
 
 ---
 
-## 11. Ce que je ne fais pas en v1
+## 10. Risks, stated frankly
 
-- streaming audio/vidéo de la page (le JPEG suffit pour un formulaire) ;
-- conduction simultanée à deux ;
-- app web ;
-- remplissage automatique sans geste de l'utilisateur ;
-- mémorisation des logins dans le coffre (le coffre garde le **mot de passe**, pas la session : un
-  cookie est un jeton porteur sans liaison d'origine).
+- **The CDP seam is an internal API.** `SUPERVISOR_REGISTRY.capture` may change between two
+  Hermes versions. Dots' README says so itself. Consequence: the plugin may break on an
+  update, and it must say so clearly when it can no longer find the seam (message, not silence).
+- **3 img/s is not screen sharing.** An image-grid captcha is painful. If it
+  becomes a blocker, the remedy is `Page.startScreencast` (a real stream), not a higher rate.
+- **Server CPU cost**: one full-frame JPEG every 300 ms (120 ms while driving).
+- **Ghost profiles.** If two tabs are open, "the last real page" may be the wrong one.
+- **Browser profile session and lifetime**: to be measured before promising "you stay
+  logged in" (see the 5/11 conversation).
+
+---
+
+## 11. What I do not do in v1
+
+- audio/video streaming of the page (JPEG is enough for a form);
+- simultaneous driving by two;
+- web app;
+- automatic filling without a user gesture;
+- remembering logins in the vault (the vault keeps the **password**, not the session: a
+  cookie is a bearer token with no origin binding).

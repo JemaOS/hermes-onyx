@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Mesure de défilement d'Onyx : N glissements haut puis bas, puis les statistiques de trames.
+# Onyx scroll measurement: N swipes up then down, then the frame statistics.
 #
-# usage : measure-scroll.sh <tag> [glissements] [paquet]
-#   ADB   chemin d'adb (défaut : celui du SDK local, sinon `adb` du PATH)
-#   SERIAL émulateur/appareil ciblé, si plusieurs sont branchés
+# usage: measure-scroll.sh <tag> [swipes] [package]
+#   ADB   path to adb (default: the local SDK one, otherwise `adb` from PATH)
+#   SERIAL targeted emulator/device, if several are connected
 #
-# Sortie : $OUT/<tag>-gfxinfo.txt, $OUT/<tag>-framestats.txt, $OUT/<tag>.png
-# puis, sur la sortie standard, le pourcentage de trames saccadées et le temps de thread UI.
+# Output: $OUT/<tag>-gfxinfo.txt, $OUT/<tag>-framestats.txt, $OUT/<tag>.png
+# then, on standard output, the janky frame percentage and the UI thread time.
 set -u
 
 ADB=${ADB:-$(command -v adb || echo "$HOME/android-toolchain/sdk/platform-tools/adb")}
@@ -17,11 +17,11 @@ OUT=${OUT:-$(pwd)/perf-out}
 mkdir -p "$OUT"
 ADB="$ADB ${SERIAL:+-s $SERIAL}"
 
-# L'app repart du même état : accueil, puis la conversation la plus récente.
+# The app restarts from the same state: home, then the most recent conversation.
 $ADB shell am force-stop "$PKG"
 $ADB shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 8
-# La carte « Continuer » de l'accueil, au centre de l'écran (1080×2400).
+# The "Continue" card on the home screen, at the center of the screen (1080×2400).
 $ADB shell input tap 540 1098
 sleep 6
 

@@ -1,52 +1,52 @@
-# Les compagnons serveur d'Onyx
+# Onyx's server companions
 
-Onyx est un **client**. Il ne possède ni compte, ni serveur, ni abonnement : il parle au Hermes
-qui tourne sur *ta* machine. Certaines fonctions, pourtant, ne peuvent pas vivre dans un
-téléphone — un coffre de clés doit être chiffré là où le bot travaille, un journal de
-démonstration doit être borné là où le tour s'exécute.
+Onyx is a **client**. It has no account, no server, no subscription: it talks to the Hermes
+running on *your* machine. Some functions, however, cannot live in a
+phone — a key vault must be encrypted where the bot works, a demonstration journal
+must be bounded where the turn executes.
 
-Ces fonctions-là sont des **plugins Hermes**, livrés ici, dans ce dépôt, pour que celui qui
-installe Onyx puisse les poser à côté :
+Those functions are **Hermes plugins**, shipped here, in this repository, so that whoever
+installs Onyx can place them alongside:
 
 ```
 plugins/
-├── onyx-vault/          # le coffre de secrets par profil
-│   ├── dashboard/       # ← le dossier à copier dans ~/.hermes/plugins/
-│   ├── tests/           # 35 tests unittest, exécutables sans Hermes pour la plupart
-│   └── INSTALL.md       # deux étapes, aucune dépendance payante
-└── onyx-record/         # la démonstration→skill côté serveur (bail, journal borné, brouillon)
+├── onyx-vault/          # the secret vault per profile
+│   ├── dashboard/       # ← the folder to copy into ~/.hermes/plugins/
+│   ├── tests/           # 35 unittest tests, most runnable without Hermes
+│   └── INSTALL.md       # two steps, no paid dependency
+└── onyx-record/         # the demonstration→skill server side (lease, bounded journal, draft)
     ├── dashboard/
-    ├── tests/           # 89 tests, dont le golden identique au convertisseur Kotlin
-    ├── ECARTS.md        # les 14 points où la spec était muette ou se contredisait
+    ├── tests/           # 89 tests, including the golden identical to the Kotlin converter
+    ├── ECARTS.md        # the 14 points where the spec was silent or contradicted itself
     └── INSTALL.md
 ```
 
-## Ce que ça change pour l'utilisateur
+## What this changes for the user
 
-| Fonction d'Onyx | Hermes nu | Hermes + le compagnon |
+| Onyx function | Bare Hermes | Hermes + the companion |
 |---|---|---|
-| Chat, bots, rooms, voix, Computer, Kanban, Cron, Code, fichiers | **marche** | marche |
-| Skills par `/`, partage d'un modèle de bot, capacités du serveur | **marche** | marche |
-| Meneur de room et passage de main (v1 client) | **marche** | marche |
-| Coffre de secrets (écrire/lister/révoquer) | **l'entrée n'existe pas** | marche |
-| Démonstration → skill (le serveur borne le journal) | **l'entrée n'existe pas** | marche |
+| Chat, bots, rooms, voice, Computer, Kanban, Cron, Code, files | **works** | works |
+| Skills via `/`, sharing a bot template, server capabilities | **works** | works |
+| Room leader and handover (client v1) | **works** | works |
+| Secret vault (write/list/revoke) | **the entry does not exist** | works |
+| Demonstration → skill (the server bounds the journal) | **the entry does not exist** | works |
 
-« L'entrée n'existe pas » est la règle : Onyx interroge le serveur (`ServerProbe`) et **ne dessine
-pas** ce qu'il ne sait pas faire. Aucun écran vide, aucun bouton mort, aucune promesse en l'air.
+"The entry does not exist" is the rule: Onyx queries the server (`ServerProbe`) and **does not draw**
+what it cannot do. No empty screen, no dead button, no empty promise.
 
-## Installer un compagnon
+## Installing a companion
 
 ```bash
 cp -r plugins/onyx-vault ~/.hermes/plugins/onyx-vault
-# puis, dans ~/.hermes/config.yaml, sous plugins.enabled :
+# then, in ~/.hermes/config.yaml, under plugins.enabled:
 #     - onyx-vault
 ```
 
-Le détail (clé de chiffrement, vérification, désinstallation) est dans `plugins/onyx-vault/INSTALL.md`.
-Aucun compte, aucune inscription, aucun appel sortant : les routes se montent sur **ton** dashboard.
+The details (encryption key, verification, uninstall) are in `plugins/onyx-vault/INSTALL.md`.
+No account, no sign-up, no outgoing call: the routes mount on **your** dashboard.
 
-## Ce que ces plugins ne feront jamais
+## What these plugins will never do
 
-- envoyer un secret, un journal ou un identifiant à un service tiers ;
-- demander une clé d'API d'un fournisseur payant ;
-- s'activer sans une ligne explicite dans `config.yaml` — un plugin non listé n'est même pas importé.
+- send a secret, a journal or an identifier to a third-party service;
+- ask for an API key from a paid provider;
+- activate without an explicit line in `config.yaml` — an unlisted plugin is not even imported.

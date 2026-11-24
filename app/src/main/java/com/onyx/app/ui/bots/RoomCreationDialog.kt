@@ -67,43 +67,43 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import com.onyx.app.ui.theme.ResolvedTheme
 
 /**
- * **La boîte de création d'un salon** — le port de la boîte de la référence, au gabarit de la maison.
+ * **The room creation dialog** — the port of the reference dialog, in the house template.
  *
- * La référence la dessine dans `shared/ui/.../rooms/CreateRoomDialog.kt:66` : un panneau, un titre,
- * un champ de nom avec son invite, le paragraphe qui dit ce que devient le salon, l'intitulé de
- * section qui porte la contrainte (« BOTS · EN CHOISIR DE 2 À 6 »), la liste des bots avec leur
- * visage et un cercle de sélection, puis l'action de validation en pilule. Onyx n'avait pas cette
- * boîte : ses bots partaient d'un choix par défaut (`GroupChatViewModel.init`), sans nom et sans
- * contrainte montrée.
+ * The reference draws it in `shared/ui/.../rooms/CreateRoomDialog.kt:66` : a panel, a title,
+ * a name field with its placeholder, the paragraph that says what the room becomes, the section
+ * heading that carries the constraint (« BOTS · EN CHOISIR DE 2 À 6 » — "pick 2 to 6"), the list of
+ * bots with their face and a selection circle, then the confirm action as a pill. Onyx did not have
+ * this dialog : its bots started from a default choice (`GroupChatViewModel.init`), with no name and
+ * no shown constraint.
  *
- * **Le paragraphe ne promet que ce qui est tenu.** Trois hébergements existent, et chacun a sa
- * phrase ([roomExplanation]) :
+ * **The paragraph only promises what is kept.** Three hostings exist, and each has its
+ * sentence ([roomExplanation]) :
  *
- * - la **passerelle** tient le salon (`groups.create` avec `driver: true`) : il tourne sans
- *   application ouverte, et tout se relit à la reconnexion (`groups.log`) — c'est la promesse de la
- *   référence, et elle est vraie ici ;
- * - sans identifiants de Dashboard, le salon est **gardé sur ce téléphone** (`GroupRoomStore`) : il
- *   survit à une relance, mais ses bots ne répondent que pendant que l'application est ouverte — le
- *   dire autrement serait une promesse que le code ne tient pas ;
- * - avec un Dashboard dont la passerelle ne tient pas de salon (`driver: false`, passerelle
- *   ancienne), l'ouverture est refusée et rien n'est gardé : la phrase le dit avant l'appel.
+ * - the **gateway** holds the room (`groups.create` with `driver: true`) : it runs with no app
+ *   open, and everything is re-read on reconnection (`groups.log`) — this is the promise of the
+ *   reference, and it is true here ;
+ * - without Dashboard credentials, the room is **kept on this phone** (`GroupRoomStore`) : it
+ *   survives a restart, but its bots only answer while the app is open — say
+ *   otherwise would be a promise that the code does not keep ;
+ * - with a Dashboard whose gateway does not hold rooms (`driver: false`, old
+ *   gateway), the opening is refused and nothing is kept : the sentence says so before the call.
  *
- * Chaque ligne de bot porte **son visage** ([BotLook]) et **son cercle** : plein à l'accent avec sa
- * coche quand il est choisi, anneau vide sinon — le `PickMark` de la référence.
+ * Each bot row carries **its face** ([BotLook]) and **its circle** : filled with the accent and its
+ * check when picked, empty ring otherwise — the `PickMark` of the reference.
  *
- * L'action de validation est **réellement** contrainte : elle n'agit pas tant que le nom est vide ou
- * que le compte sort de 2 à 6, et la raison s'affiche à côté ([roomBlockReason]) — jamais un bouton
- * grisé qui ne dit rien.
+ * The confirm action is **really** constrained : it does nothing while the name is empty or
+ * the count falls outside 2 to 6, and the reason is shown next to it ([roomBlockReason]) — never a greyed
+ * button that says nothing.
  */
 @Composable
 fun RoomCreationDialog(
     bots: List<BotProfile>,
-    /** Le paragraphe suit **la même** source que l'ouverture : [roomHosting]. */
+    /** The paragraph follows **the same** source as the opening : [roomHosting]. */
     hasDashboard: Boolean,
     gatewayRunsRooms: Boolean,
-    /** Ce qui court à l'instant (« Ouverture du salon… »), ou `null`. */
+    /** What is running right now (« Ouverture du salon… » — "Opening the room…"), or `null`. */
     busy: String? = null,
-    /** Le refus du serveur, montré tel quel sous la liste. */
+    /** The server's refusal, shown as is below the list. */
     error: String? = null,
     onDismiss: () -> Unit,
     onCreate: (name: String, members: Set<String>) -> Unit,
@@ -111,12 +111,12 @@ fun RoomCreationDialog(
     val theme = LocalOnyxTheme.current
     var name by remember { mutableStateOf("") }
     val chosen = remember { mutableStateListOf<String>() }
-    // L'appui sur l'action tant qu'elle ne peut pas aboutir : la raison est alors **reposée**.
+    // Pressing the action while it cannot go through : the reason is then **restated**.
     var blocked by remember { mutableStateOf<String?>(null) }
     val hosting = roomHosting(hasDashboard, gatewayRunsRooms)
     val reason = roomBlockReason(name, chosen.size, busy != null)
     val fieldFocus = remember { FocusRequester() }
-    // Le champ est **focalisé** à l'ouverture, comme dans la référence : son arête prend l'accent.
+    // The field is **focused** on open, as in the reference : its edge takes the accent.
     LaunchedEffect(Unit) { runCatching { fieldFocus.requestFocus() } }
 
     Dialog(
@@ -124,19 +124,19 @@ fun RoomCreationDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = busy == null),
     ) {
         DialogWindowBlur(FrostSurface.SHEET)
-        // **Le thème de l'app, reposé à l'entrée de la fenêtre.** Une `Dialog` ouvre une
-        // sous-composition : le repos explicite garantit que le panneau, son encre et ses actions
-        // suivent le thème de l'app (et non la valeur par défaut de `LocalOnyxTheme`, qui est
-        // claire). Ce n'est **pas** la cause du défaut mesuré — le fond sombre derrière le panneau
-        // est le **voile de la fenêtre de dialogue** (`setBackgroundBlurRadius` + `dimAmount`), que
-        // le verrou de surface ne juge pas — mais c'est la garantie qui manquait au sous-arbre.
+        // **The app theme, restated at the window entry.** A `Dialog` opens a
+        // sub-composition : the explicit restatement guarantees that the panel, its ink and its actions
+        // follow the app theme (and not the default value of `LocalOnyxTheme`, which is
+        // light). This is **not** the cause of the measured defect — the dark background behind the panel
+        // is the **dialog window scrim** (`setBackgroundBlurRadius` + `dimAmount`), which
+        // the surface lock does not judge — but it is the guarantee the subtree was missing.
         CompositionLocalProvider(LocalOnyxTheme provides theme) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // **Le voile de la MAISON**, pas un noir à 35 % écrit ici : le même que celui des
-                // feuilles ([HouseSheetScrim]) — la page derrière est franchement assombrie, et
-                // le panneau opaque fait le reste.
+                // **The HOUSE scrim**, not a 35 % black written here : the same as the sheets'
+                // ([HouseSheetScrim]) — the page behind is clearly darkened, and
+                // the opaque panel does the rest.
                 .background(HouseSheetScrim)
                 .padding(horizontal = OnyxSpace.Base)
                 .onyxTappable { if (busy == null) onDismiss() },
@@ -145,16 +145,16 @@ fun RoomCreationDialog(
             Column(
                 modifier = Modifier
                     .widthIn(max = 380.dp)
-                    // Le panneau ne transmet pas l'appui au voile : appuyer entre deux lignes ne
-                    // referme rien.
+                    // The panel does not pass the press to the scrim : pressing between two rows
+                    // closes nothing.
                     .onyxTappable { }
-                    // **La surface de la maison, opaque d'abord** : le panneau ne laisse plus lire la
-                    // page au travers (défaut du propriétaire : « on lit à travers le panneau »). Une
-                    // seule fonction de surface pour les feuilles **et** les dialogues
-                    // ([housePanelSurface]), donc la correction vaut pour les deux familles.
+                    // **The house surface, opaque first** : the panel no longer lets the page be read
+                    // through it (owner's defect : « on lit à travers le panneau » — "you can read through the panel"). A
+                    // single surface function for sheets **and** dialogs
+                    // ([housePanelSurface]), so the fix holds for both families.
                     .housePanelSurface(
                         RoundedCornerShape(GlassPanelCorner),
-                        // La teinte est lue **ici**, dans le thème du dialogue reposé.
+                        // The tint is read **here**, in the restated dialog theme.
                         fill = OnyxSurfaces.surfaceHigh(theme),
                     )
                     .padding(horizontal = OnyxSpace.CardPadding, vertical = OnyxSpace.CardPadding),
@@ -166,7 +166,7 @@ fun RoomCreationDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // Le libellé du champ, puis le champ avec son invite.
+                // The field label, then the field with its placeholder.
                 Column(verticalArrangement = Arrangement.spacedBy(OnyxSpace.Hair)) {
                     BasicText(
                         text = "Room name",
@@ -176,8 +176,8 @@ fun RoomCreationDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                // Le champ est focalisé d'emblée : son arête est donc à l'accent,
-                                // comme la référence le montre.
+                                // The field is focused right away : its edge is therefore at the accent,
+                                // as the reference shows.
                                 .composerFieldSurface(theme, RoundedCornerShape(OnyxSpace.FieldCorner), focused = true)
                                 .padding(horizontal = OnyxSpace.Snug, vertical = OnyxSpace.Half),
                         ) {
@@ -193,7 +193,7 @@ fun RoomCreationDialog(
                     }
                 }
 
-                // Ce que devient le salon, dit **vrai** pour cet hébergement.
+                // What the room becomes, told **truthfully** for this hosting.
                 BasicText(
                     text = roomExplanation(hosting),
                     style = theme.footnote.copy(color = theme.secondaryText),
@@ -222,8 +222,8 @@ fun RoomCreationDialog(
                         RoomBotRow(
                             bot = bot,
                             picked = picked,
-                            // Un septième bot proposé : la ligne s'éteint avant tout appui, et sa
-                            // description dite par un lecteur d'écran explique pourquoi.
+                            // A seventh bot offered : the row dims before any press, and its
+                            // description read by a screen reader explains why.
                             fullNotice = full,
                             enabled = busy == null,
                             onToggle = { if (picked) chosen.remove(bot.name) else if (!full) chosen.add(bot.name) },
@@ -236,7 +236,7 @@ fun RoomCreationDialog(
                     style = theme.caption.copy(color = theme.tertiaryText),
                 )
 
-                // La raison, **lisible**, tant que l'action ne peut pas aboutir.
+                // The reason, **readable**, as long as the action cannot go through.
                 (blocked ?: reason)?.let { why ->
                     BasicText(
                         text = why,
@@ -267,7 +267,7 @@ fun RoomCreationDialog(
                         text = "Create",
                         primary = true,
                         enabled = reason == null,
-                        // Inerte **et** la raison reposée : appuyer ne fait jamais rien en silence.
+                        // Inert **and** the reason restated : pressing never does anything in silence.
                         onClick = {
                             if (reason == null) onCreate(name.trim(), chosen.toSet()) else blocked = reason
                         },
@@ -280,21 +280,21 @@ fun RoomCreationDialog(
     }
 }
 
-/** Ce qui héberge le salon qu'on ouvre : c'est **lui** qui décide la phrase, jamais l'inverse. */
+/** What hosts the room being opened : it is **this** that decides the sentence, never the reverse. */
 enum class RoomHosting {
-    /** La passerelle tient le salon : il continue sans application ouverte. */
+    /** The gateway holds the room : it keeps going with no app open. */
     GATEWAY,
 
-    /** Sans Dashboard, le salon est gardé sur ce téléphone. */
+    /** Without Dashboard, the room is kept on this phone. */
     PHONE,
 
-    /** Le Dashboard est là, mais sa passerelle ne tient pas de salon : l'ouverture sera refusée. */
+    /** The Dashboard is there, but its gateway does not hold rooms : the opening will be refused. */
     UNAVAILABLE,
 }
 
 /**
- * L'hébergement réel : **la même** condition que le chemin d'ouverture (`createGroupRoom` — les
- * identifiants du Dashboard pour le serveur, le magasin du téléphone sinon).
+ * The real hosting : **the same** condition as the opening path (`createGroupRoom` — the
+ * Dashboard credentials for the server, the phone store otherwise).
  */
 internal fun roomHosting(hasDashboard: Boolean, gatewayRunsRooms: Boolean): RoomHosting = when {
     hasDashboard && gatewayRunsRooms -> RoomHosting.GATEWAY
@@ -303,8 +303,9 @@ internal fun roomHosting(hasDashboard: Boolean, gatewayRunsRooms: Boolean): Room
 }
 
 /**
- * Le paragraphe de la boîte, selon [hosting]. Chaque variante ne dit que ce que ce chemin-là tient :
- * « il continue même application fermée » n'apparaît **que** pour un salon que la passerelle tient.
+ * The dialog's paragraph, depending on [hosting]. Each variant only says what that path keeps :
+ * « il continue même application fermée » ("it keeps going even with the app closed") appears **only**
+ * for a room the gateway holds.
  */
 internal fun roomExplanation(hosting: RoomHosting): String = when (hosting) {
     RoomHosting.GATEWAY -> OnyxLocalization[
@@ -323,15 +324,16 @@ internal fun roomExplanation(hosting: RoomHosting): String = when (hosting) {
     ]
 }
 
-/** Les bornes de la contrainte : **celles du serveur** (`GroupRoom.MIN_MEMBERS` / `MAX_MEMBERS`). */
+/** The constraint bounds : **the server's** (`GroupRoom.MIN_MEMBERS` / `MAX_MEMBERS`). */
 internal const val ROOM_MIN_BOTS = GroupRoom.MIN_MEMBERS
 internal const val ROOM_MAX_BOTS = GroupRoom.MAX_MEMBERS
 
 /**
- * Pourquoi l'action ne peut pas encore aboutir, ou `null` quand elle le peut.
+ * Why the action cannot go through yet, or `null` when it can.
  *
- * C'est **la** règle, et elle est montrée : un nom vide, moins de deux bots, plus de six, ou une
- * ouverture déjà en cours. Chaque cas a sa phrase — l'action reste inerte, mais la raison se lit.
+ * This is **the** rule, and it is shown : an empty name, fewer than two bots, more than six, or an
+ * opening already in progress. Each case has its sentence — the action stays inert, but the reason
+ * is readable.
  */
 internal fun roomBlockReason(name: String, chosen: Int, busy: Boolean): String? = when {
     busy -> OnyxLocalization["Making the room…"]
@@ -351,14 +353,14 @@ internal fun roomBlockReason(name: String, chosen: Int, busy: Boolean): String? 
     else -> null
 }
 
-/** Combien de bots sont choisis : « 3 picked », au singulier près. */
+/** How many bots are picked : « 3 picked », singular included. */
 internal fun roomPickedLine(chosen: Int): String =
     if (chosen == 1) OnyxLocalization["1 picked"] else OnyxLocalization.format("%1\$d picked", chosen)
 
-/** Le nom du salon tel qu'il partira : ce qui est tapé, sans ses blancs de bord. */
+/** The room name as it will be sent : what was typed, without its edge whitespace. */
 internal fun roomNameToSend(name: String): String = name.trim()
 
-/** Une ligne de bot : son visage, son nom, et son cercle de sélection. */
+/** A bot row : its face, its name, and its selection circle. */
 @Composable
 private fun RoomBotRow(
     bot: BotProfile,
@@ -394,7 +396,7 @@ private fun RoomBotRow(
                 color = if (fullNotice) theme.tertiaryText else theme.textColor,
                 fontWeight = FontWeight.Medium,
             ),
-            // Le nom d'un bot est un **titre de rangée** : deux lignes, ellipse au-delà.
+            // A bot's name is a **row title** : two lines, ellipsis beyond.
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -403,7 +405,7 @@ private fun RoomBotRow(
     }
 }
 
-/** Le cercle de sélection : plein à l'accent avec sa coche, ou l'anneau vide. */
+/** The selection circle : filled with the accent and its check, or the empty ring. */
 @Composable
 private fun PickMark(picked: Boolean, theme: ResolvedTheme) {
     if (picked) {
@@ -411,7 +413,7 @@ private fun PickMark(picked: Boolean, theme: ResolvedTheme) {
             modifier = Modifier.size(20.dp).background(theme.accent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            // La ligne dit déjà « choisi » (rôle de case à cocher) : la marque reste muette.
+            // The row already says « choisi » ("picked", checkbox role) : the mark stays silent.
             OnyxIcon(symbol = Symbols.Checkmark, tint = theme.accentInk, size = 12.dp, contentDescription = null)
         }
     } else {
@@ -420,8 +422,8 @@ private fun PickMark(picked: Boolean, theme: ResolvedTheme) {
 }
 
 /**
- * Une action du panneau, en **pilule** : l'accent plein pour valider, un simple contour pour
- * annuler, et l'état bloqué qui s'assombrit sans jamais cacher sa raison ([description]).
+ * A panel action, as a **pill** : the solid accent to confirm, a simple outline to
+ * cancel, and the blocked state that dims without ever hiding its reason ([description]).
  */
 @Composable
 private fun RoomActionPill(
@@ -434,12 +436,12 @@ private fun RoomActionPill(
     val theme = LocalOnyxTheme.current
     Box(
         modifier = Modifier
-            // La cible tactile reste de 44 dp même quand la pilule dessinée est plus courte.
+            // The touch target stays 44 dp even when the drawn pill is shorter.
             .defaultMinSize(minHeight = 44.dp)
-            // **Une action désactivée ne répond pas.** Elle ne « reprend » pas le geste pour
-            // reposer sa raison : elle est désactivée au sens de la plateforme (le lecteur d'écran
-            // l'annonce comme telle), et sa raison est **nommée** — à l'écran, juste au-dessus, et
-            // dans `stateDescription`.
+            // **A disabled action does not respond.** It does not "take back" the gesture to
+            // restate its reason : it is disabled in the platform sense (the screen reader
+            // announces it as such), and its reason is **named** — on screen, just above, and
+            // in `stateDescription`.
             .then(if (enabled) Modifier.onyxTappable(onClick = onClick) else Modifier)
             .semantics {
                 if (enabled) {
@@ -457,21 +459,21 @@ private fun RoomActionPill(
                 .defaultMinSize(minHeight = 34.dp)
                 .background(
                     color = when {
-                        // **L'action principale de la maison : l'accent, et lui seul.**
+                        // **The house's primary action : the accent, and it alone.**
                         primary && enabled -> theme.accent
-                        // Désactivée : l'**accent atténué**, pas un gris neutre. C'est la famille
-                        // de couleur qui distingue les deux actions — un gris, même d'un autre
-                        // barreau, se lit comme la secondaire (« deux pilules du même gris », le
-                        // défaut du propriétaire), et rien ne dit laquelle est l'action.
+                        // Disabled : the **muted accent**, not a neutral grey. It is the colour
+                        // family that distinguishes the two actions — a grey, even of another
+                        // step, reads as the secondary one (« deux pilules du même gris » — "two pills
+                        // of the same grey", the owner's defect), and nothing says which is the action.
                         primary -> theme.accent.copy(alpha = 0.16f)
-                        // La secondaire : le gris de gorge de la maison, avec son filet.
+                        // The secondary : the house's throat grey, with its hairline.
                         else -> theme.fill
                     },
                     shape = CircleShape,
                 )
                 .then(
                     when {
-                        // Désactivée : le filet d'accent dit « c'est l'action, pas maintenant ».
+                        // Disabled : the accent hairline says « c'est l'action, pas maintenant » ("it is the action, not now").
                         primary && !enabled -> Modifier.border(1.dp, theme.accent.copy(alpha = 0.35f), CircleShape)
                         primary -> Modifier
                         else -> Modifier.border(1.dp, theme.separator, CircleShape)
@@ -486,9 +488,9 @@ private fun RoomActionPill(
                     color = when {
                         primary && enabled -> theme.accentInk
                         enabled -> theme.textColor
-                        // Lisible, pas effacé : l'encre de l'action désactivée garde l'accent, à
-                        // une force qui reste au-dessus du plancher de contraste — et la raison
-                        // est **nommée** juste au-dessus (et dans `stateDescription`).
+                        // Readable, not erased : the disabled action's ink keeps the accent, at
+                        // a strength that stays above the contrast floor — and the reason
+                        // is **named** just above (and in `stateDescription`).
                         primary -> theme.accent.copy(alpha = 0.85f)
                         else -> theme.secondaryText
                     },

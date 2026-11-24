@@ -4,30 +4,30 @@ import android.content.Context
 import android.content.pm.ShortcutManager
 
 /**
- * Le raccourci **« Coffre de secrets »** du menu d'appui long sur l'icône.
+ * The **"Secret vault"** shortcut of the long-press menu on the icon.
  *
- * La tuile est déclarée dans `res/xml/shortcuts.xml` (elle ne dépend d'aucune donnée du serveur),
- * mais elle ne doit apparaître que sur un serveur qui **sert** le greffon `onyx-vault` : une tuile
- * qui ouvre une page vide est un tap mort, et la maison préfère une entrée absente. Le lanceur sait
- * exactement faire ça — la tuile reste déclarée et c'est son **activation** qui suit la preuve.
+ * The tile is declared in `res/xml/shortcuts.xml` (it does not depend on any server data),
+ * but it must only appear on a server that **serves** the `onyx-vault` plugin: a tile that opens
+ * an empty page is a dead tap, and the house prefers an absent entry. The launcher knows exactly
+ * how to do that — the tile stays declared and it is its **activation** that follows the proof.
  *
- * [sync] est donc appelée **une fois par preuve** (l'écran des Réglages la porte, puisque c'est lui
- * qui sonde les capacités) : `true` active la tuile, `false` la retire du menu. Un appareil qui n'a
- * jamais sondé garde l'état déclaré — la tuile est là, et la page du Coffre dit elle-même ce qui
- * manque si le serveur ne la sert pas.
+ * [sync] is therefore called **once per proof** (the Settings screen carries it, since it is the
+ * one that probes the capabilities): `true` enables the tile, `false` removes it from the menu. A
+ * device that has never probed keeps the declared state — the tile is there, and the Vault page
+ * itself says what is missing if the server does not serve it.
  */
 object VaultShortcut {
 
-    /** L'identifiant de la tuile, celui de `res/xml/shortcuts.xml`. */
+    /** The tile's identifier, the one from `res/xml/shortcuts.xml`. */
     const val ID = "vault"
 
-    /** Ce que le lanceur écrit sous la tuile retirée, quand il l'accepte. */
+    /** What the launcher writes under the removed tile, when it accepts it. */
     private const val WHY = "Ce serveur ne sert pas le coffre de secrets."
 
     fun sync(context: Context, ready: Boolean) {
         val manager = context.getSystemService(ShortcutManager::class.java) ?: return
-        // Le lanceur peut refuser (profil de travail, mode restreint) : ce n'est pas une erreur de
-        // l'app, et rien ne doit casser à cause de ça.
+        // The launcher may refuse (work profile, restricted mode): that is not an error of
+        // the app, and nothing must break because of it.
         runCatching {
             if (ready) manager.enableShortcuts(listOf(ID))
             else manager.disableShortcuts(listOf(ID), WHY)

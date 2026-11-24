@@ -1,8 +1,8 @@
-"""Tests du cœur du coffre : chiffrement au repos, empreinte, non-fuite.
+"""Core vault tests: encryption at rest, fingerprint, non-leak.
 
-Lancer :
+Run:
     python -m unittest discover -s tests -v
-(aucune dépendance Hermes : seuls ``cryptography`` et la stdlib sont requis)
+(no Hermes dependency: only ``cryptography`` and the stdlib are required)
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from cryptography.fernet import Fernet
 ROOT = Path(__file__).resolve().parent.parent
 CORE_PATH = ROOT / "dashboard" / "onyx_vault.py"
 
-# Valeur sentinelle : longue (>= 8) pour que l'empreinte ne soit que la fin.
+# Sentinel value: long (>= 8) so the fingerprint is only the end.
 SENTINEL = "SENTINEL-do-not-leak-9f3a-ABCD"
 SENTINEL_TAIL = "ABCD"
 
@@ -41,7 +41,7 @@ core = load_core()
 
 
 class VaultTestCase(unittest.TestCase):
-    """Isole ``ONYX_VAULT_DIR`` + clé pour chaque test, et remet le singleton à zéro."""
+    """Isolate ``ONYX_VAULT_DIR`` + key for each test, and reset the singleton to zero."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -72,7 +72,7 @@ class TestKeyHandling(VaultTestCase):
                 core.load_key()
         message = str(ctx.exception)
         self.assertIn("absente", message)
-        self.assertIn("Fernet.generate_key", message)  # remédiation actionnable
+        self.assertIn("Fernet.generate_key", message)  # actionable remediation
         self.assertNotIn(self.env["ONYX_VAULT_KEY"], message)
 
     def test_invalid_key_is_refused_without_echoing_it(self):
@@ -105,7 +105,7 @@ class TestKeyHandling(VaultTestCase):
 
 
 class TestNoValueLeak(VaultTestCase):
-    """Exigence : aucun ``repr``/``str``/``format``/log/disque ne contient la valeur."""
+    """Requirement: no ``repr``/``str``/``format``/log/disk contains the value."""
 
     def test_repr_and_str_of_secret_objects_never_contain_the_value(self):
         vault = self.vault()
@@ -131,7 +131,7 @@ class TestNoValueLeak(VaultTestCase):
             self.assertNotIn(SENTINEL, rendered, f"fuite de la valeur via {label}")
             self.assertNotIn(SENTINEL[:-4], rendered, f"fuite partielle via {label}")
 
-        # Le seul accès explicite reste reveal().
+        # The only explicit access remains reveal().
         self.assertEqual(secret.reveal(), SENTINEL)
         self.assertIn("<redacted>", repr(secret))
 
@@ -166,7 +166,7 @@ class TestNoValueLeak(VaultTestCase):
             vault.list("onyx")
             vault.read("onyx", "K")
             vault.revoke("onyx", "K")
-            # Un échec de validation ne doit pas non plus journaliser la valeur.
+            # A validation failure must not log the value either.
             with self.assertRaises(core.VaultError):
                 vault.put("onyx", "K", "x" * (core.MAX_VALUE_BYTES + 1))
         finally:
@@ -205,7 +205,7 @@ class TestVaultBehaviour(VaultTestCase):
         updated = vault.put("onyx", "ANTHROPIC_KEY", "rotated-value-WXYZ")
         self.assertFalse(updated["created"])
         self.assertEqual(updated["fingerprint"], "WXYZ")
-        # used_by omis : la métadonnée précédente est conservée.
+        # used_by omitted: the previous metadata is kept.
         self.assertEqual(updated["used_by"], ["onyx-android", "gateway"])
 
         self.assertTrue(vault.revoke("onyx", "ANTHROPIC_KEY"))

@@ -43,21 +43,21 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlin.math.roundToInt
 
 /**
- * Les sources des pastilles d'une ligne de la section « Bots ».
+ * The sources of the badges of a row in the "Bots" section.
  *
- * Comme référence (`ChatActivity`), elles ne viennent pas toutes du même endroit :
- * - « au travail » et « en attente de vous » : `session.active_list`, que le serveur tient à jour
- *   (`liveKinds`, par id de chat ; `roomKinds`, par id de salle) ;
- * - « pas encore lu » : ce que **ce téléphone** a vu de la ligne, contre la date que le serveur
- *   donne pour son dernier mot — Hermes ne tient pas de marque de lecture pour le chat d'un bot ni
- *   pour une salle (`seenMarks`, par id de ligne de `BotListItem`).
+ * As in the reference (`ChatActivity`), they do not all come from the same place:
+ * - "working" and "waiting for you": `session.active_list`, which the server keeps up to date
+ *   (`liveKinds`, by chat id; `roomKinds`, by room id);
+ * - "not yet read": what **this phone** has seen of the row, against the date the server
+ *   gives for its last word — Hermes keeps no read mark for a bot's chat nor
+ *   for a room (`seenMarks`, by row id of `BotListItem`).
  */
 data class BotBadges(
     val liveKinds: Map<String, ActivityKind> = emptyMap(),
     val roomKinds: Map<String, ActivityKind> = emptyMap(),
     val seenMarks: Map<String, Double?> = emptyMap(),
 ) {
-    /** Ce qu'un bot montre : son chat ouvert ici, la session vivante que le serveur signale, son worker. */
+    /** What a bot shows: its chat opened here, the live session the server reports, its worker. */
     fun forBot(
         bot: BotProfile,
         isOpen: Boolean,
@@ -72,7 +72,7 @@ data class BotBadges(
         muted = muted,
     )
 
-    /** Ce qu'une salle montre : ses bots au travail, l'un d'eux qui attend, ou du nouveau depuis la dernière fois. */
+    /** What a room shows: its bots working, one of them waiting, or something new since last time. */
     fun forRoom(id: String, activityMark: Double?, isOpen: Boolean, muted: Boolean): BotActivity = roomActivity(
         markSeconds = activityMark,
         seen = seenMarks[BotListItem.Room(GroupRoom(id = id, name = id)).id],
@@ -82,15 +82,15 @@ data class BotBadges(
     )
 }
 
-/** La hauteur d'une ligne qu'on met en ordre (« Reorder Bots »). */
+/** The height of a row we put in order ("Reorder Bots"). */
 internal val ARRANGE_ROW_HEIGHT: Dp = 58.dp
 
 /**
- * La ligne visée par un glissement de `dy` depuis `from`.
+ * The row targeted by a drag of `dy` from `from`.
  *
- * Le mode « Reorder Bots » de la référence déplace une ligne à la fois (`List.onMove`), au rythme du
- * glissement : c'est donc le déplacement, divisé par la hauteur d'une ligne, qui dit de combien de
- * rangs elle descend ou monte.
+ * The reference's "Reorder Bots" mode moves one row at a time (`List.onMove`), following the
+ * drag: it is therefore the displacement, divided by the height of a row, that says how many
+ * ranks it goes down or up.
  */
 internal fun arrangeTarget(from: Int, dy: Float, rowHeight: Float, count: Int): Int {
     if (rowHeight <= 0f || count <= 1) return from.coerceIn(0, (count - 1).coerceAtLeast(0))
@@ -99,9 +99,9 @@ internal fun arrangeTarget(from: Int, dy: Float, rowHeight: Float, count: Int): 
 }
 
 /**
- * Les lignes de la section pendant « Reorder Bots », comme `botsSection` en `arrangingBots` :
- * chaque ligne se glisse par sa poignée et n'ouvre rien, l'en-tête dit « Bots », et le pied de
- * section explique le geste.
+ * The rows of the section during "Reorder Bots", like `botsSection` in `arrangingBots`:
+ * each row is dragged by its handle and opens nothing, the header says "Bots", and the section
+ * footer explains the gesture.
  */
 @Composable
 fun BotsArrangeList(
@@ -116,7 +116,7 @@ fun BotsArrangeList(
     onOpenRoom: ((GroupRoom) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    // La ligne qu'on glisse, et de combien : le déplacement ne quitte pas l'écran.
+    // The row being dragged, and by how much: the displacement does not leave the screen.
     var dragging by remember { mutableStateOf<Pair<Int, Float>?>(null) }
     val rowHeight = with(LocalDensity.current) { ARRANGE_ROW_HEIGHT.toPx() }
 
@@ -131,7 +131,7 @@ fun BotsArrangeList(
                         onRelease = {
                             val dy = dragging?.second ?: 0f
                             dragging = null
-                            // Le dernier rang visé, en gardant la ligne dans la section.
+                            // The last targeted rank, keeping the row within the section.
                             val target = arrangeTarget(index, dy, rowHeight, items.size)
                             if (target != index) onMove(index, target)
                         },
@@ -178,7 +178,7 @@ fun BotsArrangeList(
             }
         }
 
-        // Le pied de section de la référence, tel quel.
+        // The reference's section footer, as is.
         BasicText(
             text = "Drag bots and group chats by their handles into the order you want.",
             style = LocalOnyxTheme.current.footnote.copy(color = LocalOnyxTheme.current.secondaryText),
@@ -187,7 +187,7 @@ fun BotsArrangeList(
     }
 }
 
-/** Une ligne qu'on met en ordre : son fond, et sa poignée à droite ; elle n'ouvre rien. */
+/** A row being put in order: its background, and its handle on the right; it opens nothing. */
 @Composable
 private fun ArrangeRow(
     isDragging: Boolean,
@@ -209,8 +209,8 @@ private fun ArrangeRow(
 }
 
 /**
- * La poignée d'une ligne (`line.3.horizontal`) : elle seule bouge la ligne, et rien d'autre ne
- * répond au toucher pendant qu'on met la section en ordre (`allowsHitTesting(false)` côté référence).
+ * The handle of a row (`line.3.horizontal`): it alone moves the row, and nothing else
+ * responds to touch while the section is being put in order (`allowsHitTesting(false)` on the reference side).
  */
 @Composable
 private fun DragHandle(onShift: (Float) -> Unit, onRelease: () -> Unit) {
@@ -240,8 +240,8 @@ private fun DragHandle(onShift: (Float) -> Unit, onRelease: () -> Unit) {
 }
 
 /**
- * Un bot pendant « Reorder Bots », comme le `botRow` de la référence : son visage, son nom, la marque du
- * silence, l'heure de son dernier mot — ou le rond qui tourne —, puis sa dernière ligne.
+ * A bot during "Reorder Bots", like the reference's `botRow`: its face, its name, the mute
+ * mark, the time of its last word — or the spinning circle —, then its last line.
  */
 @Composable
 private fun BotArrangeRow(
@@ -312,8 +312,8 @@ private fun BotArrangeRow(
 }
 
 /**
- * Un salon pendant « Reorder Bots », comme le `groupRow` de la référence : les visages de
- * ses membres, son nom, et qui en fait partie.
+ * A room during "Reorder Bots", like the reference's `groupRow`: the faces of
+ * its members, its name, and who belongs to it.
  */
 @Composable
 private fun RoomArrangeRow(

@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 
 internal fun runFastPreferenceKey(connectionKey: String, stored: String): String = "$connectionKey|$stored"
 
-/** Le mode rapide de l'API Hermes, conservé par connexion et conversation (`RunChatControls`). */
+/** The Hermes API's fast mode, kept per connection and per conversation (`RunChatControls`). */
 class RunChatControlsStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("onyx_chat_controls", Context.MODE_PRIVATE)
 
@@ -68,8 +68,8 @@ internal fun chatControlsFooter(controls: ChatControls?, offersAutoApprove: Bool
 }
 
 /**
- * Les interrupteurs du menu Modèle (`ChatControlsSection`). Le Dashboard les applique à la
- * session sur le serveur ; l'API Hermes conserve le mode rapide localement pour chaque session.
+ * The switches of the Model menu (`ChatControlsSection`). The Dashboard applies them to the
+ * session on the server; the Hermes API keeps the fast mode locally for each session.
  */
 @Composable
 fun ChatControlsSection(
@@ -93,7 +93,7 @@ fun ChatControlsSection(
     var busy by remember(server.configSignature, stored) { mutableStateOf(false) }
     var problem by remember(server.configSignature, stored) { mutableStateOf<String?>(null) }
     var confirmingAutoApprove by remember(server.configSignature, stored) { mutableStateOf(false) }
-    // L'aide repliée de la section : fermée par défaut — c'est son intérêt.
+    // The section's collapsed help: closed by default — that is the point of it.
     var helpOpen by remember(server.configSignature, stored) { mutableStateOf(false) }
 
     LaunchedEffect(server.configSignature, stored) {
@@ -133,10 +133,10 @@ fun ChatControlsSection(
     OnyxFormSection(
         modifier = modifier,
         header = "This conversation",
-        // **Plus de paragraphe de cinq lignes sous un simple interrupteur.** L'explication longue
-        // vivait dans le pied de section : elle poussait les deux interrupteurs vers le haut et se
-        // lisait (ou pas) d'un bloc. Chaque interrupteur porte désormais **une sous-ligne courte**,
-        // et le détail complet vit dans l'**aide repliée** de la fin de section.
+        // **No more five-line paragraph under a simple switch.** The long explanation
+        // lived in the section footer: it pushed the two switches up and was
+        // read (or not) as one block. Each switch now carries **a short sub-line**,
+        // and the full detail lives in the section's **collapsed help** at the end.
         footer = null,
     ) {
         ControlsSwitchRow(
@@ -171,8 +171,8 @@ fun ChatControlsSection(
             )
         }
         OnyxRowDivider()
-        // **L'aide repliée** : le texte qui était le pied de section, à sa place — derrière un mot
-        // qui dit ce qu'on va lire. Rien n'est supprimé de l'explication, elle ne s'impose plus.
+        // **The collapsed help**: the text that used to be the section footer, in its place — behind a word
+        // that says what you are about to read. Nothing is removed from the explanation; it just no longer imposes itself.
         OnyxRow(onClick = { helpOpen = !helpOpen }) {
             BasicText(
                 text = if (helpOpen) "Hide what these switches change" else "What these switches change",
@@ -225,14 +225,14 @@ private fun transportReason(error: Exception): String =
     humanFailure(error, OnyxLocalization["unknown error"])
 
 /**
- * **Un interrupteur et sa sous-ligne courte** — la rangée du mode rapide.
+ * **A switch and its short sub-line** — the fast-mode row.
  *
- * Le défaut relevé sur la feuille de modèle : un simple interrupteur portait un **paragraphe de cinq
- * lignes** en pied de section. La rangée de la maison, elle, c'est un libellé et **une sous-ligne
- * courte** ; l'explication longue vit dans l'aide repliée de la section.
+ * The flaw found on the model sheet: a simple switch carried a **five-line
+ * paragraph** in the section footer. The house row, by contrast, is a label and **a short
+ * sub-line**; the long explanation lives in the section's collapsed help.
  *
- * La cible fait la hauteur d'une rangée de la maison (`OnyxToggleRow`), et l'interrupteur reste le
- * contrôle de fin de rangée : c'est lui qu'on touche, le libellé suit.
+ * The target is the height of a house row (`OnyxToggleRow`), and the switch remains the
+ * end-of-row control: it is what you touch, the label follows.
  */
 @Composable
 private fun ControlsSwitchRow(
@@ -257,7 +257,7 @@ private fun ControlsSwitchRow(
                 text = label,
                 style = theme.body.copy(color = if (enabled) theme.primaryText else theme.secondaryText),
             )
-            // La sous-ligne : **courte**, et traduite comme le reste de la feuille.
+            // The sub-line: **short**, and translated like the rest of the sheet.
             BasicText(
                 text = subtitle,
                 style = theme.footnote.copy(color = theme.secondaryText),

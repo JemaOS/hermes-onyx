@@ -80,17 +80,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
 
 /**
- * Le navigateur de l'agent, en direct sur le téléphone, et sa prise en main.
+ * The agent's browser, live on the phone, and taking it over.
  *
- * Trois idées tiennent cet écran :
+ * Three ideas hold this screen together:
  *
- * 1. **Les trames vivent ici, pas dans le fil.** Une image à 3 img/s qui passerait par l'état du
- *    chat recomposerait tout le fil — c'est le défaut qu'on a mis trois versions à corriger. Le
- *    `Bitmap` est décodé **hors du thread principal**, un seul à la fois ;
- * 2. **Une saisie porte le numéro de la trame sur laquelle elle a été calculée** (`seq`) : le
- *    serveur refuse ce qui est périmé, donc un tap ne peut pas atterrir sur un champ qui a bougé ;
- * 3. **Le mot de passe ne va jamais au modèle**, et l'enregistrement dans le coffre n'arrive
- *    qu'après un geste explicite — jamais tout seul (`VaultApi.put`, origine liée).
+ * 1. **Frames live here, not in the thread.** An image at 3 fps that went through the chat state
+ *    would recompose the whole thread — that is the flaw it took us three versions to fix. The
+ *    `Bitmap` is decoded **off the main thread**, one at a time;
+ * 2. **An input carries the number of the frame it was computed on** (`seq`): the
+ *    server refuses what is stale, so a tap cannot land on a field that has moved;
+ * 3. **The password never goes to the model**, and saving to the vault only happens
+ *    after an explicit gesture — never on its own (`VaultApi.put`, bound origin).
  */
 class BrowserScreenViewModel(
     application: Application,
@@ -99,7 +99,7 @@ class BrowserScreenViewModel(
 
     enum class Phase { IDLE, CONNECTING, WATCHING, DRIVING, UNAVAILABLE, FAILED }
 
-    /** L'offre d'enregistrement, proposée **après** la main rendue : nom, origine, empreinte. */
+    /** The save offer, proposed **after** control is handed back: name, origin, fingerprint. */
     data class SaveOffer(val name: String, val host: String, val fingerprint: String)
 
     data class UiState(
@@ -122,27 +122,27 @@ class BrowserScreenViewModel(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     /**
-     * Le client du flux, et sa déclaration **avant** lui.
+     * The stream client, and its declaration **before** the client.
      *
-     * Le callback `onPageElsewhere` parle au client — mais il est passé **au** constructeur du
-     * client. Capturer le champ là-dedans donne au vérificateur de types une boucle
-     * (`client` dépend de `client`), et le compilateur s'arrête sur « recursive problem ».
-     * Le champ est donc construit par une fonction, et affecté juste après : le callback ne
-     * survient qu'une fois le client construit, et il lit le champ à ce moment-là.
+     * The `onPageElsewhere` callback talks to the client — but it is passed **to** the client's
+     * constructor. Capturing the field in there gives the type checker a loop
+     * (`client` depends on `client`), and the compiler stops on "recursive problem".
+     * The field is therefore built by a function, and assigned right after: the callback only
+     * happens once the client is built, and it reads the field at that moment.
      */
     private val client: BrowserScreenClient = buildClient()
 
-    /** La zone où l'app dessine la page, en **dp** (donc en px CSS) et sa densité. */
+    /** The area where the app draws the page, in **dp** (hence in CSS px) and its density. */
     private var zone: Triple<Int, Int, Float>? = null
     private var viewportJob: Job? = null
 
     /**
-     * **La page prend la forme de la zone qui l'affiche.**
+     * **The page takes the shape of the area that displays it.**
      *
-     * Un gabarit fixe (390×844) rendait la page minuscule au milieu d'une grande dalle : sur un
-     * pliable déplié, elle occupait une bande cernée de noir. Et plier ou déplier change la
-     * largeur sans changer de page — d'où le renvoi de la forme quand elle bouge, avec un court
-     * délai : une bascule envoie plusieurs mesures d'affilée.
+     * A fixed template (390×844) made the page tiny in the middle of a large panel: on an
+     * unfolded foldable, it occupied a band surrounded by black. And folding or unfolding changes the
+     * width without changing pages — hence the shape is re-sent when it moves, with a short
+     * delay: a fold sends several measurements in a row.
      */
     fun screenSized(widthPx: Int, heightPx: Int, density: Float) {
         if (density <= 0f) return
@@ -165,11 +165,11 @@ class BrowserScreenViewModel(
         onFrame = ::onFrame,
         onLease = { lease -> _state.value = _state.value.copy(lease = lease) },
         /**
-         * **La page est chez un autre processus.** Le serveur le dit, puis ferme le socket.
+         * **The page is in another process.** The server says so, then closes the socket.
          *
-         * L'app doit le traiter : sinon elle attend un flux qui ne viendra plus, sur un
-         * processus qui n'a rien à montrer. On redemande un ticket — le relais, lui, renverra
-         * alors l'écran vers le processus qui tient la page.
+         * The app must handle it: otherwise it waits for a stream that will never come, on a
+         * process that has nothing to show. We ask for a ticket again — the relay will then
+         * send the screen back to the process that holds the page.
          */
         onPageElsewhere = {
             client.close()
@@ -195,14 +195,14 @@ class BrowserScreenViewModel(
                 phase = Phase.FAILED,
                 problem = reason?.let { OnyxLocalization.format("The browser stopped: %1\$s", it) },
             )
-            // **Une coupure se répare seule.** Le ticket est à usage unique, donc on en redemande
-            // un et on rouvre : sans ça l'écran restait figé sur « En attente… » après le moindre
-            // redémarrage du gateway, alors que la page, elle, était toujours vivante.
+            // **A disconnection repairs itself.** The ticket is single-use, so we ask for a new
+            // one and reopen: without that the screen stayed frozen on "Waiting…" after the slightest
+            // gateway restart, even though the page itself was still alive.
             scheduleRetry()
         },
-        // **La fin se dit, sinon l'écran ment.** Le serveur rend la main tout seul quand la page
-        // meurt (Hermes ferme un navigateur inactif après deux minutes) ou au bout de quinze
-        // minutes. Sans ce message, l'écran restait sur la dernière image, marqué « en attente ».
+        // **The end is stated, otherwise the screen lies.** The server hands back control on its own when the page
+        // dies (Hermes closes an inactive browser after two minutes) or after fifteen
+        // minutes. Without this message, the screen stayed on the last image, marked "waiting".
         onEnded = { lost, _ ->
             val phase = if (_state.value.phase == Phase.DRIVING) Phase.WATCHING else _state.value.phase
             _state.value = _state.value.copy(
@@ -223,58 +223,58 @@ class BrowserScreenViewModel(
                 )
             }
         },
-        // **Le flux est vivant.** Tout message reçu — trame, `idle`, bail — compte. C'est ce que
-        // le chien de garde mesure : sans lui, il ne voyait que les trames et ne se déclenchait
-        // jamais sur un écran qui n'a pas de page à montrer.
+        // **The stream is alive.** Any message received — frame, `idle`, lease — counts. That is what
+        // the watchdog measures: without it, it only saw frames and never triggered
+        // on a screen that has no page to show.
         onAlive = {
             lastAliveAt = System.currentTimeMillis()
         },
     )
 
-    /** Le dernier texte tapé pendant la conduite — **le seul** endroit où un mot de passe existe. */
+    /** The last text typed while driving — **the only** place where a password exists. */
     private var typed = StringBuilder()
 
     /**
-     * La reconnexion, et pourquoi elle existe.
+     * Reconnection, and why it exists.
      *
-     * Le socket meurt pour des raisons qui n'ont rien à voir avec une erreur : mise en arrière-plan
-     * de l'écran, changement de réseau, redémarrage du gateway. Le ticket est à usage unique, donc
-     * il faut **redemander un ticket** — une simple reconnexion du socket échouerait. Sans ce
-     * mécanisme l'écran restait sur « En attente du navigateur de l'agent… » indéfiniment, ce qui
-     * se lit comme une panne du serveur alors que la page était vivante.
+     * The socket dies for reasons that have nothing to do with an error: the screen going to the
+     * background, a network change, a gateway restart. The ticket is single-use, so
+     * a new ticket must be **requested** — a simple socket reconnection would fail. Without this
+     * mechanism the screen stayed on "Waiting for the agent's browser…" indefinitely, which
+     * reads as a server failure even though the page was alive.
      */
     private var retryJob: Job? = null
     private var attempts = 0
-    /** La personne conduisait : la reconnexion doit reprendre le bail, pas seulement regarder. */
+    /** The person was driving: the reconnection must take the lease back, not just watch. */
     private var wantDriving = false
     /**
-     * Le chien de garde du flux, et ce qu'il attrape.
+     * The stream watchdog, and what it catches.
      *
-     * **Un socket peut mourir sans dire pourquoi.** Le relais est un proxy : si la connexion
-     * tombe entre le téléphone et la machine, le socket client peut rester « ouvert » côté
-     * application — aucune erreur, aucune trame, et l'écran reste sur « En attente… » pour
-     * toujours. C'est exactement ce qu'on a vu : le serveur servait des trames parfaites (vérifié
-     * par un client indépendant) pendant que l'app ne recevait rien et ne redemandait rien.
+     * **A socket can die without saying why.** The relay is a proxy: if the connection
+     * drops between the phone and the machine, the client socket can stay "open" on the
+     * application side — no error, no frame, and the screen stays on "Waiting…" for
+     * ever. This is exactly what we saw: the server served perfect frames (verified
+     * by an independent client) while the app received nothing and asked for nothing.
      *
-     * Le garde compte le temps écoulé depuis la dernière trame : au-delà de quelques secondes,
-     * le flux est mort même si le socket ne le dit pas. On referme alors **proprement** — un
-     * `close()` laisse le socket dans un état que le téléphone peut réutiliser, et la reprise
-     * redemande un ticket neuf, parce que l'ancien est à usage unique.
+     * The guard counts the time elapsed since the last frame: beyond a few seconds,
+     * the stream is dead even if the socket does not say so. We then close it **cleanly** — a
+     * `close()` leaves the socket in a state the phone can reuse, and the recovery
+     * requests a fresh ticket, because the old one is single-use.
      */
     private var watchdogJob: Job? = null
     private var lastFrameAt: Long = 0L
 
     /**
-     * La dernière **activité** du flux — n'importe quel message reçu.
+     * The last **activity** of the stream — any message received.
      *
-     * Elle est distincte de [lastFrameAt] : une trame prouve qu'une page s'affiche, mais un
-     * `idle` prouve aussi que le flux est vivant. Compter les trames seules rendait le chien
-     * de garde aveugle : un écran qui ne reçoit que des `idle` (aucune page ouverte) ne
-     * déclenchait jamais la garde, et un socket mort en silence ne la déclenchait pas non plus.
+     * It is distinct from [lastFrameAt]: a frame proves that a page is displayed, but an
+     * `idle` also proves that the stream is alive. Counting frames alone made the watchdog
+     * blind: a screen that only receives `idle` messages (no page open) never
+     * triggered the guard, and a socket dead in silence did not trigger it either.
      */
     private var lastAliveAt: Long = 0L
 
-    /** Le délai sans trame au-delà duquel le flux est considéré comme mort. */
+    /** The delay without a frame beyond which the stream is considered dead. */
     private val silenceMs = 12_000L
 
     fun start() {
@@ -284,12 +284,12 @@ class BrowserScreenViewModel(
     }
 
     /**
-     * Le chien de garde : un flux qui ne parle plus est un flux mort.
+     * The watchdog: a stream that no longer talks is a dead stream.
      *
-     * On ne se fie pas au socket : il peut rester ouvert sans rien livrer (le relais est un
-     * proxy, et une coupure en cours de route ne remonte pas comme une erreur). Le seul signe
-     * fiable est le silence. Au-delà de quelques secondes sans trame, on referme et on
-     * redemande un ticket — c'est ce qui manquait pour que l'écran se rattrape tout seul.
+     * We do not trust the socket: it can stay open without delivering anything (the relay is a
+     * proxy, and a drop along the way does not surface as an error). The only reliable sign
+     * is silence. Beyond a few seconds without a frame, we close and
+     * request a ticket again — that is what was missing for the screen to recover on its own.
      */
     private fun armWatchdog() {
         watchdogJob?.cancel()
@@ -298,15 +298,15 @@ class BrowserScreenViewModel(
                 delay(2_000)
                 val phase = _state.value.phase
                 if (phase != Phase.WATCHING && phase != Phase.DRIVING) continue
-                // **Le silence se mesure sur l'activité, pas sur les trames.** Un `idle` répété
-                // est une preuve de vie : c'est lui qui distingue « le flux tourne mais il n'y a
-                // pas de page » de « le flux est mort ». Avant, une trame manquait et la garde
-                // ne se déclenchait jamais — l'écran restait figé sur « En attente… ».
+                // **Silence is measured on activity, not on frames.** A repeated `idle`
+                // is proof of life: it is what distinguishes "the stream is running but there is
+                // no page" from "the stream is dead". Before, a frame was missing and the guard
+                // never triggered — the screen stayed frozen on "Waiting…".
                 val last = lastAliveAt
                 if (last == 0L) continue
                 if (System.currentTimeMillis() - last < silenceMs) continue
-                // **Le flux est mort.** On le ferme pour de bon, et on repart de zéro : le
-                // ticket est à usage unique, la reprise en demande un neuf.
+                // **The stream is dead.** We close it for good, and start over: the
+                // ticket is single-use, the recovery asks for a new one.
                 client.close()
                 _state.value = _state.value.copy(
                     phase = Phase.FAILED,
@@ -318,7 +318,7 @@ class BrowserScreenViewModel(
         }
     }
 
-    /** Le geste explicite « Réessayer » : repart de zéro, sans attendre le prochain délai. */
+    /** The explicit "Retry" gesture: starts over, without waiting for the next delay. */
     fun retry() {
         retryJob?.cancel()
         retryJob = null
@@ -346,29 +346,29 @@ class BrowserScreenViewModel(
             }
             client.watch(on = true, takeover = false)
             _state.value = _state.value.copy(phase = Phase.WATCHING)
-            // **Le chien de garde démarre avec le flux.** Sans lui, un socket qui meurt en
-            // silence laisse l'écran figé sur « En attente… » pour toujours.
+            // **The watchdog starts with the stream.** Without it, a socket that dies in
+            // silence leaves the screen frozen on "Waiting…" forever.
             //
-            // On **arme la mesure** au même instant : l'activité repart de zéro à chaque
-            // nouvelle connexion, sinon le garde comparerait l'heure d'un flux précédent et
-            // conclurait trop vite — ou, si l'horloge n'avait jamais été armée, ne conclurait
-            // jamais (`lastAliveAt == 0`).
+            // We **arm the measurement** at the same instant: activity starts over from zero on each
+            // new connection, otherwise the guard would compare the time of a previous stream and
+            // conclude too soon — or, if the clock had never been armed, never conclude
+            // (`lastAliveAt == 0`).
             lastAliveAt = System.currentTimeMillis()
             armWatchdog()
             if (wantDriving) {
-                // Le bail appartient au socket : une nouvelle connexion doit le redemander, sinon
-                // l'écran afficherait « tu conduis » avec des gestes refusés en `no_lease`.
+                // The lease belongs to the socket: a new connection must request it again, otherwise
+                // the screen would show "you're driving" with gestures refused as `no_lease`.
                 takeOver()
             }
         }
     }
 
     /**
-     * Réessaie avec un délai qui double (1, 2, 4, 8, 16 s), puis s'arrête et laisse la main.
+     * Retries with a delay that doubles (1, 2, 4, 8, 16 s), then stops and hands back control.
      *
-     * Six tentatives couvrent un redémarrage de gateway ; au-delà, insister toutes les seize
-     * secondes sur un serveur éteint vide la batterie pour rien — l'écran propose alors
-     * « Réessayer ».
+     * Six attempts cover a gateway restart; beyond that, insisting every sixteen
+     * seconds on a server that is off drains the battery for nothing — the screen then offers
+     * "Retry".
      */
     private fun scheduleRetry() {
         if (retryJob?.isActive == true) return
@@ -415,7 +415,7 @@ class BrowserScreenViewModel(
         client.watch(on = true, takeover = false)
         _state.value = _state.value.copy(phase = Phase.WATCHING, lease = null)
         if (hadPassword && host.isNotBlank()) {
-            // **L'offre, pas l'écriture** : le nom vient de l'hôte, et rien ne part avant le geste.
+            // **The offer, not the write**: the name comes from the host, and nothing is sent before the gesture.
             _state.value = _state.value.copy(
                 offer = SaveOffer(
                     name = host.removePrefix("www.").substringBefore('.').ifBlank { host },
@@ -426,7 +426,7 @@ class BrowserScreenViewModel(
         }
     }
 
-    /** Le geste explicite d'enregistrement : `vault.put`, avec l'origine, sans jamais la lire. */
+    /** The explicit save gesture: `vault.put`, with the origin, without ever reading it. */
     fun storeInVault() {
         val offer = _state.value.offer ?: return
         val value = typed.toString()
@@ -515,21 +515,21 @@ class BrowserScreenViewModel(
     }
 
     companion object {
-        /** Combien de reconnexions automatiques avant de rendre la main à la personne. */
+        /** How many automatic reconnections before handing control back to the person. */
         const val MAX_RETRIES = 6
 
-        /** L'hôte d'une URL, sans `www.` — ce qui ira dans `used_by`. */
+        /** The host of a URL, without `www.` — what will go into `used_by`. */
         fun hostOf(url: String): String = runCatching {
             java.net.URI(url).host?.removePrefix("www.").orEmpty()
         }.getOrDefault("")
 
-        /** Les 4 derniers caractères, ou `****` : la même règle que le coffre. */
+        /** The last 4 characters, or `****`: the same rule as the vault. */
         fun fingerprintOf(value: String): String =
             if (value.length < 8) "****" else value.takeLast(4)
     }
 }
 
-/** L'écran, dans la forme de la référence : bandeau, adresse, page, puis les commandes. */
+/** The screen, in the reference's shape: header, address, page, then the controls. */
 @Composable
 fun BrowserScreen(
     viewModel: BrowserScreenViewModel,
@@ -539,16 +539,16 @@ fun BrowserScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf("") }
 
-    // **L'écran se connecte en s'ouvrant.** Il fallait toucher « Afficher le navigateur » pour
-    // lancer le flux ; l'écran s'ouvrait donc sur un cadre noir et l'on croyait à une panne.
+    // **The screen connects when it opens.** You had to tap "Show the browser" to
+    // start the stream; the screen therefore opened on a black frame and one thought it was a failure.
     LaunchedEffect(Unit) { viewModel.start() }
 
     val theme = LocalOnyxTheme.current
     val driving = state.lease?.human == true || state.phase == BrowserScreenViewModel.Phase.DRIVING
-    // **Les jetons de la palette, pas des couleurs inventées.** L'écran est une visionneuse : il
-    // prend la page sombre du socle et son texte, comme les autres scènes plein écran. Une couleur
-    // écrite en dur ici serait peinte sans passer par la palette — le verrou de référence le refuse,
-    // à raison.
+    // **The palette tokens, not invented colors.** The screen is a viewer: it
+    // takes the base's dark page and its text, like the other full-screen scenes. A color
+    // hardcoded here would be painted without going through the palette — the reference lock refuses it,
+    // rightly so.
     val night = ReferencePalette.DarkPage
     val ink = ReferencePalette.DarkText
 
@@ -556,17 +556,17 @@ fun BrowserScreen(
         modifier = modifier
             .fillMaxSize()
             .background(night)
-            // **Les barres du système, comme partout ailleurs.** Sans elles, le bandeau de l'écran
-            // se dessinait **sous** la barre d'état : « Bouygues », l'heure et les icônes passaient
-            // par-dessus le titre et la pastille « VOUS CONDUISEZ », et les deux se lisaient
-            // ensemble. Aucun autre écran pleine page ne fait cette faute : celle-ci en manquait.
+            // **The system bars, like everywhere else.** Without them, the screen's header
+            // was drawn **under** the status bar: "Bouygues", the time and the icons passed
+            // over the title and the "YOU'RE DRIVING" badge, and both were read
+            // together. No other full-page screen makes this mistake: this one lacked it.
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = OnyxSpace.Base, vertical = OnyxSpace.Half),
         verticalArrangement = Arrangement.spacedBy(OnyxSpace.Half),
     ) {
-        // -- le bandeau : fermer, qui conduit, l'état --------------------------------------
+        // -- the header: close, who is driving, the state -----------------------------------
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
@@ -604,7 +604,7 @@ fun BrowserScreen(
             if (driving) Etiquette(OnyxLocalization["YOU'RE DRIVING"])
         }
 
-        // -- la barre d'adresse ------------------------------------------------------------
+        // -- the address bar ---------------------------------------------------------------
         if (state.url.isNotBlank()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -626,14 +626,14 @@ fun BrowserScreen(
             }
         }
 
-        // -- la page, centrée : le noir autour est le letterbox, pas un vide ----------------
+        // -- the page, centered: the black around it is letterboxing, not emptiness ---------
         val densite = LocalDensity.current.density
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                // La mesure de la zone part vers le serveur : c'est elle qui donne sa forme à la
-                // page, et qui la redonne quand un pliable s'ouvre ou se ferme.
+                // The area's measurement goes to the server: it is what gives the page its shape,
+                // and re-sends it when a foldable opens or closes.
                 .onSizeChanged { taille -> viewModel.screenSized(taille.width, taille.height, densite) },
             contentAlignment = Alignment.Center,
         ) {
@@ -643,13 +643,13 @@ fun BrowserScreen(
                     bitmap = image,
                     contentDescription = OnyxLocalization["The agent's browser"],
                     contentScale = ContentScale.Fit,
-                    // **Une capture nette peut être rendue molle par l'affichage.** Le filtre par
-                    // défaut de Compose (`FilterQuality.Low`) fait un lissage bilinéaire simple :
-                    // sur une trame de navigateur — du texte fin, des traits de 1 px — il étale
-                    // les glyphes et le formulaire devient flou, surtout si la capture est un peu
-                    // plus petite que l'écran. `Medium` garde le contour net sans créneler, et
-                    // c'est la dernière marche du chemin : capture à la définition de l'écran,
-                    // décodage pleine taille, affichage sans élargissement.
+                    // **A sharp capture can be rendered soft by the display.** Compose's default
+                    // filter (`FilterQuality.Low`) does a simple bilinear smoothing:
+                    // on a browser frame — fine text, 1 px strokes — it spreads
+                    // the glyphs and the form becomes blurry, especially if the capture is a bit
+                    // smaller than the screen. `Medium` keeps the outline sharp without jaggies, and
+                    // it is the last step of the path: capture at screen resolution,
+                    // full-size decoding, display without upscaling.
                     filterQuality = FilterQuality.Medium,
                     modifier = Modifier
                         .fillMaxSize()
@@ -684,7 +684,7 @@ fun BrowserScreen(
                         ),
                 )
             } else {
-                // L'état se dit : « En attente » pendant une reconnexion se lisait comme une panne.
+                // The state is stated: "Waiting" during a reconnection read as a failure.
                 val waiting = when (state.phase) {
                     BrowserScreenViewModel.Phase.CONNECTING,
                     BrowserScreenViewModel.Phase.FAILED,
@@ -742,8 +742,8 @@ fun BrowserScreen(
             }
             BrowserScreenViewModel.Phase.UNAVAILABLE,
             BrowserScreenViewModel.Phase.FAILED -> {
-                // **La reconnexion est automatique ; ce geste est la sortie de secours** quand les
-                // six tentatives sont épuisées (serveur vraiment éteint, réseau absent).
+                // **Reconnection is automatic; this gesture is the emergency exit** when the
+                // six attempts are exhausted (server truly off, no network).
                 BoutonPlein(OnyxLocalization["Retry"], theme.accent) { viewModel.retry() }
             }
             BrowserScreenViewModel.Phase.CONNECTING -> {
@@ -753,9 +753,9 @@ fun BrowserScreen(
                 BoutonPlein(OnyxLocalization["Take over"], theme.accent) { viewModel.takeOver() }
             }
             BrowserScreenViewModel.Phase.DRIVING -> {
-                // **Le trio de la référence** : un indice, le champ, puis Tab / Échap / Rendre la
-                // main. L'indice n'est pas décoratif — sans lui, on ne devine pas que le texte part
-                // dans la page et non dans la conversation.
+                // **The reference's trio**: a hint, the field, then Tab / Esc / Hand back
+                // the control. The hint is not decorative — without it, one cannot guess
+                // that the text goes into the page and not into the conversation.
                 Txt(
                     text = OnyxLocalization[
                         "Tap a field on the page, then type here: the text goes straight to its page, not into the conversation."
@@ -773,7 +773,7 @@ fun BrowserScreen(
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        // **Champ masqué, clavier mot de passe** : ce que la référence laisse en clair.
+                        // **Masked field, password keyboard**: what the reference leaves in the clear.
                         BasicTextField(
                             value = text,
                             onValueChange = { text = it },
@@ -795,8 +795,8 @@ fun BrowserScreen(
                     Spacer(Modifier.width(6.dp))
                     Pastille("⌫") { viewModel.key("Backspace") }
                     Spacer(Modifier.width(6.dp))
-                    // **Envoyer sans passer par le clavier** : le bouton fait le même geste que la
-                    // touche « Envoyer », utile quand le clavier est replié.
+                    // **Send without going through the keyboard**: the button does the same gesture as the
+                    // "Send" key, useful when the keyboard is collapsed.
                     Pastille("⏎") {
                         viewModel.type(text)
                         text = ""
@@ -808,8 +808,8 @@ fun BrowserScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Pastille(OnyxLocalization["Tab"]) { viewModel.key("Tab") }
-                    // **Échap ferme les suggestions et les dialogues du site** — sans lui, une page
-                    // qui ouvre une bannière ne se débloque pas depuis le téléphone.
+                    // **Escape closes the site's suggestions and dialogs** — without it, a page
+                    // that opens a banner cannot be unblocked from the phone.
                     Pastille(OnyxLocalization["Esc"]) { viewModel.key("Escape") }
                     Spacer(Modifier.weight(1f))
                     BoutonPlein(OnyxLocalization["Hand back"], theme.accent, compact = true) {
@@ -821,7 +821,7 @@ fun BrowserScreen(
     }
 }
 
-/** Une pastille sombre et cliquable : les touches annexes (⌫, Tab, Échap). */
+/** A dark, clickable pill: the auxiliary keys (⌫, Tab, Esc). */
 @Composable
 private fun Pastille(label: String, onClick: () -> Unit) {
     Box(
@@ -837,7 +837,7 @@ private fun Pastille(label: String, onClick: () -> Unit) {
     }
 }
 
-/** Le bouton principal : un aplat de couleur, comme « Hand back » dans la référence. */
+/** The main button: a flat color fill, like "Hand back" in the reference. */
 @Composable
 private fun BoutonPlein(
     label: String,
@@ -847,8 +847,8 @@ private fun BoutonPlein(
 ) {
     Box(
         Modifier
-            // Deux formes, un seul modificateur : `fillMaxWidth(0f)` puis `width(118.dp)` se
-            // combattaient, et le bouton compact pouvait sortir de l'écran.
+            // Two shapes, one single modifier: `fillMaxWidth(0f)` then `width(118.dp)` were
+            // fighting each other, and the compact button could go off screen.
             .then(if (compact) Modifier.width(118.dp) else Modifier.fillMaxWidth())
             .height(if (compact) 40.dp else 46.dp)
             .clip(RoundedCornerShape(OnyxSpace.ControlCorner))
@@ -861,7 +861,7 @@ private fun BoutonPlein(
     }
 }
 
-/** L'étiquette rouge « vous conduisez », avec sa pastille. */
+/** The red "you're driving" label, with its dot. */
 @Composable
 private fun Etiquette(label: String) {
     Row(
@@ -877,7 +877,7 @@ private fun Etiquette(label: String) {
     }
 }
 
-/** Une ligne de texte : le `BasicText` de la maison, qui localise et prend sa couleur. */
+/** A line of text: the house's `BasicText`, which localizes and takes its color. */
 @Composable
 private fun Txt(
     text: String,

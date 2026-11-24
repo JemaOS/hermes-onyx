@@ -25,50 +25,50 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * L'appel entrant : un tour attend une **décision** (une approbation, une question), et le
- * téléphone **sonne** comme un appel au lieu de poser une notification discrète.
+ * The incoming call: a turn is waiting for a **decision** (an approval, a question), and the
+ * phone **rings** like a call instead of posting a discreet notification.
  *
- * Reprend le comportement de `ChatNotifications` (`androidApp/.../notify/ChatNotifications.kt`) de
- * la référence : un canal `calls` avec sonnerie et vibration, une notification `CallStyle` en
- * **plein écran** sur l'écran verrouillé, une sonnerie qui insiste jusqu'à ce qu'on décroche ou
- * refuse, et le repli sur la notification habituelle quand personne ne décroche.
+ * Reproduces the behavior of the reference `ChatNotifications` (`androidApp/.../notify/ChatNotifications.kt`):
+ * a `calls` channel with ringtone and vibration, a `CallStyle` notification in
+ * **full screen** on the lock screen, a ringtone that insists until one answers or
+ * declines, and the fallback to the usual notification when nobody answers.
  *
- * La décision de **sonner ou non** (l'interrupteur « Appels pour une réponse », les heures de
- * tranquillité, le premier plan) ne vit pas ici : elle est prise là où l'approbation arrive
- * (`OnyxApp`), qui appelle [ring] quand c'est le moment. Cette classe ne fait que **sonner**.
+ * The decision to **ring or not** (the "Calls for a reply" switch, the quiet
+ * hours, the foreground) does not live here: it is made where the approval arrives
+ * (`OnyxApp`), which calls [ring] when it is time. This class only **rings**.
  *
- * Aucune route serveur n'est nécessaire : le sonnerie est déclenchée par l'état local (un tour en
- * attente), exactement comme la notification d'approbation d'aujourd'hui.
+ * No server route is needed: the ringtone is triggered by the local state (a pending
+ * turn), exactly like today's approval notification.
  */
 object CallRinger {
 
-    /** Le canal Android de l'appel : sonnerie + vibration, importance haute. */
+    /** The Android call channel: ringtone + vibration, high importance. */
     const val CHANNEL_ID = "onyx.calls"
 
-    /** Combien de temps sonne un appel avant de redevenir une notification ordinaire (45 s, la référence). */
+    /** How long a call rings before becoming an ordinary notification again (45 s, the reference). */
     const val RING_MS = 45_000L
 
-    /** La marge d'Android sur le retrait automatique de la notification. */
+    /** Android's grace period before automatically removing the notification. */
     private const val RING_GRACE_MS = 5_000L
 
-    /** L'action du raccourci vocal : le mode vocal écoute à l'ouverture (voir `MainActivity`). */
+    /** The voice shortcut action: voice mode listens on open (see `MainActivity`). */
     private const val ACTION_VOICE = "com.onyx.app.action.VOICE"
 
-    /** L'identifiant du canal Android, employé par [NotificationChannels]. */
+    /** The Android channel identifier, used by [NotificationChannels]. */
     const val CALLS_LABEL = "Calls"
     const val CALLS_DESCRIPTION = "Rings like a call when a turn is waiting for your decision."
 
     /**
-     * Un appel qui sonne : qui appelle, pourquoi, et où l'on retombe.
+     * A ringing call: who is calling, why, and where one ends up.
      *
-     * [talk] vrai : décrocher met Hermes **en ligne** (le mode vocal) — c'est le comportement par
-     * défaut de la référence. [onMiss] est le repli quand l'appel n'est pas décroché : il republie
-     * la notification habituelle (approbation ou question), pour que rien ne se perde.
+     * [talk] true: answering puts Hermes **online** (voice mode) — this is the reference's
+     * default behavior. [onMiss] is the fallback when the call is not answered: it republishes
+     * the usual notification (approval or question), so that nothing is lost.
      *
-     * [onOutcome] : l'issue de l'appel — décroché, refusé, ou sonné dans le vide — rendue à qui l'a
-     * placé. Un appel **de l'agent** (`phone_call_me`) s'en sert pour remonter `answered` /
-     * `declined` / `no_answer` à l'agent (`CallMeTool.kt`, `CallOutcome`). Un appel local
-     * (approbation, question) le laisse `null` : personne n'attend d'issue.
+     * [onOutcome]: the call outcome — answered, declined, or rung out — returned to whoever placed
+     * it. A call **from the agent** (`phone_call_me`) uses it to report `answered` /
+     * `declined` / `no_answer` back to the agent (`CallMeTool.kt`, `CallOutcome`). A local call
+     * (approval, question) leaves it `null`: nobody is waiting for an outcome.
      */
     class Ringing(
         val id: String,
@@ -82,15 +82,15 @@ object CallRinger {
 
     private val _ringing = MutableStateFlow<Map<String, Ringing>>(emptyMap())
 
-    /** Les appels qui sonnent maintenant, par identifiant : l'écran d'appel se ferme avec le sien. */
+    /** The calls ringing now, by identifier: the call screen closes with its own. */
     val ringing: StateFlow<Map<String, Ringing>> = _ringing.asStateFlow()
 
     private val main = Handler(Looper.getMainLooper())
 
-    /** L'appel en cours pour [id], ou `null`. */
+    /** The call in progress for [id], or `null`. */
     fun current(id: String): Ringing? = _ringing.value[id]
 
-    /** Y a-t-il un appel en train de sonner ? (l'appel de l'agent ne sonne pas par-dessus). */
+    /** Is a call currently ringing? (the agent's call does not ring over it). */
     val isRinging: Boolean get() = _ringing.value.isNotEmpty()
 
     fun ensureChannel(context: Context) {
@@ -115,7 +115,7 @@ object CallRinger {
         manager.createNotificationChannel(channel)
     }
 
-    /** Android 13+ exige POST_NOTIFICATIONS ; on la vérifie au lieu de compter sur un `runCatching`. */
+    /** Android 13+ requires POST_NOTIFICATIONS; it is checked instead of relying on a `runCatching`. */
     fun canPost(context: Context): Boolean =
         (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -123,8 +123,8 @@ object CallRinger {
             NotificationManagerCompat.from(context).areNotificationsEnabled()
 
     /**
-     * Fait sonner [call]. Faux quand l'app ne peut pas publier de notification (rien à faire, alors) :
-     * l'appelant republie la notification habituelle. Un appel déjà en sonnerie n'est pas remplacé.
+     * Rings [call]. False when the app cannot post a notification (nothing to do, then):
+     * the caller republishes the usual notification. A call already ringing is not replaced.
      */
     fun ring(context: Context, call: Ringing): Boolean {
         if (!canPost(context)) return false
@@ -135,27 +135,27 @@ object CallRinger {
         return true
     }
 
-    /** Personne n'a décroché : l'appel se retire et le repli ([Ringing.onMiss]) reprend la main. */
+    /** Nobody answered: the call is removed and the fallback ([Ringing.onMiss]) takes over. */
     private fun rangOut(context: Context, id: String) {
         val call = remove(context, id) ?: return
         call.onOutcome?.invoke(com.onyx.app.calls.CallOutcome.NO_ANSWER)
         call.onMiss?.invoke()
     }
 
-    /** Décroché : l'appel se retire, **sans** le repli — on est en train de parler. */
+    /** Answered: the call is removed, **without** the fallback — we are talking. */
     fun answered(context: Context, id: String) {
         val call = remove(context, id)
         call?.onOutcome?.invoke(com.onyx.app.calls.CallOutcome.ANSWERED)
     }
 
-    /** Refusé : l'appel se retire et le repli ([Ringing.onMiss]) republie la notification habituelle. */
+    /** Declined: the call is removed and the fallback ([Ringing.onMiss]) republishes the usual notification. */
     fun decline(context: Context, id: String) {
         val call = remove(context, id) ?: return
         call.onOutcome?.invoke(com.onyx.app.calls.CallOutcome.DECLINED)
         call.onMiss?.invoke()
     }
 
-    /** Retire l'appel (annule la notification, le minuteur, l'entrée). Rien s'il n'y en a pas. */
+    /** Removes the call (cancels the notification, the timer, the entry). Nothing if there is none. */
     private fun remove(context: Context, id: String): Ringing? {
         var call: Ringing? = null
         _ringing.update {
@@ -168,18 +168,18 @@ object CallRinger {
     }
 
     /**
-     * Ce que « Décrocher » ouvre : le **mode vocal** (`talk`), ou l'app sur la conversation. Un
-     * écran verrouillé demande son déverrouillage en chemin, par [IncomingCallActivity].
+     * What "Answer" opens: **voice mode** (`talk`), or the app on the conversation. A
+     * locked screen requests its unlock along the way, through [IncomingCallActivity].
      */
     fun answerIntent(context: Context, call: Ringing): Intent {
         val base = Intent(context, MainActivity::class.java)
-        // Le mode vocal écoute à l'ouverture : c'est la « voix live » d'un appel décroché.
+        // Voice mode listens on open: it is the "live voice" of an answered call.
         if (call.talk) base.action = ACTION_VOICE
         base.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         return base
     }
 
-    /** L'intention de l'écran d'appel (le tap sur la notification, et l'appel plein écran). */
+    /** The call screen intent (the tap on the notification, and the full-screen call). */
     fun screenIntent(context: Context, id: String): Intent = Intent(context, IncomingCallActivity::class.java)
         .putExtra(EXTRA_CALL_ID, id)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
@@ -212,19 +212,19 @@ object CallRinger {
             .setContentText(call.why)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            // Plein écran : sur l'écran verrouillé, l'appel prend tout l'écran, comme un vrai appel.
+            // Full screen: on the lock screen, the call takes the whole screen, like a real call.
             .setFullScreenIntent(screen, true)
             .setContentIntent(screen)
             .setOngoing(true)
             .setAutoCancel(false)
             .setTimeoutAfter(RING_MS + RING_GRACE_MS)
             .build()
-        // La sonnerie insiste jusqu'au bout ; sinon le carillon ne jouerait qu'une fois.
+        // The ringtone insists to the end; otherwise the chime would play only once.
         notification.flags = notification.flags or android.app.Notification.FLAG_INSISTENT
         return notification
     }
 
-    /** L'identifiant porté par l'intention de l'écran d'appel et par la notification de refus. */
+    /** The identifier carried by the call screen intent and by the decline notification. */
     const val EXTRA_CALL_ID = "onyx.call.id"
 
     private val RING_VIBRATION = longArrayOf(0, 800, 600, 800, 600, 800, 1_600)

@@ -1,37 +1,37 @@
-> **En attente.** Ce dépôt est sous FSL-1.1-MIT (dérivé de Redde) et non sous une licence libre
-> au sens de la FSF. F-Droid et IzzyOnDroid ne peuvent donc pas le référencer pour l'instant.
-> Ne pas envoyer les demandes ci-dessous avant la date MIT de chaque version de Redde ;
-> voir `NOTICE`. Ce fichier reste la marche à suivre pour ce moment-là.
-# Publier Onyx sur les dépôts libres — sans compte développeur payant
+> **Pending.** This repository is under FSL-1.1-MIT (derived from Redde) and not under a free
+> license in the FSF sense. F-Droid and IzzyOnDroid therefore cannot list it for now.
+> Do not send the requests below before the MIT date of each Redde version;
+> see `NOTICE`. This file remains the procedure for that moment.
+# Publishing Onyx on free repositories — without a paid developer account
 
-Ce fichier est la marche à suivre pour les dépôts qui n'exigent **ni frais, ni compte payant** :
-IzzyOnDroid, F-Droid, et la page des versions GitHub (déjà en place). Il ne reste que deux gestes à
-faire à la main, parce qu'ils demandent un compte gratuit — Codeberg pour IzzyOnDroid, GitLab pour
-F-Droid — que seul le propriétaire peut ouvrir.
+This file is the procedure for the repositories that require **neither fees nor a paid account**:
+IzzyOnDroid, F-Droid, and the GitHub releases page (already in place). Only two steps remain to be
+done by hand, because they require a free account — Codeberg for IzzyOnDroid, GitLab for
+F-Droid — that only the owner can open.
 
-## Ce qui est déjà dans le dépôt
+## What is already in the repository
 
-| Fichier | À quoi il sert |
+| File | What it is for |
 |---|---|
-| `fastlane/metadata/android/en-US/` et `fr-FR/` | titre, résumé, description longue, notes de version (`changelogs/1229.txt`), six captures et l'image de tête. C'est le format lu **à la fois** par F-Droid et par IzzyOnDroid, depuis le dépôt de l'application. |
-| `fastlane/metadata/android/en-US/images/featureGraphic.png` | 1024 × 500, l'image de tête des fiches. |
-| `fastlane/fdroiddata-draft/com.onyx.app.yml` | la fiche `fdroiddata` prête à copier, avec le `versionCode` lu dans `gradle.properties`. |
-| `README.md` → *Install* | le bouton Obtainium, qui installe et met à jour l'application depuis les versions GitHub. |
+| `fastlane/metadata/android/en-US/` and `fr-FR/` | title, short summary, long description, release notes (`changelogs/1229.txt`), six screenshots and the feature graphic. This is the format read **by both** F-Droid and IzzyOnDroid, from the app's repository. |
+| `fastlane/metadata/android/en-US/images/featureGraphic.png` | 1024 × 500, the feature graphic for the listings. |
+| `fastlane/fdroiddata-draft/com.onyx.app.yml` | the ready-to-copy `fdroiddata` entry, with the `versionCode` read from `gradle.properties`. |
+| `README.md` → *Install* | the Obtainium button, which installs and updates the app from the GitHub releases. |
 
-Rien de tout cela ne change l'application : ce sont des fichiers de texte et des images.
+None of this changes the app: these are text files and images.
 
-## Étape 1 — IzzyOnDroid (le plus rapide, quelques jours)
+## Step 1 — IzzyOnDroid (fastest, a few days)
 
-IzzyOnDroid reprend **tes** APK signés, tels quels : la mise à jour se fait par-dessus l'installation
-existante, sans désinstallation. C'est le dépôt à viser en premier.
+IzzyOnDroid reuses **your** signed APKs, as they are: the update installs over the existing
+installation, with no uninstall. It is the repository to target first.
 
-1. Créer un compte sur **Codeberg** (gratuit, email seul) : https://codeberg.org/user/sign_up
-   — leur outil de demandes a déménagé là ; l'ancien suivi GitLab n'est plus la voie d'entrée.
-2. Ouvrir la demande : https://codeberg.org/IzzyOnDroid/repodata/issues/new
-   (sans compte : un mail à `team@izzyondroid.org`, c'est leur adresse pour ce qui ne rentre pas
-   dans une case)
-3. Titre : `Inclusion request: Hermes Onyx (com.onyx.app)`
-4. Corps du message (en anglais), à coller tel quel :
+1. Create an account on **Codeberg** (free, email only): https://codeberg.org/user/sign_up
+   — their request tool has moved there; the old GitLab tracker is no longer the entry point.
+2. Open the request: https://codeberg.org/IzzyOnDroid/repodata/issues/new
+   (no account: an email to `team@izzyondroid.org`, their address for anything that does not fit
+   in a form)
+3. Title: `Inclusion request: Hermes Onyx (com.onyx.app)`
+4. Message body (in English), paste as is:
 
 ```
 App name: Hermes Onyx
@@ -69,30 +69,30 @@ https://jemaos.github.io/hermes-onyx/repo — it does not replace yours, it just
 packages are maintained and consistently signed.
 ```
 
-Izzy vérifie ensuite l'APK, la signature et les métadonnées, puis ajoute l'application à son dépôt.
-Le badge à mettre ensuite dans le README :
+Izzy then checks the APK, the signature and the metadata, then adds the app to its repository.
+The badge to add to the README afterwards:
 
 ```markdown
 [![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app/badge.json)](https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app)
 ```
 
-## Étape 2 — F-Droid officiel (plus lent, plusieurs semaines à quelques mois)
+## Step 2 — official F-Droid (slower, several weeks to a few months)
 
-F-Droid **reconstruit** l'application depuis les sources, puis la signe avec **sa** clé. Deux
-conséquences à connaître :
+F-Droid **rebuilds** the app from source, then signs it with **its own** key. Two
+consequences to know:
 
-- l'APK F-Droid ne peut pas remplacer un APK GitHub par une mise à jour : signature différente,
-  il faut désinstaller puis réinstaller (l'utilisateur doit choisir **une** source et s'y tenir) ;
-- ton `applicationId` et ton `versionCode` doivent rester stables, ce qui est le cas.
+- the F-Droid APK cannot replace a GitHub APK through an update: different signature,
+  you must uninstall then reinstall (the user must pick **one** source and stick with it);
+- your `applicationId` and your `versionCode` must stay stable, which they are.
 
-La demande se fait sur le dépôt des requêtes. Il faut un compte GitLab (gratuit) : c'est le seul
-prérequis, et il ne peut être créé qu'à la main.
+The request is made on the requests repository. A GitLab account (free) is required: it is the
+only prerequisite, and it can only be created by hand.
 
-1. https://gitlab.com/fdroid/rfp/-/issues/new — le texte ci-dessous est prêt à coller.
-2. Le mainteneur ouvrira ensuite une merge request sur `fdroiddata` avec la fiche
-   `fastlane/fdroiddata-draft/com.onyx.app.yml` (à copier sous `metadata/com.onyx.app.yml`).
+1. https://gitlab.com/fdroid/rfp/-/issues/new — the text below is ready to paste.
+2. The maintainer will then open a merge request on `fdroiddata` with the
+   `fastlane/fdroiddata-draft/com.onyx.app.yml` entry (to be copied as `metadata/com.onyx.app.yml`).
 
-Texte de la demande :
+Request text:
 
 ```
 App: Hermes Onyx
@@ -116,69 +116,69 @@ declared explicitly per release; nothing is derived from git at build time.
 Release notes: https://github.com/JemaOS/hermes-onyx/releases
 ```
 
-### Les deux risques, à dire d'emblée au mainteneur
+### The two risks, to state up front to the maintainer
 
-1. **Le toolchain est très récent** — AGP 9.1.0, Gradle 9.8.2, `compileSdk 37`. Si le buildserver
-   n'a pas ces versions, le premier build échouera et il faudra épingler plus bas ; c'est mécanique,
-   pas un refus de principe. Mieux vaut le signaler dans la demande que le découvrir au bout de
-   trois semaines.
-2. **Le rythme de publication.** F-Droid gèle une version à la fois et sa file d'attente se compte
-   en semaines. Avec plusieurs versions par jour, la fiche sera toujours en retard. D'où l'intérêt
-   du dépôt auto-hébergé : il absorbe le rythme, F-Droid apporte la notoriété.
+1. **The toolchain is very recent** — AGP 9.1.0, Gradle 9.8.2, `compileSdk 37`. If the buildserver
+   does not have these versions, the first build will fail and it will be necessary to pin lower; this is mechanical,
+   not a refusal in principle. Better to flag it in the request than to discover it after
+   three weeks.
+2. **The release pace.** F-Droid freezes one version at a time and its queue is measured
+   in weeks. With several versions per day, the listing will always be behind. Hence the value
+   of the self-hosted repository: it absorbs the pace, F-Droid brings the visibility.
 
 
-### Ce qui bloquait F-Droid, et qui est réglé
+### What was blocking F-Droid, and is now fixed
 
-`com.android.billingclient` 7.1.1 (Play Billing) était la dépendance de l'écran de pourboire
-(`ui/common/TipJarScreen.kt`) : la seule bibliothèque non libre du projet, et F-Droid refuse une
-application qui en dépend, même si l'écran est facultatif.
+`com.android.billingclient` 7.1.1 (Play Billing) was the dependency of the tip screen
+(`ui/common/TipJarScreen.kt`): the only non-free library in the project, and F-Droid refuses an
+app that depends on it, even if the screen is optional.
 
-**Réglé en 1.3.98** : le pourboire et la bibliothèque sont retirés, pas contournés. Aucune variante
-de build n'est nécessaire — l'APK publié ne contient plus une seule classe de facturation, et la
-permission `com.android.vending.BILLING` que la bibliothèque injectait au manifeste a disparu avec
-elle. Vérification :
+**Fixed in 1.3.98**: the tip jar and the library were removed, not worked around. No build
+variant is needed — the published APK no longer contains a single billing class, and the
+`com.android.vending.BILLING` permission that the library injected into the manifest disappeared with
+it. Verification:
 
 ```bash
 unzip -l app/build/outputs/apk/release/app-release.apk | grep -c billing   # 0
 aapt2 dump permissions app/build/outputs/apk/release/app-release.apk | grep -c BILLING   # 0
 ```
 
-Les permissions `READ_CALENDAR`, `WRITE_CALENDAR` et `READ_CONTACTS` déclarées au manifeste viennent
-de l'écran « outils du téléphone » (`ui/settings/PhoneToolsScreen.kt`) : à justifier dans la demande,
-F-Droid les accepte quand l'usage est réel.
+The `READ_CALENDAR`, `WRITE_CALENDAR` and `READ_CONTACTS` permissions declared in the manifest come
+from the "phone tools" screen (`ui/settings/PhoneToolsScreen.kt`): justify them in the request,
+F-Droid accepts them when the use is real.
 
-## Étape 3 — les dépôts qui demandent un compte, mais pas d'argent
+## Step 3 — repositories that require an account, but no money
 
-À faire seulement quand tu voudras élargir ; tous sont gratuits à l'inscription.
+Do this only when you want to expand; they are all free to sign up.
 
-| Dépôt | Ce qu'il faut | Ce qu'il apporte |
+| Repository | What it requires | What it brings |
 |---|---|---|
-| Amazon Appstore | compte développeur gratuit, aucun frais annuel | tablettes Fire, un public qui n'installe pas d'APK à la main |
-| Samsung Galaxy Store | compte gratuit, APK accepté | appareils Samsung, très installés en Europe |
-| Huawei AppGallery | compte gratuit, signature et SDK maison | marché chinois et appareils Huawei |
-| Aptoide / APKPure | envoi direct, sans frais | visibilité, revue faible |
+| Amazon Appstore | free developer account, no annual fee | Fire tablets, an audience that does not install APKs by hand |
+| Samsung Galaxy Store | free account, APK accepted | Samsung devices, widely installed in Europe |
+| Huawei AppGallery | free account, own signature and SDK | Chinese market and Huawei devices |
+| Aptoide / APKPure | direct upload, no fees | visibility, light review |
 
-Google Play reste le seul passage payant (25 $ une fois), et il n'est pas nécessaire pour exister.
+Google Play remains the only paid route ($25 once), and it is not necessary to exist.
 
-## À chaque version
+## With every release
 
-Les deux dépôts lisent la fiche **depuis ce dépôt**, pas depuis une console web. Une version nouvelle
-demande donc un fichier de plus, et rien d'autre :
+Both repositories read the listing **from this repository**, not from a web console. A new release
+therefore requires one more file, and nothing else:
 
-1. `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` — et le jumeau `fr-FR`, **500
-   caractères au plus** chacun (au-delà, F-Droid tronque) ;
-2. les captures, seulement si l'interface a changé de façon visible ;
-3. une fois F-Droid accepté, `CurrentVersion` et `CurrentVersionCode` se mettent à jour tout seuls
-   (`UpdateCheckMode: Tags`), rien à pousser ailleurs.
+1. `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` — and its `fr-FR` twin, **500
+   characters at most** each (beyond that, F-Droid truncates);
+2. the screenshots, only if the interface has changed visibly;
+3. once F-Droid has accepted, `CurrentVersion` and `CurrentVersionCode` update by themselves
+   (`UpdateCheckMode: Tags`), nothing to push elsewhere.
 
-IzzyOnDroid de son côté suit la page des versions : un APK publié par `release.sh` est repris à la
-prochaine passe de leur robot.
+IzzyOnDroid, for its part, follows the releases page: an APK published by `release.sh` is picked up
+on their robot's next pass.
 
-## À vérifier avant chaque envoi
+## To check before every submission
 
 ```bash
 bash scripts/check-forbidden-words.sh .
 ```
 
-Le garde-fou du dépôt refuse toute marque de plateforme dans le contenu **et** dans les noms de
-fichiers : les nouveaux fichiers de métadonnées y sont soumis comme les autres.
+The repository's guard rejects any platform trademark in the content **and** in the file
+names: new metadata files are subject to it like the others.

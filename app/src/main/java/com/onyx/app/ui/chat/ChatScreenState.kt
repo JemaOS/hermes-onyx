@@ -6,24 +6,25 @@ import com.onyx.app.data.model.SubagentActivity
 import com.onyx.app.data.model.TokenUsage
 
 /**
- * **Ce que l'écran du fil lit de l'état du chat — sans le texte qui s'écrit.**
+ * **What the thread screen reads from the chat state — without the text being written.**
  *
- * `ChatScreen` lisait `ChatUiState` **entier** : le corps de l'écran fait 2 200 lignes (barre du
- * haut, pageur d'onglets, compositeur, menus, feuilles), et chaque publication de texte — 33 par
- * seconde pendant une réponse — le rejouait d'un bout à l'autre. Le texte vivant n'est pourtant lu
- * que par **une** ligne : celle qui s'écrit.
+ * `ChatScreen` used to read the **whole** `ChatUiState`: the screen body is 2,200 lines (top bar,
+ * tab pager, composer, menus, sheets), and every text publication — 33 per second during a reply —
+ * replayed it from end to end. Yet the live text is only read by **one** line: the one being
+ * written.
  *
- * Cette projection est la serrure : elle ne porte que ce qui ne bouge **pas** d'un jeton à
- * l'autre, son égalité structurelle tient pendant tout le flux, et `derivedStateOf` fait donc que
- * le corps ne recompose plus quand un mot arrive. Le fil, lui, lit la liste vivante à part
- * (`stateFlow.value.messages`) dans sa propre portée : c'est la seule qui doit suivre le texte.
+ * This projection is the lock: it carries only what does **not** move from one token to the next,
+ * its structural equality holds throughout the stream, and `derivedStateOf` therefore means the
+ * body no longer recomposes when a word arrives. The thread, for its part, reads the live list
+ * separately (`stateFlow.value.messages`) in its own scope: it is the only one that must follow the
+ * text.
  *
- * Ce qui reste vivant et qui est **lu par le corps sans le faire recomposer** :
- *  - `messagesSize` (la forme du fil, pas son contenu) ;
- *  - `liveStep` (l'étape du tour : elle ne change qu'aux transitions) ;
- *  - `settledCount` / `settledLastId` (la frontière des messages finis : le Flux et les Fichiers ne
- *    lisent qu'eux) ;
- *  - `pendingApprovals` / `contextUsage` (deux balayages qui ne dépendent pas du texte).
+ * What stays live and is **read by the body without making it recompose**:
+ *  - `messagesSize` (the shape of the thread, not its content);
+ *  - `liveStep` (the turn step: it only changes at transitions);
+ *  - `settledCount` / `settledLastId` (the boundary of finished messages: the Stream and the Files
+ *    read only those);
+ *  - `pendingApprovals` / `contextUsage` (two scans that do not depend on the text).
  */
 @Immutable
 data class ChatScreenState(
@@ -60,50 +61,50 @@ data class ChatScreenState(
     val branchPrompt: BranchPrompt?,
     val subagents: List<SubagentActivity>,
 
-    // ---- La forme du fil, jamais son contenu vivant -------------------------------------------
-    /** Le nombre de messages — la clé de la liste, stable pendant qu'une réponse s'écrit. */
+    // ---- The shape of the thread, never its live content --------------------------------------
+    /** The number of messages — the list key, stable while a reply is being written. */
     val messagesSize: Int,
-    /** Le nombre de messages en attente d'envoi. */
+    /** The number of messages waiting to be sent. */
     val queuedSize: Int,
-    /** L'identifiant du premier message : la page de reprise se réinitialise quand il change. */
+    /** The identifier of the first message: the resume page resets when it changes. */
     val firstMessageId: String?,
     /**
-     * Le serveur garde-t-il des messages **plus anciens** que ceux chargés ici ?
+     * Does the server keep messages **older** than those loaded here?
      *
-     * Le fil s'ouvre sur sa dernière page ([com.onyx.app.data.net.ServeSessionMessages.THREAD_PAGE])
-     * au lieu du fil entier : 500 messages pesaient 1,17 Mo à chaque ouverture, dans une base qui
-     * n'arrête pas de grossir. « Messages précédents » remonte donc par pages, et cette valeur dit
-     * s'il reste quelque chose à demander.
+     * The thread opens on its last page ([com.onyx.app.data.net.ServeSessionMessages.THREAD_PAGE])
+     * instead of the whole thread: 500 messages weighed 1.17 MB on every open, in a database that
+     * never stops growing. "Older messages" therefore goes up page by page, and this value says
+     * whether anything is left to ask for.
      */
     val earlierAvailable: Boolean = false,
-    /** Une page plus ancienne est en train d'arriver (la ligne du haut le dit, sans mentir). */
+    /** An older page is on its way (the top line says so, without lying). */
     val loadingEarlier: Boolean = false,
-    /** Le tour a-t-il annoncé une phase ? (`ChatUiState.live` non nul) */
+    /** Has the turn announced a phase? (`ChatUiState.live` non-null) */
     val hasLivePhase: Boolean,
     /**
-     * La phase annonce-t-elle un tour **en cours** ? (`TurnPhase.isStreaming`)
+     * Does the phase announce an **ongoing** turn? (`TurnPhase.isStreaming`)
      *
-     * Distinct de [isStreaming] dans un seul cas : l'instant où le serveur arrête le tour. La
-     * phase le dit avant l'état, et c'est la phase qui fait l'état du fil (`turnFlowState`) — la
-     * projection garde donc **sa** valeur, pour ne pas peindre « travail en cours » sur un tour
-     * que le serveur vient de clore.
+     * Distinct from [isStreaming] in a single case: the instant the server stops the turn. The
+     * phase says it before the state, and it is the phase that drives the thread state
+     * (`turnFlowState`) — the projection therefore keeps **its** value, so as not to paint
+     * "work in progress" on a turn the server has just closed.
      */
     val liveStreaming: Boolean,
-    /** L'étape du tour en cours — un changement d'étape est un vrai changement d'écran. */
+    /** The current turn step — a step change is a real screen change. */
     val liveStep: TurnStep?,
-    /** La première question du fil (le titre de repli, l'état vide). */
+    /** The first question of the thread (the fallback title, the empty state). */
     val firstUserQuestion: String?,
-    /** Y a-t-il eu au moins une question ? (l'accueil ne se montre que sans tour) */
+    /** Has there been at least one question? (the welcome only shows without a turn) */
     val hasUserTurn: Boolean,
-    /** Le nombre de tours de la personne : c'est lui qui ramène la vue au bas. */
+    /** The number of the person's turns: it is what brings the view back to the bottom. */
     val userTurnCount: Int,
-    /** Le nombre de messages **finis** : le Flux et les Fichiers s'arrêtent là. */
+    /** The number of **finished** messages: the Stream and the Files stop there. */
     val settledCount: Int,
-    /** L'identifiant du dernier message fini — la clé de leurs caches. */
+    /** The identifier of the last finished message — the key of their caches. */
     val settledLastId: String?,
-    /** Les approbations qui attendent une décision (un balayage, pas un texte). */
+    /** The approvals waiting for a decision (a scan, not a text). */
     val pendingApprovals: Int,
-    /** Le dernier remplissage de contexte connu, pour la puce du haut. */
+    /** The last known context fill, for the top chip. */
     val contextUsage: TokenUsage?,
 ) {
     companion object {
@@ -111,11 +112,11 @@ data class ChatScreenState(
         fun of(ui: ChatUiState): ChatScreenState {
             val messages = ui.messages
             val settled = if (ui.isStreaming) (messages.size - 1).coerceAtLeast(0) else messages.size
-            // Les approbations seules sont balayées par publication : une carte qui attend une
-            // décision peut naître **pendant** le tour, sur la ligne qui s'écrit, et doit paraître
-            // sans attendre un changement de forme. Le compte des questions, lui, ne bouge pas
-            // d'un jeton à l'autre : il vient de la projection du fil fini ([SettledScans]), pas
-            // d'un second balayage de tout l'historique à chaque publication de texte.
+            // Approvals alone are scanned on every publication: a card waiting for a decision can
+            // be born **during** the turn, on the line being written, and must appear without
+            // waiting for a shape change. The question count, for its part, does not move from one
+            // token to the next: it comes from the finished-thread projection ([SettledScans]), not
+            // from a second scan of the whole history on every text publication.
             var approvals = 0
             for (message in messages) {
                 val pending = message.approvals

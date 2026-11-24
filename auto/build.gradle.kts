@@ -6,9 +6,9 @@ plugins {
 }
 
 /**
- * La clé de release vit hors du dépôt : renseignez la variable d'environnement
- * `ONYX_RELEASE_KEYSTORE` avec le chemin de `release.properties`. Sans ce fichier le build de
- * release reste non signé plutôt que d'échouer — la clé n'appartient pas au projet.
+ * The release key lives outside the repository: set the environment variable
+ * `ONYX_RELEASE_KEYSTORE` to the path of `release.properties`. Without this file the release build
+ * stays unsigned rather than failing — the key does not belong to the project.
  */
 val releaseKeystore = System.getenv("ONYX_RELEASE_KEYSTORE")?.let { file(it) }
     ?: file("${rootDir}/keystore.properties")
@@ -17,7 +17,7 @@ val keystoreProperties = Properties().apply {
     if (releaseKeystore.exists()) releaseKeystore.inputStream().use { load(it) }
 }
 
-/** Résout `storeFile` relativement au fichier de propriétés, où qu'il soit. */
+/** Resolves `storeFile` relative to the properties file, wherever it is. */
 fun keystorePath(): File {
     val raw = keystoreProperties.getProperty("storeFile") ?: return releaseKeystore
     val candidate = File(raw)
@@ -25,25 +25,25 @@ fun keystorePath(): File {
 }
 
 android {
-    // Le compagnon voiture : même paquet de code que l'appli, plus `.auto` ; son identifiant
-    // d'installation dérive de celui de l'appli (une seule déclaration, dans `gradle.properties`).
+    // The car companion: same code package as the app, plus `.auto`; its install
+    // identifier derives from the app's (a single declaration, in `gradle.properties`).
     namespace = providers.gradleProperty("onyx.namespace").get() + ".auto"
     compileSdk = 37
 
     defaultConfig {
         applicationId = providers.gradleProperty("onyx.applicationId").get() + ".auto"
-        // Les contrats partagés avec l'appli (permission, autorité, actions) portent le paquet du
-        // **code**, identique dans les deux manifestes — jamais l'identifiant d'installation.
+        // The contracts shared with the app (permission, authority, actions) carry the **code**
+        // package, identical in both manifests — never the install identifier.
         manifestPlaceholders["onyxNamespace"] = providers.gradleProperty("onyx.namespace").get()
         minSdk = 26
         targetSdk = 36
-        // Départage de fusion : voir `app/build.gradle.kts` (`ONYX_VERSION_CODE`).
+        // Merge tie-breaker: see `app/build.gradle.kts` (`ONYX_VERSION_CODE`).
         versionCode = providers.gradleProperty("onyx.versionCode").orNull?.toIntOrNull()
             ?: providers.environmentVariable("ONYX_VERSION_CODE").orNull?.trim()?.toIntOrNull()
             ?: providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
                 .standardOutput.asText.get().trim().toIntOrNull() ?: 1
-        // La version **affichée** : 1.3.1, puis 1.3.2 à chaque publication — dérivée du
-        // `versionCode`, comme dans `app` (voir `onyx.versionBase`).
+        // The **displayed** version: 1.3.1, then 1.3.2 on each release — derived from
+        // the `versionCode`, as in `app` (see `onyx.versionBase`).
         versionName = providers.gradleProperty("onyx.versionBase").orNull?.toIntOrNull()
             ?.let { base -> "1.3." + ((versionCode ?: 1) - base) }
             ?: ("1.0.0+" + (versionCode ?: 1))

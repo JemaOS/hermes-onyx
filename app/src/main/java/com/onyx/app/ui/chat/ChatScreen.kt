@@ -133,41 +133,41 @@ import com.onyx.app.ui.design.onyxHazeSource
 import kotlinx.coroutines.launch
 
 /**
- * L'écran de conversation.
+ * The conversation screen.
  *
- * La barre de titre, le fil et le composer sont tous faits à la main — `OnyxTopBar`,
- * `MessageRow`, `OnyxComposer` — pour que rien de Material ne soit reconnaissable à l'écran,
- * comme l'exige la parité avec l'app la référence.
+ * The title bar, the thread and the composer are all hand-made — `OnyxTopBar`,
+ * `MessageRow`, `OnyxComposer` — so that nothing from Material is recognisable on screen,
+ * as the parity with the reference app requires.
  */
 @Composable
 fun ChatScreen(
     /**
-     * L'etat du chat, **tenu par reference**.
+     * The chat state, **held by reference**.
      *
-     * L'ecran le lisait par valeur : chaque publication de texte (33 par seconde pendant une
-     * reponse) remplacait l'etat, donc le corps de l'ecran - 2 200 lignes - etait rejoue a
-     * chaque jeton. Il le recoit desormais **par reference** et n'en projette que la partie
-     * stable ([ChatScreenState]) : le texte vivant n'est lu que par la liste et la ligne qui
-     * s'ecrit.
+     * The screen used to read it by value: each text publication (33 per second during a
+     * response) replaced the state, so the screen body - 2,200 lines - was replayed on
+     * every token. It now receives it **by reference** and only projects the stable part of it
+     * ([ChatScreenState]): the live text is read only by the list and the line being
+     * written.
      */
     stateFlow: androidx.compose.runtime.State<ChatUiState>,
     startCards: List<StartCard>,
     onInputChange: (String) -> Unit,
     /**
-     * Une ligne du menu « / » a été touchée : le texte entre dans le brouillon **et le menu se
-     * referme** ([ChatViewModel.pickSlash]). Par défaut, le même appel qu'une frappe — un écran
-     * qui n'a pas de menu ne change donc rien.
+     * A line of the "/" menu was tapped: the text enters the draft **and the menu
+     * closes** ([ChatViewModel.pickSlash]). By default, the same call as a keystroke — a screen
+     * with no menu therefore changes nothing.
      */
     onPickSlash: (String) -> Unit = onInputChange,
     onSend: () -> Unit,
-    /** Une note de pilotage écrite pendant une réponse : elle rejoint le tour en cours. */
+    /** A steering note written during a response: it joins the current turn. */
     onSteer: (String) -> Unit = { _ -> },
     /**
-     * **Remonter dans le fil, au-delà de ce qui est chargé.**
+     * **Scroll back up the thread, beyond what is loaded.**
      *
-     * Le fil s'ouvre sur sa dernière page (60 messages, 145 Ko mesurés) au lieu du fil entier
-     * (500 messages, 1,17 Mo). « Messages précédents » demande donc la page d'avant au serveur —
-     * `null` pour un écran sans serveur, où la ligne ne paraît pas.
+     * The thread opens on its last page (60 messages, 145 KB measured) instead of the whole thread
+     * (500 messages, 1.17 MB). "Earlier messages" therefore asks the server for the previous page —
+     * `null` for a screen with no server, where the row does not appear.
      */
     onLoadEarlier: (() -> Unit)? = null,
     onStop: () -> Unit,
@@ -176,28 +176,28 @@ fun ChatScreen(
     onNewConversation: () -> Unit,
     onOpenConversations: (() -> Unit)?,
     onPickModel: () -> Unit,
-    /** Un `/model` nu : même ouverture du sélecteur que par l'en-tête, mais il faut aussi baisser
-     *  la demande (l'écran peut être recréé). Par défaut, le même appel que l'en-tête. */
+    /** A bare `/model`: same opening of the selector as through the header, but the request must also
+     *  be consumed (the screen may be recreated). By default, the same call as the header. */
     onModelCommand: () -> Unit = onPickModel,
     /**
-     * Ouvre la **feuille du sélecteur de modèle** (la fonction 2) depuis la **puce de la carte**.
-     * `null` : la puce n'est pas dessinée — l'écran n'a pas de modèle à choisir.
+     * Opens the **model selector sheet** (feature 2) from the **card chip**.
+     * `null`: the chip is not drawn — the screen has no model to choose.
      */
     onOpenModelSheet: (() -> Unit)? = null,
-    /** Le niveau de réflexion courant : le second segment de la puce (« Modèle | Réflexion »). */
+    /** The current reasoning level: the second segment of the chip ("Model | Reasoning"). */
     reasoningLabel: String = "",
     onOpenSettings: () -> Unit,
     /**
-     * **Le visage de la barre du bas est une porte, pas un onglet.**
+     * **The face on the bottom bar is a door, not a tab.**
      *
-     * Le quatrième repère d'une conversation est *dessiné* comme le **visage du bot** ; l'appuyer
-     * ouvre donc l'**identité de ce bot** — son visage, son nom, sa voix, ce qu'il fait, sa
-     * personnalité, son modèle, ses outils, ses compétences —, c'est-à-dire exactement la page que
-     * « Modifier » ouvre depuis le menu d'une tuile de bot ([com.onyx.app.ui.bots.BotEditorScreen]).
-     * C'était le défaut signalé : l'apparence du repère avait changé, pas ce que l'appui déclenche.
+     * The fourth marker of a conversation is *drawn* as the **bot's face**; tapping it therefore
+     * opens the **identity of that bot** — its face, its name, its voice, what it does, its
+     * personality, its model, its tools, its skills — that is, exactly the page that
+     * "Edit" opens from a bot tile's menu ([com.onyx.app.ui.bots.BotEditorScreen]).
+     * This was the reported defect: the marker's appearance had changed, not what tapping triggers.
      *
-     * `null` : l'écran n'a pas d'identité à ouvrir ; le repère retombe alors sur son comportement
-     * **sûr** — aucun défilement hors page —, au lieu d'avoir l'air d'un contrôle mort.
+     * `null`: the screen has no identity to open; the marker then falls back on its **safe**
+     * behaviour — no out-of-page scrolling —, instead of looking like a dead control.
      */
     onOpenBotIdentity: (() -> Unit)? = null,
     onOpenVoice: () -> Unit,
@@ -210,16 +210,16 @@ fun ChatScreen(
     onRemoveAttachment: (String) -> Unit,
     onOpenDelivered: (com.onyx.app.data.model.serve.DeliveredFile) -> Unit,
     /**
-     * Un fichier de l'onglet **Fichiers** déjà sur le téléphone, ouvert par le lecteur de sa
-     * famille. C'est ce que fait un appui sur une ligne : sans ce branchement, l'onglet aurait des
-     * lignes sans effet — le défaut signalé.
+     * A file of the **Files** tab already on the phone, opened by the reader of its
+     * family. This is what a tap on a row does: without this wiring, the tab would have
+     * rows with no effect — the reported defect.
      */
     onOpenLocalFile: (android.net.Uri, String, String) -> Unit,
     menuItems: List<MenuItem> = emptyList(),
-    // « Find in conversation » : un champ, le compte des résultats et les flèches qui passent de
-    // l'un à l'autre (`TranscriptView.searchBar`) — pas de liste de résultats à ouvrir, l'la référence
-    // n'en a pas. Les deux paramètres qui l'annonçaient (`searchMatches`, `onOpenSearchResult`)
-    // n'étaient ni lus ni fournis : retirés plutôt que de dessiner un contrôle sans modèle.
+    // "Find in conversation": a field, the result count and the arrows that step from
+    // one to the other (`TranscriptView.searchBar`) — no result list to open, the reference
+    // does not have one. The two parameters that announced one (`searchMatches`, `onOpenSearchResult`)
+    // were neither read nor supplied: removed rather than drawing a control with no model.
     onSearch: (String) -> Unit = {},
     onFindRequested: () -> Unit = {},
     onStepSearch: (Int) -> Unit = {},
@@ -227,67 +227,67 @@ fun ChatScreen(
     onOpenPatch: (String) -> Unit = {},
     onSelectText: (String) -> Unit = {},
     /**
-     * Restaurer la conversation **à** une réponse : tout ce qui suit est défait. La confirmation
-     * est demandée avant de retirer quoi que ce soit.
+     * Restore the conversation **to** a response: everything after it is undone. The confirmation
+     * is requested before anything is removed.
      */
     onRestore: (com.onyx.app.data.model.ChatMessage) -> Unit = {},
     onConfirmRestore: () -> Unit = {},
     onCancelRestore: () -> Unit = {},
     /**
-     * Brancher **à partir d'ici** : copier ce fil jusqu'à cette réponse dans une nouvelle
-     * conversation. Comme la restauration, rien n'est copié avant la confirmation.
+     * Branch **from here**: copy this thread up to this response into a new
+     * conversation. Like restore, nothing is copied before the confirmation.
      */
     onBranch: (com.onyx.app.data.model.ChatMessage) -> Unit = {},
     onConfirmBranch: () -> Unit = {},
     onCancelBranch: () -> Unit = {},
-    /** L'avis de restauration a été affiché : il ne se rejoue pas. */
+    /** The restore notice has been shown: it does not replay. */
     onConsumeRestoreNotice: () -> Unit = {},
     onOpenPhotos: (List<com.onyx.app.data.model.Attachment>, Int) -> Unit = { _, _ -> },
-    /** Un fichier joint déjà envoyé, ouvert au tap (le PDF dans le lecteur de l'app). */
+    /** An already-sent attached file, opened on tap (the PDF in the app's reader). */
     onOpenFile: (com.onyx.app.data.model.Attachment) -> Unit = {},
-    /** Une pièce jointe encore dans le champ, ouverte au tap. */
+    /** An attachment still in the field, opened on tap. */
     onOpenPending: (com.onyx.app.ui.chat.PendingAttachment) -> Unit = {},
     onOpenCamera: () -> Unit = {},
     onOpenSubagent: (com.onyx.app.data.model.SubagentActivity) -> Unit = {},
     /**
-     * LOT organisation-fil-competences : arrête **un** sous-agent encore vivant
-     * (`subagent.interrupt`). Le même point que l'écran des tâches ; sans lui, aucune carte ne
-     * dessine de bouton d'arrêt.
+     * LOT thread-organisation-skills: stops **one** still-live sub-agent
+     * (`subagent.interrupt`). The same point as the tasks screen; without it, no card
+     * draws a stop button.
      */
     onStopSubagent: (com.onyx.app.data.model.SubagentActivity) -> Unit = {},
-    /** Ouvre l'écran des tâches lancées (sous-agents) depuis la conversation. */
+    /** Opens the launched-tasks screen (sub-agents) from the conversation. */
     onOpenSubagents: () -> Unit = {},
     /**
-     * Le roster de sous-agents à montrer, ou `null` pour celui de la conversation. La doublure de
-     * QA (`onyx.subagentDemo`) le remplit ; sans elle, le fil fait foi.
+     * The sub-agent roster to show, or `null` for the conversation's one. The QA
+     * double (`onyx.subagentDemo`) fills it; without it, the thread is the source of truth.
      */
     subagentAgents: List<com.onyx.app.data.model.SubagentActivity>? = null,
     /**
-     * **« Enseigner une tâche »** — la ligne de la feuille du « + », comme « Teach a task » de
-     * la référence.
+     * **"Teach a task"** — the row of the "+" sheet, like "Teach a task" in
+     * the reference.
      *
-     * Elle ne fait pas la démonstration ici : la capture a besoin de l'**ordinateur connecté** (les
-     * gestes, l'écran, le bail côté serveur). La ligne ouvre donc cet écran et y lance la feuille
-     * d'enregistrement — c'est le chemin le plus court pour la personne, qui ne devine plus qu'il
-     * faut aller chercher « Show me once » dans un menu ailleurs.
+     * It does not do the demonstration here: the capture needs the **connected computer** (the
+     * gestures, the screen, the server-side lease). The row therefore opens that screen and launches the
+     * recording sheet there — the shortest path for the person, who no longer has to guess that
+     * "Show me once" must be looked up in a menu elsewhere.
      *
-     * `null` : pas de ligne (serveur sans identifiants Dashboard, ou aperçu). Jamais un bouton mort.
+     * `null`: no row (server without Dashboard credentials, or preview). Never a dead button.
      */
     onTeachTask: (() -> Unit)? = null,
     /**
-     * Ouvre le panneau du navigateur de l'agent depuis le fil.
+     * Opens the agent's browser panel from the thread.
      *
-     * C'est ce qui rend la **carte de prise en main** cliquable : l'agent demande, la carte tombe
-     * dans la conversation, la personne appuie et le panneau s'ouvre sur la page déjà chargée.
-     * `null` : pas de carte, plutôt qu'une carte sans issue.
+     * This is what makes the **takeover card** clickable: the agent asks, the card drops
+     * into the conversation, the person taps and the panel opens on the page already loaded.
+     * `null`: no card, rather than a card with no way out.
      */
     onOpenBrowser: (() -> Unit)? = null,
     /**
-     * Doublure de QA du menu « / » (`am start --ez onyx.slashDemo true`) : l'émulateur n'a pas de
-     * passerelle, donc `complete.slash` ne rend rien et le menu ne peut être vu ni mesuré. Le
-     * drapeau injecte une liste fixe qui **ressemble à la vraie** (des noms courts de l'app, des
-     * noms de compétences du serveur et leurs détails longs), pour vérifier la hauteur des rangées,
-     * le plafond et la pose au-dessus de la plaque. `null` : le vrai menu, toujours.
+     * QA double of the "/" menu (`am start --ez onyx.slashDemo true`): the emulator has no
+     * gateway, so `complete.slash` returns nothing and the menu can neither be seen nor measured. The
+     * flag injects a fixed list that **looks like the real one** (short app names, server
+     * skill names and their long details), to check row heights,
+     * the ceiling and the placement above the plate. `null`: the real menu, always.
      */
     slashDemoItems: List<SlashItem>? = null,
     onClarify: (messageId: String, answers: Map<String, String>) -> Unit = { _, _ -> },
@@ -296,69 +296,69 @@ fun ChatScreen(
     onSendQueued: (String) -> Unit = {},
     onEditQueued: (String) -> Unit = {},
     onDeleteQueued: (String) -> Unit = {},
-    /** La commande « / » de [ChatUiState.pendingSlash] est exécutée : elle ne se rejoue pas. */
+    /** The "/" command of [ChatUiState.pendingSlash] is executed: it does not replay. */
     onConsumeSlash: () -> Unit = {},
     returnSends: Boolean = true,
     /**
-     * Démarrage de secours : le lancement précédent est mort pendant qu'il restaurait son état.
-     * L'onglet mémorisé est celui du plantage — on revient sur **Chat** au lieu de le rouvrir,
-     * sinon la même image refusée par le moteur de rendu tue l'app au même endroit, en boucle.
+     * Fallback start: the previous launch died while it was restoring its state.
+     * The remembered tab is the one from the crash — we go back to **Chat** instead of reopening it,
+     * otherwise the same image rejected by the renderer kills the app at the same place, in a loop.
      */
     startOnChatTab: Boolean = false,
-    /** Locale du micro pour la dictée dans le champ (`Réglages → Voix → Langue d'écoute`). */
+    /** Microphone locale for dictation in the field (`Settings → Voice → Listening language`). */
     speechLocale: String = "",
     /**
-     * Ce que l'en-tête et la zone de saisie appellent l'assistant : le nom des Réglages →
-     * Apparence, ou le nom du serveur quand il est vide (`Settings.headerTitle` d'la référence).
+     * What the header and the input area call the assistant: the name from Settings →
+     * Appearance, or the server name when it is empty (`Settings.headerTitle` of the reference).
      */
     assistantName: String = "",
     /**
-     * L'échelle du texte de la conversation (`Settings.chatTextSize`), appliquée au fil seulement :
-     * le composeur et les barres autour gardent la taille du système, comme le `chatTextSize()` du
-     * la référence posé sur le `ScrollView` du fil.
+     * The conversation text scale (`Settings.chatTextSize`), applied to the thread only:
+     * the composer and the surrounding bars keep the system size, like the reference's
+     * `chatTextSize()` set on the thread's `ScrollView`.
      */
     chatTextScale: Float = 1f,
-    /** Réglages → Apparence → « Aperçus des liens » : la fiche du premier lien sous un message. */
+    /** Settings → Appearance → "Link previews": the card of the first link under a message. */
     linkPreviews: Boolean = false,
     /**
-     * Le bot dont c'est la conversation ([botOfConversation] : le chat serveur du bot
-     * — `BotProfile.chatId`, le `canonical_session` — sinon le titre dont `botChatToOpen` a nommé son
-     * chat) ; `null` pour une conversation simple, où l'en-tête montre alors Onyx — son nom d'agent
-     * et son visage de bulle.
+     * The bot whose conversation this is ([botOfConversation]: the bot's server chat
+     * — `BotProfile.chatId`, the `canonical_session` — otherwise the title from which `botChatToOpen` named its
+     * chat); `null` for a plain conversation, where the header then shows Onyx — its agent name
+     * and its bubble face.
      */
     threadBot: com.onyx.app.data.model.serve.BotProfile? = null,
     /**
-     * **Le bot de cette conversation n'est pas encore connu.**
+     * **The bot of this conversation is not known yet.**
      *
-     * Vrai seulement entre la première frame et la réponse du roster, quand ni le roster ni la
-     * mémoire de la conversation ne disent de qui il s'agit. L'en-tête n'affiche alors **ni visage
-     * ni « @profil »** : mieux vaut un en-tête nu un instant qu'un en-tête faux — c'est ce qui
-     * montrait le bleu d'Onyx puis sautait sur le vrai bot.
+     * True only between the first frame and the roster response, when neither the roster nor the
+     * conversation memory says who it is. The header then displays **neither a face
+     * nor an "@profile"**: a bare header for an instant is better than a wrong header — it is what
+     * showed Onyx's blue and then jumped to the real bot.
      */
     threadBotUnknown: Boolean = false,
     /**
-     * Les bots qu'un mot `@` du brouillon peut nommer (`BotMentions.rosterForMentions`) : la liste
-     * au-dessus du champ, comme `ComposerView.mentionMenu` — le fil d'un bot comme celui de
-     * l'agent principal, et jamais une salle de groupe, qui a la sienne (`GroupComposer`). Vide,
-     * aucune liste ne s'ouvre.
+     * The bots an `@` word in the draft can name (`BotMentions.rosterForMentions`): the list
+     * above the field, like `ComposerView.mentionMenu` — a bot's thread as well as the main
+     * agent's, and never a group room, which has its own (`GroupComposer`). Empty,
+     * no list opens.
      */
     mentionBots: List<com.onyx.app.data.model.serve.BotProfile> = emptyList(),
     /**
-     * Le contrôle du volet (`sidebar.left`) quand le fil est le **détail** des deux panneaux et
-     * que le volet est replié : il prend la place du bouton « Conversations » de la barre, et son
-     * libellé d'accessibilité annonce « Déplier la liste ».
+     * The drawer control (`sidebar.left`) when the thread is the **detail** of the two panes and
+     * the drawer is collapsed: it takes the place of the bar's "Conversations" button, and its
+     * accessibility label announces "Expand the list".
      */
     sidebarToggle: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    // **Le corps de l'écran ne lit plus l'état vivant.** Voir [ChatScreenState] : il ne porte que
-    // ce qui ne bouge pas d'un jeton à l'autre, si bien que la publication du texte (33 fois par
-    // seconde) ne recompose plus que le fil, et non les 2 200 lignes de cet écran.
+    // **The screen body no longer reads the live state.** See [ChatScreenState]: it carries only
+    // what does not move from one token to the next, so that text publication (33 times per
+    // second) no longer recomposes anything but the thread, and not the 2,200 lines of this screen.
     val state by remember { derivedStateOf { ChatScreenState.of(stateFlow.value) } }
-    // « Shown in the header and the message box » : un seul nom, partout.
+    // "Shown in the header and the message box": one name, everywhere.
     val agentName = assistantName.ifBlank { state.server.displayName }
-    // L'en-tête du fil est un ajout volontaire (l'app la référence n'en a pas) : le visage et le nom de qui
-    // parle, en tête des messages — le bot de la conversation, sinon Onyx.
+    // The thread header is a deliberate addition (the reference app has none): the face and name of who
+    // speaks, at the top of the messages — the conversation's bot, otherwise Onyx.
     val threadSpeaker = remember(threadBot, agentName) { threadHeaderSpeaker(threadBot, agentName) }
     val theme = LocalOnyxTheme.current
     val context = LocalContext.current
@@ -369,40 +369,40 @@ fun ChatScreen(
     var projectProblem by remember { mutableStateOf<String?>(null) }
     val projectDirectory = rememberChatProjectDirectory(state.server, state.serverSessionId)
     val scope = rememberCoroutineScope()
-    // Une longue conversation ne rend que la dernière page ; « N earlier messages » remonte.
+    // A long conversation renders only the last page; "N earlier messages" goes up.
     //
-    // **`-1` = aucune page dépliée**, et c'est cette sentinelle qui manquait : le calcul était
-    // `maxOf(visibleFrom, messagesSize - PAGE)`, donc `visibleFrom`, toujours plus petit, ne
-    // changeait jamais rien — le bouton « N earlier messages » paraissait et chaque appui ne
-    // dépliait rien. La page se clé sur la **conversation**, pas sur son premier message : quand
-    // on pose une page plus ancienne en tête, l'identifiant du premier message change et la page
-    // se refermait sous le doigt.
+    // **`-1` = no page unfolded**, and this is the sentinel that was missing: the computation was
+    // `maxOf(visibleFrom, messagesSize - PAGE)`, so `visibleFrom`, always smaller, never
+    // changed anything — the "N earlier messages" button appeared and each tap unfolded
+    // nothing. The page is keyed on the **conversation**, not on its first message: when
+    // an older page is placed at the top, the first message's identifier changes and the page
+    // closed under the finger.
     var visibleFrom by remember(state.conversationId) { mutableIntStateOf(-1) }
     var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    // La hauteur du composeur (pièces jointes, bandeau « N messages en attente », champ) : le
-    // « Jump to latest » s'y accroche pour rester **au-dessus** de lui, jamais dessus.
+    // The composer height (attachments, "N messages waiting" banner, field): "Jump to
+    // latest" hangs on it to stay **above** it, never on top of it.
     var composerHeightPx by remember { mutableIntStateOf(0) }
-    /** La hauteur de la barre d'onglets : le « Aller au dernier message » se pose au-dessus d'elle. */
+    /** The tab bar height: "Go to the last message" sits above it. */
     var tabBarHeightPx by remember { mutableIntStateOf(0) }
     /**
-     * La hauteur **mesurée** de la barre du haut. Le fil s'en sert pour passer dessous : c'est ce
-     * qui donne au verre un contenu à échantillonner, au lieu de poser la vitre sur un aplat de page
-     * (le cas que le lot précédent avait mesuré et écarté — ici, la mesure est refaite).
+     * The **measured** height of the top bar. The thread uses it to pass underneath: it is what
+     * gives the glass content to sample, instead of placing the pane over a flat page
+     * (the case the previous batch had measured and ruled out — here, the measurement is redone).
      */
     var topBarHeightPx by remember { mutableIntStateOf(0) }
     /**
-     * Le mot `@` qu'Échap a fait taire : la liste des bots reste fermée tant que le mot en cours
-     * est celui-là, et revient dès qu'il change (une lettre de plus, un « @ » effacé puis retapé).
+     * The `@` word that Escape silenced: the bot list stays closed as long as the current word
+     * is that one, and comes back as soon as it changes (one more letter, an "@" erased then retyped).
      */
     var mentionDismissed by remember { mutableStateOf<String?>(null) }
 
-    // Les bots offerts pendant qu'un mot `@` s'écrit (`BotMentions.menu`) : au plus six, ceux que
-    // ce qui suit le « @ » commence. Le bot dont c'est la conversation ne se propose pas lui-même,
-    // et la liste ne s'ouvre pas dans un brouillon de plusieurs lignes.
+    // The bots offered while an `@` word is being written (`BotMentions.menu`): at most six, those that
+    // what follows the "@" starts. The bot whose conversation it is does not offer itself,
+    // and the list does not open in a multi-line draft.
     //
-    // **Mémorisé par ses seules entrées.** L'écran se recompose à chaque jeton pendant qu'une
-    // réponse s'écrit ; sans clé, le menu était redécoupé à ce rythme alors que ni le brouillon ni
-    // le roster n'avaient bougé. Les clés sont exactement les arguments de `menu`.
+    // **Memoised on its inputs alone.** The screen recomposes on every token while a
+    // response is being written; without a key, the menu was re-split at that rate even though neither the draft nor
+    // the roster had moved. The keys are exactly the arguments of `menu`.
     val mentionToken = BotMentions.typing(state.input)
     val mentionSuggestions = remember(state.input, mentionBots, threadBot?.name, agentName, mentionDismissed) {
         BotMentions.menu(
@@ -413,12 +413,12 @@ fun ChatScreen(
             dismissed = mentionDismissed,
         )
     }
-    // Plus aucun mot en cours : ce qu'Échap avait fait taire est oublié, et la liste pourra rouvrir.
+    // No word in progress any more: what Escape had silenced is forgotten, and the list can reopen.
     LaunchedEffect(mentionToken) { if (mentionToken == null) mentionDismissed = null }
 
-    // Raccourcis clavier : le clavier physique d'Android n'a aucune des `keyboardShortcut` de
-    // la référence, donc l'écran les reçoit lui-même. La racine a le focus, ce qui donne à ⌘↩ le même
-    // sens qu'à l'écran : envoyer sans quitter le champ.
+    // Keyboard shortcuts: Android's physical keyboard has none of the `keyboardShortcut`s of
+    // the reference, so the screen receives them itself. The root has focus, which gives ⌘↩ the same
+    // meaning as on that screen: send without leaving the field.
     val rootFocus = remember { FocusRequester() }
     val composerFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
@@ -449,7 +449,7 @@ fun ChatScreen(
             ChatShortcut.SEND -> onSend()
             ChatShortcut.STOP -> onStop()
             ChatShortcut.FOCUS_COMPOSER -> runCatching { composerFocus.requestFocus() }
-            // ⌘E exporte le fil en Markdown : le raccourci double l'entrée du menu « … ».
+            // ⌘E exports the thread as Markdown: the shortcut duplicates the "…" menu entry.
             ChatShortcut.EXPORT -> menuItems.firstOrNull { it.label == "Export as Markdown" }?.onSelect()
             ChatShortcut.CLOSE -> if (!closeTopmost()) return false
         }
@@ -468,9 +468,9 @@ fun ChatScreen(
         cameraUri = null
     }
 
-    // Le micro du champ est une dictée indépendante : ce qui est dit rejoint le brouillon, rien
-    // n'est envoyé et l'écran vocal ne s'ouvre pas — même comportement que le composeur de groupe
-    // et que `DictateButton` d'la référence.
+    // The field's microphone is an independent dictation: what is said joins the draft, nothing
+    // is sent and the voice screen does not open — same behaviour as the group composer
+    // and the reference's `DictateButton`.
     val speechEngine = remember(speechLocale) { SpeechEngine(context, speechLocale) }
     val speechState by speechEngine.state.collectAsStateWithLifecycle()
     var dictating by remember { mutableStateOf(false) }
@@ -529,41 +529,41 @@ fun ChatScreen(
     val hiddenCount = pageStart
     val latestItemIndex = (if (hiddenCount > 0) 1 else 0) +
         (state.messagesSize - pageStart - 1).coerceAtLeast(0) + state.queuedSize
-    // **On ouvre sur le dernier message.** La liste naît déjà posée sur la fin du fil, au lieu
-    // d'apparaître en haut puis de sauter en bas au premier passage de l'effet de suivi. L'index
-    // n'est lu qu'à la **première** composition (c'est un état initial) ; ensuite, c'est le suivi
-    // qui décide où regarde la vue.
+    // **We open on the last message.** The list is born already settled on the end of the thread, instead
+    // of appearing at the top then jumping to the bottom on the first pass of the follow effect. The index
+    // is read only on the **first** composition (it is an initial state); afterwards, it is the follow
+    // that decides where the view looks.
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = latestItemIndex)
-    // La longueur du texte vivant n'est lue **que** par l'observateur du suivi du bas : elle
-    // change a chaque publication, et la lire ici recomposerait l'ecran a chaque jeton.
+    // The live text length is read **only** by the bottom-follow observer: it
+    // changes on each publication, and reading it here would recompose the screen on each token.
     val lastIndex = state.messagesSize - 1
     val currentHit = state.searchHits.getOrNull(state.searchCurrent)
     LaunchedEffect(currentHit) {
         val index = stateFlow.value.messages.indexOfFirst { it.id == currentHit }
         if (index >= 0) listState.animateScrollToItem(index)
     }
-    // Le fil suit la fin **tant que la personne ne remonte pas** : c'est elle qui décide. La
-    // décision vit dans `ScrollFollow` (pure, testable sur la JVM) ; l'écran ne fait que la
-    // brancher. Trois gestes, ceux de la référence :
-    //  1. un doigt posé sur la liste détache le suivi **tout de suite**, même si la vue est encore
-    //     collée en bas ;
-    //  2. au repos, on reprend la suite si la fin du fil est à l'écran **dans la marge d'ancrage**
-    //     (`ScrollFollow.AnchorMarginDp` : une hauteur de rangée) ;
-    //  3. le contenu qui grandit (la réflexion, une ligne d'outil, « Utilisés : N outils », le
-    //     compteur de durée, le texte qui s'écrit) ne va en bas que si le suivi est attaché.
+    // The thread follows the end **as long as the person does not scroll back up**: it is they who decide. The
+    // decision lives in `ScrollFollow` (pure, JVM-testable); the screen only wires
+    // it. Three gestures, those of the reference:
+    //  1. a finger placed on the list detaches the follow **immediately**, even if the view is still
+    //     stuck at the bottom;
+    //  2. at rest, we resume following if the end of the thread is on screen **within the anchor margin**
+    //     (`ScrollFollow.AnchorMarginDp`: one row height);
+    //  3. content that grows (the reasoning, a tool line, "Used: N tools", the
+    //     duration counter, the text being written) only goes to the bottom if the follow is attached.
     //
-    // **La mesure du bas, refaite pour ce lot.** La distance se compte de la fin de la dernière
-    // ligne au bord du viewport **moins la réserve que la liste pose sous elle**
-    // (`afterContentPadding` : compositeur, barre d'onglets, encart du système, écart de la
-    // maison). Sans ce terme, la réserve entrait dans la marge : 330 dp mesurés à l'appareil au
-    // lieu d'une rangée, donc un tiers d'écran remonté retombait au bas dès la première ligne
-    // reçue — « quand je défile doucement pour tout lire, ça force au dernier message ».
+    // **The bottom measurement, redone for this batch.** The distance is counted from the end of the last
+    // line to the viewport edge **minus the reserve the list places under itself**
+    // (`afterContentPadding`: composer, tab bar, system inset, house
+    // gap). Without this term, the reserve entered the margin: 330 dp measured on the device instead
+    // of one row, so a third of the screen scrolled up fell back to the bottom on the first line
+    // received — "when I scroll gently to read everything, it forces to the last message".
     val anchorMarginPx = with(LocalDensity.current) { ScrollFollow.AnchorMarginDp.dp.toPx() }
     val distanceToBottomPx by remember(anchorMarginPx) {
         derivedStateOf {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf 0
-            // La dernière ligne n'est pas dans la vue : on est forcément remonté.
+            // The last row is not in the view: we are necessarily scrolled up.
             if (last.index < info.totalItemsCount - 1) {
                 Int.MAX_VALUE
             } else {
@@ -575,61 +575,61 @@ fun ChatScreen(
             }
         }
     }
-    // **Un état, pas une valeur recalculée** : le `snapshotFlow` plus bas ne suit que les lectures
-    // d'état. Une valeur calculée dans la composition y restait **figée** à la première passe — le
-    // suivi se ré-attachait donc à chaque relâchement, et la vue retombait au bas. C'est ce que la
-    // trace de `logcat` a montré (« suivi=attaché … dans la marge=false »), et c'est la raison
-    // d'être de cette ligne.
+    // **A state, not a recomputed value**: the `snapshotFlow` below only follows state
+    // reads. A value computed in the composition stayed **frozen** there at the first pass — the
+    // follow therefore re-attached on each release, and the view fell back to the bottom. This is what the
+    // `logcat` trace showed ("follow=attached … within margin=false"), and it is the reason
+    // this line exists.
     val withinAnchor by remember(anchorMarginPx) {
         derivedStateOf { ScrollFollow.withinAnchor(distanceToBottomPx, anchorMarginPx.toInt()) }
     }
     var following by remember { mutableStateOf(true) }
-    // La **trace de mesure**, une ligne par changement d'état : une décision de géométrie se lit
-    // dans `logcat` sous son étiquette, sinon elle n'est vérifiable que par ses effets (même
-    // principe que `OnyxThreadReserve`, pour la réserve du bas).
+    // The **measurement trace**, one line per state change: a geometry decision is read
+    // in `logcat` under its tag, otherwise it can only be verified by its effects (same
+    // principle as `OnyxThreadReserve`, for the bottom reserve).
     LaunchedEffect(withinAnchor, following) {
         println(
             "$ScrollFollowLogTag suivi=${if (following) "attaché" else "détaché"} " +
                 "distance au bas=${distanceToBottomPx}px marge=${anchorMarginPx.toInt()}px " +
                 "dans la marge=$withinAnchor " +
-                // La géométrie qui décide de la visibilité du contenu neuf : la hauteur du fil et
-                // le rembourrage que la liste pose sous sa dernière ligne. Un rembourrage plus
-                // grand que le fil vide l'écran au bas du défilement — cette trace le montre.
+                // The geometry that decides the visibility of new content: the thread height and
+                // the padding the list places under its last row. Padding larger
+                // than the thread empties the screen at the bottom of the scroll — this trace shows it.
                 "fil=${
                     listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
                 }px rembourrage bas=${listState.layoutInfo.afterContentPadding}px",
         )
     }
-    // 1. Un doigt prend la liste : la personne décide, on se détache sans attendre la position.
+    // 1. A finger takes the list: the person decides, we detach without waiting for the position.
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { interaction ->
             if (interaction is DragInteraction.Start) following = ScrollFollow.afterTouch()
         }
     }
-    // 2. Au repos : on reprend la suite si la fin du fil est dans la marge d'ancrage ; un geste en
-    //    cours ne ré-attache jamais (voir `ScrollFollow.atRest`).
+    // 2. At rest: we resume following if the end of the thread is within the anchor margin; a gesture in
+    //    progress never re-attaches (see `ScrollFollow.atRest`).
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress to withinAnchor }
             .collect { (scrolling, anchored) ->
                 following = ScrollFollow.atRest(scrolling, anchored, following)
             }
     }
-    // 3. Le contenu qui grandit — ET **chaque transition d'état du tour** (attente, début de
-    //    réflexion, début de réponse, premier jeton) — ne va en bas que si on suit. L'étape du tour
-    //    (`state.live.step`) est une clé à part entière : un changement d'étape qui ne change pas
-    //    encore le texte (le passage de l'attente à la réflexion, le premier jeton d'un raisonnement
-    //    vide) doit lui aussi ramener la vue, sinon l'état neuf se peint hors de la vue.
+    // 3. Content that grows — AND **every turn state transition** (waiting, start of
+    //    reasoning, start of response, first token) — only goes to the bottom if we follow. The turn step
+    //    (`state.live.step`) is a key in its own right: a step change that does not yet
+    //    change the text (the move from waiting to reasoning, the first token of an empty reasoning)
+    //    must also bring the view back, otherwise the new state is painted out of the view.
     //
-    //    **Un seul observateur pour tout le tour, au lieu d'un effet relancé par jeton.**
+    //    **A single observer for the whole turn, instead of an effect relaunched per token.**
     //
-    //    Les clés de l'effet portaient `lastLength`, la longueur du texte vivant : elle change à
-    //    **chaque** publication (trente-trois par seconde), donc l'effet était annulé puis relancé
-    //    trente-trois fois par seconde, et chacun posait un `scrollToItem` — une coroutine suspendue
-    //    qui redemande une mesure complète de la liste.
+    //    The effect's keys carried `lastLength`, the live text length: it changes on
+    //    **every** publication (thirty-three per second), so the effect was cancelled then relaunched
+    //    thirty-three times per second, and each one issued a `scrollToItem` — a suspended coroutine
+    //    that asks again for a complete measurement of the list.
     //
-    //    `snapshotFlow` observe la même chose sans relancer personne, et `requestScrollToItem` pose
-    //    la demande **pour la prochaine passe de mesure** : deux jetons arrivés dans la même trame ne
-    //    coûtent plus qu'un déplacement, et la composition n'attend plus un `suspend`.
+    //    `snapshotFlow` observes the same thing without relaunching anyone, and `requestScrollToItem` places
+    //    the request **for the next measurement pass**: two tokens arriving in the same frame
+    //    cost only one move, and the composition no longer waits for a `suspend`.
     LaunchedEffect(listState, latestItemIndex, stateFlow) {
         snapshotFlow {
             val ui = stateFlow.value
@@ -646,10 +646,10 @@ fun ChatScreen(
                 listState.requestScrollToItem(latestItemIndex, BottomScrollOffset)
         }
     }
-    // Une question part d'où qu'elle soit écrite : elle ramène en bas (`jumpToEnd` de la référence).
+    // A question comes from wherever it is written: it brings the view back to the bottom (`jumpToEnd` of the reference).
     var seenUserTurns by remember { mutableStateOf(0) }
-    // La clé est le **nombre** de messages : pendant qu'une réponse s'écrit, la liste change à chaque
-    // jeton mais sa taille ne bouge pas — compter les tours à ce rythme ne servait à rien.
+    // The key is the **count** of messages: while a response is being written, the list changes on every
+    // token but its size does not move — counting turns at that rate was pointless.
     val userTurns = state.userTurnCount
     LaunchedEffect(userTurns) {
         if (userTurns > seenUserTurns) {
@@ -659,26 +659,26 @@ fun ChatScreen(
         seenUserTurns = userTurns
     }
 
-    // « Jump to latest » : offert dès que le suivi est détaché et que la fin n'est plus à l'écran
-    // (`!following && !withinAnchor`, comme la référence) — pas seulement quand une autre ligne est
-    // en tête : une longue réponse couvre plusieurs écrans, la fin peut être hors de vue alors qu'on
-    // est en train de la lire.
+    // "Jump to latest": offered as soon as the follow is detached and the end is no longer on screen
+    // (`!following && !withinAnchor`, like the reference) — not only when another row is
+    // at the top: a long response covers several screens, the end can be out of view while we
+    // are still reading it.
     val offersJump = state.messagesSize > 0 && !following && !withinAnchor
     val contextUsage = state.contextUsage
 
     // ---------------------------------------------------------------------------------------
-    // LOT fil-vivant : l'état du tour, et la lecture
+    // LOT live-thread: the turn state, and the reading
     // ---------------------------------------------------------------------------------------
     //
-    // **L'état réel du tour** (`turnFlowState`) : repos, réflexion, travail, attente de décision.
-    // C'est lui — et rien d'autre — que l'en-tête et les cartes de contexte peignent. Aucun état
-    // n'est décoratif : chacun vient d'une étape que le serveur a fait connaître, ou d'une
-    // approbation qui attend une réponse (`pendingApprovalCount`).
+    // **The real state of the turn** (`turnFlowState`): rest, reasoning, work, waiting for a decision.
+    // It is it — and nothing else — that the header and the context cards paint. No state
+    // is decorative: each one comes from a step the server made known, or from an
+    // approval waiting for an answer (`pendingApprovalCount`).
     val pendingApprovals = state.pendingApprovals
-    // L'etape du tour suffit a peindre l'etat : `turnFlowState` ne lit que `isStreaming` et
-    // `step`, jamais l'horodatage - qui, lui, change a chaque jeton.
-    // Sans phase du tout (le serveur n'en a pas annonce), l'etat est le repos - c'etait deja la
-    // regle de `turnFlowState` pour un `live` nul, et la reconstituer ici la garde identique.
+    // The turn step is enough to paint the state: `turnFlowState` reads only `isStreaming` and
+    // `step`, never the timestamp - which changes on every token.
+    // With no phase at all (the server announced none), the state is rest - that was already the
+    // rule of `turnFlowState` for a null `live`, and rebuilding it here keeps it identical.
     val flow = turnFlowState(
         live = if (!state.hasLivePhase) {
             null
@@ -692,15 +692,15 @@ fun ChatScreen(
         },
         pendingApprovals = pendingApprovals,
     )
-    // **« On remonte lire. »** Le suivi du bas est détaché pendant qu'un tour tourne : c'est le
-    // signal de la lecture. L'état **ralentit** alors (§ la période est multipliée, jamais
-    // divisée) au lieu de continuer à pleine cadence sous les yeux de qui lit.
+    // **"We scroll back up to read."** The bottom follow is detached while a turn runs: that is the
+    // reading signal. The state then **slows down** (§ the period is multiplied, never
+    // divided) instead of continuing at full rate under the eyes of the reader.
     val readingUp = state.isStreaming && !following
 
     val toaster = com.onyx.app.ui.common.rememberToaster()
 
-    // L'avis d'une restauration s'annonce une fois, puis s'oublie : il dit ce qui a été défait, et
-    // si la session du serveur a pu être rembobinée au même point.
+    // The restore notice is announced once, then forgotten: it says what was undone, and
+    // whether the server session could be rewound to the same point.
     LaunchedEffect(state.restoreNotice) {
         state.restoreNotice?.let { notice ->
             toaster.show(notice)
@@ -708,51 +708,51 @@ fun ChatScreen(
         }
     }
 
-    // Une image déposée sur le fil devient une pièce jointe (`ChatDropTarget`).
+    // An image dropped on the thread becomes an attachment (`ChatDropTarget`).
     val dropTarget = rememberDragAndDrop(onAddAttachments)
 
-    // — Les onglets de la conversation : Chat / Flux / Fichiers — (Idées et Objectifs supprimés)
+    // — The conversation tabs: Chat / Feed / Files — (Ideas and Goals removed)
     //
-    // Le pageur vit **au-dessus** de la barre d'écriture : la barre ne bouge donc jamais quand on
-    // change d'onglet, c'est elle qui porte les onglets en dessous. L'onglet choisi est gardé **par
-    // conversation** : revenir dans une conversation rouvre le dernier onglet.
+    // The pager lives **above** the writing bar: the bar therefore never moves when we
+    // change tab, it is the one carrying the tabs underneath. The chosen tab is kept **per
+    // conversation**: coming back to a conversation reopens the last tab.
     val panelKey = state.conversationId ?: state.serverSessionId ?: "main"
     val panels = remember(context) { ChatPanelStore(context) }
     var feedFeedback by remember(panelKey) { mutableStateOf(panels.feedbackFor(panelKey)) }
-    // **Plus d'état « barre masquée ».** La poignée à chevron qui le portait a été retirée de
-    // l'écran (demande du propriétaire : « supprime le bouton pour la possibilité de cacher »).
-    // La plaque du bas — le champ **et** la rangée d'onglets — est donc **toujours** visible. Il
-    // n'existe plus d'écrivain de cet état, ni ici, ni dans `ChatPanelStore` (sa préférence
-    // `tabsHidden` a disparu avec le bouton) : rien ne peut plus laisser la barre masquée après une
-    // relance, parce que rien ne peut plus la masquer. L'état « Idées / Objectifs » a disparu avec
-    // ces écrans (arbitrage de la réconciliation).
-    // **Les deux rectangles de la soudure** : celui du compositeur et celui de la barre d'onglets,
-    // mesurés dans la pile du bas. C'est de leur écart que naît le pont de matière (`GlassWeld`).
+    // **No more "bar hidden" state.** The chevron handle that carried it has been removed from
+    // the screen (owner's request: "remove the button for the option to hide").
+    // The bottom plate — the field **and** the tab row — is therefore **always** visible. There
+    // is no writer of this state any more, neither here nor in `ChatPanelStore` (its preference
+    // `tabsHidden` disappeared with the button): nothing can leave the bar hidden after a
+    // relaunch, because nothing can hide it any more. The "Ideas / Goals" state disappeared with
+    // those screens (reconciliation arbitration).
+    // **The two weld rectangles**: the composer's and the tab bar's,
+    // measured in the bottom stack. It is from their gap that the matter bridge is born (`GlassWeld`).
     var composerWeldRect by remember { mutableStateOf<Rect?>(null) }
     var tabBarWeldRect by remember { mutableStateOf<Rect?>(null) }
     val reduceMotion = LocalReduceMotion.current
 
-    // ---- **Aucun effacement de la pile du bas, jamais.** ---------------------------------------
+    // ---- **No fading of the bottom stack, ever.** -----------------------------------------------
     //
-    // La pile du bas — le compositeur **et** la rangée d'onglets — s'effaçait au défilement (un fondu
-    // et un glissement court, déclenchés par une distance parcourue). Le propriétaire l'a refusé :
-    // « ça ne doit JAMAIS disparaître quand je défile ». Toute la machinerie a donc été **retirée**,
-    // pas désactivée : l'état replié (`stackVeiled`), la distance accumulée et son seuil
-    // (`accumulate` / `ScrollSlopDp`), la décision (`stackVeiled`), la garde de frappe qui la
-    // retenait (`typingHolds`), l'opacité qui en découlait (`stackAlpha`) et l'`AnimatedVisibility`
-    // qui la peignait. Il ne reste **aucun** chemin — ni état, ni geste, ni clavier, ni frappe, ni
-    // préférence — qui puisse changer la visibilité ou l'opacité de la plaque : elle est dessinée
-    // **inconditionnellement**, à la même place à chaque position de défilement. Le verrou
-    // `PlatePerpetualTest` échoue si l'un de ces chemins revient.
+    // The bottom stack — the composer **and** the tab row — faded on scroll (a fade-out
+    // and a short slide, triggered by a travelled distance). The owner refused it:
+    // "it must NEVER disappear when I scroll". So the whole machinery was **removed**,
+    // not disabled: the collapsed state (`stackVeiled`), the accumulated distance and its threshold
+    // (`accumulate` / `ScrollSlopDp`), the decision (`stackVeiled`), the typing guard that
+    // held it (`typingHolds`), the resulting opacity (`stackAlpha`) and the `AnimatedVisibility`
+    // that painted it. There remains **no** path — neither state, nor gesture, nor keyboard, nor typing, nor
+    // preference — that could change the visibility or opacity of the plate: it is drawn
+    // **unconditionally**, at the same place at every scroll position. The
+    // `PlatePerpetualTest` lock fails if one of these paths returns.
     val pagerState = rememberPagerState(
         initialPage = chatTabIndexOf(panels.selectedTab(panelKey)),
         pageCount = { chatTabCount },
     )
-    // L'onglet sur lequel le pageur se **pose** est écrit tout de suite : un glissement court qui
-    // revient en place ne change donc rien, et une sortie de la conversation retrouve son onglet.
+    // The tab the pager **settles** on is written right away: a short swipe that
+    // comes back in place therefore changes nothing, and leaving the conversation finds its tab again.
     LaunchedEffect(pagerState, panelKey) {
-        // Démarrage en secours : l'onglet restauré est celui où le dernier lancement est mort.
-        // On le remet à Chat **avant** de lire l'état sauvé, sinon il revient aussitôt.
+        // Fallback start: the restored tab is the one where the last launch died.
+        // It is set back to Chat **before** reading the saved state, otherwise it comes back at once.
         if (startOnChatTab) {
             panels.setSelectedTab(panelKey, ChatTab.CHAT.key)
         }
@@ -762,10 +762,10 @@ fun ChatScreen(
             panels.setSelectedTab(panelKey, ChatTab.entries[page.coerceIn(0, chatTabCount - 1)].key)
         }
     }
-    // Le bord de l'écran appartient au geste de retour du système : le pageur ne démarre pas un
-    // changement d'onglet depuis la bande que le système réserve (`systemGestures`, nulle en
-    // navigation à trois boutons). En deux panneaux, le bord du panneau n'est pas un bord de
-    // fenêtre : aucune lame n'y est posée.
+    // The screen edge belongs to the system back gesture: the pager does not start a
+    // tab change from the band the system reserves (`systemGestures`, zero in
+    // three-button navigation). In two panes, the pane edge is not a window
+    // edge: no blade is placed there.
     val singlePane = onOpenConversations != null
     val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
     val edgeGuardLeftPx = if (singlePane) {
@@ -778,13 +778,13 @@ fun ChatScreen(
     } else {
         0f
     }
-    // L'onglet actif prend la couleur du bot de la conversation.
+    // The active tab takes the colour of the conversation's bot.
     val tabAccent = if (threadBotUnknown) theme.accent
         else threadBot?.let { botFaceColour(it.name, it.faceCode, theme) } ?: theme.accent
-    // **Rien ne se recalcule à chaque jeton.** Une réponse en cours change à chaque token ; les
-    // cartes du Flux et la liste des fichiers ne lisent que des messages **finis**, donc les
-    // recalculer sur toute la conversation à ce rythme ne dessinait rien de neuf et coûtait du
-    // temps à chaque image. La clé est la même tant que le dernier message fini ne change pas.
+    // **Nothing is recomputed on every token.** A response in progress changes on every token; the
+    // Feed cards and the file list read only **finished** messages, so
+    // recomputing them over the whole conversation at that rate drew nothing new and cost
+    // time on every frame. The key is the same as long as the last finished message does not change.
     val settledCount = state.settledCount
     val settledLast = state.settledLastId
     val feedCards = remember(settledCount, settledLast, threadSpeaker.label) {
@@ -794,11 +794,11 @@ fun ChatScreen(
         ChatFiles.conversationFiles(stateFlow.value.messages.take(settledCount))
     }
     val nowMillis = remember(panelKey) { System.currentTimeMillis() }
-    // Ce qui a été vu du flux : la pastille de non-lu ne compte que le neuf.
+    // What has been seen of the feed: the unread dot counts only the new ones.
     var seenCards by remember(panelKey) { mutableStateOf(panels.seenCards(panelKey)) }
     val feedBadge = feedCards.count { it.id !in seenCards }
     val tabBadges = List(chatTabCount) { index -> if (index == ChatTab.FEED.ordinal) feedBadge else 0 }
-    // Ouvrir le flux le marque comme vu : la pastille s'éteint quand on le regarde.
+    // Opening the feed marks it as seen: the dot goes out when you look at it.
     LaunchedEffect(pagerState, panelKey, feedCards) {
         snapshotFlow { pagerState.settledPage }.collect { page ->
             if (page == ChatTab.FEED.ordinal) {
@@ -806,7 +806,7 @@ fun ChatScreen(
             }
         }
     }
-    // Trois déplacements réels, jamais une action muette : l'onglet, le champ, et le brouillon.
+    // Three real moves, never a mute action: the tab, the field, and the draft.
     fun openTab(index: Int) {
         val target = index.coerceIn(0, chatTabCount - 1)
         scope.launch {
@@ -817,18 +817,18 @@ fun ChatScreen(
         openTab(ChatTab.CHAT.ordinal)
         runCatching { composerFocus.requestFocus() }
     }
-    /** « Discuter » : le sujet arrive dans le brouillon du fil, qui prend le focus. */
+    /** "Discuss": the topic arrives in the thread's draft, which takes focus. */
     fun discussAbout(title: String) {
         onInputChange(OnyxLocalization.format("About %1\$s: ", title))
         openChatTab()
     }
 
-    // « /model » nu : on ouvre le sélecteur de modèle, comme le fait l'en-tête. L'effet se rejoue
-    // une seule fois par demande ; `onModelCommand` la baisse avant de naviguer.
+    // A bare "/model": we open the model selector, as the header does. The effect replays
+    // only once per request; `onModelCommand` consumes it before navigating.
     LaunchedEffect(state.modelPickerRequested) {
         if (state.modelPickerRequested) onModelCommand()
     }
-    // La commande « / » que le modèle a laissée : exécutée une fois, puis consommée.
+    // The "/" command the model left: executed once, then consumed.
     LaunchedEffect(state.pendingSlash) {
         val slash = state.pendingSlash ?: return@LaunchedEffect
         when (slash) {
@@ -837,73 +837,73 @@ fun ChatScreen(
             SlashAction.FIND -> onFindRequested()
             SlashAction.SETTINGS -> onOpenSettings()
             SlashAction.VOICE -> onOpenVoice()
-            // Une compétence s'invoque par l'envoi lui-même : rien à faire à l'écran.
+            // A skill is invoked by the send itself: nothing to do on screen.
             SlashAction.INVOKE_SKILL, SlashAction.HELP, SlashAction.GATEWAY -> Unit
         }
         onConsumeSlash()
     }
 
-    // Les deux hauteurs qui font passer le fil **sous** les vitres : celle de la barre du haut,
-    // mesurée sur elle, et celle de la **pile du bas** — compositeur + rangée d'onglets + encart du
-    // système + vide de la maison, calculée par une seule fonction
-    // ([threadBottomReserve]). Aucune valeur en dur : un pliable déplié, une barre système à trois
-    // boutons, un clavier ouvert ou une taille de texte système différente déplacent la réserve, et
-    // le fil suit.
+    // The two heights that make the thread pass **under** the panes: the top bar's,
+    // measured on itself, and the **bottom stack**'s — composer + tab row + system
+    // inset + house gap, computed by a single function
+    // ([threadBottomReserve]). No hard-coded value: an unfolded foldable, a three-button system bar,
+    // an open keyboard or a different system text size move the reserve, and
+    // the thread follows.
     //
-    // **C'est la correction du défaut signalé** (« une partie de la conversation passe sous la barre
-    // de saisie ») : la réserve ne valait que `compositeur + onglets`, sans l'encart du système —
-    // 24 dp de zone de gestes, 48 dp à trois boutons —, si bien que la fin du fil se retrouvait
-    // sous la carte, exactement de cet écart. La réserve est désormais **égale** à la pile, et
-    // `ChatThreadReserveTest` échoue si elle redevient plus petite.
+    // **This is the fix for the reported defect** ("part of the conversation goes under the input
+    // bar"): the reserve was only `composer + tabs`, without the system inset —
+    // 24 dp of gesture area, 48 dp with three buttons —, so the end of the thread ended up
+    // under the card, exactly by that gap. The reserve is now **equal** to the stack, and
+    // `ChatThreadReserveTest` fails if it becomes smaller again.
     val glassTopInset = with(LocalDensity.current) { topBarHeightPx.toDp() }
     val glassBottomInset = threadBottomReserve(
         composerPx = composerHeightPx,
         bottomRowPx = tabBarHeightPx,
     )
 
-    // **La voie des commandes flottantes.**
+    // **The lane of the floating controls.**
     //
-    // La **seule** commande qui flotte au-dessus de la plaque est désormais la pastille « aller au
-    // dernier message » : la poignée à chevron qui partageait cette bande a été retirée de l'écran,
-    // sur l'ordre du propriétaire. La bande reste **réservée** — le fil ne la traverse jamais, donc
-    // la pastille ne peut pas se poser sur du texte, ce qui était le défaut relevé — mais elle ne
-    // loge plus qu'une pastille : son dégagement plus sa hauteur ([PlateGeometry.FloatLane], 56 dp
-    // au lieu des 68 que la cible et l'écart de la poignée réservaient). **Les 12 dp rendus au fil
-    // sont mesurés**, et la pastille ne se pose toujours sur rien.
+    // The **only** control that floats above the plate is now the "go to the last
+    // message" pill: the chevron handle that shared this band has been removed from the screen,
+    // on the owner's order. The band remains **reserved** — the thread never crosses it, so
+    // the pill cannot land on text, which was the reported defect — but it now
+    // houses only one pill: its clearance plus its height ([PlateGeometry.FloatLane], 56 dp
+    // instead of the 68 that the target and the handle's gap reserved). **The 12 dp handed back to the thread
+    // are measured**, and the pill still lands on nothing.
     val floatLane = PlateGeometry.FloatLane
 
     /**
-     * L'espace dont le menu « / » dispose : **tout l'écran moins les deux vitres**.
+     * The space the "/" menu has: **the whole screen minus the two panes**.
      *
-     * Le menu se pose juste au-dessus de la plaque (voir plus bas) ; sa hauteur au plus vaut donc
-     * la bande qui reste entre la barre du haut et le compositeur. Elle est **mesurée** — jamais
-     * une valeur en dur — pour qu'une police à 1,3×, un clavier ouvert ou un écran court fassent
-     * **défiler** la liste au lieu de la faire passer sous la plaque, ce qui était le défaut
-     * « ça passe derrière ».
+     * The menu sits just above the plate (see below); its maximum height is therefore
+     * the band that remains between the top bar and the composer. It is **measured** — never
+     * a hard-coded value — so that a 1.3× font, an open keyboard or a short screen make
+     * the list **scroll** instead of letting it pass under the plate, which was the
+     * "it goes behind" defect.
      */
     val slashMenuMaxHeight = (
         LocalConfiguration.current.screenHeightDp.dp - glassTopInset - glassBottomInset -
             OnyxSpace.BlockGap - OnyxSpace.BlockGap
         )
-        // **Le plafond d'un téléphone.** La mesure de l'écran reste le garde-fou (clavier ouvert,
-        // écran court, police à 1,3×) ; [SlashMenu.MaxHeight] est la vraie limite — cinq rangées et
-        // demie, de quoi lire la liste sans que le fil disparaisse sous elle.
+        // **A phone's ceiling.** The screen measurement remains the safeguard (open keyboard,
+        // short screen, 1.3× font); [SlashMenu.MaxHeight] is the real limit — five and a
+        // half rows, enough to read the list without the thread disappearing under it.
         .coerceAtMost(com.onyx.app.ui.chat.components.MaxHeight)
         .coerceAtLeast(OnyxSpace.Base)
 
 
-    // L'état Haze posé à la racine : c'est lui que la barre du haut, le compositeur et la barre
-    // d'onglets échantillonnent. `null` hors de l'arbre qui l'a posé (aperçus, tests) — les vitres
-    // retombent alors sur leur voile, jamais sur un trou.
+    // The Haze state placed at the root: it is the one the top bar, the composer and the tab
+    // bar sample. `null` outside the tree that placed it (previews, tests) — the panes
+    // then fall back on their veil, never on a hole.
     val glassState = LocalHazeState.current
-    /** La page que la lentille échantillonne (Android 13+) — `null` ailleurs. */
+    /** The page the lens samples (Android 13+) — `null` elsewhere. */
     val lensPage = com.onyx.app.ui.design.LocalOnyxLensPage.current
 
-    // Le retour ferme la **recherche du fil** avant de quitter la conversation : sur l'accueil (le
-    // fil), le geste du bord fermait l'app alors qu'un bandeau ouvert attendait qu'on le referme —
-    // un seul niveau à la fois, comme le volet, les feuilles et les menus. Il fait exactement ce
-    // que fait la croix du bandeau (`onSearch("")` puis `onFindRequested()`), si bien que le bouton
-    // retour maison et le geste du bord se comportent pareil.
+    // Back closes the **thread search** before leaving the conversation: on the home (the
+    // thread), the edge gesture closed the app while an open banner was waiting to be dismissed —
+    // one level at a time, like the drawer, the sheets and the menus. It does exactly what
+    // the banner's cross does (`onSearch("")` then `onFindRequested()`), so the home
+    // back button and the edge gesture behave the same.
     BackHandler(enabled = pagerState.currentPage != 0 && !state.searchOpen) {
         scope.launch { pagerState.scrollToPage(0) }
     }
@@ -915,26 +915,26 @@ fun ChatScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            // **LA MATIÈRE DE LA PAGE N'EST PLUS PEINTE ICI : elle est DANS la source Haze.**
+            // **THE PAGE MATTER IS NO LONGER PAINTED HERE: it is IN the Haze source.**
             //
-            // Mesuré au repos sur l'appareil (`sonde2.py`, APK 991) : la page au-dessus de la
-            // plaque vaut `#D3DCD7` (clair) / `#181818` (sombre) — c'est la matière, qui teinte et
-            // assombrit la couleur de page. La plaque, elle, valait `#FCFCFD` / `#707072`, un
-            // **aplat neutre** qui ne portait **aucune** trace de la page (ni la teinte, ni le
-            // grain du fond). La cause : la source Haze ne contenait que le **contenu du pageur** ;
-            // la matière, peinte sur cette `Box` (donc **au-dessus** de la source dans l'arbre),
-            // n'était pas échantillonnée, et Haze remplissait le vide avec `theme.pageColor` —
-            // un blanc (clair) ou un graphite (sombre) qui n'est pas ce qu'on voit.
+            // Measured at rest on the device (`sonde2.py`, APK 991): the page above the
+            // plate is `#D3DCD7` (light) / `#181818` (dark) — that is the matter, which tints and
+            // darkens the page colour. The plate, for its part, was `#FCFCFD` / `#707072`, a
+            // **neutral flat fill** carrying **no** trace of the page (neither the tint nor the
+            // background grain). The cause: the Haze source contained only the **pager content**;
+            // the matter, painted on this `Box` (hence **above** the source in the tree),
+            // was not sampled, and Haze filled the void with `theme.pageColor` —
+            // a white (light) or a graphite (dark) that is not what we see.
             //
-            // La matière descend donc **dans** la source (voir juste plus bas), pour qu'elle soit
-            // ce que la vitre échantillonne : la plaque montre alors la page qu'elle recouvre.
-            // Un glissement franc vers la droite révèle la liste, n'importe où sur l'écran —
-            // c'est le geste du `SidePanel` d'la référence (`Echo/Views/SwipeToOpen`), qui part du
-            // bord comme du reste de la surface. Le bouton et le geste disparaissent quand la
-            // liste est déjà visible à gauche (deux panneaux).
+            // The matter therefore goes down **into** the source (see just below), so that it is
+            // what the pane samples: the plate then shows the page it covers.
+            // A firm swipe to the right reveals the list, anywhere on the screen —
+            // it is the gesture of the reference's `SidePanel` (`Echo/Views/SwipeToOpen`), which starts from the
+            // edge as well as from the rest of the surface. The button and the gesture disappear when the
+            // list is already visible on the left (two panes).
             .then(
-                // Le geste du volet ne prend que l'onglet **Chat** : sur les autres onglets, un
-                // glissement latéral sert à revenir aux onglets, pas à ouvrir la liste.
+                // The drawer gesture only takes the **Chat** tab: on the other tabs, a
+                // lateral swipe is used to go back to the tabs, not to open the list.
                 if (onOpenConversations == null || pagerState.currentPage != 0) {
                     Modifier
                 } else {
@@ -945,11 +945,11 @@ fun ChatScreen(
             )
             .focusRequester(rootFocus)
             .focusable()
-            // Les raccourcis se lisent AVANT le champ de saisie : ⌘↩ envoie sans que le clavier
-            // pose le focus sur le bouton. Même crochet que le Ctrl+V du composeur.
+            // Shortcuts are read BEFORE the input field: ⌘↩ sends without the keyboard
+            // putting focus on the button. Same hook as the composer's Ctrl+V.
             .onPreviewKeyEvent { event ->
-                // Échap ferme d'abord la liste des bots d'un mot `@` en cours : le mot reste écrit,
-                // la liste se tait jusqu'à ce qu'il change (le curseur ne bouge pas).
+                // Escape first closes the bot list of an `@` word in progress: the word stays written,
+                // the list stays silent until it changes (the cursor does not move).
                 if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
                     chatKeyOf(event.key) == ChatKey.ESCAPE &&
                     mentionSuggestions.isNotEmpty()
@@ -965,33 +965,33 @@ fun ChatScreen(
                 target = dropTarget,
             ),
     ) {
-        // **Le fil passe sous les vitres.** La barre du haut et la pile du bas sont posées
-        // **par-dessus** les cinq onglets, au lieu d'être empilées à côté d'eux : c'est ce qui donne
-        // au flou d'arrière-plan quelque chose à échantillonner. Empilées (l'ancienne colonne), les
-        // barres se posaient sur un aplat de page — un flou d'aplat ne produit rien de visible et
-        // coûte quand même un calque : c'est le raisonnement que `FrostSurface` documente, et on ne
-        // le contredit pas — ici, il y a bien du contenu qui défile dessous.
+        // **The thread passes under the panes.** The top bar and the bottom stack are placed
+        // **on top of** the five tabs, instead of being stacked next to them: this is what gives
+        // the background blur something to sample. Stacked (the old column), the
+        // bars sat on a flat page — a blur of a flat fill produces nothing visible and
+        // still costs a layer: this is the reasoning `FrostSurface` documents, and we do not
+        // contradict it — here, there really is content scrolling underneath.
         Box(modifier = Modifier.fillMaxSize()) {
-            // Le contenu des cinq onglets, sous le doigt. Le pageur porte **le contenu seul** :
-            // la barre d'écriture et la barre d'onglets vivent en dessous, hors du pageur, donc
-            // changer d'onglet ne déplace jamais le champ de saisie.
+            // The content of the five tabs, under the finger. The pager carries **the content alone**:
+            // the writing bar and the tab bar live underneath, outside the pager, so
+            // changing tab never moves the input field.
             //
-            // **Et il occupe toute la surface** : la barre du haut et la pile du bas sont posées
-            // par-dessus lui. C'est aussi **la source Haze** — ce qui est dessous est exactement ce
-            // que le flou échantillonne.
+            // **And it fills the whole surface**: the top bar and the bottom stack are placed
+            // over it. It is also **the Haze source** — what is underneath is exactly what
+            // the blur samples.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(glassState?.let { Modifier.onyxHazeSource(it) } ?: Modifier)
-                    // **Et la page de la lentille** (Android 13+) : le même contenu, enregistré
-                    // une fois pour toutes les surfaces qui courbent (voir `OnyxLensGlass`).
+                    // **And the lens page** (Android 13+): the same content, registered
+                    // once for all the curving surfaces (see `OnyxLensGlass`).
                     .then(lensPage?.let { page -> Modifier.onyxLensPage(page) } ?: Modifier),
             ) {
-            // **LA MATIÈRE DE LA PAGE, DANS LA SOURCE HAZE.** Elle était sur la `Box` racine de
-            // l'écran ; la source Haze, posée **sous** elle, ne la capturait donc pas, et la
-            // plaque remplissait le vide d'une couleur de page supposée (mesuré : un aplat
-            // `#FCFCFD`/`#707072`, indifférent à la page). Posée ici, elle est **ce que la vitre
-            // échantillonne** : la plaque montre la page qu'elle recouvre, teinte et grain compris.
+            // **THE PAGE MATTER, IN THE HAZE SOURCE.** It was on the screen's root `Box`;
+            // the Haze source, placed **below** it, therefore did not capture it, and the
+            // plate filled the void with an assumed page colour (measured: a flat fill
+            // `#FCFCFD`/`#707072`, indifferent to the page). Placed here, it is **what the pane
+            // samples**: the plate shows the page it covers, tint and grain included.
             Box(Modifier.matchParentSize().matierePage(theme))
             HorizontalPager(
                 state = pagerState,
@@ -1000,16 +1000,16 @@ fun ChatScreen(
             when (page) {
             0 -> Column(modifier = Modifier.fillMaxSize()) {
 
-            // Ce que la vitre du haut recouvre, ici : quand le fil est **seul**, il monte sous la
-            // barre et le flou échantillonne du vrai contenu. Dès qu'un bandeau vit au-dessus de la
-            // liste (diagnostic, recherche, pré-remplissage), c'est le bandeau qui garde sa place :
-            // on ne floute pas un bandeau, et un bandeau à moitié caché n'est plus cliquable.
+            // What the top pane covers, here: when the thread is **alone**, it rises under the
+            // bar and the blur samples real content. As soon as a banner lives above the
+            // list (diagnostic, search, prefill), it is the banner that keeps its place:
+            // we do not blur a banner, and a half-hidden banner is no longer clickable.
             val stacked = !state.server.isUsable || state.searchOpen || state.prefill != null ||
                 state.providerStatus != null || state.steerStatus != null || state.error != null
             if (stacked || state.isEmpty) Spacer(Modifier.height(glassTopInset))
 
-            // Aucun serveur configuré : l'app reste utilisable (la configuration a été passée),
-            // mais le fil dit ce qui manque et où le poser.
+            // No server configured: the app stays usable (configuration was skipped),
+            // but the thread says what is missing and where to place it.
             if (!state.server.isUsable) {
                 com.onyx.app.ui.common.NoServerCard(onOpenSettings = onOpenSettingsFromError)
             }
@@ -1053,27 +1053,27 @@ fun ChatScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        // **L'accueil vide n'est plus centré : il est posé en haut.**
+                        // **The empty home is no longer centred: it is placed at the top.**
                         //
-                        // Le défaut relevé : « l'écran d'accueil vide a d'énormes vides verticaux —
-                        // rien ne structure la page ». Un bloc centré laisse **deux** bandes vides
-                        // égales, dont aucune n'a de raison ; posé en haut, la bande du bas est
-                        // celle où la conversation va venir, et le vide se lit comme une réserve.
-                        // [EmptyHomeTopInset] est la marche `Loose` de l'échelle (24 dp) × 4, plus
-                        // le dégagement de la barre du haut : le bloc ne colle pas la vitre.
+                        // The reported defect: "the empty home screen has huge vertical gaps —
+                        // nothing structures the page". A centred block leaves **two** equal empty
+                        // bands, neither of which has a reason; placed at the top, the bottom band is
+                        // the one where the conversation will come, and the emptiness reads as a reserve.
+                        // [EmptyHomeTopInset] is the `Loose` step of the scale (24 dp) × 4, plus
+                        // the top bar clearance: the block does not stick to the pane.
                         .padding(top = EmptyHomeTopInset),
                     contentAlignment = Alignment.TopCenter,
                 ) {
-                    // **Aucune surface décorative autour de l'accueil vide.**
+                    // **No decorative surface around the empty home.**
                     //
-                    // `113ccd21` (« Verre visible ») a posé ici une « grande carte de verre »
-                    // (`LiquidGlass(GlassSurface.MATTER_CARD, matchParentSize())`) pour « structurer »
-                    // le vide ; la fusion `0d7fb13d` l'a gardée. Le propriétaire, sur `1.0.0+846` :
-                    // « c'est quoi cet encadré dégueulasse quand je commence une nouvelle
-                    // conversation, avant je ne l'avais pas ». Ce qu'il voit : un grand panneau gris
-                    // arrondi autour du titre, de la question et de la carte « Continuer », **tranché
-                    // net en bas** — la carte prend la place libre (`matchParentSize`) et le compositeur
-                    // la coupe. C'était de la décoration : elle part, le contenu reste sur la page.
+                    // `113ccd21` ("Visible glass") placed here a "large glass card"
+                    // (`LiquidGlass(GlassSurface.MATTER_CARD, matchParentSize())`) to "structure"
+                    // the void; merge `0d7fb13d` kept it. The owner, on `1.0.0+846`:
+                    // "what is this gross frame when I start a new
+                    // conversation, I did not have it before". What he sees: a large grey panel
+                    // rounded around the title, the question and the "Continue" card, **cut off
+                    // sharp at the bottom** — the card takes the free space (`matchParentSize`) and the composer
+                    // cuts it. It was decoration: it goes, the content stays on the page.
                     StartScreen(
                         title = threadSpeaker.label,
                         cards = startCards,
@@ -1081,48 +1081,48 @@ fun ChatScreen(
                     )
                 }
             } else {
-                // L'échelle de texte des Réglages est posée à la **racine** — l'activité la lit
-                // (`LocalOnyxTextScale`), le thème l'applique à tout l'arbre. `theme` vaut donc
-                // **déjà** l'échelle choisie : la reposer ici avec `chatTextScale` l'appliquerait
-                // une seconde fois (1,23 × 1,23 = 1,51).
-                // **Le fil gèle le verre pendant le défilement, comme le volet le fait déjà.**
+                // The Settings text scale is set at the **root** — the activity reads it
+                // (`LocalOnyxTextScale`), the theme applies it to the whole tree. `theme` therefore
+                // **already** holds the chosen scale: setting it again here with `chatTextScale` would apply it
+                // a second time (1.23 × 1.23 = 1.51).
+                // **The thread freezes the glass during scroll, as the drawer already does.**
                 //
-                // Défaut relevé : « ça lag » sur une grosse conversation, sur un téléphone
-                // puissant. Le gel n'était posé que par `ChatSidebar` — le fil, lui, laissait
-                // `LocalGlassScrollFreeze` à faux, donc **chaque carte visible** continuait à
-                // pulsar (`BlocConversationFace`) et chaque vitre gardait son échantillonnage
-                // pleine qualité pendant que le doigt défilait. Un geste ne regarde pas une
-                // lumière respirer : sous le doigt, on passe en mode performance.
+                // Reported defect: "it lags" on a large conversation, on a powerful
+                // phone. The freeze was only set by `ChatSidebar` — the thread, for its part, left
+                // `LocalGlassScrollFreeze` false, so **every visible card** kept
+                // pulsing (`BlocConversationFace`) and every pane kept its full-quality
+                // sampling while the finger scrolled. A gesture does not watch a
+                // light breathe: under the finger, we switch to performance mode.
                 CompositionLocalProvider(
                     LocalOnyxTheme provides theme,
                 ) {
-                // **Le gel du verre est posé par une fonction à lui.** Lu ici, dans la portée de
-                // l'écran, `listState.isScrollInProgress` invalidait toute la conversation — deux
-                // fois par relance de geste, et deux fois par `scrollToItem`, c'est-à-dire deux
-                // fois par jeton pendant qu'une réponse s'écrit. Voir [GlassScrollFreeze].
+                // **The glass freeze is set by a function of its own.** Read here, in the screen's
+                // scope, `listState.isScrollInProgress` invalidated the whole conversation — twice
+                // per gesture relaunch, and twice per `scrollToItem`, that is, twice
+                // per token while a response is being written. See [GlassScrollFreeze].
                 GlassScrollFreeze(listState) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                    // Le fil réserve les deux vitres **dans son défilement** : la première et la
-                    // dernière bulle restent lisibles, et tout ce qui passe entre les deux défile
-                    // sous le verre — c'est ce que le verre a à montrer.
+                    // The thread reserves the two panes **within its scroll**: the first and the
+                    // last bubble remain readable, and everything passing between the two scrolls
+                    // under the glass — that is what the glass has to show.
                     contentPadding = PaddingValues(
                         start = OnyxSpace.ScreenMargin,
                         end = OnyxSpace.ScreenMargin,
                         top = if (stacked) OnyxSpace.BlockGap else glassTopInset + OnyxSpace.BlockGap,
                         bottom = glassBottomInset + floatLane + OnyxSpace.BlockGap,
                     ),
-                    // L'écart entre deux messages : la marche `ThreadGap` (16), une seule fois pour
-                    // tout le fil. C'était 14 dp — une valeur qui n'existe sur aucune échelle (2 × 7)
-                    // et qui ne se retrouvait nulle part ailleurs dans l'app.
+                    // The gap between two messages: the `ThreadGap` step (16), only once for
+                    // the whole thread. It used to be 14 dp — a value that exists on no scale (2 × 7)
+                    // and that was found nowhere else in the app.
                     verticalArrangement = Arrangement.spacedBy(OnyxSpace.ThreadGap),
                 ) {
-                    // **Deux raisons de remonter, une seule ligne.** Ce qui est déjà en mémoire
-                    // (la page dépliée) se montre d'un tap ; ce qui n'est pas encore chargé se
-                    // demande au serveur. La ligne disparaît quand il n'y a plus ni l'un ni l'autre.
+                    // **Two reasons to scroll back, a single row.** What is already in memory
+                    // (the unfolded page) is shown with one tap; what is not yet loaded is
+                    // requested from the server. The row disappears when there is neither one nor the other.
                     if (hiddenCount > 0 || state.earlierAvailable) {
                         item(key = "earlier") {
                             val earlierLabel = when {
@@ -1131,34 +1131,34 @@ fun ChatScreen(
                                 else -> OnyxLocalization["Load earlier messages"]
                             }
                             EarlierRow(label = earlierLabel, enabled = !state.loadingEarlier) {
-                                // D'abord ce qui est déjà là ; sinon (et seulement alors) la page
-                                // d'avant, chez le serveur. `visibleFrom = 0` ne fait que rendre
-                                // la place : la liste garde son ancre, l'écran ne saute pas.
+                                // First what is already there; otherwise (and only then) the previous
+                                // page, from the server. `visibleFrom = 0` only makes
+                                // room: the list keeps its anchor, the screen does not jump.
                                 if (hiddenCount > 0) visibleFrom = maxOf(0, pageStart - PAGE) else visibleFrom = 0
                                 if (hiddenCount == 0) onLoadEarlier?.invoke()
                             }
                         }
                     }
 
-                    // **Une liste qui change pendant que la liste la dessine.**
+                    // **A list that changes while the list draws it.**
                     //
-                    // `count` et la clé étaient calculés sur `state.messages` **deux fois** : si le
-                    // fil change entre les deux (on ouvre une autre conversation, un tour remplace
-                    // sa réponse, un « Annuler » retire un message), `pageStart + offset` sort de
-                    // la liste et la `LazyColumn` jette `IndexOutOfBoundsException` — un plantage
-                    // qui n'arrive qu'avec beaucoup de conversations, donc jamais en test.
+                    // `count` and the key were computed on `state.messages` **twice**: if the
+                    // thread changes in between (we open another conversation, a turn replaces
+                    // its response, a "Cancel" removes a message), `pageStart + offset` leaves
+                    // the list and the `LazyColumn` throws `IndexOutOfBoundsException` — a crash
+                    // that only happens with many conversations, hence never in a test.
                     items(
-                        // La liste lit le fil **vivant** : `stateFlow` est un `State`, pas une
-                        // valeur, donc c'est cette portee (la `LazyColumn` et ses lignes) qui
-                        // recompose au jeton - pas les 2 200 lignes de l'ecran au-dessus.
+                        // The list reads the **live** thread: `stateFlow` is a `State`, not a
+                        // value, so it is this scope (the `LazyColumn` and its rows) that
+                        // recomposes on the token - not the 2,200 lines of the screen above.
                         count = (stateFlow.value.messages.size - pageStart).coerceAtLeast(0),
                         key = { offset ->
                             stateFlow.value.messages.getOrNull(pageStart + offset)?.id ?: "gone-$offset"
                         },
-                        // **Un type de contenu par forme de rangée.** Sans lui, une ligne de
-                        // question sortie de la page peut être « réutilisée » pour une réponse :
-                        // la liste remesure et recompose alors une rangée d'une autre forme au lieu
-                        // de reprendre la bonne.
+                        // **A content type per row shape.** Without it, a question
+                        // row pushed out of the page can be "reused" for a response:
+                        // the list then remeasures and recomposes a row of another shape instead of
+                        // resuming the right one.
                         contentType = { offset ->
                             val message = stateFlow.value.messages.getOrNull(pageStart + offset)
                             when {
@@ -1188,22 +1188,22 @@ fun ChatScreen(
                         if (dayLabel != null) {
                             DaySeparator(label = dayLabel)
                         }
-                        // **La seule ligne qui lit l'état du tour est la ligne vivante.**
+                        // **The only row that reads the turn state is the live row.**
                         //
-                        // `state.live` change à **chaque jeton** (il porte `lastEventAt`). Passé à
-                        // toutes les rangées, il rendait leurs paramètres différents à chaque
-                        // publication : aucune ne pouvait être sautée, et une réponse qui s'écrit
-                        // recomposait donc **toutes** les lignes visibles — leurs replis, leurs
-                        // cartes, leur prose — trente fois par seconde. Une rangée finie ne lit pas
-                        // cet état (`WaitingPulse` n'existe que tant que le texte est vide, et
-                        // seulement pour la ligne vivante) : elle reçoit `null`, l'égalité tient, et
-                        // Compose la saute.
+                        // `state.live` changes on **every token** (it carries `lastEventAt`). Passed to
+                        // all rows, it made their parameters different on every
+                        // publication: none could be skipped, and a response being written
+                        // therefore recomposed **all** the visible rows — their folds, their
+                        // cards, their prose — thirty times per second. A finished row does not read
+                        // this state (`WaitingPulse` only exists while the text is empty, and
+                        // only for the live row): it receives `null`, equality holds, and
+                        // Compose skips it.
                         val isLive = state.isStreaming && index == stateFlow.value.messages.lastIndex
-                        // **La pose d'arrivée ne s'applique qu'à une rangée qui arrive.**
-                        // `messageArrival` est un `Modifier.composed` : monté sur chaque rangée, il
-                        // ouvrait une sous-composition et trois animations pour une animation qui
-                        // ne concerne, en pratique, que le message qu'on vient d'envoyer. Les
-                        // rangées d'archive reçoivent `Modifier` nu.
+                        // **The arrival animation only applies to a row that arrives.**
+                        // `messageArrival` is a `Modifier.composed`: mounted on every row, it
+                        // opened a subcomposition and three animations for an animation that
+                        // in practice only concerns the message just sent. Archive
+                        // rows receive bare `Modifier`.
                         val rowModifier = if (arrival == com.onyx.app.ui.common.ArrivalKind.NONE) {
                             Modifier
                         } else {
@@ -1229,9 +1229,9 @@ fun ChatScreen(
                             } else {
                                 null
                             },
-                            // La bifurcation ouvre la rangée, comme dans la référence. Elle ne
-                            // s'offre que sous une **réponse** finie : brancher sous une question
-                            // n'a pas de point d'arrêt à copier.
+                            // Branching opens the row, as in the reference. It is only
+                            // offered under a finished **response**: branching under a question
+                            // has no stopping point to copy.
                             onBranch = if (!message.isUser && !state.isStreaming) {
                                 { onBranch(message) }
                             } else {
@@ -1250,14 +1250,14 @@ fun ChatScreen(
                             onClarify = { answers -> onClarify(message.id, answers) },
                             onSudo = { password -> onSudo(message.id, password) },
                             onSecret = { value -> onSecret(message.id, value) },
-                            // LOT fil-vivant : on remonte lire le fil → les puces d'état des cartes
-                            // **ralentissent** au lieu de battre à pleine cadence sous les yeux.
+                            // LOT live-thread: we scroll back up to read the thread → the cards' state dots
+                            // **slow down** instead of beating at full rate under the eyes.
                             //
-                            // **Seules les cartes de la ligne vivante lisent ce signal.** Les cartes
-                            // d'une réponse finie sont à l'arrêt : rien à ralentir chez elles. Passé
-                            // à toutes, il changeait au **premier doigt posé** (`following` tombe à
-                            // `false` dès `DragInteraction.Start`) et recomposait donc tout le fil au
-                            // début de chaque geste — un à-coup au moment précis où le doigt part.
+                            // **Only the cards of the live row read this signal.** The cards
+                            // of a finished response are stopped: nothing to slow there. Passed
+                            // to all, it changed on the **first finger placed** (`following` drops to
+                            // `false` as soon as `DragInteraction.Start`) and therefore recomposed the whole thread at
+                            // the start of each gesture — a jolt at the exact moment the finger leaves.
                             readingUp = isLive && readingUp,
                         )
                     }
@@ -1266,7 +1266,7 @@ fun ChatScreen(
                         key = { index -> stateFlow.value.queued.getOrNull(index)?.rowID ?: "queued-$index" },
                         contentType = { "queued" },
                     ) { index ->
-                        // Même règle que le fil : l'outbox peut se vider pendant la composition.
+                        // Same rule as the thread: the outbox can empty during composition.
                         val item = stateFlow.value.queued.getOrNull(index) ?: return@items
                         QueuedMessageRow(
                             item = item,
@@ -1280,45 +1280,45 @@ fun ChatScreen(
                             ),
                         )
                     }
-                        // **La carte du navigateur vit dans le fil, pas dans le champ.**
+                        // **The browser card lives in the thread, not in the field.**
                         //
-                        // Posée dans le bloc du compositeur, elle se superposait au champ : la
-                        // première ligne du prompt (« Guider la réponse… ») passait dessous et se
-                        // lisait à moitié. Une invitation à prendre la main est un **contenu de la
-                        // conversation** — elle se place après le dernier message, défile avec lui
-                        // et disparaît quand on remonte. Le compositeur, lui, ne porte que le champ.
+                        // Placed in the composer block, it overlapped the field: the
+                        // first line of the prompt ("Guide the response…") passed underneath and was
+                        // half-readable. An invitation to take over is **content of the
+                        // conversation** — it is placed after the last message, scrolls with it
+                        // and disappears when we scroll back up. The composer, for its part, carries only the field.
                         item(key = "browser-invite") {
                             BrowserInvite(
                                 server = stateFlow.value.server,
-                                // **La demande appartient à cette conversation-là.** Sans cet
-                                // identifiant, la même carte s'affichait dans tous les fils
-                                // ouverts : on quittait celui où l'agent demandait de l'aide et
-                                // l'invitation suivait, alors qu'on n'avait rien fait.
+                                // **The request belongs to that conversation.** Without this
+                                // identifier, the same card appeared in every open
+                                // thread: you left the one where the agent was asking for help and
+                                // the invitation followed, although you had done nothing.
                                 conversationId = state.conversationId
                                     ?: state.serverSessionId
                                     ?: "main",
-                                // **La session du serveur, telle que le fil la connaît.** C'est
-                                // elle que la demande publie : la comparer suffit à savoir si
-                                // la carte appartient à ce fil, sans deviner.
+                                // **The server session, as the thread knows it.** It is
+                                // the one the request publishes: comparing it is enough to know whether
+                                // the card belongs to this thread, without guessing.
                                 sessionId = state.serverSessionId,
-                                // La conversation dont le tour tourne est celle qui a demandé la
-                                // main : elle passe devant les autres pour rattacher la demande.
+                                // The conversation whose turn is running is the one that asked for
+                                // takeover: it goes ahead of the others to attach the request.
                                 live = state.isStreaming,
                                 onOpen = onOpenBrowser,
                                 modifier = Modifier.padding(horizontal = OnyxSpace.Base),
                             )
                         }
-                    } // ferme le contenu de la LazyColumn
-                } // ferme GlassScrollFreeze (le gel du verre)
-                } // ferme la CompositionLocalProvider du thème
-            } // ferme la branche « fil » de `when (page)`
-            // **Le menu « / » se pose AU-DESSUS de la plaque, jamais derrière elle.**
+                    } // closes the LazyColumn content
+                } // closes GlassScrollFreeze (the glass freeze)
+                } // closes the theme's CompositionLocalProvider
+            } // closes the "thread" branch of `when (page)`
+            // **The "/" menu sits ABOVE the plate, never behind it.**
             //
-            // Défaut relevé sur l'appareil : la liste était le dernier enfant du pane du fil,
-            // donc collée au bas de l'écran — la plaque du compositeur la recouvrait, et ses
-            // dernières lignes n'étaient ni lisibles ni cliquables (« ça passe derrière »).
-            // Elle remonte maintenant d'exactement la réserve du fil : le menu commence là où la
-            // plaque finit, et ne recouvre donc jamais le champ.
+            // Defect found on the device: the list was the last child of the thread pane,
+            // so stuck to the bottom of the screen — the composer plate covered it, and its
+            // last lines were neither readable nor clickable ("it goes behind").
+            // It now rises by exactly the thread's reserve: the menu starts where the
+            // plate ends, and therefore never covers the field.
             val shownSlash = slashDemoItems ?: state.slashItems
             if (shownSlash.isNotEmpty()) {
                 SlashMenu(
@@ -1329,14 +1329,14 @@ fun ChatScreen(
                         start = PlateGeometry.SideMargin,
                         end = PlateGeometry.SideMargin,
                         top = OnyxSpace.Half,
-                        // **Le menu se pose SUR la plaque, pas au milieu de l'écran.**
+                        // **The menu sits ON the plate, not in the middle of the screen.**
                         //
-                        // Il réservait `glassBottomInset + floatLane + BlockGap` : la voie des
-                        // commandes flottantes (56 dp) s'ajoutait à la réserve du compositeur, qui
-                        // la contient déjà — le menu flottait donc 68 dp au-dessus de sa plaque,
-                        // détaché, dans une bande vide. Il ne garde que la réserve du compositeur
-                        // plus un demi-pas : il touche presque sa plaque, comme un menu qui en
-                        // sort.
+                        // It reserved `glassBottomInset + floatLane + BlockGap`: the lane of the
+                        // floating controls (56 dp) was added to the composer's reserve, which
+                        // already contains it — the menu therefore floated 68 dp above its plate,
+                        // detached, in an empty band. It keeps only the composer's reserve
+                        // plus half a step: it almost touches its plate, like a menu emerging from
+                        // it.
                         bottom = glassBottomInset + OnyxSpace.Half,
                     ),
                 )
@@ -1349,9 +1349,9 @@ fun ChatScreen(
                 feedback = feedFeedback,
                 botName = threadSpeaker.label,
                 faceName = threadSpeaker.faceName,
-                // Une conversation à un bot n'a **qu'un** auteur : celui du fil. Le résolveur le
-                // nomme quand une carte le porte, et le repli garde son visage — la carte d'une
-                // salle, elle, y met celui du bot qui a répondu.
+                // A bot conversation has **only one** author: the thread's. The resolver
+                // names it when a card carries it, and the fallback keeps its face — a room's
+                // card, for its part, uses the face of the bot that answered.
                 face = { name -> threadSpeaker.faceCode.takeIf { name == threadSpeaker.faceName } },
                 fallbackFaceCode = threadSpeaker.faceCode,
                 accent = tabAccent,
@@ -1361,12 +1361,12 @@ fun ChatScreen(
                 },
                 onDiscuss = { card -> discussAbout(card.title) },
                 onCompose = { openChatTab() },
-                // **LE CONTENU DE L'ONGLET REPOSE SUR LA PAGE — la plaque de verre a été RETIRÉE.**
-                // Un lot précédent posait ici une plaque (`panePlate`) derrière le contenu ; le
-                // propriétaire l'a refusée sur capture (« un encadré gris transparent, je veux pas
-                // ça »). Le contenu est donc **directement sur la page**, sans encadré derrière lui.
-                // **Le glissement, lui, reste** : c'est le `HorizontalPager` qui translate le
-                // contenu sous le doigt — la plaque s'en va, le geste non.
+                // **THE TAB CONTENT RESTS ON THE PAGE — the glass plate has been REMOVED.**
+                // A previous batch placed a plate here (`panePlate`) behind the content; the
+                // owner rejected it on a screenshot ("a transparent grey frame, I don't want
+                // that"). The content is therefore **directly on the page**, with no frame behind it.
+                // **The slide, for its part, stays**: it is the `HorizontalPager` that translates the
+                // content under the finger — the plate goes, the gesture does not.
                 modifier = Modifier.fillMaxSize()
                     .padding(top = glassTopInset, bottom = glassBottomInset + floatLane),
             )
@@ -1376,38 +1376,38 @@ fun ChatScreen(
                 accent = tabAccent,
                 config = state.server,
                 onOpen = { file, local ->
-                    // Le lecteur de la famille, avec le type annoncé par le nom quand la pièce
-                    // jointe n'en porte pas.
+                    // The reader of the family, with the type announced by the name when the
+                    // attachment does not carry one.
                     onOpenLocalFile(
                         android.net.Uri.fromFile(local),
                         file.name,
                         file.mime.ifBlank { FileViewers.mimeFor(file.name) },
                     )
                 },
-                // Le contenu de l'onglet Fichiers repose sur la page, lui aussi : aucune plaque.
+                // The Files tab content rests on the page too: no plate.
                 modifier = Modifier.fillMaxSize()
                     .padding(top = glassTopInset, bottom = glassBottomInset + floatLane),
             )
 
             }
             }
-            // Le bord de l'écran reste au geste de retour du système : ces deux lames absorbent un
-            // glissement horizontal parti du bord, et rien d'autre — les appuis passent.
+            // The screen edge stays with the system back gesture: these two blades absorb a
+            // horizontal swipe started from the edge, and nothing else — taps pass through.
             TabSwipeEdgeGuards(
                 leftPx = edgeGuardLeftPx,
                 rightPx = edgeGuardRightPx,
                 modifier = Modifier.matchParentSize(),
             )
             }
-            // **La barre est dessinée APRÈS le fil**, donc au-dessus de lui — à l'écran comme pour
-            // le doigt. Les trois défauts de la fusion n'en faisaient qu'un, et venaient de l'ordre
-            // inverse (barre posée **avant** le pageur dans ce `Box`) :
-            // - les appuis tombaient sur le pageur, qui occupe toute la surface : la barre était
-            //   visible mais **inerte** — aucun de ses boutons ne répondait, et l'arbre
-            //   d'accessibilité ne la publiait même pas ;
-            // - Haze ne peut échantillonner qu'un contenu **déjà dessiné** : la vitre de la barre
-            //   n'avait rien à flouter et retombait sur son voile de repli, d'où le « verre perdu » ;
-            // - une barre sous le contenu n'a pas d'arête : son liseré se lisait sur du noir.
+            // **The bar is drawn AFTER the thread**, hence above it — on screen as for
+            // the finger. The three merge defects were only one, and came from the reverse
+            // order (bar placed **before** the pager in this `Box`):
+            // - taps landed on the pager, which fills the whole surface: the bar was
+            //   visible but **inert** — none of its buttons responded, and the
+            //   accessibility tree did not even publish it;
+            // - Haze can only sample content **already drawn**: the bar's pane
+            //   had nothing to blur and fell back on its fallback veil, hence the "lost glass";
+            // - a bar under the content has no edge: its border read against black.
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -1415,8 +1415,8 @@ fun ChatScreen(
                     .onSizeChanged { topBarHeightPx = it.height },
             ) {
             OnyxTopBar(
-                // Le titre suit le nom donné à la conversation (`Conversation.name` d'la référence, qui prime
-                // sur le premier message) ; sinon la première question, comme avant.
+                // The title follows the name given to the conversation (`Conversation.name` of the reference, which takes precedence
+                // over the first message); otherwise the first question, as before.
                 title = (state.conversationName?.takeIf { it.isNotBlank() }
                     ?: state.firstUserQuestion)
                     ?.let(::chatHeaderTitle)
@@ -1425,76 +1425,76 @@ fun ChatScreen(
                 titleIsPlaceholder = state.conversationName.isNullOrBlank() &&
                     !state.hasUserTurn,
                 conversationKey = state.firstMessageId.orEmpty(),
-                // La seconde ligne du titre, comme `ContentView:448` : le **handle** du bot
-                // précédé de « @ » (une conversation simple garde le nom d'agent des Réglages),
-                // puis le modèle. Sans le « @ » ni le modèle, la ligne répétait le titre — c'est
-                // le doublon « writer / writer » vu sur le Magic V3.
-                // La seconde ligne nomme **le modèle en vigueur** — celui qui sera réellement envoyé
-                // au prochain message, la **même valeur** (`ChatUiState.modelInForce` : conversation →
-                // bot → serveur → défaut, l'alias de passerelle écarté). Aucun libellé recalculé à
-                // part : c'est ce qui fait que ce qui est écrit est ce qui part. Le nom du bot est
-                // déjà au-dessus, et le « @handle » ne servait à rien ici (demande du propriétaire).
+                // The second line of the title, like `ContentView:448`: the bot's **handle**
+                // preceded by "@" (a plain conversation keeps the Settings agent name),
+                // then the model. Without the "@" nor the model, the line repeated the title — it was
+                // the "writer / writer" duplicate seen on the Magic V3.
+                // The second line names **the model in force** — the one that will actually be sent
+                // with the next message, the **same value** (`ChatUiState.modelInForce`: conversation →
+                // bot → server → default, the gateway alias ruled out). No label recomputed
+                // separately: this is what makes what is written be what leaves. The bot's name is
+                // already above, and the "@handle" was of no use here (owner's request).
                 subtitle = state.modelInForce
                     ?: OnyxLocalization["default model"],
-                // Et **le profil réellement en force**, à côté : la liaison bot → profil se lit à
-                // l'écran comme elle part au tour (`ChatUiState.profileInForce`, la même décision
-                // que `ChatUiState.botProfile`). L'app ne peut donc plus annoncer un profil et en
-                // servir un autre — « coder » se lit ici quand « coder » sert.
+                // And **the profile actually in force**, next to it: the bot → profile binding is read on
+                // screen as it leaves with the turn (`ChatUiState.profileInForce`, the same decision
+                // as `ChatUiState.botProfile`). The app can therefore no longer announce one profile and
+                // serve another — "coder" reads here when "coder" is served.
                 //
-                // **Mais pas deux fois.** La barre n'écrit ce profil que quand il ne répète pas le
-                // titre déjà au-dessus ([headerProfileLabel]) : une conversation de bot porte le nom
-                // de son bot (`botChatToOpen` la titre ainsi), donc le « @writer » y était le
-                // doublon vu par le propriétaire — et la place qu'il prenait manquait au modèle.
-                // Quand les deux diffèrent (bot titré « Rédacteur », profil `writer`), la ligne
-                // reste, et c'est là qu'elle renseigne. Le routage, lui, ne dépend pas de ce
-                // libellé : il porte `botProfile` (`ProfileInForce.appliedTo`), et l'identité du
-                // bot — ouverte par le visage, `BotEditorScreen` — écrit toujours son `@handle`.
+                // **But not twice.** The bar only writes this profile when it does not repeat the
+                // title already above ([headerProfileLabel]): a bot conversation carries the name
+                // of its bot (`botChatToOpen` titles it that way), so the "@writer" there was the
+                // duplicate seen by the owner — and the place it took was missing from the model.
+                // When the two differ (bot titled "Writer", profile `writer`), the line
+                // stays, and that is where it informs. Routing, for its part, does not depend on this
+                // label: it carries `botProfile` (`ProfileInForce.appliedTo`), and the bot's identity
+                // — opened by the face, `BotEditorScreen` — always writes its `@handle`.
                 profileLabel = if (threadBotUnknown) null else state.profileInForce,
-                // Le repli **déclaré**, quand la passerelle a basculé : le modèle en vigueur
-                // (le repli) est nommé par la pilule ci-dessus, et cette ligne dit **qui** il
-                // remplace et **d'où** il vient — le mensonge « configuré annoncé » est fermé.
+                // The **declared** fallback, when the gateway switched: the model in force
+                // (the fallback) is named by the pill above, and this line says **who** it
+                // replaces and **where** it comes from — the "configured announced" lie is closed.
                 fallbackLine = state.fallback?.declaredLine(),
                 onOpenConversations = onOpenConversations,
                 sidebarToggle = sidebarToggle,
                 onPickModel = onPickModel,
                 onNewConversation = onNewConversation,
                 onMenu = { showMoreMenu = true },
-                // La capsule des sous-agents n'apparaît que quand il y en a : elle dit combien
-                // travaillent, en direct, et ouvre l'écran des tâches.
-                // **Le nombre de tâches EN COURS**, jamais le cumul de la conversation.
+                // The sub-agent capsule only appears when there are some: it says how many
+                // are working, live, and opens the tasks screen.
+                // **The number of tasks IN PROGRESS**, never the conversation's total.
                 //
-                // La capsule comptait tout ce que le fil avait vu (`it.isLive`, et « lancé sans
-                // suite » restait vivant pour toujours) : elle affichait 40 sur une conversation
-                // qui n'avait plus rien en route. Seul `RUNNING` travaille vraiment — une tâche
-                // close ne compte plus.
+                // The capsule counted everything the thread had seen (`it.isLive`, and "launched without
+                // follow-up" stayed live forever): it showed 40 on a conversation
+                // that had nothing running any more. Only `RUNNING` really works — a closed
+                // task no longer counts.
                 subagentRuns = (subagentAgents ?: state.subagents).count { it.status == SubagentStatus.RUNNING },
                 onOpenSubagents = if ((subagentAgents ?: state.subagents).isEmpty()) null else onOpenSubagents,
                 contextUsed = contextUsage?.contextUsed,
                 contextWindow = contextUsage?.contextMax ?: state.server.contextWindow.takeIf { it > 0 },
-                // **Le visage est toujours là**, celui du bot dont c'est la conversation et, pour
-                // une conversation simple, celui d'Onyx ([ThreadSpeaker.faceName] le donne dans
-                // les deux cas). Il l'était déjà dans la référence ; la condition
-                // « seulement si `botProfile != null` » le retirait de **toute** nouvelle
-                // conversation, c'est-à-dire de l'écran que la personne voit en premier.
+                // **The face is always there**, that of the bot whose conversation it is and, for
+                // a plain conversation, that of Onyx ([ThreadSpeaker.faceName] gives it in
+                // both cases). It already was in the reference; the condition
+                // "only if `botProfile != null`" removed it from **every** new
+                // conversation, that is, from the screen the person sees first.
                 avatarName = if (threadBotUnknown) null else threadSpeaker.faceName,
                 avatarFaceCode = if (threadBotUnknown) null else threadSpeaker.faceCode,
-                // **Le visage de l'en-tête ouvre l'identité du bot**, comme le repère-visage de
-                // la barre du bas : le même geste, au même endroit du dessin, donne le même
-                // résultat. Le branchement vient du parent (`onOpenBotIdentity`) ; sans lui, le
-                // visage reste décoratif.
+                // **The header's face opens the bot's identity**, like the face marker of
+                // the bottom bar: the same gesture, at the same place in the drawing, gives the same
+                // result. The wiring comes from the parent (`onOpenBotIdentity`); without it, the
+                // face stays decorative.
                 onOpenFace = onOpenBotIdentity,
-                // LOT organisation-fil-competences : la pastille d'état de l'en-tête. Elle ne se
-                // pose que pendant un tour, et ne dit que ce qu'on sait vraiment : le nombre de
-                // sous-agents qui travaillent, jamais une « étape 3 sur 5 » inventée (le plan du
-                // tour n'est pas transporté par le gateway sur ce fil).
+                // LOT thread-organisation-skills: the header status dot. It only
+                // sits during a turn, and only says what we really know: the number of
+                // working sub-agents, never an invented "step 3 of 5" (the turn's plan
+                // is not carried by the gateway on this thread).
                 status = threadStatus(
                     working = state.isStreaming,
                     subagents = (subagentAgents ?: state.subagents).count { it.status == SubagentStatus.RUNNING },
                     flow = flow,
                 ),
-                // LOT fil-vivant : l'état réel du tour et le signal de lecture. La pastille
-                // **respire**, **pulse** ou **s'immobilise avec une lueur** selon lui, et
-                // **ralentit** dès que la personne remonte lire le fil.
+                // LOT live-thread: the real turn state and the reading signal. The dot
+                // **breathes**, **pulses** or **stops with a glow** according to it, and
+                // **slows down** as soon as the person scrolls back up to read the thread.
                 flow = flow,
                 readingUp = readingUp,
                 )
@@ -1514,9 +1514,9 @@ fun ChatScreen(
                 )
             }
 
-            // Les bots qu'un mot `@` en cours peut nommer, juste au-dessus du champ
-            // (`ComposerView.mentionMenu`) : toucher une ligne finit le mot dans le brouillon et
-            // laisse le curseur après, prêt à écrire la suite.
+            // The bots an `@` word in progress can name, just above the field
+            // (`ComposerView.mentionMenu`): touching a row finishes the word in the draft and
+            // leaves the cursor after it, ready to write the rest.
             if (mentionSuggestions.isNotEmpty()) {
                 MentionSuggestions(
                     bots = mentionSuggestions,
@@ -1555,30 +1555,30 @@ fun ChatScreen(
                 problem = state.attachmentProblem ?: dictationProblem,
                 onExpand = onExpandDraft,
                 onAddAttachment = { showAddMenu = true },
-                // La **puce du modèle** de la carte : le modèle **en vigueur** et son niveau de
-                // réflexion, et le chevron qui ouvre la feuille (fonction 2). Elle n'est dessinée
-                // que si un écran lui donne de quoi ouvrir. La **même valeur** que la pilule du haut
-                // et que la requête d'envoi — un alias de passerelle est déjà écarté en amont.
+                // The **model chip** of the card: the model **in force** and its reasoning
+                // level, and the chevron that opens the sheet (feature 2). It is only drawn
+                // if a screen gives it something to open. The **same value** as the top pill
+                // and as the send request — a gateway alias is already ruled out upstream.
                 modelLabel = state.modelInForce
                     ?: OnyxLocalization["default model"],
-                // Un repli **local** ne propose pas les crans du modèle configuré : on n'écrit pas
-                // un cran qui ne pilote rien — le libellé est vidé en amont (`reasoningLabel`).
+                // A **local** fallback does not offer the configured model's notches: we do not write
+                // a notch that drives nothing — the label is cleared upstream (`reasoningLabel`).
                 reflectionLabel = reasoningLabel,
                 onOpenModelPicker = onOpenModelSheet,
-                // Un clavier physique écrit dans le champ : ⌘L le met au focus, et pendant une
-                // réponse le groupe propose « steer » ou « file », comme `ComposerView`.
+                // A physical keyboard writes in the field: ⌘L focuses it, and during a
+                // response the group offers "steer" or "file", like `ComposerView`.
                 focusRequester = composerFocus,
                 canSteer = state.canSteer,
                 onSteer = { onSteer(state.input) },
-                // La pile du bas prend la marge système **une seule fois** (voir plus haut) : le
-                // champ ne la reprend pas de son côté, les deux ne s'additionnent plus.
+                // The bottom stack takes the system margin **only once** (see above): the
+                // field does not take it again on its side, the two no longer add up.
                 applyBottomInsets = false,
-                // **Le serveur injoignable est un état du champ.** Il fait **céder** l'invite : la
-                // file (« N messages waiting ») porte déjà l'état, et le champ ne se met pas à
-                // écrire deux textes à la fois (voir `composerFieldInvite`).
+                // **The unreachable server is a state of the field.** It makes the invite **yield**: the
+                // queue ("N messages waiting") already carries the state, and the field does not
+                // start writing two texts at once (see `composerFieldInvite`).
                 offline = state.isConnectionProblem,
-                // **Le compositeur est posé sur la plaque unique** (voir la pile du bas) :
-                // il ne peint plus sa propre carte, la plaque s'en charge.
+                // **The composer is placed on the single plate** (see the bottom stack):
+                // it no longer paints its own card, the plate takes care of it.
                 plate = true,
                 compact = true,
             )
@@ -1588,71 +1588,71 @@ fun ChatScreen(
             }
         }
 
-        // **Où se pose le bouton, et pourquoi ici.** Il se range au-dessus de la **réserve du fil**
-        // ([threadBottomReserve] — la pile mesurée : compositeur, barre d'onglets, encart du système,
-        // écart de la maison) plus un dégagement ([ComposerStacking.PillClearanceDp]). L'ancienne
-        // marge était une seconde estimation (`composerHeight + tabBarHeight + 8`) **plus** un
-        // `navigationBarsPadding()` : l'encart du système y était compté deux fois, et le bouton
-        // descendait dans la carte du compositeur — mesuré 7,6 dp du bord ici, et jusqu'à 48 dp
-        // **dedans** là où la racine ne consomme pas cet encart (barre à trois boutons, barre de
-        // tâches d'un pliable). Et file non vide = les messages en attente occupent le bas du fil :
-        // le bouton se retire, plutôt que de les recouvrir. La liste des mentions `@` et celle des
-        // commandes `/` occupent la même place : le bouton s'efface devant elles.
+        // **Where the button sits, and why here.** It is placed above the **thread reserve**
+        // ([threadBottomReserve] — the measured stack: composer, tab bar, system inset,
+        // house gap) plus a clearance ([ComposerStacking.PillClearanceDp]). The old
+        // margin was a second estimate (`composerHeight + tabBarHeight + 8`) **plus** a
+        // `navigationBarsPadding()`: the system inset was counted twice there, and the button
+        // sank into the composer card — measured 7.6 dp from the edge here, and up to 48 dp
+        // **inside** where the root does not consume that inset (three-button bar, task bar
+        // of a foldable). And non-empty queue = the waiting messages occupy the bottom of the thread:
+        // the button withdraws, rather than covering them. The `@` mention list and the
+        // `/` command list occupy the same place: the button fades in front of them.
         //
-        // Il se range désormais dans la **voie flottante** ([floatLane]) : c'est elle qui garantit
-        // qu'il ne se pose **jamais sur du texte** — la bande est réservée au fil, qui ne la
-        // traverse pas. La poignée à chevron qui partageait cette bande est partie ; la voie a été
-        // ramenée à la stricte hauteur de la pastille, et le fil en a récupéré la différence.
+        // It is now placed in the **floating lane** ([floatLane]): it is this that guarantees
+        // it **never sits on text** — the band is reserved for the thread, which does not
+        // cross it. The chevron handle that shared this band is gone; the lane was
+        // brought back to the strict height of the pill, and the thread recovered the difference.
         val jumpClearance = glassBottomInset + ComposerStacking.PillClearanceDp.dp
 
-        // **L'ANCRE MESURÉE DES ÉLÉMENTS FLOTTANTS — et la garde qui manquait.**
+        // **THE MEASURED ANCHOR OF THE FLOATING ELEMENTS — and the guard that was missing.**
         //
-        // `jumpClearance` (juste au-dessus) est calculé depuis `composerHeightPx` et
-        // `tabBarHeightPx` : deux états **mesurés** (`onSizeChanged`) qui valent **zéro** jusqu'au
-        // premier passage de mise en page. Une position calculée depuis zéro n'est pas une position
-        // approchée, c'est une position **fausse** — et c'est le défaut de restitution d'état relevé
-        // par le propriétaire : « ça crée des bugs… c'est incohérent ». À **chaque** reprise de l'app
-        // (démarrage à froid, restauration après mort de processus, recréation de l'activité par
-        // rotation, thème, langue ou police 1,3×, retour depuis une feuille, clavier ouvert puis
-        // fermé, insets changés), les éléments flottants se dessinaient donc **avant la mesure**, à
-        // une position que rien ne soutenait, puis sautaient d'un coup dès que la mesure arrivait :
-        // la première image de la reprise, celle qu'on voit.
+        // `jumpClearance` (just above) is computed from `composerHeightPx` and
+        // `tabBarHeightPx`: two **measured** states (`onSizeChanged`) that are **zero** until the
+        // first layout pass. A position computed from zero is not an approximate position,
+        // it is a **wrong** position — and it is the state-restoration defect reported
+        // by the owner: "it creates bugs… it is inconsistent". On **every** app resume
+        // (cold start, restore after process death, activity recreation by
+        // rotation, theme, language or 1.3× font, return from a sheet, keyboard opened then
+        // closed, insets changed), the floating elements therefore drew **before the measurement**, at
+        // a position nothing supported, then jumped at once as soon as the measurement arrived:
+        // the first frame of the resume, the one we see.
         //
-        // La règle est tenue ici, **une fois pour les deux** : `threadFloatAnchor` rend l'ancre
-        // quand la plaque a livré ses hauteurs, et `null` sinon — et `null` veut dire **on ne dessine
-        // pas**. Une position qui vaut zéro au premier passage n'est jamais peinte : l'élément
-        // paraît au bon endroit, jamais dans la bande de l'en-tête ni sous la barre d'état.
-        // La valeur dessinée reste `jumpClearance` : la même source que le rembourrage du fil, donc
-        // aucun second calcul à faire diverger.
+        // The rule is held here, **once for both**: `threadFloatAnchor` returns the anchor
+        // when the plate has delivered its heights, and `null` otherwise — and `null` means **we do not draw
+        // it**. A position that is zero on the first pass is never painted: the element
+        // appears at the right place, never in the header band nor under the status bar.
+        // The drawn value remains `jumpClearance`: the same source as the thread padding, so
+        // no second computation can diverge.
         val floatAnchor = threadFloatAnchor(
             composerPx = composerHeightPx,
             bottomRowPx = tabBarHeightPx,
             measured = jumpClearance,
         )
 
-        // **La poignée à chevron a été retirée** (demande du propriétaire : « supprime le bouton
-        // pour la possibilité de cacher »). La plaque du bas ne peut donc plus être masquée, et il
-        // n'y a plus de porte de retour à garder : c'est le **seul** élément flottant en moins. La
-        // pastille « aller au dernier message » reste, sous la même garde de mesure (`floatAnchor`).
+        // **The chevron handle has been removed** (owner's request: "remove the button
+        // for the option to hide"). The bottom plate therefore can no longer be hidden, and there is
+        // no return door left to keep: it is **the only** floating element less. The
+        // "go to the last message" pill remains, under the same measurement guard (`floatAnchor`).
         AnimatedVisibility(
             visible = offersJump && pagerState.currentPage == 0 &&
                 state.queuedSize == 0 && mentionSuggestions.isEmpty() && state.slashItems.isEmpty() &&
-                // **La garde de mesure** : la pastille ne se dessine pas avant la mesure de la plaque.
+                // **The measurement guard**: the pill is not drawn before the plate's measurement.
                 floatAnchor != null,
-            // Il **paraît d'un coup** : un fondu court, figé sous « Réduire les animations »
-            // (`ComposerStacking.fadeSpec` — une seule décision de mouvement pour toute la pile).
+            // It **appears at once**: a short fade, frozen under "Reduce motion"
+            // (`ComposerStacking.fadeSpec` — a single motion decision for the whole stack).
             enter = fadeIn(animationSpec = ComposerStacking.fadeSpec(reduceMotion)),
             exit = fadeOut(animationSpec = ComposerStacking.fadeSpec(reduceMotion)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                // Au-dessus du fil **et** de la pile : à l'écran comme pour le doigt.
+                // Above the thread **and** the stack: on screen as for the finger.
                 .zIndex(2f)
-                // Une marge de chaque côté : le bouton ne touche plus le bord du panneau.
+                // A margin on each side: the button no longer touches the pane edge.
                 .padding(start = 16.dp, end = 16.dp, bottom = jumpClearance),
         ) {
             JumpToLatestPill(live = state.isStreaming, onClick = {
-                // Re-attacher le suivi, puis coller au bas : le contenu qui continue de grandir
-                // (la réponse s'écrit) reste suivi après l'appui.
+                // Re-attach the follow, then stick to the bottom: content that keeps growing
+                // (the response being written) stays followed after the tap.
                 following = ScrollFollow.jumpToLatest()
                 scope.launch { listState.scrollToItem(latestItemIndex, BottomScrollOffset) }
             })
@@ -1660,13 +1660,13 @@ fun ChatScreen(
 
         ToastHost(toaster = toaster)
 
-        // La restauration demande **confirmation** : rien n'est défait tant que la surface de la
-        // maison n'a pas répondu. C'est **la** confirmation de la maison ([OnyxConfirm]) — le verre
-        // des panneaux, le rayon 28 de la famille, l'arête claire, le titre et le corps du socle,
-        // et deux pastilles pleine largeur à **16 dp du bord**, séparées de **16 dp** — et non la
-        // boîte du système (plaque grise, lignes internes, texte nu bord à bord) que le
-        // propriétaire a pointée : « pas cohérente avec le reste du thème, les boutons collent trop
-        // au bord ».
+        // Restore asks for **confirmation**: nothing is undone as long as the house
+        // surface has not answered. It is **the** house confirmation ([OnyxConfirm]) — the panes'
+        // glass, the family's radius 28, the light edge, the title and the socle body,
+        // and two full-width pills **16 dp from the edge**, separated by **16 dp** — and not the
+        // system box (grey plate, internal lines, bare text edge to edge) that the
+        // owner pointed out: "not consistent with the rest of the theme, the buttons stick too
+        // close to the edge".
         state.restorePrompt?.let { prompt ->
             OnyxConfirm(
                 title = OnyxLocalization["Restore to this message?"],
@@ -1679,9 +1679,9 @@ fun ChatScreen(
             )
         }
 
-        // Le branchement demande **confirmation** lui aussi, et pour la même raison : rien n'est
-        // copié tant qu'elle n'est pas donnée. La boîte dit ce qu'il fait, ce qu'il laisse en
-        // place, quand rien ne démarre — et ce que la copie emporte vraiment.
+        // Branching also asks for **confirmation**, and for the same reason: nothing is
+        // copied until it is given. The box says what it does, what it leaves in
+        // place, when nothing starts — and what the copy really carries.
         state.branchPrompt?.let { prompt ->
             BranchConfirmAlert(
                 prompt = prompt,
@@ -1724,24 +1724,24 @@ fun ChatScreen(
                     }
                 }
             }
-            // La feuille des actions monte du bas, à la place de la liste flottante : le **même**
-            // contenu (aucune entrée perdue, la ligne de projet comprise), plus les trois listes du
-            // serveur et la copie de l'identifiant. Le titre dit ce qu'on pilote.
+            // The action sheet rises from the bottom, in place of the floating list: the **same**
+            // content (no entry lost, the project row included), plus the server's three lists
+            // and the identifier copy. The title says what is being driven.
             ChatActionSheet(
                 title = state.conversationName?.takeIf { it.isNotBlank() } ?: threadSpeaker.label,
                 items = items,
                 server = state.server,
                 sessionId = state.serverSessionId,
                 onDismiss = { showMoreMenu = false },
-                // « Consommation et coût » dit quand le tour a été servi en local : un tarif par
-                // million de jetons n'y a alors aucun sens.
+                // "Usage and cost" says when the turn was served locally: a rate per
+                // million tokens then makes no sense there.
                 fallback = state.fallback,
-                // Et il NOMME le modèle **en vigueur** — celui de l'en-tête, la même source
-                // (`ModelInForce`) : sans ça il nommait le modèle figé de `session.usage`, qui ne
-                // suit pas un changement de modèle (le défaut signalé).
+                // And it NAMES the **in-force** model — the header's, the same source
+                // (`ModelInForce`): without that it named the frozen model of `session.usage`, which does not
+                // follow a model change (the reported defect).
                 modelInForce = state.modelInForce,
-                // La session d'un bot vit dans **son** profil : c'est là que se lit la
-                // consommation consignée quand la session n'est plus vivante.
+                // A bot's session lives in **its** profile: that is where the
+                // recorded usage is read when the session is no longer live.
                 profile = state.botProfile,
             )
         }
@@ -1769,7 +1769,7 @@ fun ChatScreen(
                         showMoreMenu = false
                         namingProject = true
                     },
-                    // Un retour du sous-menu rouvre le menu principal, comme le back Android.
+                    // A return from the submenu reopens the main menu, like the Android back.
                     onDismiss = { showProjectMenu = false },
                 )
             }
@@ -1791,15 +1791,15 @@ fun ChatScreen(
         }
 
         if (showAddMenu) {
-            // La feuille qui monte du bas (la référence) : un titre, les **vraies** limites d'Onyx
-            // en sous-titre, et une ligne par entrée avec sa pastille d'icône. L'ordre est celui de
-            // la référence ; « Coller » s'y ajoute, la référence ne l'a pas.
+            // The sheet that rises from the bottom (the reference): a title, Onyx's **real** limits
+            // as subtitle, and one row per entry with its icon dot. The order is that of
+            // the reference; "Paste" is added to it, the reference does not have it.
             AttachmentSheet(
                 title = "Add to message",
                 subtitle = AttachmentLimits.subtitle(),
-                // `listOfNotNull` : la ligne « Enseigner une tâche » est **facultative**
-                // (serveur sans identifiants Dashboard), et une liste typée ne peut pas porter un
-                // élément nul.
+                // `listOfNotNull`: the "Teach a task" row is **optional**
+                // (server without Dashboard credentials), and a typed list cannot carry a
+                // null element.
                 actions = listOfNotNull(
                     AttachmentAction("Photo Library", Lucide.Image) {
                         showAddMenu = false
@@ -1819,10 +1819,10 @@ fun ChatScreen(
                         showAddMenu = false
                         onAddAttachments(clipboardImages(context))
                     },
-                    // **« Enseigner une tâche »**, comme « Teach a task » de la référence : la
-                    // dernière ligne de la feuille. Elle ferme la feuille et ouvre l'ordinateur
-                    // connecté, où la démonstration s'enregistre — le geste vit là-bas (les clics,
-                    // l'écran, le bail du serveur), la ligne n'est que le chemin.
+                    // **"Teach a task"**, like "Teach a task" in the reference: the
+                    // last row of the sheet. It closes the sheet and opens the connected
+                    // computer, where the demonstration is recorded — the gesture lives there (the clicks,
+                    // the screen, the server lease), the row is only the path.
                     onTeachTask?.let { teach ->
                         AttachmentAction("Teach a task", Lucide.Sparkles) {
                             showAddMenu = false
@@ -1837,11 +1837,11 @@ fun ChatScreen(
 }
 
 /**
- * Où l'appareil photo écrit sa prise : **le stockage privé durable de l'app**, jamais le cache.
+ * Where the camera writes its shot: **the app's durable private storage**, never the cache.
  *
- * `cacheDir` est le répertoire que le système vide quand il veut : la photo y disparaissait après
- * fermeture de l'app, et la bulle du fil affichait « Illisible » (elle se décode depuis cette URI).
- * `filesDir` survit à la fermeture, au redémarrage du téléphone et au nettoyage du cache.
+ * `cacheDir` is the directory the system empties when it wants: the photo disappeared from it after
+ * the app closed, and the thread bubble showed "Unreadable" (it decodes from that URI).
+ * `filesDir` survives closing, the phone restarting and cache cleanup.
  */
 private fun newCameraUri(context: android.content.Context): android.net.Uri? = runCatching {
     val folder = java.io.File(context.filesDir, "photos").apply { mkdirs() }
@@ -1850,20 +1850,20 @@ private fun newCameraUri(context: android.content.Context): android.net.Uri? = r
 }.getOrNull()
 
 /**
- * « Aller au dernier message », posé au-dessus de la pile du bas quand la fin n'est plus à l'écran.
+ * "Go to the last message", placed above the bottom stack when the end is no longer on screen.
  *
- * **La cible fait 44 dp** ([OnyxSpace.ThumbnailSize], la cible du pouce de la maison) : la pastille
- * n'en faisait que 18 dp de haut — mesuré à l'arbre d'accessibilité —, sous la cible du doigt, d'où
- * « je n'arrive pas à le toucher ». Le verre s'étire sur la cible, le contenu reste centré.
+ * **The target is 44 dp** ([OnyxSpace.ThumbnailSize], the house thumb target): the pill
+ * was only 18 dp high — measured in the accessibility tree —, below the finger target, hence
+ * "I can't manage to touch it". The glass stretches over the target, the content stays centred.
  */
 @Composable
 private fun JumpToLatestPill(live: Boolean, onClick: () -> Unit) {
     val theme = LocalOnyxTheme.current
     GlassPill(
-        // **Pleine**, et pas seulement mince : elle flotte au-dessus du fil, donc le verre mince
-        // laisserait lire les messages **dans** la pastille (défaut relevé : « la pastille se
-        // mélange au texte »). La marge de 16 et le rangement au-dessus de la plaque sont posés par
-        // l'appelant (`AnimatedVisibility` de `ChatScreen`) : la pastille ne bouge pas ici.
+        // **Solid**, and not merely thin: it floats above the thread, so thin glass
+        // would let the messages be read **inside** the pill (reported defect: "the pill
+        // blends into the text"). The 16 margin and the placement above the plate are set by
+        // the caller (`ChatScreen`'s `AnimatedVisibility`): the pill does not move here.
         solid = true,
         modifier = Modifier
             .sizeIn(minWidth = OnyxSpace.ThumbnailSize, minHeight = OnyxSpace.ThumbnailSize)
@@ -1886,13 +1886,13 @@ private fun JumpToLatestPill(live: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** `NewBelowDot` : le point de 8 pt pulse en `easeInOut` toutes les 0,6 s pendant le direct. */
+/** `NewBelowDot`: the 8 pt dot pulses in `easeInOut` every 0.6 s during live streaming. */
 @Composable
 private fun NewBelowDot() {
     val theme = LocalOnyxTheme.current
     val transition = rememberInfiniteTransition(label = "newBelow")
     // `NewBelowDot` : `guard live, !reduceMotion else { dim = false; return }`
-    // (`TranscriptView:528-529`) — le point reste plein sous Reduce Motion.
+    // (`TranscriptView:528-529`) — the dot stays solid under Reduce Motion.
     val alpha = ambientLoop(1f) {
         1f - 0.75f * transition.animateFloat(
             initialValue = 0f,
@@ -1911,7 +1911,7 @@ private fun NewBelowDot() {
     )
 }
 
-/** La progression du préremplissage, quand le serveur la remonte. */
+/** The prefill progress, when the server reports it. */
 @Composable
 private fun PrefillBar(prefill: PrefillProgress) {
     val theme = LocalOnyxTheme.current
@@ -1930,7 +1930,7 @@ private fun PrefillBar(prefill: PrefillProgress) {
     }
 }
 
-/** Statut du gateway pendant le tour (réessai provider, indisponibilité) : honnête au lieu d'un vide. */
+/** Gateway status during the turn (provider retry, unavailability): honest instead of a blank. */
 @Composable
 private fun ProviderStatusBar(status: String) {
     val theme = LocalOnyxTheme.current
@@ -1950,8 +1950,8 @@ private fun ProviderStatusBar(status: String) {
 }
 
 /**
- * La ligne de statut d'une note de pilotage (`Conversation.statusLine`) : ce que le serveur a
- * répondu — « steer queued » ou « steer rejected ». Elle s'efface à la fin du tour.
+ * The status line of a steering note (`Conversation.statusLine`): what the server
+ * answered — "steer queued" or "steer rejected". It fades at the end of the turn.
  */
 @Composable
 private fun SteerStatusBar(status: String) {
@@ -1972,7 +1972,7 @@ private fun SteerStatusBar(status: String) {
     }
 }
 
-/** Le bandeau d'erreur, avec « Retry » quand le tour peut être rejoué. */
+/** The error banner, with "Retry" when the turn can be replayed. */
 @Composable
 private fun ErrorBanner(
     message: String,
@@ -2012,7 +2012,7 @@ private fun ErrorBanner(
     }
 }
 
-/** La recherche dans la conversation (`showSearch` de ContentView) : le champ, et le compte. */
+/** The in-conversation search (`showSearch` of ContentView): the field, and the count. */
 @Composable
 private fun SearchBar(
     query: String,
@@ -2074,17 +2074,17 @@ private fun SearchBar(
     }
 }
 
-/** Une page de fil : ce que la liste rend d'un coup (`TranscriptPage`). */
+/** One thread page: what the list renders at once (`TranscriptPage`). */
 private const val PAGE = 30
 
 /**
- * De combien de pixels on demande à dépasser la dernière ligne pour toucher le vrai bas du fil :
- * `scrollToItem(index, offset)` borne l'offset au bas du contenu, donc un grand dépassement colle
- * au bas — et non au haut de la dernière ligne, qui peut couvrir plusieurs écrans.
+ * How many pixels we ask to overshoot the last row to reach the true bottom of the thread:
+ * `scrollToItem(index, offset)` clamps the offset to the content bottom, so a large overshoot sticks
+ * to the bottom — and not to the top of the last row, which may cover several screens.
  */
 private const val BottomScrollOffset = 100_000
 
-/** « Today » / « Yesterday » / « Monday, 3 March », là où le jour change. */
+/** "Today" / "Yesterday" / "Monday, 3 March", where the day changes. */
 @Composable
 private fun DaySeparator(label: String) {
     val theme = LocalOnyxTheme.current
@@ -2100,8 +2100,8 @@ private fun DaySeparator(label: String) {
 }
 
 /**
- * La page précédente, d'un tap : « Afficher les 30 messages précédents » quand la page est déjà
- * en mémoire, « Charger les messages précédents » quand il faut la demander au serveur.
+ * The previous page, with one tap: "Show the 30 previous messages" when the page is already
+ * in memory, "Load the previous messages" when it must be requested from the server.
  */
 @Composable
 private fun EarlierRow(label: String, enabled: Boolean = true, onClick: () -> Unit) {
@@ -2121,7 +2121,7 @@ private fun EarlierRow(label: String, enabled: Boolean = true, onClick: () -> Un
     }
 }
 
-/** Le libellé du jour au premier message d'une journée, ou `null`. */
+/** The day label at the first message of a day, or `null`. */
 private fun dayLabelFor(createdAt: Long, previousCreatedAt: Long?): String? {
     val current = java.util.Calendar.getInstance().apply { timeInMillis = createdAt }
     val today = java.util.Calendar.getInstance()
@@ -2146,11 +2146,11 @@ private fun dayLabelFor(createdAt: Long, previousCreatedAt: Long?): String? {
 }
 
 /**
- * Le formateur de jour, **gardé une fois**.
+ * The day formatter, **kept once**.
  *
- * `SimpleDateFormat` est cher à construire (chargement de locale, de calendrier, de symboles) et
- * n'est pas réutilisable en concurrence — mais la composition est mono-thread, et le recréer à
- * chaque rangée visible, à chaque recomposition, était un coût pur dans le défilement d'une grosse
+ * `SimpleDateFormat` is expensive to construct (locale, calendar, symbol loading) and
+ * is not reusable concurrently — but composition is single-threaded, and recreating it for
+ * each visible row, on each recomposition, was a pure cost in the scroll of a large
  * conversation.
  */
 private val dayFormatter: ThreadLocal<java.text.SimpleDateFormat> =
@@ -2158,7 +2158,7 @@ private val dayFormatter: ThreadLocal<java.text.SimpleDateFormat> =
 
 private fun dayFormat(): java.text.SimpleDateFormat = dayFormatter.get()!!
 
-/** Ce que le fil accepte en dépôt : les images, comme le composeur. */
+/** What the thread accepts as a drop: images, like the composer. */
 @Composable
 private fun rememberDragAndDrop(onAddAttachments: (List<android.net.Uri>) -> Unit): DragAndDropTarget {
     val context = LocalContext.current

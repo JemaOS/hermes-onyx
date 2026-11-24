@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------------------------
-# install.sh — installe le plugin `onyx-browser` sur ce profil Hermes.
+# install.sh — installs the `onyx-browser` plugin into this Hermes profile.
 #
-# Ce qu'il fait, et rien de plus :
-#   1. copie le plugin dans ~/.hermes/plugins/onyx-browser (le dossier que Hermes charge) ;
-#   2. vérifie que son serveur se lève, sur 127.0.0.1:8788 ;
-#   3. rappelle ce qu'il reste à faire à la main : la ligne `onyx-one` et le redémarrage.
+# What it does, and nothing more:
+#   1. copies the plugin into ~/.hermes/plugins/onyx-browser (the folder Hermes loads);
+#   2. checks that its server comes up on 127.0.0.1:8788;
+#   3. reminds you what is left to do by hand: the `onyx-one` line and the restart.
 #
-# Il ne touche ni à la config de Hermes, ni à `onyx-one.py`, ni au service de la passerelle.
+# It touches neither the Hermes config, nor `onyx-one.py`, nor the gateway service.
 # ---------------------------------------------------------------------------------------------
 set -euo pipefail
 

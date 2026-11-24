@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Agrège plusieurs passes de `framestats` et sort les percentiles par étage.
+"""Aggregate several `framestats` passes and output percentiles per stage.
 
-Android ne garde que les **120 dernières trames** dans son tampon `framestats`
-(`FrameStats.MAX_FRAMESTATS`). Une passe de dix glissements produit des centaines de
-trames : le tampon ne retient que la **fin** du geste, et la médiane mesurée n'est donc
-pas celle du défilement. Ce script agrège **plusieurs passes courtes**, chacune vidée
-avant son geste, pour que chaque trame du geste soit conservée.
+Android keeps only the **last 120 frames** in its `framestats` buffer
+(`FrameStats.MAX_FRAMESTATS`). A pass of ten swipes produces hundreds of
+frames: the buffer keeps only the **end** of the gesture, so the measured median is not
+that of the scroll. This script aggregates **several short passes**, each cleared
+before its gesture, so that every frame of the gesture is kept.
 
-usage : aggregate-frames.py <sortie> <fichier1> [fichier2 ...]
+usage: aggregate-frames.py <output> <file1> [file2 ...]
 """
 import glob
 import sys
@@ -54,7 +54,7 @@ def main():
         print("aucune trame lue dans %s" % ", ".join(files))
         return
 
-    # On ne garde que les trames qui ont commencé et terminé.
+    # We keep only the frames that started and completed.
     drawn = [r for r in rows if r.get("IntendedVsync", 0) > 0 and r.get("FrameCompleted", 0) > 0]
 
     def deltas(start, end):

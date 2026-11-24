@@ -1,71 +1,71 @@
-# Spécification serveur — bot principal et passage de main
+# Server specification — main bot and handoff
 
-**Lot 5 de `ARCHITECTURE-TOP5.md`** (§2 « Lot 5 — Bot principal et passage de main », §3 « Ce qui
-reste côté Hermes »). Ce document fixe le contrat de deux routes et la **forme exacte** de
-l'événement de passage, pour que l'interface n'ait rien à deviner. Aucune ligne d'implémentation n'y
-figure.
+**Batch 5 of `ARCHITECTURE-TOP5.md`** (§2 "Batch 5 — Lead bot and handoff", §3 "What remains
+on the Hermes side"). This document fixes the contract of two routes and the **exact shape** of
+the handoff event, so that the interface has nothing to guess. No line of implementation appears
+here.
 
-Les renvois `ARCHITECTURE-TOP5.md:<ligne>` désignent ce plan tel qu'il est sur `main` (`e8c195a`) :
-il n'est pas dans la branche de ce document, et ses numéros de ligne sont ceux de cette version.
+The references `ARCHITECTURE-TOP5.md:<line>` designate that plan as it is on `main` (`e8c195a`):
+it is not in this document's branch, and its line numbers are those of that version.
 
-Ce que le plan décide et que ce document ne rediscute pas : les routes sont **dans le core Hermes**,
-pas dans un plugin, parce qu'un meneur est une notion de room (`ARCHITECTURE-TOP5.md:159`) ; l'ajout
-est **additif**, aucune destination de navigation ne bouge (`:26-28`) ; le journal reste rendu par la
-même liste (`:142`).
+What the plan decides and this document does not revisit: the routes are **in the Hermes core**,
+not in a plugin, because a lead is a room concept (`ARCHITECTURE-TOP5.md:159`); the addition
+is **additive**, no navigation destination moves (`:26-28`); the journal is still rendered by the
+same list (`:142`).
 
 ---
 
-## 0. Les quatre décisions que ce document tranche
+## 0. The four decisions this document settles
 
-| # | Décision | Pourquoi |
+| # | Decision | Why |
 |---|---|---|
-| D1 | Les deux routes sont des méthodes **RPC** (`groups.*`), pas des routes HTTP. | Les rooms passent déjà par le canal RPC du Dashboard (`ServeGroupsRpc.kt:31`, `RpcChannel.kt:13`). Une route HTTP pour la même notion ferait deux transports pour une seule salle. |
-| D2 | Le meneur est un **destinataire par défaut**, pas un chef. | `@nom` adresse déjà un membre directement (`GroupRoomScreen.kt:956-957`). Un meneur qui filtrerait les autres le casserait. |
-| D3 | Le passage de main écrit **un** événement, `bot.handoff`, et rien d'autre. | Un journal qui écrit deux lignes pour un seul geste se lit deux fois. Le tour annulé, lui, a déjà sa ligne (`turn.cancelled`). |
-| D4 | Les deux événements ne portent **aucune clé `member_id`** dans leur charge utile. | `GroupEvent.from` lit `payload.member_id` **avant** l'acteur (`GroupThread.kt:83`). Une telle clé volerait silencieusement l'identité de l'auteur de la ligne. |
+| D1 | The two routes are **RPC** methods (`groups.*`), not HTTP routes. | Rooms already go through the Dashboard RPC channel (`ServeGroupsRpc.kt:31`, `RpcChannel.kt:13`). An HTTP route for the same concept would mean two transports for a single room. |
+| D2 | The lead is a **default recipient**, not a chief. | `@name` already addresses a member directly (`GroupRoomScreen.kt:956-957`). A lead that filtered the others would break it. |
+| D3 | The handoff writes **one** event, `bot.handoff`, and nothing else. | A journal that writes two lines for a single gesture is read twice. The cancelled turn, for its part, already has its line (`turn.cancelled`). |
+| D4 | Neither event carries **any `member_id` key** in its payload. | `GroupEvent.from` reads `payload.member_id` **before** the actor (`GroupThread.kt:83`). Such a key would silently steal the identity of the line's author. |
 
 ---
 
-## 1. Où vivent les routes
+## 1. Where the routes live
 
-Deux méthodes du core Hermes, sur le canal des salles, à côté de `groups.send` et `groups.stop`
-(`ServeGroupsRpc.kt:113-166`). Elles suivent la même forme d'appel : `rpc.call(method, params,
-timeoutMillis)` (`RpcChannel.kt:13`), avec le délai des appels de salle (`CALL_TIMEOUT`, 60 s,
+Two methods of the Hermes core, on the rooms channel, next to `groups.send` and `groups.stop`
+(`ServeGroupsRpc.kt:113-166`). They follow the same call shape: `rpc.call(method, params,
+timeoutMillis)` (`RpcChannel.kt:13`), with the room call timeout (`CALL_TIMEOUT`, 60 s,
 `ServeGroupsRpc.kt:286`).
 
-| Nom | Genre | Paramètres |
+| Name | Kind | Parameters |
 |---|---|---|
-| `groups.lead` | RPC | `room_id`, `member_id` (ou `null`) |
-| `groups.handoff` | RPC | `room_id`, `from_member_id`, `to_member_id`, `task_id` (facultatif), `summary` (facultatif) |
+| `groups.lead` | RPC | `room_id`, `member_id` (or `null`) |
+| `groups.handoff` | RPC | `room_id`, `from_member_id`, `to_member_id`, `task_id` (optional), `summary` (optional) |
 
-**Découverte.** Les deux méthodes s'annoncent dans `groups.capabilities.methods`, que le client lit
-déjà (`ServeGroupsRpc.kt:297-303`). `GroupSupport` gagne deux champs booléens avec valeur par défaut
-`false` : l'ajout ne casse aucun appelant, y compris le test qui construit l'objet par position
-(`ServeGroupsRpcTest.kt:52`). C'est le mécanisme d'absence prévu par le plan
-(`ARCHITECTURE-TOP5.md:143`), et il ne demande aucune route de sonde.
+**Discovery.** Both methods announce themselves in `groups.capabilities.methods`, which the client
+already reads (`ServeGroupsRpc.kt:297-303`). `GroupSupport` gains two boolean fields defaulting
+to `false`: the addition breaks no caller, including the test that constructs the object
+positionally (`ServeGroupsRpcTest.kt:52`). This is the absence mechanism provided by the plan
+(`ARCHITECTURE-TOP5.md:143`), and it requires no probe route.
 
-**Forme d'un refus.** Une erreur applicative du serveur arrive en `TransportError.Rpc(code, detail)`
-(`TransportError.kt:49`). Les codes ci-dessous sont donc des **codes RPC négatifs ou applicatifs**,
-pas des statuts HTTP.
+**Shape of a refusal.** An application error from the server arrives as `TransportError.Rpc(code, detail)`
+(`TransportError.kt:49`). The codes below are therefore **negative or application RPC codes**,
+not HTTP statuses.
 
 ---
 
 ## 2. `groups.lead`
 
-Désigne le meneur d'une salle, ou le retire.
+Designates a room's lead, or removes it.
 
-**Requête**
+**Request**
 
 ```json
 {"room_id": "onyx-9f2c1a4e", "member_id": "coder"}
 ```
 
-| Champ | Règle |
+| Field | Rule |
 |---|---|
-| `room_id` | Obligatoire. Salle inconnue : `404 room_not_found`. |
-| `member_id` | Obligatoire **présent**. Une chaîne désigne le meneur ; `null` le retire. Absent ≠ `null` : absent rend `400 bad_request`, pour qu'aucun client ne retire un meneur par omission. |
+| `room_id` | Required. Unknown room: `404 room_not_found`. |
+| `member_id` | Required **present**. A string designates the lead; `null` removes it. Absent ≠ `null`: absent returns `400 bad_request`, so that no client removes a lead by omission. |
 
-**Réponse**
+**Response**
 
 ```json
 {
@@ -76,34 +76,34 @@ Désigne le meneur d'une salle, ou le retire.
 }
 ```
 
-| Champ | Sens |
+| Field | Meaning |
 |---|---|
-| `lead` | Le meneur après l'appel, ou `null` s'il n'y en a plus. `label` est le nom de salle du membre, celui que le roster donne déjà (`GroupRoom.kt:34-35`). |
-| `previous_member_id` | Le meneur d'avant, ou `null`. Permet à l'écran d'annuler sans relire. |
-| `seq` | Le numéro du `room.lead_changed` écrit. L'écran ne dessine **pas** de ligne optimiste : il relit (`look()`), et cette valeur lui dit ce qu'il va trouver. |
+| `lead` | The lead after the call, or `null` if there is none any more. `label` is the member's room name, the one the roster already provides (`GroupRoom.kt:34-35`). |
+| `previous_member_id` | The previous lead, or `null`. Lets the screen undo without re-reading. |
+| `seq` | The number of the `room.lead_changed` written. The screen does **not** draw an optimistic line: it re-reads (`look()`), and this value tells it what it will find. |
 
-**Ce que l'appel écrit.** Un événement `room.lead_changed`, à la fin du journal, avec son propre
-`seq`. Rien d'autre ne bouge : ni le nom de la salle, ni ses membres, ni son `latest_seq` d'avant.
+**What the call writes.** One `room.lead_changed` event, at the end of the journal, with its own
+`seq`. Nothing else moves: neither the room name, nor its members, nor its previous `latest_seq`.
 
-**Refus**
+**Refusals**
 
-| Code | `code` | Quand |
+| Code | `code` | When |
 |---|---|---|
-| 404 | `room_not_found` | Salle inconnue, ou terminée. |
-| 404 | `profile_not_found` | Le profil du membre n'existe plus sur ce serveur. |
-| 409 | `member_not_in_room` | `member_id` n'est pas un membre de cette salle. |
-| 409 | `already_lead` | Ce membre est déjà le meneur. Aucun événement n'est écrit. |
-| 409 | `room_stopping` | Des bots s'arrêtent encore. À réessayer : c'est le motif déjà employé pour `disband` (`ServeGroupsRpc.kt:185-196`). |
-| 400 | `bad_request` | `room_id` vide, ou `member_id` absent. |
-| −32601 | — | Le serveur ne connaît pas la méthode. Voir §7. |
+| 404 | `room_not_found` | Unknown room, or ended. |
+| 404 | `profile_not_found` | The member's profile no longer exists on this server. |
+| 409 | `member_not_in_room` | `member_id` is not a member of this room. |
+| 409 | `already_lead` | This member is already the lead. No event is written. |
+| 409 | `room_stopping` | Some bots are still stopping. Retry: this is the pattern already used for `disband` (`ServeGroupsRpc.kt:185-196`). |
+| 400 | `bad_request` | Empty `room_id`, or absent `member_id`. |
+| −32601 | — | The server does not know the method. See §7. |
 
 ---
 
 ## 3. `groups.handoff`
 
-Passe la main d'un membre à un autre, avec le contexte utile.
+Hands over from one member to another, with the useful context.
 
-**Requête**
+**Request**
 
 ```json
 {
@@ -115,19 +115,19 @@ Passe la main d'un membre à un autre, avec le contexte utile.
 }
 ```
 
-| Champ | Règle |
+| Field | Rule |
 |---|---|
-| `room_id` | Obligatoire. |
-| `from_member_id` | Obligatoire. C'est le membre qui lâche la main — en pratique le meneur, ou un bot qui termine son tour. Il doit être dans la salle. |
-| `to_member_id` | Obligatoire. Différent de `from_member_id` : même membre → `409 same_member`. |
-| `task_id` | Facultatif. Présent : c'est le tour en cours de `from_member_id`, et il est **annulé** avant que l'autre commence. Absent : rien n'est annulé, la main passe pour le tour suivant. |
-| `summary` | Facultatif. Texte brut, ≤ 280 caractères, sans caractère de contrôle. Une chaîne vide vaut absente. |
+| `room_id` | Required. |
+| `from_member_id` | Required. This is the member letting go of the hand — in practice the lead, or a bot finishing its turn. It must be in the room. |
+| `to_member_id` | Required. Different from `from_member_id`: same member → `409 same_member`. |
+| `task_id` | Optional. Present: this is `from_member_id`'s current turn, and it is **cancelled** before the other starts. Absent: nothing is cancelled, the hand passes for the next turn. |
+| `summary` | Optional. Plain text, ≤ 280 characters, no control characters. An empty string counts as absent. |
 
-`summary` est **le** contexte utile : ce qui est fait, ce qui reste. Il n'est pas obligatoire parce
-que le journal de la salle **est** déjà le contexte — un destinataire peut le relire. Un résumé
-obligatoire pousserait à écrire « suite » pour passer.
+`summary` is **the** useful context: what is done, what remains. It is not mandatory because
+the room journal **is** already the context — a recipient can re-read it. A mandatory summary
+would push people to write "continued" just to pass.
 
-**Réponse**
+**Response**
 
 ```json
 {
@@ -139,39 +139,39 @@ obligatoire pousserait à écrire « suite » pour passer.
 }
 ```
 
-`cancelled_task_id` vaut `null` quand la requête n'a pas donné de `task_id`. L'écran relit le journal
-juste après (`look()`), comme il le fait déjà après `stop` et `retry` (`GroupRoomFeed.kt:524-531`) :
-la ligne apparaît au tick suivant, qui est de 500 ms quand la salle travaille
+`cancelled_task_id` is `null` when the request did not provide a `task_id`. The screen re-reads the journal
+just after (`look()`), as it already does after `stop` and `retry` (`GroupRoomFeed.kt:524-531`):
+the line appears on the next tick, which is 500 ms when the room is working
 (`GroupRoomFeed.kt:581-582`).
 
-**Ce que l'appel écrit, dans cet ordre**
+**What the call writes, in this order**
 
-1. `turn.cancelled` avec `reason: "handed_over"` — **seulement** si `task_id` était présent. Le tour
-   du partant s'arrête là.
-2. `bot.handoff` — un seul événement, forme exacte en §4.
-3. Le tour du destinataire commence, s'il y a quelque chose à faire.
+1. `turn.cancelled` with `reason: "handed_over"` — **only** if `task_id` was present. The leaver's
+   turn stops there.
+2. `bot.handoff` — a single event, exact shape in §4.
+3. The recipient's turn starts, if there is something to do.
 
-**Refus**
+**Refusals**
 
-| Code | `code` | Quand |
+| Code | `code` | When |
 |---|---|---|
-| 404 | `room_not_found` | Salle inconnue. |
-| 409 | `member_not_in_room` | L'un des deux membres n'est pas dans la salle. |
+| 404 | `room_not_found` | Unknown room. |
+| 409 | `member_not_in_room` | One of the two members is not in the room. |
 | 409 | `same_member` | `from_member_id` = `to_member_id`. |
-| 409 | `task_not_yours` | `task_id` n'est pas une tâche en cours de `from_member_id`. |
-| 409 | `room_stopping` | Des bots s'arrêtent encore. |
-| 422 | `summary_too_long` | `summary` > 280 caractères. |
-| 400 | `bad_request` | Champ obligatoire vide. |
-| −32601 | — | Le serveur ne connaît pas la méthode. Voir §7. |
+| 409 | `task_not_yours` | `task_id` is not a current task of `from_member_id`. |
+| 409 | `room_stopping` | Some bots are still stopping. |
+| 422 | `summary_too_long` | `summary` > 280 characters. |
+| 400 | `bad_request` | Empty required field. |
+| −32601 | — | The server does not know the method. See §7. |
 
-Aucun refus n'écrit d'événement. Un passage de main refusé ne laisse pas de trace à moitié faite :
-c'est la règle qui rend l'état lisible après une erreur.
+No refusal writes an event. A refused handoff leaves no half-made trace:
+this is the rule that makes the state readable after an error.
 
 ---
 
-## 4. La forme exacte de l'événement
+## 4. The exact shape of the event
 
-C'est la partie du contrat que l'interface lit. Elle ne doit pas changer sans changer ce document.
+This is the part of the contract the interface reads. It must not change without changing this document.
 
 ### 4.1 `bot.handoff`
 
@@ -190,28 +190,28 @@ C'est la partie du contrat que l'interface lit. Elle ne doit pas changer sans ch
 }
 ```
 
-| Champ | Règle | Ce que l'interface en fait |
+| Field | Rule | What the interface does with it |
 |---|---|---|
-| `seq` | Entier, à la fin du journal. | L'ordre de la ligne. Rien n'est réordonné : `rows` est un filtre, pas un tri (`GroupRoomFeed.kt:98`). |
-| `kind` | Exactement `bot.handoff`. | Le seul discriminant. |
+| `seq` | Integer, at the end of the journal. | The line's order. Nothing is re-sorted: `rows` is a filter, not a sort (`GroupRoomFeed.kt:98`). |
+| `kind` | Exactly `bot.handoff`. | The only discriminant. |
 | `actor.kind` | `member`. | — |
-| `actor.id` | Le partant, **égal** à `from_member_id`. | Devient `actorID` : `GroupEvent.from` lit `actor.id` quand `actor.kind` vaut `member` et que la charge utile n'a pas de `member_id` (`GroupThread.kt:83-84`). |
-| `payload.from_member_id` | Chaîne, membre de la salle. | Le nom affiché à gauche. |
-| `payload.to_member_id` | Chaîne, membre de la salle. | Le nom affiché à droite. |
-| `payload.task_id` | Chaîne ou `null`. | Non affiché. |
-| `payload.summary` | Chaîne ≤ 280 ou `null`. | Affiché **tel quel**, jamais reformulé. |
-| `created_at` | Secondes Unix décimales. | `GroupEvent.from` convertit (`GroupThread.kt:86`). |
+| `actor.id` | The leaver, **equal** to `from_member_id`. | Becomes `actorID`: `GroupEvent.from` reads `actor.id` when `actor.kind` is `member` and the payload has no `member_id` (`GroupThread.kt:83-84`). |
+| `payload.from_member_id` | String, member of the room. | The name displayed on the left. |
+| `payload.to_member_id` | String, member of the room. | The name displayed on the right. |
+| `payload.task_id` | String or `null`. | Not displayed. |
+| `payload.summary` | String ≤ 280 or `null`. | Displayed **as is**, never reworded. |
+| `created_at` | Decimal Unix seconds. | `GroupEvent.from` converts (`GroupThread.kt:86`). |
 
-**Deux pièges, à tenir par un test chacun.**
+**Two traps, each to be held by a test.**
 
-1. **Pas de clé `member_id` dans `payload`.** `GroupEvent.from` lit `payload.firstString("member_id")`
-   avant l'acteur (`GroupThread.kt:83`). Une telle clé ferait de `actorID` le destinataire au lieu du
-   partant, et la phrase nommerait deux fois la même personne. Le serveur n'en écrit pas ; le test
-   doit refuser un journal qui en porte une.
-2. **`bot.handoff` ne termine pas la discussion.** `endsDiscussion` ne reconnaît que
-   `room.activity` et `room.stop_requested` (`GroupThread.kt:46`). Un `bot.handoff` glissé dans cette
-   liste ferait croire à `discussing` que le tour est fini (`GroupRoomFeed.kt:73-78`), et la salle
-   cesserait d'attendre la réponse qu'elle vient de demander.
+1. **No `member_id` key in `payload`.** `GroupEvent.from` reads `payload.firstString("member_id")`
+   before the actor (`GroupThread.kt:83`). Such a key would make `actorID` the recipient instead of the
+   leaver, and the sentence would name the same person twice. The server does not write one; the test
+   must reject a journal that carries one.
+2. **`bot.handoff` does not end the discussion.** `endsDiscussion` only recognises
+   `room.activity` and `room.stop_requested` (`GroupThread.kt:46`). A `bot.handoff` slipped into that
+   list would make `discussing` believe the turn is over (`GroupRoomFeed.kt:73-78`), and the room
+   would stop waiting for the answer it has just requested.
 
 ### 4.2 `room.lead_changed`
 
@@ -229,264 +229,264 @@ C'est la partie du contrat que l'interface lit. Elle ne doit pas changer sans ch
 }
 ```
 
-| Champ | Règle |
+| Field | Rule |
 |---|---|
-| `payload.lead_member_id` | Le nouveau meneur, ou `null` s'il n'y en a plus. |
-| `payload.previous_member_id` | L'ancien, ou `null`. |
-| `payload.reason` | `named` (désigné), `cleared` (retiré), `member_left` (son profil a disparu). Liste fermée. |
-| `actor` | `user` pour un geste humain, `system` pour `member_left`. |
+| `payload.lead_member_id` | The new lead, or `null` if there is none any more. |
+| `payload.previous_member_id` | The previous one, or `null`. |
+| `payload.reason` | `named` (designated), `cleared` (removed), `member_left` (its profile has disappeared). Closed list. |
+| `actor` | `user` for a human gesture, `system` for `member_left`. |
 
-Là encore : **aucune clé `member_id`** (D4).
+Once again: **no `member_id` key** (D4).
 
-### 4.3 Les lignes que l'interface doit savoir composer
+### 4.3 The lines the interface must know how to compose
 
-Le journal ne rend une ligne que si `GroupEvent.note(room)` rend un texte (`GroupRoomFeed.kt:98`) ;
-`RoomEventRow` l'affiche alors centré, en note de bas de fil, sans nouvelle composition
-(`GroupRoomScreen.kt:1009-1016`). Les deux nouveaux cas s'ajoutent donc à `note()`
-(`GroupThread.kt:49-69`), sur le modèle de `turn.settled` (`:52`) et `room.renamed` (`:66`) : l'id
-vient de la charge utile, le nom vient du roster.
+The journal only renders a line if `GroupEvent.note(room)` returns a text (`GroupRoomFeed.kt:98`);
+`RoomEventRow` then displays it centred, as a thread footnote, without new composition
+(`GroupRoomScreen.kt:1009-1016`). The two new cases are therefore added to `note()`
+(`GroupThread.kt:49-69`), following the model of `turn.settled` (`:52`) and `room.renamed` (`:66`): the id
+comes from the payload, the name comes from the roster.
 
-| Cas | Texte exact (FR) | Clé EN | Repli quand le membre est inconnu |
+| Case | Exact text (FR) | EN key | Fallback when the member is unknown |
 |---|---|---|---|
-| `bot.handoff` | « Writer passe la main à Coder. » | `%1$s passed the lead to %2$s.` | Le nom inconnu devient « un bot » (`OnyxLocalization["A bot"]`, déjà employé en `GroupThread.kt:50`). |
-| `bot.handoff` avec `summary` | La même phrase, puis un saut de ligne, puis le résumé **mot pour mot**. | idem | idem |
-| `room.lead_changed`, `reason` = `named` | « Coder mène la salle. » | `%1$s leads the room.` | « Un bot mène la salle. » |
-| `room.lead_changed`, `reason` = `cleared` | « Plus de meneur dans la salle. » | `This room has no lead.` | — |
-| `room.lead_changed`, `reason` = `member_left` | « Coder a quitté la salle : plus de meneur. » | `%1$s left the room: no lead.` | idem |
+| `bot.handoff` | "Writer passe la main à Coder." | `%1$s passed the lead to %2$s.` | The unknown name becomes "a bot" (`OnyxLocalization["A bot"]`, already used in `GroupThread.kt:50`). |
+| `bot.handoff` with `summary` | The same sentence, then a line break, then the summary **word for word**. | same | same |
+| `room.lead_changed`, `reason` = `named` | "Coder mène la salle." | `%1$s leads the room.` | "A bot leads the room." |
+| `room.lead_changed`, `reason` = `cleared` | "Plus de meneur dans la salle." | `This room has no lead.` | — |
+| `room.lead_changed`, `reason` = `member_left` | "Coder a quitté la salle : plus de meneur." | `%1$s left the room: no lead.` | same |
 
-**Un troisième cas, à ne pas oublier.** `turn.cancelled` avec `reason: "handed_over"` ne doit
-**rien** afficher. La branche existante rend « %1$s was stopped » pour toute raison inconnue
-(`GroupThread.kt:56-58`) ; sans une exception explicite pour `handed_over`, le journal montrerait
-« Writer was stopped » **et** « Writer passe la main à Coder » pour un seul geste. La branche
-existante écarte déjà une raison (`superseded_by_newer_user_event`) : `handed_over` s'ajoute à la
-même condition.
+**A third case, not to be forgotten.** `turn.cancelled` with `reason: "handed_over"` must show
+**nothing**. The existing branch returns "%1$s was stopped" for any unknown reason
+(`GroupThread.kt:56-58`); without an explicit exception for `handed_over`, the journal would show
+"Writer was stopped" **and** "Writer passe la main à Coder" for a single gesture. The
+existing branch already excludes one reason (`superseded_by_newer_user_event`): `handed_over` is added to the
+same condition.
 
 ---
 
-## 5. Ce que le meneur change, et ce qu'il ne change pas
+## 5. What the lead changes, and what it does not change
 
-### 5.1 Ce qu'il change
+### 5.1 What it changes
 
-| | Sans meneur (aujourd'hui) | Avec un meneur |
+| | Without a lead (today) | With a lead |
 |---|---|---|
-| Qui reçoit une demande sans `@nom` | Le driver du serveur choisit. Onyx ne le voit que par `driver_status` (`GroupThread.kt:114-127`) et par l'indice de l'écran vide (`GroupRoomScreen.kt:956-957`). | Le meneur, en premier. |
-| Qui distribue | Personne d'identifiable : la répartition est interne au driver. | Le meneur, et sa décision **s'écrit** : chaque répartition est un `bot.handoff` dans le journal. |
-| Ce que l'écran peut montrer | Rien de la répartition. | La ligne du passage, et le meneur courant. |
-| Ordre des tours | Implicite. | Explicite dans le journal, donc relisible et testable. |
+| Who receives a request without `@name` | The server driver chooses. Onyx only sees it through `driver_status` (`GroupThread.kt:114-127`) and through the empty-screen hint (`GroupRoomScreen.kt:956-957`). | The lead, first. |
+| Who distributes | No one identifiable: the distribution is internal to the driver. | The lead, and its decision **is written**: each distribution is a `bot.handoff` in the journal. |
+| What the screen can show | Nothing of the distribution. | The handoff line, and the current lead. |
+| Turn order | Implicit. | Explicit in the journal, hence re-readable and testable. |
 
-Le gain n'est pas « un chef » : c'est **un ordre écrit**. Aujourd'hui, une salle qui répond dans un
-ordre inattendu ne laisse aucune trace de la décision.
+The gain is not "a chief": it is **a written order**. Today, a room that answers in an
+unexpected order leaves no trace of the decision.
 
-### 5.2 Ce qu'il ne change pas
+### 5.2 What it does not change
 
-| Chose | Pourquoi elle ne bouge pas |
+| Thing | Why it does not move |
 |---|---|
-| `@nom` adresse toujours un membre directement | L'indice de la salle le promet déjà (`GroupRoomScreen.kt:956-957`). Le meneur est un défaut, pas un péage (D2). |
-| `groups.stop` arrête tout le monde, meneur compris | Il ne prend qu'un `room_id` (`ServeGroupsRpc.kt:157-166`). Rien à changer. |
-| `groups.approve` garde son identité par membre | La requête porte `member_id` (`ServeGroupsRpc.kt:211-224`). Le meneur ne peut pas approuver à la place d'un autre : ce serait approuver une commande qu'il n'a pas demandée. |
-| Le roster de 2 à 6 membres | Fixé à la création (`GroupRoom.kt:116-118`). `groups.lead` n'ajoute et ne retire personne. |
-| L'ordre et la numérotation du journal | Un événement de plus, à la fin. Aucune ligne existante n'est déplacée. |
-| La scène vocale | Elle ne lit que les messages et les brouillons (`GroupRoomFeed.kt:110-161`). |
-| L'onglet Flux et l'onglet Fichiers | `roomThreadMessages` ne garde que `isMessage` (`GroupRoomJournal.kt:30`). Un passage de main n'est pas un message : il ne s'y invite pas. C'est **voulu** — le Flux est une conversation, pas un journal d'exploitation. |
-| Le nom, l'identifiant, la date de la salle | `groups.lead` n'y touche pas. |
+| `@name` always addresses a member directly | The room hint already promises it (`GroupRoomScreen.kt:956-957`). The lead is a default, not a toll booth (D2). |
+| `groups.stop` stops everyone, lead included | It only takes a `room_id` (`ServeGroupsRpc.kt:157-166`). Nothing to change. |
+| `groups.approve` keeps its per-member identity | The request carries `member_id` (`ServeGroupsRpc.kt:211-224`). The lead cannot approve on someone else's behalf: that would be approving a command it did not request. |
+| The roster of 2 to 6 members | Fixed at creation (`GroupRoom.kt:116-118`). `groups.lead` adds and removes nobody. |
+| The journal's order and numbering | One more event, at the end. No existing line is moved. |
+| The voice scene | It only reads messages and drafts (`GroupRoomFeed.kt:110-161`). |
+| The Feed tab and the Files tab | `roomThreadMessages` keeps only `isMessage` (`GroupRoomJournal.kt:30`). A handoff is not a message: it does not invite itself there. This is **intentional** — the Feed is a conversation, not an operations log. |
+| The room's name, identifier, date | `groups.lead` does not touch them. |
 
 ---
 
-## 6. Si le meneur meurt en cours de route
+## 6. If the lead dies along the way
 
-Cinq cas. Chacun a une issue précise, et aucune n'est « on verra ».
+Five cases. Each has a precise outcome, and none is "we'll see".
 
-| Cas | Ce que le serveur fait | Ce que l'écran montre |
+| Case | What the server does | What the screen shows |
 |---|---|---|
-| Le tour du destinataire échoue après le passage | `turn.failed` pour le destinataire (`GroupThread.kt:53-55`). **La main reste au destinataire.** Aucun retour automatique. | « Coder n'a pas pu répondre : … », et la salle garde Coder comme meneur. |
-| Le partant meurt **avant** que `groups.handoff` soit écrit | Rien n'est écrit. La main ne bouge pas. Le tour est perdu comme aujourd'hui (`turn.failed`). | Aucune ligne de passage. C'est correct : il n'y a pas eu de passage. |
-| Le meneur meurt pendant son tour, sans `groups.handoff` | `turn.failed` ou `turn.cancelled`, selon la cause. Le meneur **reste** désigné. | La salle reste avec ce meneur ; la personne peut en désigner un autre. |
-| Le profil du meneur disparaît du serveur | Le serveur retire le meneur et écrit `room.lead_changed` avec `lead_member_id: null`, `reason: "member_left"`. Une **seule** écriture, pas deux. | « Coder a quitté la salle : plus de meneur. » La salle se comporte exactement comme avant le lot. |
-| Le serveur redémarre en plein tour | Le journal est sur disque : le passage, s'il était écrit, reste. `groups.state` rend `blocked` si Hermes a perdu le tour de vue (`GroupThread.kt:96-100`). | Le fil garde la ligne de passage ; rien n'est inventé au redémarrage. |
+| The recipient's turn fails after the handoff | `turn.failed` for the recipient (`GroupThread.kt:53-55`). **The hand stays with the recipient.** No automatic return. | "Coder n'a pas pu répondre : …" ("Coder could not answer: …"), and the room keeps Coder as lead. |
+| The leaver dies **before** `groups.handoff` is written | Nothing is written. The hand does not move. The turn is lost as today (`turn.failed`). | No handoff line. This is correct: there was no handoff. |
+| The lead dies during its turn, without `groups.handoff` | `turn.failed` or `turn.cancelled`, depending on the cause. The lead **remains** designated. | The room stays with that lead; the person can designate another one. |
+| The lead's profile disappears from the server | The server removes the lead and writes `room.lead_changed` with `lead_member_id: null`, `reason: "member_left"`. A **single** write, not two. | "Coder a quitté la salle : plus de meneur." The room behaves exactly as before this batch. |
+| The server restarts mid-turn | The journal is on disk: the handoff, if it was written, remains. `groups.state` returns `blocked` if Hermes has lost track of the turn (`GroupThread.kt:96-100`). | The thread keeps the handoff line; nothing is invented on restart. |
 
-Pourquoi aucun retour automatique : un renvoi à chaque échec produirait un ping-pong entre deux bots
-qui échouent. Le retour est **un geste**, pas une conséquence — `groups.handoff` dans l'autre sens.
+Why no automatic return: a bounce-back on each failure would produce a ping-pong between two failing
+bots. The return is **a gesture**, not a consequence — `groups.handoff` in the other direction.
 
 ---
 
-## 7. Les replis
+## 7. The fallbacks
 
-### 7.1 Serveur sans la route
+### 7.1 Server without the route
 
-Deux chemins, un seul verdict.
+Two paths, one verdict.
 
-1. **Annoncé** : `groups.capabilities.methods` ne liste pas `groups.lead` / `groups.handoff`. Le client
-   le lit déjà pour `supported` (`ServeGroupsRpc.kt:297-303`) ; les deux champs ajoutés à
-   `GroupSupport` restent `false`, et l'entrée de menu n'est **pas dessinée**.
-2. **Découvert à l'usage** : un `-32601` (méthode inconnue). `looksLikeMissingRoute` le reconnaît déjà
-   (`PageStates.kt:113-123`) ; l'entrée disparaît au retour suivant, et la phrase de §7.4 s'affiche
-   une fois.
+1. **Announced**: `groups.capabilities.methods` does not list `groups.lead` / `groups.handoff`. The client
+   already reads it for `supported` (`ServeGroupsRpc.kt:297-303`); the two fields added to
+   `GroupSupport` remain `false`, and the menu entry is **not drawn**.
+2. **Discovered in use**: a `-32601` (unknown method). `looksLikeMissingRoute` already recognises it
+   (`PageStates.kt:113-123`); the entry disappears on the next return, and the §7.4 sentence is displayed
+   once.
 
-Le motif d'entrée conditionnelle existe déjà dans la salle : « Bot Models » n'est dessiné que si la
-lambda est fournie et que la salle a des membres (`GroupRoomScreen.kt:723-737`). Une entrée de plus,
-avec la même garde, ne demande aucun mécanisme neuf. Elle demande en revanche son libellé au
-catalogue : `MenuAndSheetLocalizationTest` refuse un `MenuItem(…)` écrit en clair sans traduction
-française (`MenuAndSheetLocalizationTest.kt:56-73`).
+The conditional-entry pattern already exists in the room: "Bot Models" is drawn only if the
+lambda is provided and the room has members (`GroupRoomScreen.kt:723-737`). One more entry,
+with the same guard, requires no new mechanism. It does, however, require its label from the
+catalog: `MenuAndSheetLocalizationTest` rejects a `MenuItem(…)` written in plain text without a French
+translation (`MenuAndSheetLocalizationTest.kt:56-73`).
 
-| Route absente | Phrase exacte affichée (FR) | Clé EN |
+| Missing route | Exact phrase displayed (FR) | EN key |
 |---|---|---|
-| `groups.lead` | « Ce serveur ne sait pas désigner un meneur (route absente). » | `This server can't name a lead (route missing).` |
-| `groups.handoff` | « Ce serveur ne sait pas passer la main (route absente). » | `This server can't hand over (route missing).` |
+| `groups.lead` | "Ce serveur ne sait pas désigner un meneur (route absente)." | `This server can't name a lead (route missing).` |
+| `groups.handoff` | "Ce serveur ne sait pas passer la main (route absente)." | `This server can't hand over (route missing).` |
 
-`humanFailure` ne convient pas ici : sur un `-32601` il dit « Le serveur a refusé : … »
-(`TransportError.kt:160`), ce qui est vrai mais ne dit pas que la fonction n'existe pas.
+`humanFailure` is not suitable here: on a `-32601` it says "Le serveur a refusé : …"
+(The server refused: …) (`TransportError.kt:160`), which is true but does not say that the function does not exist.
 
-### 7.2 Salle sans meneur
+### 7.2 Room without a lead
 
-C'est l'état d'aujourd'hui, à l'identique : aucune ligne, aucune entrée « Meneur » cochée, et
-`groups.send` sans `@nom` se comporte comme avant. `groups.handoff` reste appelable — n'importe quel
-membre peut passer la main — mais l'entrée « Passer la main à… » du menu humain n'est **pas** dessinée :
-sans meneur, il n'y a pas de main à passer, et cette entrée ne doit pas promettre un geste qui n'a pas
-d'objet.
+This is today's state, identically: no line, no checked "Meneur" (Lead) entry, and
+`groups.send` without `@name` behaves as before. `groups.handoff` remains callable — any
+member can hand over — but the human menu's "Passer la main à…" (Hand over to…) entry is **not** drawn:
+without a lead, there is no hand to pass, and this entry must not promise a gesture that has no
+object.
 
-`groups.lead` avec `member_id: null` sur une salle qui n'a pas de meneur → `409 already_lead`, aucun
-événement. Un retrait qui ne retire rien n'est pas une information.
+`groups.lead` with `member_id: null` on a room that has no lead → `409 already_lead`, no
+event. A removal that removes nothing is not information.
 
-### 7.3 Meneur retiré de la salle
+### 7.3 Lead removed from the room
 
-Onyx **n'a aucune route pour retirer un membre** d'une salle : `GroupRoomApi` n'en porte pas
-(`ServeGroupsRpc.kt:326-339`), et le roster est fixé à la création. Ce cas arrive donc par le serveur,
-quand un profil disparaît — et c'est au serveur de le traiter (§6, quatrième ligne). Côté téléphone :
+Onyx **has no route to remove a member** from a room: `GroupRoomApi` carries none
+(`ServeGroupsRpc.kt:326-339`), and the roster is fixed at creation. This case therefore arrives through the server,
+when a profile disappears — and it is up to the server to handle it (§6, fourth row). On the phone side:
 
-- Le roster se rafraîchit par `groups.state` : `look()` remplace les membres quand ils ont changé
+- The roster refreshes through `groups.state`: `look()` replaces the members when they have changed
   (`GroupRoomFeed.kt:264-266`).
-- Tant que le roster local est en retard, la salle peut afficher un meneur qui n'existe plus. Le
-  prochain `groups.lead` ou `groups.handoff` qui le nomme rend `409 member_not_in_room`, et l'écran
-  relit le journal au lieu d'inventer une correction.
-- La ligne « Coder a quitté la salle : plus de meneur » vient du serveur, jamais d'une déduction de
-  l'app : c'est la seule façon de distinguer un retrait d'une simple panne de lecture.
+- As long as the local roster lags, the room may display a lead that no longer exists. The
+  next `groups.lead` or `groups.handoff` that names it returns `409 member_not_in_room`, and the screen
+  re-reads the journal instead of inventing a correction.
+- The line "Coder a quitté la salle : plus de meneur" comes from the server, never from a deduction by
+  the app: that is the only way to distinguish a removal from a simple read failure.
 
-### 7.4 Ce qui reste vrai dans tous les cas
+### 7.4 What remains true in all cases
 
-- Aucun repli ne casse une salle existante : sans les deux routes, la salle est celle d'aujourd'hui,
-  au pixel près (`ARCHITECTURE-TOP5.md:143`).
-- Un `409` n'est jamais une panne : l'écran le dit avec ses mots (§5 des refus), pas avec
-  « Réessayez ».
-- Une entrée absente ne laisse pas de tap mort : c'est la règle 2 du contrat de non-régression
+- No fallback breaks an existing room: without the two routes, the room is today's,
+  to the pixel (`ARCHITECTURE-TOP5.md:143`).
+- A `409` is never an outage: the screen says it in its own words (§5 of the refusals), not with
+  "Réessayez" (Try again).
+- A missing entry leaves no dead tap: this is rule 2 of the non-regression contract
   (`ARCHITECTURE-TOP5.md:17-19`).
 
 ---
 
-## 8. L'accroche dans l'écran
+## 8. The hook in the screen
 
-Aucune destination nouvelle : `Route` (`OnyxApp.kt:234`) et `RouteRetours.kt` ne bougent pas.
+No new destination: `Route` (`OnyxApp.kt:234`) and `RouteRetours.kt` do not move.
 
-| Geste | Où | Route |
+| Gesture | Where | Route |
 |---|---|---|
-| « Meneur de la salle » → sous-menu des membres | menu « … » de la salle, une entrée conditionnelle de plus (`GroupRoomScreen.kt:713-752`) | `groups.lead` |
-| « Passer la main à… » → sous-menu des membres, dessiné seulement s'il y a un meneur | même menu | `groups.handoff`, avec `from_member_id` = le meneur et `task_id: null` |
-| La ligne du passage | le fil, par `note()` (`GroupThread.kt:49-69`) | lecture seule |
+| "Meneur de la salle" (Room lead) → members submenu | the room's "…" menu, one more conditional entry (`GroupRoomScreen.kt:713-752`) | `groups.lead` |
+| "Passer la main à…" (Hand over to…) → members submenu, drawn only if there is a lead | same menu | `groups.handoff`, with `from_member_id` = the lead and `task_id: null` |
+| The handoff line | the thread, via `note()` (`GroupThread.kt:49-69`) | read-only |
 
-Le sous-menu par membre existe déjà pour « Bot Models » (`GroupRoomScreen.kt:723-737`) : on réutilise
-sa forme, pas son code. Les deux nouvelles entrées portent `localize = true` (défaut) et leurs
-libellés vont au catalogue.
+The per-member submenu already exists for "Bot Models" (`GroupRoomScreen.kt:723-737`): we reuse
+its shape, not its code. The two new entries carry `localize = true` (default) and their
+labels go to the catalog.
 
-Ce qui n'est **pas** dans ce lot : un écran de meneur, un badge permanent dans l'en-tête, une
-commande `/lead`. Le plan ne les demande pas et l'en-tête est déjà chargé (trois boutons,
+What is **not** in this batch: a lead screen, a permanent badge in the header, a
+`/lead` command. The plan does not ask for them and the header is already loaded (three buttons,
 `GroupRoomScreen.kt:892-911`).
 
 ---
 
-## 9. Accroches dans le code existant
+## 9. Hooks in the existing code
 
-| Affirmation de ce document | Fichier réel |
+| Claim in this document | Actual file |
 |---|---|
-| Les rooms passent par un canal RPC, pas par HTTP | `core/.../data/net/ServeGroupsRpc.kt:31` ; `core/.../data/net/RpcChannel.kt:13` |
-| Le délai d'un appel de salle est de 60 s | `core/.../data/net/ServeGroupsRpc.kt:286` |
-| Les méthodes connues du serveur sont annoncées dans `groups.capabilities` | `core/.../data/net/ServeGroupsRpc.kt:297-303` |
-| `GroupSupport` n'a que deux champs aujourd'hui, et un test le construit par position | `core/.../data/net/ServeGroupsRpc.kt:342` ; `core/.../test/.../ServeGroupsRpcTest.kt:52` |
-| `groups.send` écrit un `message.user` et laisse le driver choisir qui répond | `core/.../data/net/ServeGroupsRpc.kt:113-129` |
-| `groups.stop` n'arrête qu'une salle, sans distinguer de meneur | `core/.../data/net/ServeGroupsRpc.kt:157-166` |
-| `groups.approve` porte le `member_id` de celui qui a demandé | `core/.../data/net/ServeGroupsRpc.kt:211-224` |
-| Un `disband` pendant l'arrêt se retente | `core/.../data/net/ServeGroupsRpc.kt:185-196` |
-| `GroupEvent` : `seq`, `kind`, `actor`, `payload`, `created_at` | `core/.../data/model/serve/GroupThread.kt:27-39` |
-| `actorID` lit `payload.member_id` **avant** `actor.id` | `core/.../data/model/serve/GroupThread.kt:83-84` |
-| `endsDiscussion` ne connaît que deux genres | `core/.../data/model/serve/GroupThread.kt:46` |
-| `note()` est le seul chemin d'une ligne de journal non-message | `core/.../data/model/serve/GroupThread.kt:49-69` |
-| `turn.settled` compose son libellé localement depuis le roster | `core/.../data/model/serve/GroupThread.kt:52` |
-| `turn.cancelled` écarte déjà une raison pour ne rien afficher | `core/.../data/model/serve/GroupThread.kt:56-58` |
-| `driver_status` est la seule vue actuelle de la répartition | `core/.../data/model/serve/GroupThread.kt:114-127` |
-| `rows` est un filtre, l'ordre du journal est conservé | `app/.../ui/bots/GroupRoomFeed.kt:98` |
-| `discussing` dépend de `endsDiscussion` | `app/.../ui/bots/GroupRoomFeed.kt:73-78` |
-| Le roster se rafraîchit par `groups.state` | `app/.../ui/bots/GroupRoomFeed.kt:264-266` |
-| L'écran relit après un geste (`stop`, `retry`) | `app/.../ui/bots/GroupRoomFeed.kt:524-531` |
-| Le tick est de 500 ms quand la salle travaille | `app/.../ui/bots/GroupRoomFeed.kt:580-583` |
-| Une note s'affiche centrée, sans nouvelle composition | `app/.../ui/bots/GroupRoomScreen.kt:1009-1016` |
-| Un sous-menu par membre est déjà dessiné | `app/.../ui/bots/GroupRoomScreen.kt:723-737` |
-| L'indice de la salle promet `@nom` | `app/.../ui/bots/GroupRoomScreen.kt:956-957` |
-| Le roster va de 2 à 6 membres | `core/.../data/model/serve/GroupRoom.kt:116-118` |
-| `label` est le nom de salle, sinon la poignée | `core/.../data/model/serve/GroupRoom.kt:34-35` |
-| Le Flux ne lit que les messages | `app/.../ui/bots/GroupRoomJournal.kt:30` |
-| La voix ne lit que les messages et les brouillons | `app/.../ui/bots/GroupRoomFeed.kt:110-161` |
-| `-32601` et `404` se reconnaissent comme une route absente | `app/.../ui/common/PageStates.kt:113-123` |
-| Un `-32601` se dit aujourd'hui « Le serveur a refusé : … » | `core/.../data/net/TransportError.kt:160` |
-| Un libellé de menu sans traduction fait échouer un test | `core/.../test/.../MenuAndSheetLocalizationTest.kt:56-73` |
+| Rooms go through an RPC channel, not HTTP | `core/.../data/net/ServeGroupsRpc.kt:31` ; `core/.../data/net/RpcChannel.kt:13` |
+| A room call has a 60 s timeout | `core/.../data/net/ServeGroupsRpc.kt:286` |
+| The server's known methods are announced in `groups.capabilities` | `core/.../data/net/ServeGroupsRpc.kt:297-303` |
+| `GroupSupport` has only two fields today, and a test constructs it positionally | `core/.../data/net/ServeGroupsRpc.kt:342` ; `core/.../test/.../ServeGroupsRpcTest.kt:52` |
+| `groups.send` writes a `message.user` and lets the driver choose who answers | `core/.../data/net/ServeGroupsRpc.kt:113-129` |
+| `groups.stop` stops a single room, without distinguishing a lead | `core/.../data/net/ServeGroupsRpc.kt:157-166` |
+| `groups.approve` carries the `member_id` of the requester | `core/.../data/net/ServeGroupsRpc.kt:211-224` |
+| A `disband` during shutdown is retried | `core/.../data/net/ServeGroupsRpc.kt:185-196` |
+| `GroupEvent`: `seq`, `kind`, `actor`, `payload`, `created_at` | `core/.../data/model/serve/GroupThread.kt:27-39` |
+| `actorID` reads `payload.member_id` **before** `actor.id` | `core/.../data/model/serve/GroupThread.kt:83-84` |
+| `endsDiscussion` knows only two kinds | `core/.../data/model/serve/GroupThread.kt:46` |
+| `note()` is the only path for a non-message journal line | `core/.../data/model/serve/GroupThread.kt:49-69` |
+| `turn.settled` composes its label locally from the roster | `core/.../data/model/serve/GroupThread.kt:52` |
+| `turn.cancelled` already excludes one reason so as to show nothing | `core/.../data/model/serve/GroupThread.kt:56-58` |
+| `driver_status` is the only current view of the distribution | `core/.../data/model/serve/GroupThread.kt:114-127` |
+| `rows` is a filter, the journal order is preserved | `app/.../ui/bots/GroupRoomFeed.kt:98` |
+| `discussing` depends on `endsDiscussion` | `app/.../ui/bots/GroupRoomFeed.kt:73-78` |
+| The roster refreshes through `groups.state` | `app/.../ui/bots/GroupRoomFeed.kt:264-266` |
+| The screen re-reads after a gesture (`stop`, `retry`) | `app/.../ui/bots/GroupRoomFeed.kt:524-531` |
+| The tick is 500 ms when the room is working | `app/.../ui/bots/GroupRoomFeed.kt:580-583` |
+| A note is displayed centred, without new composition | `app/.../ui/bots/GroupRoomScreen.kt:1009-1016` |
+| A per-member submenu is already drawn | `app/.../ui/bots/GroupRoomScreen.kt:723-737` |
+| The room hint promises `@name` | `app/.../ui/bots/GroupRoomScreen.kt:956-957` |
+| The roster runs from 2 to 6 members | `core/.../data/model/serve/GroupRoom.kt:116-118` |
+| `label` is the room name, otherwise the handle | `core/.../data/model/serve/GroupRoom.kt:34-35` |
+| The Feed only reads messages | `app/.../ui/bots/GroupRoomJournal.kt:30` |
+| Voice only reads messages and drafts | `app/.../ui/bots/GroupRoomFeed.kt:110-161` |
+| `-32601` and `404` are recognised as a missing route | `app/.../ui/common/PageStates.kt:113-123` |
+| A `-32601` currently says "Le serveur a refusé : …" (The server refused: …) | `core/.../data/net/TransportError.kt:160` |
+| A menu label without translation fails a test | `core/.../test/.../MenuAndSheetLocalizationTest.kt:56-73` |
 
 ---
 
-## 10. Preuves attendues
+## 10. Expected proofs
 
-1. **Le journal, pas l'écran** : 40 événements + un `bot.handoff` → les mêmes rangées dans le même
-   ordre, plus une (`ARCHITECTURE-TOP5.md:144`). Test pur sur `rows`.
-2. **Pas de fuite dans le Flux** : `roomThreadMessages` sur ce même journal rend les mêmes messages
-   qu'avant, sans la ligne de passage (`GroupRoomJournal.kt:30`).
-3. **La discussion continue** : `discussing` reste vrai après un `bot.handoff` seul, et devient faux
-   après un `room.activity`.
-4. **Le piège d'identité** : un `bot.handoff` dont la charge utile porte `member_id` change
-   `actorID` — le test doit l'attraper, et le serveur ne doit jamais l'écrire.
-5. **Pas de doublon** : un `turn.cancelled` de raison `handed_over` ne produit aucune ligne.
-6. **Absence** : sans les deux méthodes dans `groups.capabilities`, aucune des deux entrées n'est
-   dessinée, et aucune phrase « Réessayez » n'apparaît.
-7. **Localisation** : les quatre libellés du menu et les cinq phrases de §4.3 sont au catalogue ;
-   `MenuAndSheetLocalizationTest` passe.
-8. **Compatibilité** : `GroupSupport(supported, writable)` compile encore, et la salle sans meneur se
-   comporte exactement comme avant.
-
----
-
-## 11. Ce que ce lot ne fait pas
-
-- Il n'ajoute ni ne retire de membre : aucune route ne le permet aujourd'hui.
-- Il ne donne au meneur aucun droit d'approbation, d'arrêt ou d'exclusion.
-- Il n'affiche pas le meneur en permanence : la ligne de journal suffit, et l'en-tête est plein.
-- Il ne touche ni au fil, ni à la scène vocale, ni aux cinq onglets (`ARCHITECTURE-TOP5.md:26-28`).
-- Il ne change aucune route existante : `groups.lead` et `groups.handoff` sont deux méthodes de plus.
+1. **The journal, not the screen**: 40 events + one `bot.handoff` → the same rows in the same
+   order, plus one (`ARCHITECTURE-TOP5.md:144`). Pure test on `rows`.
+2. **No leak into the Feed**: `roomThreadMessages` on this same journal returns the same messages
+   as before, without the handoff line (`GroupRoomJournal.kt:30`).
+3. **The discussion continues**: `discussing` stays true after a `bot.handoff` alone, and becomes false
+   after a `room.activity`.
+4. **The identity trap**: a `bot.handoff` whose payload carries `member_id` changes
+   `actorID` — the test must catch it, and the server must never write it.
+5. **No duplicate**: a `turn.cancelled` with reason `handed_over` produces no line.
+6. **Absence**: without the two methods in `groups.capabilities`, neither entry is
+   drawn, and no "Réessayez" (Try again) phrase appears.
+7. **Localization**: the four menu labels and the five sentences of §4.3 are in the catalog;
+   `MenuAndSheetLocalizationTest` passes.
+8. **Compatibility**: `GroupSupport(supported, writable)` still compiles, and the room without a lead
+   behaves exactly as before.
 
 ---
 
-## 12. Décisions ouvertes
+## 11. What this batch does not do
 
-| # | Question | Ce que je propose | Ce qu'il faut pour trancher |
+- It neither adds nor removes a member: no route allows it today.
+- It gives the lead no right of approval, stop or exclusion.
+- It does not display the lead permanently: the journal line is enough, and the header is full.
+- It touches neither the thread, nor the voice scene, nor the five tabs (`ARCHITECTURE-TOP5.md:26-28`).
+- It changes no existing route: `groups.lead` and `groups.handoff` are two more methods.
+
+---
+
+## 12. Open decisions
+
+| # | Question | What I propose | What is needed to decide |
 |---|---|---|---|
-| O1 | Le meneur est-il **aussi** celui qui ouvre le tour après un message de la personne, ou seulement le premier destinataire ? | Premier destinataire : il peut rester muet et laisser un autre répondre. | Une observation d'usage : un meneur muet est-il un bug ou un choix ? |
-| O2 | `summary` obligatoire ? | Facultatif : le journal est déjà le contexte. | — |
-| O3 | Un `groups.lead` doit-il écrire un événement quand la valeur ne change pas ? | Non : `409 already_lead`, aucun événement. | — |
-| O4 | Le retrait du meneur sur disparition de profil : événement `system` ou `user` ? | `system` : personne n'a cliqué. | La convention du core Hermes pour les événements qu'il écrit seul. |
-| O5 | Les deux entrées de menu, ou une seule avec deux gestes ? | Deux entrées distinctes, chacune conditionnelle à sa route. | Une maquette : deux entrées dans un menu de six, c'est beaucoup. |
+| O1 | Is the lead **also** the one who opens the turn after a message from the person, or only the first recipient? | First recipient: it can stay silent and let another answer. | A usage observation: is a silent lead a bug or a choice? |
+| O2 | `summary` mandatory? | Optional: the journal is already the context. | — |
+| O3 | Should a `groups.lead` write an event when the value does not change? | No: `409 already_lead`, no event. | — |
+| O4 | Removing the lead on profile disappearance: `system` or `user` event? | `system`: nobody clicked. | The Hermes core convention for the events it writes alone. |
+| O5 | The two menu entries, or one with two gestures? | Two distinct entries, each conditional on its route. | A mockup: two entries in a menu of six is a lot. |
 
-## 13. Points du plan qui m'ont semblé incohérents
+## 13. Points in the plan that seemed inconsistent to me
 
-1. **« une ligne de menu, comme `onOpenBotModels` » (`ARCHITECTURE-TOP5.md:142`).** Ce nom n'existe
-   pas dans le dépôt. Le motif réel est `onPickBotModel` (`GroupRoomScreen.kt:723-737`), une entrée
-   conditionnelle dans le `buildList` du `OnyxMenu` de la salle. Le plan cite un symbole inventé ; la
-   spec s'ancre sur le vrai.
-2. **« dans le fil, l'événement de passage (“Talk hands to Coder”) » (`:139`).** La formulation
-   anglaise n'existe nulle part, et « Talk hands » ne veut rien dire. La phrase retenue est
-   « Writer passe la main à Coder. », composée localement à partir des identifiants (§4.3), comme
-   `turn.settled` le fait déjà.
-3. **« Repli : serveur sans handoff → l'entrée de menu n'existe pas » (`:143`).** Il y a **deux**
-   routes et donc **deux** entrées à éteindre séparément : un serveur peut connaître `groups.lead`
-   sans connaître `groups.handoff` (un core plus ancien d'une version). Le plan traite les deux comme
-   un seul drapeau ; la spec les sépare (§7.1), sinon une entrée resterait dessinée pour une route
-   absente.
-4. **« surtout serveur » pour une semaine (`:135`).** Les deux méthodes sont petites ; ce qui prend du
-   temps, c'est de décider ce que le meneur **ne** fait pas (§5.2) et de tenir les deux pièges de
-   §4.1. Le plan sous-estime la partie *interface* de ce lot, pas la partie serveur.
-5. **Le plan ne dit pas ce qui arrive si le meneur meurt** (`:135-144`). C'est la question qui décide
-   de la sémantique du passage : sans elle, on ne sait pas si `groups.handoff` déplace un pointeur ou
-   transfère un tour. La spec tranche : les deux, selon que `task_id` est présent (§3, §6).
+1. **"a menu line, like `onOpenBotModels`" (`ARCHITECTURE-TOP5.md:142`).** That name does not exist
+   in the repository. The actual pattern is `onPickBotModel` (`GroupRoomScreen.kt:723-737`), a
+   conditional entry in the `buildList` of the room's `OnyxMenu`. The plan cites an invented symbol; the
+   spec anchors on the real one.
+2. **"in the thread, the handoff event ("Talk hands to Coder")" (`:139`).** The formulation
+   in English does not exist anywhere, and "Talk hands" means nothing. The retained sentence is
+   "Writer passe la main à Coder.", composed locally from the identifiers (§4.3), as
+   `turn.settled` already does.
+3. **"Fallback: server without handoff → the menu entry does not exist" (`:143`).** There are **two**
+   routes and therefore **two** entries to switch off separately: a server may know `groups.lead`
+   without knowing `groups.handoff` (an older core of one version). The plan treats both as
+   a single flag; the spec separates them (§7.1), otherwise an entry would remain drawn for a missing
+   route.
+4. **"mostly server" for a week (`:135`).** The two methods are small; what takes
+   time is deciding what the lead **does not** do (§5.2) and holding the two traps of
+   §4.1. The plan underestimates the *interface* part of this batch, not the server part.
+5. **The plan does not say what happens if the lead dies** (`:135-144`). This is the question that decides
+   the handoff semantics: without it, one does not know whether `groups.handoff` moves a pointer or
+   transfers a turn. The spec decides: both, depending on whether `task_id` is present (§3, §6).

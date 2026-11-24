@@ -24,47 +24,47 @@ import kotlinx.serialization.json.put
 import java.security.SecureRandom
 
 /**
- * Le pont de l'**appel de l'agent vers le téléphone** (`phone_call_me`).
+ * The bridge for the **agent-to-phone call** (`phone_call_me`).
  *
- * Port de `androidApp/…/phone/CallMeTool.kt` **et** de `shared/core/…/phone/PhoneToolsBridge.kt`
- * de la référence : l'app **déclare** au gateway l'outil d'appel, **interroge** les appels qui
- * l'attendent, **sonne** — et **rend l'issue** (`answered` / `declined` / `no_answer` / `quiet`).
+ * Port of `androidApp/…/phone/CallMeTool.kt` **and** of `shared/core/…/phone/PhoneToolsBridge.kt`
+ * from the reference: the app **declares** the call tool to the gateway, **polls** for the calls
+ * waiting for it, **rings** — and **returns the outcome** (`answered` / `declined` / `no_answer` / `quiet`).
  *
- * ## Ce que la référence fait, et que ce pont refait
+ * ## What the reference does, and what this bridge redoes
  *
- * L'outil `phone_call_me` n'est **pas** un outil du gateway : c'est le **plugin** installé sur le
- * gateway (chez elle `herald-push`, ici `onyx-calls`) qui le déclare à l'agent, et l'app lui parle
- * par **trois commandes** :
+ * The `phone_call_me` tool is **not** a gateway tool: it is the **plugin** installed on the
+ * gateway (theirs `herald-push`, ours `onyx-calls`) that declares it to the agent, and the app talks to it
+ * through **three commands**:
  *
- * | téléphone → gateway | ce que ça dit | référence |
+ * | phone → gateway | what it says | reference |
  * |---|---|---|
- * | `phone tools {…}` | « ces outils, je peux les servir » | `PhoneToolsBridge.report` / `PushApi.phoneTools` |
- * | `phone pending {…}` | « qu'est-ce qui m'attend ? » | `PhoneToolsBridge.drain` / `PushApi.phonePending` |
- * | `phone answer {…}` | « voilà l'issue » | `PhoneToolsBridge.answer` / `PushApi.phoneAnswer` |
+ * | `phone tools {…}` | "these tools, I can serve them" (French UI string « ces outils, je peux les servir ») | `PhoneToolsBridge.report` / `PushApi.phoneTools` |
+ * | `phone pending {…}` | "what is waiting for me?" (French UI string « qu'est-ce qui m'attend ? ») | `PhoneToolsBridge.drain` / `PushApi.phonePending` |
+ * | `phone answer {…}` | "here is the outcome" (French UI string « voilà l'issue ») | `PhoneToolsBridge.answer` / `PushApi.phoneAnswer` |
  *
- * Ces trois-là passent par la **même commande du gateway** (`command.dispatch`), la seule route
- * qu'un client a pour parler à un plugin.
+ * Those three go through the **same gateway command** (`command.dispatch`), the only route
+ * a client has to talk to a plugin.
  *
- * Rien de ce fichier n'est un mensonge : s'il n'y a pas de plugin `onyx-calls` sur le gateway, la
- * déclaration échoue, l'état le dit (`NotInstalled`), et **l'appel ne sonne jamais** — c'est
- * exactement la règle du lot.
+ * Nothing in this file is a lie: if there is no `onyx-calls` plugin on the gateway, the
+ * declaration fails, the state says so (`NotInstalled`), and **the call never rings** — that is
+ * exactly the batch's rule.
  */
 class AgentCallBridge(
     private val context: Context,
     private val settings: SettingsRepository,
     private val servers: ServerRepository,
-    /** Le nom du fil, pour l'écran d'appel (« qui appelle »). */
+    /** The thread's name, for the call screen ("who is calling" — French UI string « qui appelle »). */
     private val titleOf: (String) -> String? = { null },
-    /** L'horloge, en secondes — celle du gateway pour comparer les échéances. */
+    /** The clock, in seconds — the gateway's, to compare deadlines. */
     private val nowSeconds: () -> Long = { System.currentTimeMillis() / 1_000 },
 ) {
 
-    /** Où en est le pont, pour l'écran Réglages → Phone → Calls. */
+    /** Where the bridge stands, for the Settings → Phone → Calls screen. */
     data class Status(val state: State = State.Off, val detail: String? = null) {
         enum class State { Off, Offline, Working, NotInstalled, On, Failed }
     }
 
-    /** Ce que l'agent a demandé récemment — le journal de la page, du plus récent au plus ancien. */
+    /** What the agent requested recently — the page's log, most recent first. */
     data class Use(val tool: String, val at: Long, val outcome: String, val error: String? = null)
 
     private val _status = MutableStateFlow(Status())
@@ -75,10 +75,10 @@ class AgentCallBridge(
 
     private val identity = AgentCallIdentity(context)
 
-    /** La session vivante du gateway : `command.dispatch` l'exige. Posée par l'app quand elle en a une. */
+    /** The gateway's live session: `command.dispatch` requires it. Set by the app when it has one. */
     @Volatile var sessionId: String? = null
 
-    /** L'appel qui sonne, s'il y en a un : on ne sonne pas par-dessus. */
+    /** The call that is ringing, if any: we do not ring over it. */
     @Volatile private var ringing: AgentCallRequest? = null
 
     private var loop: Job? = null
@@ -86,10 +86,10 @@ class AgentCallBridge(
     private var channel: ServeRpc? = null
     private var channelFor: String? = null
 
-    /** Les identifiants déjà répondus, pour ne pas sonner deux fois pour le même appel. */
+    /** The already answered ids, so as not to ring twice for the same call. */
     private val answered = ArrayDeque<String>()
 
-    /** Démarre la boucle d'interrogation, portée par [scope] (la portée du processus). */
+    /** Starts the polling loop, carried by [scope] (the process scope). */
     fun start(scope: CoroutineScope) {
         if (loop?.isActive == true) return
         this.scope = scope
@@ -107,10 +107,10 @@ class AgentCallBridge(
     }
 
     /**
-     * Un tour d'interrogation : déclare l'outil, puis sert ce qui attend.
+     * One polling round: declare the tool, then serve what is waiting.
      *
-     * Sans connexion, sans outil allumé, ou sans plugin : on ne fait **rien** — jamais d'exception
-     * qui remonterait dans la boucle.
+     * Without a connection, without the tool on, or without the plugin: we do **nothing** — never an exception
+     * that would bubble back into the loop.
      */
     suspend fun pollNow() {
         val server = servers.activeServer.value
@@ -125,7 +125,7 @@ class AgentCallBridge(
         _status.value = Status(Status.State.Working)
         val rpc = serve(server)
         try {
-            // 1) Déclarer l'outil : l'agent ne le voit qu'une fois déclaré.
+            // 1) Declare the tool: the agent only sees it once declared.
             val declared = command(
                 rpc,
                 "phone tools " + AgentCallProtocol.toolsReport(
@@ -143,7 +143,7 @@ class AgentCallBridge(
                 return
             }
             _status.value = Status(Status.State.On)
-            // 2) Servir ce qui attend.
+            // 2) Serve what is waiting.
             val pending = command(
                 rpc,
                 "phone pending " + AgentCallProtocol.pendingQuery(identity.deviceId, identity.key),
@@ -156,11 +156,11 @@ class AgentCallBridge(
         }
     }
 
-    /** Sonne, ou refuse tout de suite : les heures de tranquillité ne sonnent pas. */
+    /** Rings, or declines right away: quiet hours do not ring. */
     private suspend fun serveRequests(rpc: ServeRpc, requests: List<AgentCallRequest>) {
         for (request in requests) {
             if (request.id in answered) continue
-            // Un appel sonne déjà : l'agent reçoit « occupé », on ne sonne pas par-dessus.
+            // A call is already ringing: the agent receives "busy" (French UI string « occupé »), we do not ring over it.
             if (ringing != null) {
                 answer(rpc, request.id, AgentCallAnswer(CallOutcome.BUSY))
                 continue
@@ -177,7 +177,7 @@ class AgentCallBridge(
         }
     }
 
-    /** Sonne comme un appel entrant, et rend l'issue dès qu'elle tombe. */
+    /** Rings like an incoming call, and returns the outcome as soon as it lands. */
     private fun ring(rpc: ServeRpc, request: AgentCallRequest) {
         val reason = AgentCallProtocol.reasonOf(request)
         ringing = request
@@ -198,7 +198,7 @@ class AgentCallBridge(
             ),
         )
         if (!rung) {
-            // L'app ne peut pas publier de notification : l'agent doit le savoir, pas croire au silence.
+            // The app cannot post a notification: the agent must know it, not believe in silence.
             ringing = null
             markAnswered(request.id)
             record(request.tool, CallOutcome.NO_ANSWER, "l'app ne peut pas sonner")
@@ -206,7 +206,7 @@ class AgentCallBridge(
         }
     }
 
-    /** Envoie un travail de fond dans la portée du pont — décrocher ferme l'écran, la boucle vit encore. */
+    /** Sends background work in the bridge's scope — picking up closes the screen, the loop still lives. */
     private fun sendOnScope(block: suspend () -> Unit) {
         val scope = scope
         if (scope != null) scope.launch { runCatching { block() } }
@@ -221,7 +221,7 @@ class AgentCallBridge(
         _recent.update { (listOf(Use(tool, nowSeconds(), outcome?.id ?: "error", error)) + it).take(MAX_RECENT) }
     }
 
-    /** L'outil d'appel est-il allumé ? (« Appels pour une réponse », comme la référence.) */
+    /** Is the call tool on? ("Calls for an answer" — French UI string « Appels pour une réponse » — as in the reference.) */
     private fun phoneCallsOn(): Boolean = settings.phoneRings.value
 
     private suspend fun answer(rpc: ServeRpc, requestId: String, answer: AgentCallAnswer) {
@@ -233,8 +233,8 @@ class AgentCallBridge(
     }
 
     /**
-     * L'unique route client → plugin : `command.dispatch`. Rend l'`output` du plugin, ou `null`
-     * quand il n'y a pas de plugin (erreur 4018, « pas une commande »).
+     * The only client → plugin route: `command.dispatch`. Returns the plugin's `output`, or `null`
+     * when there is no plugin (error 4018, "not a command" — French UI string « pas une commande »).
      */
     private suspend fun command(rpc: ServeRpc, argument: String): String? {
         val reply = runCatching {
@@ -264,7 +264,7 @@ class AgentCallBridge(
     }
 
     companion object {
-        /** Pour une conversation que l'app ne regarde pas : l'intervalle entre deux regards. */
+        /** For a conversation the app is not watching: the interval between two checks. */
         const val POLL_MS = 15_000L
         private const val MAX_RECENT = 20
         private const val MAX_ANSWERED = 200
@@ -272,9 +272,9 @@ class AgentCallBridge(
 }
 
 /**
- * L'identité du téléphone pour les outils : un identifiant et un secret, faits une fois et gardés.
+ * The phone's identity for the tools: an id and a secret, made once and kept.
  *
- * Reprise de `PhoneToolsBridge.identity` (une paire faite la première fois, jamais régénérée).
+ * Taken from `PhoneToolsBridge.identity` (a pair made the first time, never regenerated).
  */
 class AgentCallIdentity(context: Context) {
 
@@ -284,7 +284,7 @@ class AgentCallIdentity(context: Context) {
     val deviceId: String get() = stored(KEY_ID, ID_BYTES)
     val key: String get() = stored(KEY_KEY, KEY_BYTES)
 
-    /** Le nom que le gateway liste pour ce téléphone. */
+    /** The name the gateway lists for this phone. */
     var name: String
         get() = prefs.getString(KEY_NAME, null).orEmpty().ifBlank { "Onyx" }
         set(value) = prefs.edit().putString(KEY_NAME, value).apply()

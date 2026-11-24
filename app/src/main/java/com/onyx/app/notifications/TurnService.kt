@@ -9,14 +9,14 @@ import android.os.IBinder
 import android.util.Log
 
 /**
- * Le service de fond d'un tour : il garde le processus vivant pendant que l'agent travaille.
+ * The background service of a turn: it keeps the process alive while the agent works.
  *
- * Miroir de ce qu'appelle « continued processing » la référence : quitter la conversation, passer
- * à une autre app ou éteindre l'écran n'interrompt ni le tour ni son suivi.
+ * Mirror of what the reference calls "continued processing": leaving the conversation, switching
+ * to another app or turning off the screen interrupts neither the turn nor its tracking.
  *
- * La notification elle-même vient de [TurnNotification] — la même que celle du repli, donc les
- * deux chemins ne peuvent pas diverger. La règle de publication n'est pas ici non plus : c'est
- * [TurnWorkNotifier] qui décide quoi montrer, et à qui.
+ * The notification itself comes from [TurnNotification] — the same as the fallback's, so the two
+ * paths cannot diverge. The publication rule is not here either: it is
+ * [TurnWorkNotifier] that decides what to show, and to whom.
  */
 class TurnService : Service() {
 
@@ -68,8 +68,8 @@ class TurnService : Service() {
                 startForeground(TurnNotification.PROGRESS_ID, notification)
             }
         } catch (error: Exception) {
-            // Un suivi qui ne peut pas tenir le processus ne doit pas emporter l'app : la
-            // notification, elle, est publiée par le repli de [TurnNotifier].
+            // A tracking that cannot hold the process must not take the app down: the
+            // notification itself is published by the fallback in [TurnNotifier].
             Log.w(TAG, "le service de suivi n'a pas pu passer au premier plan", error)
             stopSelf()
         }
@@ -88,9 +88,9 @@ class TurnService : Service() {
         private const val TAG = "OnyxTurn"
 
         /**
-         * Le canal des tours. Son importance laisse passer le **son** de la notification de fin,
-         * mais la notification d'avancement est publiée en silence : le suivi ne vibre donc
-         * jamais à chaque étape.
+         * The turns channel. Its importance lets the **sound** of the finished notification
+         * through, but the progress notification is published silently: tracking therefore never
+         * vibrates at each step.
          */
         const val CHANNEL_ID = "onyx.turns"
 
@@ -109,11 +109,11 @@ class TurnService : Service() {
         private var activeTitle: String = NotificationCopy.ONYX
 
         /**
-         * Démarre le service sur le tour d'une conversation.
+         * Starts the service on a conversation's turn.
          *
-         * Rend `false` quand Android refuse le démarrage (une app en arrière-plan n'a pas le
-         * droit d'en lancer un) : l'appelant publie alors la **même** notification directement,
-         * pour que le suivi tienne quand même.
+         * Returns `false` when Android refuses the start (a background app has no
+         * right to launch one): the caller then publishes the **same** notification directly,
+         * so that tracking holds anyway.
          */
         fun start(
             context: Context,
@@ -142,7 +142,7 @@ class TurnService : Service() {
             false
         }
 
-        /** Change la phrase du tour déjà suivi, directement via NotificationManager sans repasser par startService. */
+        /** Changes the phrase of the turn already tracked, directly via NotificationManager without going back through startService. */
         fun phase(context: Context, text: String, percent: Int? = null) {
             if (activeConversationId.isEmpty()) return
             runCatching {

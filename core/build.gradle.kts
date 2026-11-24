@@ -36,37 +36,37 @@ dependencies {
     api(libs.kotlinx.serialization.json)
     api(libs.kotlinx.coroutines.android)
 
-    // Le thème et les composants maison de la référence sont partagés par les trois modules.
+    // The reference theme and custom components are shared by the three modules.
     api(platform(libs.androidx.compose.bom))
     api(libs.androidx.ui)
     api(libs.androidx.foundation)
     api(libs.androidx.ui.graphics)
     api(libs.androidx.core.ktx)
 
-    // Le retour système : le menu ancré vit désormais dans la **fenêtre principale** (pour lire la
-    // source de flou et se peindre comme du verre), et n'est plus une `Dialog` qui le refermerait
-    // toute seule. `BackHandler` (activity-compose) le referme explicitement.
+    // The system back handling: the anchored menu now lives in the **main window** (to read the
+    // blur source and paint itself like glass), and is no longer a `Dialog` that would close it
+    // on its own. `BackHandler` (activity-compose) closes it explicitly.
     implementation(libs.androidx.activity.compose)
 
-    // Le verre liquide (`LiquidGlass`) : `dev.chrisbanes.haze`, découpé en trois modules depuis la
-    // version 2 — le cœur, le flou, et le verre.
+    // Liquid glass (`LiquidGlass`): `dev.chrisbanes.haze`, split into three modules since
+    // version 2 — the core, the blur, and the glass.
     //
-    // En `api` et non `implementation` : `HazeState` est posé par les **écrans** (module `app`) sur
-    // le parent qui défile, et lu par le composant en verre — le type traverse donc la frontière du
-    // module, et les écrans doivent voir la même version de Haze que la vitre qu'ils éclairent.
+    // As `api` and not `implementation`: `HazeState` is placed by the **screens** (`app` module) on
+    // the scrolling parent, and read by the glass component — the type therefore crosses the module
+    // boundary, and the screens must see the same Haze version as the pane they light up.
     //
-    // Sans `haze-materials` ni `haze-blur-materials` : ces deux modules tirent
-    // `androidx.compose.material3` (`HazeMaterials` n'est qu'un habillage Material), et l'app ne
-    // doit aucun composant Material.
+    // Without `haze-materials` or `haze-blur-materials`: these two modules pull in
+    // `androidx.compose.material3` (`HazeMaterials` is just Material wrapping), and the app must
+    // owe no Material component.
     api(libs.haze)
     api(libs.haze.blur)
     api(libs.haze.glass)
 
-    // **La lentille du verre** — `io.github.kyant0:backdrop` (Apache-2.0) : l'enregistrement de la
-    // page dans un `GraphicsLayer` et le shader AGSL de réfraction. Haze reste le flou de repli ;
-    // ce module ajoute ce que Haze ne sait pas faire : courber le fond au bord (lentille),
-    // disperser les couleurs sur cette courbure, et n'enregistrer la page **qu'une fois** pour
-    // toutes les surfaces (`OnyxLensGlass.kt`).
+    // **The glass lens** — `io.github.kyant0:backdrop` (Apache-2.0): capturing the
+    // page into a `GraphicsLayer` and the AGSL refraction shader. Haze remains the fallback blur;
+    // this module adds what Haze cannot do: bend the background at the edge (lens),
+    // disperse colors over that curvature, and capture the page **only once** for
+    // all surfaces (`OnyxLensGlass.kt`).
 
     api(libs.kyant.backdrop)
 

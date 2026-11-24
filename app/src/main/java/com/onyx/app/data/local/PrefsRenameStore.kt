@@ -3,7 +3,7 @@ package com.onyx.app.data.local
 import android.content.Context
 import android.content.SharedPreferences
 
-/** [RenameStore] posé sur un fichier `SharedPreferences` du téléphone. */
+/** [RenameStore] backed by a `SharedPreferences` file of the phone. */
 class PrefsRenameStore(private val prefs: SharedPreferences) : RenameStore {
 
     override fun contains(key: String): Boolean = prefs.contains(key)
@@ -32,13 +32,13 @@ class PrefsRenameStore(private val prefs: SharedPreferences) : RenameStore {
 }
 
 /**
- * Le report de l'état local d'un profil renommé, posé sur les **trois** fichiers du téléphone :
- * les visages ([FaceKeys.FILE]), l'activité ([ActivityKeys.FILE]) et le journal des renommages
- * déjà reportés ([ProfileRenameLedger.FILE]).
+ * The carry-over of a renamed profile's local state, backed by the phone's **three** files:
+ * the faces ([FaceKeys.FILE]), the activity ([ActivityKeys.FILE]) and the log of renames
+ * already carried over ([ProfileRenameLedger.FILE]).
  *
- * Les deux premiers sont les mêmes fichiers que lisent
- * [com.onyx.app.ui.bots.BotFaceStore] et [com.onyx.app.ui.bots.BotActivityStore] : la migration
- * écrit là où l'app lit.
+ * The first two are the same files that
+ * [com.onyx.app.ui.bots.BotFaceStore] and [com.onyx.app.ui.bots.BotActivityStore] read: the migration
+ * writes where the app reads.
  */
 fun profileStateMigration(context: Context): ProfileStateMigration {
     val app = context.applicationContext

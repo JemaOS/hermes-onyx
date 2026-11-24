@@ -13,12 +13,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Répond à la question d'un agent depuis la notification, sans ouvrir l'app.
+ * Answers an agent's question from the notification, without opening the app.
  *
- * La saisie vient d'un `RemoteInput` (l'action « Reply »). La réponse part par le même gateway que
- * la carte : `clarify.lock` pour une question, `sudo.respond` pour un mot de passe,
- * `secret.respond` pour un secret. La notification est retirée aussitôt — le champ ne doit pas
- * rester ouvert pendant l'appel — puis remplacée par son résultat.
+ * The input comes from a `RemoteInput` (the "Reply" action). The answer goes through the same gateway as
+ * the card: `clarify.lock` for a question, `sudo.respond` for a password,
+ * `secret.respond` for a secret. The notification is removed immediately — the field must not
+ * stay open during the call — then replaced by its result.
  */
 class QuestionActionReceiver : BroadcastReceiver() {
 
@@ -56,8 +56,8 @@ class QuestionActionReceiver : BroadcastReceiver() {
                 }
                 rpc.close()
             } catch (error: Exception) {
-                // L'app n'est pas ouverte : c'est la notification qui porte l'échec, sinon la
-                // question disparaîtrait sans qu'on sache si l'agent l'a reçue.
+                // The app is not open: the notification carries the failure, otherwise the
+                // question would disappear without anyone knowing whether the agent received it.
                 failed = true
             } finally {
                 notificationId?.let { QuestionNotifier.notifyResolved(context, it, prompt, failed) }

@@ -29,13 +29,13 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * L'écran d'appel entrant, dans le **thème d'Onyx** (clair ou sombre, police 1,3×, Reduce Motion) :
- * qui appelle et pourquoi, puis **Décrocher** et **Refuser**.
+ * The incoming call screen, in the **Onyx theme** (light or dark, 1.3× font, Reduce Motion):
+ * who is calling and why, then **Answer** and **Decline**.
  *
- * Miroir de `IncomingCallScreen` / `IncomingCallView` de la référence
- * (`shared/ui/.../ui/calls/IncomingCall.kt`) : plein écran sur l'écran verrouillé, on dit **qui**
- * appelle et **pourquoi**, jamais la question elle-même (elle s'ouvre après le déverrouillage).
- * Les deux boutons sont de simples cercles pleins — aucun composant Material.
+ * Mirror of the reference's `IncomingCallScreen` / `IncomingCallView`
+ * (`shared/ui/.../ui/calls/IncomingCall.kt`): full screen on the lock screen, we say **who**
+ * is calling and **why**, never the question itself (it opens after unlocking).
+ * Both buttons are plain filled circles — no Material component.
  */
 @Composable
 fun IncomingCallScreen(
@@ -86,7 +86,7 @@ fun IncomingCallScreen(
     }
 }
 
-/** Un bouton d'appel : un cercle plein, son symbole, et son nom dessous. */
+/** A call button: a filled circle, its symbol, and its name below. */
 @Composable
 private fun CallButton(name: String, symbol: Int, color: Color, onClick: () -> Unit) {
     val theme = LocalOnyxTheme.current

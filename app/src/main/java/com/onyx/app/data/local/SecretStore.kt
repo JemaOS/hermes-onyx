@@ -11,17 +11,17 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Les secrets (clés API) chiffrés par le Keystore Android — l'équivalent du Keychain référence.
+ * The secrets (API keys) encrypted by the Android Keystore — the reference Keychain equivalent.
  *
- * Une clé AES-256 vit dans le Keystore matériel et ne le quitte jamais ; seuls le vecteur
- * d'initialisation et le chiffré sont écrits dans les préférences. Le fichier est exclu des
- * sauvegardes (`backup_rules.xml`), comme les entrées du Keychain peuvent l'être.
+ * An AES-256 key lives in the hardware Keystore and never leaves it; only the initialization
+ * vector and the ciphertext are written to the preferences. The file is excluded from
+ * backups (`backup_rules.xml`), as Keychain entries can be.
  */
 class SecretStore(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    /** Enregistre un secret ; une valeur vide efface l'entrée. */
+    /** Stores a secret; an empty value erases the entry. */
     fun put(id: String, secret: String) {
         if (secret.isEmpty()) {
             remove(id)
@@ -31,12 +31,12 @@ class SecretStore(context: Context) {
         prefs.edit().putString(key(id), encrypted).apply()
     }
 
-    /** Relit un secret ; renvoie `""` si l'entrée a disparu ou ne se déchiffre plus. */
+    /** Reads a secret back; returns `""` if the entry is gone or no longer decrypts. */
     fun get(id: String): String {
         val stored = prefs.getString(key(id), null) ?: return ""
         val plain = runCatching { decrypt(stored) }.getOrNull()
         if (plain == null) {
-            // La clé du Keystore a changé (désinstallation, restauration) : l'entrée est morte.
+            // The Keystore key changed (uninstall, restore): the entry is dead.
             remove(id)
             return ""
         }
@@ -47,7 +47,7 @@ class SecretStore(context: Context) {
         prefs.edit().remove(key(id)).apply()
     }
 
-    /** Efface **tous** les secrets de ce téléphone — le « Erase everything » des Réglages. */
+    /** Erases **all** secrets on this phone — the Settings' “Erase everything”. */
     fun clearAll() {
         val editor = prefs.edit()
         prefs.all.keys.filter { it.startsWith(PREFIX) }.forEach { editor.remove(it) }

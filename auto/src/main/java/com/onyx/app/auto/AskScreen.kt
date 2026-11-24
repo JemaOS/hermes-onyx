@@ -29,7 +29,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/** Une question dictée par l'assistant, la réponse affichée et lue, dans l'historique Auto courant. */
+/** A dictated question, with the answer displayed and read aloud, in the current Auto history. */
 class AskScreen(
     carContext: CarContext,
     private val initialQuery: String?,
@@ -64,7 +64,7 @@ class AskScreen(
         initialQuery?.let(::ask)
     }
 
-    /** Pose la question au serveur et lit la réponse. Le micro reste celui de l'assistant Android. */
+    /** Sends the question to the server and reads the answer aloud. The microphone remains the Android assistant's. */
     fun ask(text: String?) {
         val clean = text?.trim().orEmpty()
         if (clean.isEmpty() || job?.isActive == true) return

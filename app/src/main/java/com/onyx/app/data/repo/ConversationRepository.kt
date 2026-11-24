@@ -21,17 +21,17 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * L'historique des conversations, sur disque.
+ * The conversation history, on disk.
  *
- * Miroir de `ConversationStore` côté référence : les conversations sont triées de la plus
- * récente à la plus ancienne, et l'écran de chat enregistre le fil à la fin de chaque tour.
+ * Mirrors `ConversationStore` on the reference side: the conversations are sorted from the most
+ * recent to the oldest, and the chat screen saves the thread at the end of each turn.
  *
- * **Une suppression est définitive.** Le fichier ne suffit pas à le garantir : d'autres chemins
- * réécrivent une conversation sans savoir qu'elle a été supprimée (la fin d'un tour qui enregistre
- * son fil, un rattachement de bot, une migration). Chaque suppression pose donc une **marque**
- * ([DeletedConversations]) — durable, hors du fichier — et [save] refuse d'écrire un identifiant
- * marqué : une conversation supprimée ne peut plus revenir par aucun chemin, ni au redémarrage.
- * Seul [restore] (le « Annuler » du bandeau) retire la marque.
+ * **A deletion is final.** The file is not enough to guarantee it: other paths
+ * rewrite a conversation without knowing it was deleted (the end of a turn that saves
+ * its thread, a bot binding, a migration). So each deletion places a **mark**
+ * ([DeletedConversations]) — durable, outside the file — and [save] refuses to write a marked
+ * identifier: a deleted conversation can no longer come back by any path, nor on restart.
+ * Only [restore] (the banner's “Annuler” — undo) removes the mark.
  */
 class ConversationRepository(
     private val store: DataStore<List<Conversation>>,
@@ -40,35 +40,35 @@ class ConversationRepository(
 
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
 
-    /** Le verrou d'écriture du fichier : un seul écrivain à la fois. */
+    /** The file's write lock: a single writer at a time. */
     private val writeLock = Mutex()
     /**
-     * Les demandes d'écriture, **fusionnées** : vingt publications pendant un tour ne font qu'une
-     * entrée en attente, et c'est l'état le plus frais qui part.
+     * The write requests, **merged**: twenty publications during a turn make only one
+     * pending entry, and it is the freshest state that goes out.
      */
     private val writeRequests = Channel<Unit>(Channel.CONFLATED)
-    /** Vrai quand le fichier ne porte pas encore l'état courant. */
+    /** True when the file does not yet carry the current state. */
     private val dirty = AtomicBoolean(false)
     /**
-     * Le scope du seul écrivain. Interne et vivant aussi longtemps que le dépôt (un singleton de
-     * l'app) : aucune écriture n'a besoin d'être attendue par l'appelant, et une rafale ne peut plus
-     * bloquer le fil qui la produit.
+     * The single writer's scope. Internal and living as long as the repository (an app
+     * singleton): no write needs to be awaited by the caller, and a burst can no longer
+     * block the thread that produces it.
      */
     private val writer = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         writer.launch {
-            // **L'écrivain unique.** Chaque demande est suivie d'une courte fenêtre qui laisse la
-            // rafale se tasser ; le canal étant fusionné, tout ce qui arrive pendant ce temps ne
-            // fait qu'une entrée — et l'écriture prend l'état **courant**, pas celui de la demande.
-            // **La fenêtre suit le prix de l'écriture.** Le magasin tient toutes les conversations
-            // dans un seul JSON : une sauvegarde resérialise et réécrit **tout**. Mesuré
-            // (`ConversationWriteCostTest`) : une conversation de 60 outils pèse 256 Kio et coûte
-            // 7 ms ; vingt-cinq de ces conversations pèsent 6,4 Mio et coûtent 33 ms. À fenêtre fixe
-            // (250 ms), un tour qui lance 60 outils en déclenchait quatre par seconde — 130 ms de CPU
-            // et 26 Mio de disque par seconde, pendant que la personne lit. La fenêtre s'allonge donc
-            // avec le nombre de messages à écrire : on sauvegarde moins souvent quand sauvegarder
-            // coûte plus cher.
+            // **The single writer.** Each request is followed by a short window that lets the
+            // burst settle; the channel being conflated, everything arriving during that time makes
+            // a single entry — and the write takes the **current** state, not the request's.
+            // **The window follows the cost of the write.** The store holds all the conversations
+            // in a single JSON: a save reserializes and rewrites **everything**. Measured
+            // (`ConversationWriteCostTest`): a conversation of 60 tools weighs 256 KiB and costs
+            // 7 ms; twenty-five of these conversations weigh 6.4 MiB and cost 33 ms. With a fixed window
+            // (250 ms), a turn launching 60 tools triggered four per second — 130 ms of CPU
+            // and 26 MiB of disk per second, while the person reads. The window therefore lengthens
+            // with the number of messages to write: one saves less often when saving
+            // costs more.
             for (request in writeRequests) {
                 delay(writeSettleMillis(_conversations.value.sumOf { it.messages.size }))
                 writeLock.withLock { writeFile() }
@@ -76,46 +76,46 @@ class ConversationRepository(
         }
     }
 
-    /** Les conversations, la plus récente d'abord. */
+    /** The conversations, most recent first. */
     val conversations: StateFlow<List<Conversation>> = _conversations.asStateFlow()
 
-    /** Lit le fichier au démarrage. */
+    /** Reads the file at startup. */
     suspend fun load() {
         val list = withContext(Dispatchers.IO) {
             runCatching { store.data.first() }.getOrDefault(emptyList())
         }
-        // Une conversation marquée supprimée est écartée **aussi** à la lecture : un fichier écrit
-        // par une version antérieure (ou par une synchronisation) ne la ramène pas non plus.
+        // A conversation marked deleted is **also** filtered out on read: a file written
+        // by an earlier version (or by a sync) does not bring it back either.
         _conversations.value = list.filterNot { it.id in deleted.marked() }.sortedByDescending { it.updatedAt }
     }
 
     fun find(id: String): Conversation? = _conversations.value.firstOrNull { it.id == id }
 
-    /** Épingle ou désépingle une conversation, et réécrit le fichier. */
+    /** Pins or unpins a conversation, and rewrites the file. */
     suspend fun setPinned(id: String, pinned: Boolean) {
         val existing = find(id) ?: return
         save(existing.copy(pinned = pinned, updatedAt = System.currentTimeMillis()))
     }
 
-    /** Range une conversation dans les archives, ou l'en sort. */
+    /** Files a conversation into the archive, or takes it out. */
     suspend fun setArchived(id: String, archived: Boolean) {
         val existing = find(id) ?: return
         save(existing.copy(archived = archived, updatedAt = System.currentTimeMillis()))
     }
 
-    /** Renomme une conversation. */
+    /** Renames a conversation. */
     suspend fun rename(id: String, title: String) {
         val existing = find(id) ?: return
         save(existing.copy(title = title, updatedAt = System.currentTimeMillis()))
     }
 
     /**
-     * « Créer un fil » : une **branche** de cette conversation — un fil neuf qui porte la **copie**
-     * du transcript, et s'ouvre à part. La copie vit **sur ce téléphone** : le serveur d'Onyx n'a
-     * pas de route pour bifurquer une session (`POST api/sessions/{id}/fork` n'existe pas côté
-     * serveur), il n'y a donc rien à lui demander — la branche est locale, comme le reste du fil.
+     * “Créer un fil” (create a thread): a **branch** of this conversation — a new thread carrying the **copy**
+     * of the transcript, and opening separately. The copy lives **on this phone**: the Onyx server has
+     * no route to fork a session (`POST api/sessions/{id}/fork` does not exist on the
+     * server side), so there is nothing to ask it — the branch is local, like the rest of the thread.
      *
-     * Rend la conversation créée (l'appelant l'ouvre), ou `null` si l'originale a disparu.
+     * Returns the created conversation (the caller opens it), or `null` if the original is gone.
      */
     suspend fun fork(id: String, now: Long = System.currentTimeMillis()): Conversation? {
         val existing = find(id) ?: return null
@@ -125,16 +125,16 @@ class ConversationRepository(
     }
 
     /**
-     * « Brancher à partir d'ici » : une **branche** de [conversation] qui ne garde que ses messages
-     * **jusqu'à [messageId] inclus** — le message visé et tout ce qui le précède, dans l'ordre.
+     * “Brancher à partir d'ici” (branch from here): a **branch** of [conversation] keeping only its messages
+     * **up to [messageId] inclusive** — the target message and everything before it, in order.
      *
-     * C'est la **même** règle de coupe que la restauration (`messagesThroughRestore`) ; ce qui
-     * change est le sens : la restauration **retire** de la conversation, la branche **copie**
-     * ailleurs et laisse l'originale intacte. La règle elle-même vit dans [branchedConversation],
-     * pure, un peu plus bas.
+     * It is the **same** cut rule as the restore (`messagesThroughRestore`); what
+     * changes is the direction: the restore **removes** from the conversation, the branch **copies**
+     * elsewhere and leaves the original intact. The rule itself lives in [branchedConversation],
+     * pure, a little further down.
      *
-     * Enregistre la branche et la rend (l'appelant l'ouvre) ; rien n'est envoyé nulle part, et
-     * l'originale n'est ni modifiée ni réécrite. Rend `null` quand le message visé a disparu.
+     * Saves the branch and returns it (the caller opens it); nothing is sent anywhere, and
+     * the original is neither modified nor rewritten. Returns `null` when the target message is gone.
      */
     suspend fun branchFrom(conversation: Conversation, messageId: String, now: Long = System.currentTimeMillis()): Conversation? {
         val branch = branchedConversation(conversation, java.util.UUID.randomUUID().toString(), messageId, now) ?: return null
@@ -143,12 +143,12 @@ class ConversationRepository(
     }
 
     /**
-     * Épingle plusieurs conversations d'un coup (la sélection de la référence).
+     * Pins several conversations at once (the reference's selection).
      *
-     * **Une écriture, pas N.** Chaque `save` réécrit le fichier **entier** — toutes les
-     * conversations, tous les messages. Épingler douze conversations en réécrivait douze fois le
-     * même fichier, sur une action qui n'a qu'un résultat : la liste change, puis le disque la
-     * reçoit une fois.
+     * **One write, not N.** Each `save` rewrites the **whole** file — all the
+     * conversations, all the messages. Pinning twelve conversations rewrote the same
+     * file twelve times, for an action with only one result: the list changes, then the disk
+     * receives it once.
      */
     suspend fun pinAll(ids: Set<String>, pinned: Boolean) {
         if (ids.isEmpty()) return
@@ -160,7 +160,7 @@ class ConversationRepository(
         persist()
     }
 
-    /** Range plusieurs conversations dans les archives — même règle : une seule écriture. */
+    /** Files several conversations into the archive — same rule: a single write. */
     suspend fun archiveAll(ids: Set<String>) {
         if (ids.isEmpty()) return
         val touched = _conversations.value.map { conversation ->
@@ -172,29 +172,29 @@ class ConversationRepository(
     }
 
     /**
-     * **Renommer un bot renomme ses conversations.**
+     * **Renaming a bot renames its conversations.**
      *
-     * Le titre d'une conversation de bot **est** le nom du bot : c'est lui qui la rattache à lui
-     * quand le `canonical_session` ne dit rien (`botOfConversation` lit `botName()`). Renommer le
-     * bot sans retitrer ses fils les laissait porter l'ancien nom dans la liste et, pire, les
-     * **détachait** du bot — qui perdait alors son visage et son sous-titre.
+     * A bot conversation's title **is** the bot's name: it is what binds it to it
+     * when `canonical_session` says nothing (`botOfConversation` reads `botName()`). Renaming the
+     * bot without retitling its threads left them carrying the old name in the list and, worse,
+     * **detached** them from the bot — which then lost its face and its subtitle.
      *
-     * [profile] est le nom du profil (l'identité, immuable) ; [fromLabel] l'ancien libellé, tel que
-     * la liste le montrait ; [canonicalSessionId] la session que le serveur donne à ce bot — la
-     * seule chose qui rattache une conversation écrite avant que `botProfile` existe.
+     * [profile] is the profile name (the identity, immutable); [fromLabel] the old label, as
+     * the list showed it; [canonicalSessionId] the session the server gives this bot — the
+     * only thing that binds a conversation written before `botProfile` existed.
      *
-     * **Le titre seul ne suffit pas à reconnaître un bot.** L'ancienne règle renommait toute
-     * conversation sans `botProfile` dont le titre valait l'ancien nom : deux bots appelés de la
-     * même façon — ou un bot et les fils d'un autre, créés sous le même libellé — se
-     * renommaient ensemble. Renommer un bot changeait le nom des autres, ce qui n'est pas
-     * cohérent : on ne touche ici qu'au bot visé et à ce qui lui appartient vraiment.
+     * **The title alone is not enough to recognize a bot.** The old rule renamed every
+     * conversation without `botProfile` whose title equaled the old name: two bots called the
+     * same way — or a bot and another's threads, created under the same label — were
+     * renamed together. Renaming a bot changed the others' name, which is not
+     * consistent: only the targeted bot and what truly belongs to it are touched here.
      *
-     * **Et seulement aux titres qui n'étaient que son nom.** Un fil que le propriétaire a nommé
-     * lui-même (« Refonte du parser ») garde son nom : le renommage du bot ne réécrit pas ce qu'il
-     * a écrit. Ne suivent que les fils muets ou encore à l'ancien libellé — ceux dont le titre
-     * n'était rien d'autre que le nom du bot.
+     * **And only titles that were nothing but its name.** A thread the owner named
+     * themselves (“Refonte du parser” — parser rewrite) keeps its name: the bot rename does not rewrite what
+     * they wrote. Only silent threads or those still at the old label follow — those whose title
+     * was nothing other than the bot's name.
      *
-     * Une seule écriture, comme les autres actions de masse.
+     * A single write, like the other bulk actions.
      */
     suspend fun retitleBot(
         profile: String,
@@ -206,21 +206,21 @@ class ConversationRepository(
         val old = fromLabel.trim()
         val canonique = canonicalSessionId?.takeIf { it.isNotBlank() }
         val touched = _conversations.value.map { conversation ->
-            // **Le fil d'un bot se reconnaît à deux choses, et à rien d'autre.**
+            // **A bot's thread is recognized by two things, and nothing else.**
             //
-            // 1. sa session canonique — ce que le serveur donne au profil, et qui ne se confond
-            //    avec aucun autre bot ;
-            // 2. son profil **et** un titre qui n'était que son nom.
+            // 1. its canonical session — what the server gives the profile, and which is not confused
+            //    with any other bot;
+            // 2. its profile **and** a title that was nothing but its name.
             //
-            // Le profil seul ne suffit pas : deux bots peuvent le partager (même libellé par
-            // défaut, profil recopié à l'import), et renommer l'un renommait alors les fils de
-            // l'autre — « j'ai changé le nom de ce bot, ça change tous les bots ». Et un titre
-            // écrit par quelqu'un ne suit jamais un renommage : il n'appartient plus au bot.
+            // The profile alone is not enough: two bots can share it (same default
+            // label, profile copied at import), and renaming one then renamed the threads of
+            // the other — “j'ai changé le nom de ce bot, ça change tous les bots” (I renamed this bot, it changes all bots). And a title
+            // written by someone never follows a rename: it no longer belongs to the bot.
             val parSession = canonique != null && conversation.serverSessionId == canonique
-            // **Une session étrangère tranche : ce fil n'est pas à ce bot.**
-            // Un fil qui porte la session d'un autre bot ne se renomme jamais par son titre,
-            // même si son profil dit « coder » — c'est ainsi que renommer un bot renommait les
-            // fils des autres.
+            // **A foreign session decides: this thread is not this bot's.**
+            // A thread carrying another bot's session is never renamed by its title,
+            // even if its profile says “coder” — that is how renaming a bot renamed the
+            // other's threads.
             val sessionEtrangere = !conversation.serverSessionId.isNullOrBlank() && !parSession
             val parNom = !sessionEtrangere &&
                 conversation.botProfile == profile &&
@@ -230,7 +230,7 @@ class ConversationRepository(
                 !mine -> conversation
                 conversation.title.trim().isEmpty() -> conversation.copy(title = toLabel)
                 conversation.title.trim() == toLabel -> conversation
-                // Un titre qui n'était **que** l'ancien nom suit le bot ; tout autre est gardé.
+                // A title that was **only** the old name follows the bot; any other is kept.
                 parNom || conversation.title.trim() == old -> conversation.copy(title = toLabel)
                 else -> conversation
             }
@@ -243,16 +243,16 @@ class ConversationRepository(
     suspend fun deleteAll(ids: Set<String>) {
         ids.forEach { deleted.mark(it) }
         _conversations.update { current -> current.filterNot { it.id in ids } }
-        // **Une suppression attend son écriture.** Les publications du fil peuvent se tasser, une
-        // suppression non : si le processus meurt dans la fenêtre de tassement, la conversation
-        // reviendrait au prochain démarrage. C'est le seul chemin où l'attente est due au disque.
+        // **A deletion awaits its write.** The thread's publications can settle, a
+        // deletion does not: if the process dies within the settling window, the conversation
+        // would come back on next start. It is the only path where the wait is due to the disk.
         flush()
     }
 
     /**
-     * Efface **toutes** les conversations de ce téléphone, comme `Conversation.eraseAll()` de la référence.
-     * Rien n'est touché sur le serveur — mais chaque conversation effacée est **marquée** : ce qui a
-     * été effacé ne revient pas, même par un chemin qui ne lit pas le fichier.
+     * Erases **all** conversations on this phone, like the reference's `Conversation.eraseAll()`.
+     * Nothing is touched on the server — but each erased conversation is **marked**: what has
+     * been erased does not come back, even through a path that does not read the file.
      */
     suspend fun eraseAll() {
         _conversations.value.forEach { deleted.mark(it.id) }
@@ -261,31 +261,31 @@ class ConversationRepository(
     }
 
     /**
-     * Enregistre (ou remplace) une conversation et réécrit le fichier.
+     * Saves (or replaces) a conversation and rewrites the file.
      *
-     * Refuse un identifiant **marqué supprimé** : c'est la garantie qu'aucun chemin ne ramène une
-     * conversation effacée (voir la note de classe). Le « Annuler » passe par [restore], qui défait
-     * la marque d'abord.
+     * Refuses an identifier **marked deleted**: it is the guarantee that no path brings back a
+     * deleted conversation (see the class note). The “Annuler” (undo) goes through [restore], which undoes
+     * the mark first.
      */
     suspend fun save(conversation: Conversation) {
         if (conversation.id in deleted.marked()) return
-        // **Rien n'a changé : rien à réécrire.** Un tour réémet souvent la même forme (une carte
-        // répondue, un secret donné) et chaque écriture réécrit *toutes* les conversations du
-        // fichier : avec beaucoup de conversations, c'est la liste entière qui repart sur le disque
-        // pour un champ identique.
-        // **La lecture-écriture doit être atomique.** `_conversations.value = (value - lui + lui)`
-        // lit puis réécrit : deux `save()` simultanés (le viewModel publie, un rappel de tour
-        // publie) repartaient chacun de la même liste et le second **effaçait la conversation de
-        // l'autre** — douze sauvegardes concurrentes n'en laissaient qu'une sur le disque. C'est un
-        // défaut de perte de données, pas de performance, trouvé par le test de coalescence.
+        // **Nothing changed: nothing to rewrite.** A turn often re-emits the same shape (a card
+        // answered, a secret given) and each write rewrites *all* the conversations in
+        // the file: with many conversations, it is the whole list that goes back to disk
+        // for an identical field.
+        // **The read-write must be atomic.** `_conversations.value = (value - it + it)`
+        // reads then rewrites: two simultaneous `save()` (the viewModel publishes, a turn callback
+        // publishes) each started from the same list and the second **erased the other's
+        // conversation** — twelve concurrent saves left only one on disk. It is a
+        // data-loss defect, not a performance one, found by the coalescing test.
         var changed = false
         _conversations.update { current ->
             val previous = current.firstOrNull { it.id == conversation.id }
-            // **Le cas courant d'abord, sans comparer le texte.** `previous == conversation` est une
-            // égalité de `data class` : elle compare **tous** les messages, tout leur texte et toutes
-            // leurs sorties d'outil — des mégaoctets, à chaque sauvegarde. Quand la liste est la
-            // **même instance** (le viewModel ne la copie plus s'il n'y a rien à dépouiller) et que
-            // les champs de surface sont égaux, la réponse est connue sans lire un caractère.
+            // **The common case first, without comparing the text.** `previous == conversation` is a
+            // `data class` equality: it compares **all** the messages, all their text and all
+            // their tool outputs — megabytes, on every save. When the list is the
+            // **same instance** (the viewModel no longer copies it if there is nothing to strip) and
+            // the surface fields are equal, the answer is known without reading a single character.
             if (previous === conversation) return@update current
             if (previous != null && previous.messages === conversation.messages &&
                 previous.copy(messages = emptyList()) == conversation.copy(messages = emptyList())
@@ -300,19 +300,19 @@ class ConversationRepository(
         persist()
     }
 
-    /** « Annuler » du bandeau : défait la marque de suppression, puis réenregistre la conversation. */
+    /** The banner's “Annuler” (undo): undoes the deletion mark, then re-saves the conversation. */
     suspend fun restore(conversation: Conversation) {
         deleted.unmark(conversation.id)
         save(conversation)
     }
 
     /**
-     * **Retient le bot d'une conversation** (`Conversation.botProfile`) pour que l'écran le
-     * connaisse dès le redémarrage, sans attendre le roster.
+     * **Remembers a conversation's bot** (`Conversation.botProfile`) so that the screen
+     * knows it from restart, without waiting for the roster.
      *
-     * Même valeur que celle que l'envoi porte au tour : `""` pour le profil principal, sinon le nom
-     * du profil. Ne touche ni la date ni le titre : la liste ne bouge pas parce qu'un bot a été
-     * reconnu.
+     * Same value as the one the send carries on the turn: `""` for the main profile, otherwise the
+     * profile's name. Touches neither the date nor the title: the list does not move because a bot was
+     * recognized.
      */
     suspend fun bindBot(conversationId: String, profile: String?) {
         val existing = find(conversationId) ?: return
@@ -320,7 +320,7 @@ class ConversationRepository(
         save(existing.copy(botProfile = profile))
     }
 
-    /** Ajoute un message au fil enregistré, en créant la conversation au besoin. */
+    /** Adds a message to the saved thread, creating the conversation if needed. */
     suspend fun append(conversationId: String, serverId: String, message: ChatMessage, now: Long = System.currentTimeMillis()) {
         val existing = find(conversationId)
         val updated = (existing ?: Conversation.start(id = conversationId, now = now).copy(serverId = serverId))
@@ -329,10 +329,10 @@ class ConversationRepository(
     }
 
     /**
-     * Écrit (ou remplace) **un** message du fil enregistré.
+     * Writes (or replaces) **one** message of the saved thread.
      *
-     * C'est ce qui fait survivre la réponse d'un tour dont l'écran a disparu : le magasin des
-     * tours l'écrit au fil de son avancement, sans personne pour appeler `save` depuis un écran.
+     * It is what makes a turn's response survive when its screen has gone: the turn
+     * store writes it as it progresses, with no one to call `save` from a screen.
      */
     suspend fun upsertMessage(conversationId: String, message: ChatMessage) {
         val existing = find(conversationId) ?: return
@@ -352,106 +352,106 @@ class ConversationRepository(
     }
 
     /**
-     * Supprime une conversation : elle quitte le fichier, et son identifiant est **marqué** — elle
-     * ne peut plus revenir par un `save` (l'enregistrement d'un tour qui se terminait, un
-     * rattachement de bot, une migration de profil), ni au redémarrage.
+     * Deletes a conversation: it leaves the file, and its identifier is **marked** — it
+     * can no longer come back through a `save` (the save of a turn that was ending, a
+     * bot binding, a profile migration), nor on restart.
      */
     suspend fun delete(id: String) {
         deleted.mark(id)
         _conversations.update { current -> current.filterNot { it.id == id } }
-        // Voir [deleteAll] : une suppression attend son écriture, elle ne se tasse pas.
+        // See [deleteAll]: a deletion awaits its write, it does not settle.
         flush()
     }
 
-    /** La conversation la plus récente à laquelle on peut revenir depuis l'écran de démarrage. */
+    /** The most recent conversation one can return to from the start screen. */
     fun mostRecent(excluding: String? = null): Conversation? =
         _conversations.value.firstOrNull { it.id != excluding && it.turnCount > 0 }
 
     private suspend fun persist() {
-        // **Demander, jamais écrire soi-même.** `store.updateData` réécrit le fichier **entier**
-        // (toutes les conversations locales, avec leur historique complet) et `persistCurrent()` est
-        // appelé à seize endroits, plusieurs fois par tour : c'était une réécriture complète par
-        // étape d'outil. La demande est maintenant *fusionnée* (une entrée en attente, jamais N) et
-        // l'écrivain unique y répond avec l'état courant après une courte fenêtre.
+        // **Request, never write oneself.** `store.updateData` rewrites the **whole** file
+        // (all local conversations, with their full history) and `persistCurrent()` is
+        // called in sixteen places, several times per turn: it was a full rewrite per
+        // tool step. The request is now *merged* (one pending entry, never N) and
+        // the single writer answers it with the current state after a short window.
         dirty.set(true)
         writeRequests.trySend(Unit)
     }
 
-    /** L'écriture elle-même : l'état courant, sans les conversations du serveur. */
+    /** The write itself: the current state, without the server's conversations. */
     private suspend fun writeFile() {
-        // Les conversations **du serveur** ne sont pas persistées : elles ne sont qu'une
-        // projection du registre du serveur, relue à chaque connexion. Les écrire ici les
-        // transformerait en copies locales — et une conversation supprimée reviendrait.
+        // The **server** conversations are not persisted: they are only a
+        // projection of the server registry, reread on each connection. Writing them here would
+        // turn them into local copies — and a deleted conversation would come back.
         val snapshot = _conversations.value.filterNot { it.remote }
         withContext(Dispatchers.IO) { store.updateData { snapshot } }
-        // Le fichier porte l'état lu **avant** l'écriture ; une demande arrivée entre-temps a remis
-        // le drapeau à vrai et sera servie par la boucle de l'écrivain.
+        // The file carries the state read **before** the write; a request that arrived meanwhile set
+        // the flag back to true and will be served by the writer's loop.
         dirty.set(false)
     }
 
     /**
-     * Attend que le fichier soit à jour. Le rendu n'en a pas besoin ; un chemin qui **doit** savoir
-     * que l'écriture est posée (avant de rendre la main au système) l'utilise.
+     * Waits for the file to be up to date. Rendering does not need it; a path that **must** know
+     * the write is laid down (before handing back to the system) uses it.
      */
     suspend fun flush() {
-        // Prendre le verrou, c'est attendre l'écrivain en cours. S'il reste une écriture en attente
-        // (le fichier ne porte pas l'état courant), on l'écrit soi-même ; sinon on ne touche à rien —
-        // un `flush` sur un état déjà écrit ne doit pas coûter une réécriture de tout le fichier.
+        // Taking the lock means waiting for the current writer. If a write is still pending
+        // (the file does not carry the current state), one writes it oneself; otherwise nothing is touched —
+        // a `flush` on an already-written state must not cost a rewrite of the whole file.
         writeLock.withLock { if (dirty.get()) writeFile() }
     }
 }
 /**
- * La fenêtre pendant laquelle les demandes d'écriture se fondent en une.
+ * The window during which write requests melt into one.
  *
- * Assez courte pour qu'une fermeture de l'app juste après un envoi retrouve le tour écrit, assez
- * longue pour qu'une rafale de publications (un tour, dix étapes d'outil) ne coûte qu'une écriture.
+ * Short enough that an app close right after a send finds the turn written, long
+ * enough that a burst of publications (one turn, ten tool steps) costs only one write.
  */
 internal const val WRITE_SETTLE_MILLIS = 250L
 
 /**
- * **Combien de temps les demandes d'écriture se fondent, selon ce qu'il y a à écrire.**
+ * **How long write requests melt, depending on what there is to write.**
  *
- * Le magasin n'a qu'un fichier : une sauvegarde resérialise et réécrit **toutes** les
- * conversations. Son prix suit donc le nombre de messages, pas la taille du changement. À fenêtre
- * fixe, une grosse installation payait le même rythme qu'une petite — quatre écritures par seconde
- * pendant un tour qui lance soixante outils.
+ * The store has only one file: a save reserializes and rewrites **all** the
+ * conversations. Its cost therefore follows the number of messages, not the size of the change. With a
+ * fixed window, a large installation paid the same rhythm as a small one — four writes per second
+ * during a turn launching sixty tools.
  *
- * La fenêtre part de [WRITE_SETTLE_MILLIS] et s'allonge de 4 ms par message, plafonnée à
- * [WRITE_SETTLE_CEILING_MILLIS] : sur un fichier de 300 messages (6,4 Mio, 33 ms d'écriture), deux
- * écritures par seconde au plus. Le tour finit par `flush()`, et la mise en arrière-plan aussi —
- * rien de ce qui doit être sur le disque n'attend cette fenêtre.
+ * The window starts at [WRITE_SETTLE_MILLIS] and lengthens by 4 ms per message, capped at
+ * [WRITE_SETTLE_CEILING_MILLIS]: on a file of 300 messages (6.4 MiB, 33 ms of writing), two
+ * writes per second at most. The turn ends with `flush()`, and so does going to background —
+ * nothing that must be on disk waits for this window.
  */
 internal fun writeSettleMillis(messageCount: Int): Long =
     (WRITE_SETTLE_MILLIS + messageCount.coerceAtLeast(0) * 4L).coerceAtMost(WRITE_SETTLE_CEILING_MILLIS)
 
-/** Le plafond de la fenêtre : au-delà, on n'attend plus, on écrit. */
+/** The window's ceiling: beyond it, one no longer waits, one writes. */
 internal const val WRITE_SETTLE_CEILING_MILLIS = 1_200L
 
-/** Le titre d'une branche : celui de son originale plus « (fork) », comme la référence. */
+/** A branch's title: that of its original plus “(fork)”, like the reference. */
 internal fun forkTitle(title: String): String = "$title${Conversation.ForkSuffix}"
 
 /**
- * La conversation d'une **branche à partir d'ici** : la copie des messages jusqu'à [messageId]
- * **inclus**, sous un titre de branche, dans un fil neuf.
+ * The conversation of a **branch from here**: the copy of the messages up to [messageId]
+ * **inclusive**, under a branch title, in a new thread.
  *
- * Ce que la copie emporte, et ce qu'elle n'emporte pas — c'est ici que tout se décide :
+ * What the copy carries, and what it does not — everything is decided here:
  *
- *  - les **messages** tels qu'ils sont tenus en mémoire : texte, raisonnement, étapes d'outils avec
- *    leurs entrées et sorties, **pièces jointes** (leurs références aux fichiers de ce téléphone),
- *    cartes et mesures ;
- *  - **pas** l'**outbox** : un message encore non envoyé dans l'originale ne doit jamais partir tout
- *    seul depuis la branche. C'est ce qui garantit qu'un branchement ne déclenche aucun tour ;
- *  - **pas** l'identifiant de session serveur : la branche n'a pas de session chez le gateway, donc
- *    rien de ce qu'on y enverra plus tard ne s'écrira dans l'originale. Le serveur n'a aucune route
- *    pour bifurquer une session ; la copie vit sur ce téléphone, et c'est le **premier envoi** dans
- *    la branche qui ouvrira sa session (le fil copié part alors comme historique, comme toujours).
+ *  - the **messages** as they are held in memory: text, reasoning, tool steps with
+ *    their inputs and outputs, **attachments** (their references to this phone's files),
+ *    cards and measurements;
+ *  - **not** the **outbox**: a message still unsent in the original must never leave on its
+ *    own from the branch. That is what guarantees a branch triggers no turn;
+ *  - **not** the server session identifier: the branch has no session at the gateway, so
+ *    nothing sent there later will be written into the original. The server has no route
+ *    to fork a session; the copy lives on this phone, and it is the **first send** in
+ *    the branch that will open its session (the copied thread then goes as history, as always).
  *
- * Le titre suit la convention de « Créer un fil » ([forkTitle]) ; un titre encore au défaut prend
- * celui de la première question, sans quoi la branche d'une conversation jamais renommée
- * s'appellerait « New Conversation (fork) ».
+ * The title follows the “Créer un fil” (create a thread) convention ([forkTitle]); a title still at the default takes
+ * that of the first question, otherwise the branch of a conversation never renamed
+ * would be called “New Conversation (fork)”.
  *
- * **Pure**, donc vérifiable sans stockage ni appareil ; `null` quand le message n'est pas dans
- * l'originale (auquel cas il n'y a rien à brancher).
+ * **Pure**, therefore verifiable without storage or device; `null` when the message is not in
+ * the original (in which case there is nothing to branch).
  */
 internal fun branchedConversation(
     existing: Conversation,
@@ -476,9 +476,9 @@ internal fun branchedConversation(
 }
 
 /**
- * La conversation d'une branche : la **copie** du transcript sous un nouveau titre, qui n'hérite
- * ni de l'épingle ni de l'archive de son originale (une branche neuve arrive dans les Chats, en
- * tête, jamais dans les archives). Pure, donc vérifiable sans stockage.
+ * The conversation of a branch: the **copy** of the transcript under a new title, which inherits
+ * neither the pin nor the archive of its original (a new branch arrives in Chats, at
+ * the top, never in the archives). Pure, therefore verifiable without storage.
  */
 internal fun forkedConversation(existing: Conversation, id: String, now: Long): Conversation =
     existing.copy(

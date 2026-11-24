@@ -10,30 +10,30 @@ import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
 /**
- * La planification du surveillant de réponses : un seul travail périodique, ou aucun.
+ * Scheduling of the reply watcher: a single periodic job, or none.
  *
- * Android veut bien réveiller l'app toutes les quinze minutes **au plus tôt** (c'est la plus
- * petite période que WorkManager accepte pour un travail périodique), et seulement quand le
- * téléphone a du réseau : le travail ne tourne donc jamais pour rien, et jamais hors ligne.
+ * Android is willing to wake the app every fifteen minutes **at the earliest** (that is the smallest
+ * period WorkManager accepts for a periodic job), and only when the
+ * phone has network: the job therefore never runs for nothing, and never offline.
  *
- * **Idempotent dans les deux sens.** Planifier alors que le travail existe déjà ne le remet pas à
- * zéro ([ExistingPeriodicWorkPolicy.KEEP]) : appeler [apply] à chaque démarrage de l'app ne
- * décale donc pas la prochaine échéance, et ne fait pas repartir le compteur. Annuler un travail
- * absent ne fait rien. C'est ce qui permet de brancher la planification aussi bien sur le
- * démarrage que sur l'interrupteur du réglage, sans se demander qui a déjà fait quoi.
+ * **Idempotent in both directions.** Scheduling while the job already exists does not reset it
+ * ([ExistingPeriodicWorkPolicy.KEEP]): calling [apply] on every app start therefore does not
+ * shift the next deadline, nor restart the counter. Cancelling an absent job does nothing.
+ * That is what allows wiring the scheduling both to the start
+ * and to the setting's switch, without wondering who has already done what.
  */
 object ReplyWatchScheduler {
 
-    /** Le nom unique du travail : un seul surveillant par téléphone, quel que soit l'appelant. */
+    /** The job's unique name: a single watcher per phone, whatever the caller. */
     const val UNIQUE_WORK = "onyx.reply.watch"
 
-    /** L'étiquette, pour retrouver (ou annuler) le travail depuis WorkManager. */
+    /** The tag, to find (or cancel) the job from WorkManager. */
     const val TAG = "onyx.reply.watch"
 
-    /** La période demandée : la plus courte que WorkManager accepte pour un travail périodique. */
+    /** The requested period: the shortest WorkManager accepts for a periodic job. */
     const val PERIOD_MINUTES = 15L
 
-    /** Planifie le surveillant s'il ne l'est pas déjà. */
+    /** Schedules the watcher if it is not already scheduled. */
     fun schedule(context: Context) {
         runCatching {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
@@ -44,17 +44,17 @@ object ReplyWatchScheduler {
         }
     }
 
-    /** Retire le surveillant : plus aucune lecture du journal en arrière-plan. */
+    /** Removes the watcher: no more reading of the log in the background. */
     fun cancel(context: Context) {
         runCatching { WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK) }
     }
 
-    /** Le réglage fait foi : actif → planifié, éteint → annulé. */
+    /** The setting is authoritative: on → scheduled, off → cancelled. */
     fun apply(context: Context, enabled: Boolean) {
         if (enabled) schedule(context) else cancel(context)
     }
 
-    /** La demande elle-même : quinze minutes, réseau présent. */
+    /** The request itself: fifteen minutes, network present. */
     fun request(): PeriodicWorkRequest =
         PeriodicWorkRequestBuilder<ReplyWatcher>(PERIOD_MINUTES, TimeUnit.MINUTES)
             .setConstraints(

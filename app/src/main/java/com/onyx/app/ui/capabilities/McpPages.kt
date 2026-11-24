@@ -52,11 +52,11 @@ import com.onyx.app.ui.theme.LocalOnyxTheme
 import kotlinx.coroutines.launch
 
 /**
- * La fiche d'un serveur MCP : **comment** il se connecte, ce qu'il expose, et ce qu'on peut en faire.
+ * The page for an MCP server: **how** it connects, what it exposes, and what can be done with it.
  *
- * Rien n'est supposé : le transport, la cible, les arguments, les variables d'environnement (telles
- * que le serveur les masque) viennent de la route de liste ; les outils et la latence viennent du
- * **test réel**, et une erreur de test s'affiche comme une erreur — jamais comme une réussite.
+ * Nothing is assumed: the transport, the target, the arguments, the environment variables (as
+ * the server masks them) come from the list route; the tools and the latency come from the
+ * **real test**, and a test error is shown as an error — never as a success.
  */
 @Composable
 internal fun McpServerPage(
@@ -114,7 +114,7 @@ internal fun McpServerPage(
                 }
             }
 
-            // La forme réelle du serveur : ce que la configuration dit, tel quel.
+            // The server's actual shape: what the configuration says, as is.
             OnyxFormSection(header = "MCP") {
                 OnyxRow {
                     BasicText(
@@ -131,7 +131,7 @@ internal fun McpServerPage(
                 OnyxRowDivider()
                 OnyxRow {
                     BasicText(
-                        // Une commande locale n'a pas d'« adresse » : le mot suit la forme.
+                        // A local command has no "address": the word follows the shape.
                         text = if (entry.isLocalCommand) "Command" else "Address",
                         style = theme.body.copy(color = theme.primaryText),
                         modifier = Modifier.weight(1f),
@@ -169,8 +169,8 @@ internal fun McpServerPage(
                                 modifier = Modifier.weight(1f),
                             )
                             BasicText(
-                                // Le serveur masque les valeurs qui ont l'air d'un secret : on les
-                                // montre comme il les a rendues, jamais reconstruites.
+                                // The server masks values that look like a secret: they are
+                                // shown as it rendered them, never rebuilt.
                                 text = entry.env.entries.joinToString("\n") { (key, value) -> "$key=$value" },
                                 localize = false,
                                 style = theme.footnote.copy(color = bodyInk(theme, theme.formSurfaceColor)),
@@ -213,8 +213,8 @@ internal fun McpServerPage(
                 }
             }
 
-            // L'interrupteur, ici comme dans la liste : un serveur apporté par un greffon ne se
-            // règle pas à la main.
+            // The switch, here as in the list: a server brought by a plugin cannot be
+            // configured by hand.
             OnyxFormSection(footer = "Changes apply from the next chat.") {
                 CapabilityRow(
                     title = entry.name,
@@ -227,7 +227,7 @@ internal fun McpServerPage(
                 )
             }
 
-            // Le test : ce qu'il a réellement rendu, ou ce qu'il a réellement échoué à faire.
+            // The test: what it actually returned, or what it actually failed to do.
             OnyxFormSection(
                 header = "Test",
                 footer = if (probe == null && !testing) "Test the server to list its tools." else null,
@@ -264,8 +264,8 @@ internal fun McpServerPage(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 BasicText(
-                                    // Le mot est composé ici, en français : la phrase du serveur
-                                    // (« Connected · 5 tools ») n'est pas une clé du dictionnaire.
+                                    // The word is composed here, in French: the server's sentence
+                                    // ("Connected · 5 tools") is not a dictionary key.
                                     text = when {
                                         !probe.ok -> OnyxLocalization["Not connected"]
                                         probe.tools.isNotEmpty() -> OnyxLocalization.format(
@@ -326,7 +326,7 @@ internal fun McpServerPage(
                 }
             }
 
-            // Les outils que le serveur expose : dépliables, tels que le test les a listés.
+            // The tools the server exposes: expandable, as the test listed them.
             if (probe?.ok == true) {
                 OnyxFormSection(header = "Tools this server exposes") {
                     if (probe.tools.isEmpty()) {
@@ -356,7 +356,7 @@ internal fun McpServerPage(
                 }
             }
 
-            // La sélection d'outils écrite dans la configuration, quand le serveur en restreint.
+            // The tool selection written in the configuration, when the server restricts it.
             entry.toolSelection?.takeIf { it.isNotEmpty() }?.let { selection ->
                 OnyxFormSection(header = "Tools in this toolset") {
                     OnyxRow {
@@ -425,7 +425,7 @@ internal fun McpServerPage(
     }
 }
 
-/** Une ligne d'outil : son nom verbatim, et sa description quand le serveur la donne. */
+/** A tool row: its name verbatim, and its description when the server gives one. */
 @Composable
 private fun ToolRow(tool: McpTool, index: Int) {
     val theme = LocalOnyxTheme.current
@@ -457,12 +457,12 @@ private fun ToolRow(tool: McpTool, index: Int) {
 }
 
 /**
- * « Ajouter une source MCP » : le formulaire, sa validation, et les refus du serveur en français.
+ * "Add an MCP source": the form, its validation, and the server's refusals in French.
  *
- * Le formulaire **n'envoie que ce qu'un transport accepte** : une adresse et son authentification,
- * ou une commande, ses arguments et ses variables. Le serveur refuse le reste (`Provide exactly one
- * of URL…`) ; le refus d'avance se dit ici, sans aller-retour, et le refus du serveur se dit aussi —
- * les deux phrases sont distinctes et nomment la cause.
+ * The form **only sends what a transport accepts**: an address and its authentication,
+ * or a command, its arguments and its variables. The server refuses the rest (`Provide exactly one
+ * of URL…`); the upfront refusal is stated here, without a round trip, and the server's refusal is
+ * stated too — the two sentences are distinct and name the cause.
  */
 @Composable
 internal fun McpAddPage(
@@ -476,9 +476,9 @@ internal fun McpAddPage(
     var problem by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
 
-    // Un refus affiché ne survit pas à la correction du formulaire : sans cela, le message restait
-    // sous les yeux alors que le champ venait d'être rempli — et l'on ne savait plus s'il valait
-    // encore. Le changement du brouillon efface le message, l'échec d'un envoi le pose.
+    // A displayed refusal does not survive the correction of the form: without this, the message
+    // stayed in view while the field had just been filled in — and one no longer knew whether it
+    // still applied. Changing the draft clears the message, a failed send sets it.
     LaunchedEffect(draft) { problem = null }
 
     val transports = listOf("Local command", "Over the network")

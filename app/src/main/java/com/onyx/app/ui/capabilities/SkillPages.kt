@@ -47,11 +47,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Une compétence **ouverte** : son nom, sa description, sa famille, son interrupteur, et son
- * `SKILL.md` quand la route du contenu le donne.
+ * An **open** skill: its name, its description, its family, its switch, and its
+ * `SKILL.md` when the content route provides it.
  *
- * Un serveur qui ne sert pas `api/skills/content` le dit dans la page — le titre, la description et
- * l'interrupteur restent lisibles, et rien n'est inventé à la place du contenu.
+ * A server that does not serve `api/skills/content` says so in the page — the title, the description and
+ * the switch remain readable, and nothing is invented in place of the content.
  */
 @Composable
 internal fun SkillDetailPage(
@@ -83,8 +83,8 @@ internal fun SkillDetailPage(
                 title = skill.name,
                 onBack = onBack,
                 localizeTitle = false,
-                // **L'écriture de la compétence lue** : le même écran que portait « Compétences »,
-                // atteint depuis la famille « Compétences » de « Capacités ».
+                // **Writing the skill being read**: the same screen that "Skills" used to carry,
+                // reached from the "Skills" family of "Capabilities".
                 action = "Edit",
                 onAction = onEdit,
             )
@@ -169,13 +169,13 @@ internal fun SkillDetailPage(
 }
 
 /**
- * « Le catalogue » : les compétences que le serveur propose d'installer, avec leur famille et l'**état
- * réel** de chacune dans ce profil — installée, disponible, ou en cours d'installation.
+ * "The catalogue": the skills the server offers to install, with their family and the **actual
+ * state** of each in this profile — installed, available, or being installed.
  *
- * Rien n'est inventé : la liste est celle de `GET api/skills/hub/official`, l'installation passe par
- * `POST api/skills/hub/install` et le retrait par `POST api/skills/hub/uninstall`. Comme le serveur
- * installe en tâche de fond, la page **relit** la liste après coup plutôt que de supposer que la
- * marque « installée » a changé.
+ * Nothing is invented: the list is the one from `GET api/skills/hub/official`, installation goes through
+ * `POST api/skills/hub/install` and removal through `POST api/skills/hub/uninstall`. As the server
+ * installs in the background, the page **rereads** the list afterwards rather than assuming that the
+ * "installed" mark has changed.
  */
 @Composable
 internal fun CatalogPage(
@@ -239,10 +239,10 @@ internal fun CatalogPage(
                                 ServeSkillsApi(ServeClient(server)).installFromCatalog(entry.identifier)
                             }.onSuccess {
                                 onChanged()
-                                // Le serveur installe en tâche de fond : on relit la liste deux fois
-                                // plutôt que de poser une marque « installée » que personne n'a
-                                // confirmée. Si elle n'arrive pas, la ligne reste « disponible »,
-                                // ce qui est la vérité du moment.
+                                 // The server installs in the background: the list is reread twice
+                                 // rather than placing an "installed" mark that nobody has
+                                 // confirmed. If it does not arrive, the row stays "available",
+                                 // which is the truth of the moment.
                                 repeat(4) {
                                     delay(2_500)
                                     runCatching { ServeSkillsApi(ServeClient(server)).catalog() }
@@ -283,7 +283,7 @@ internal fun CatalogPage(
     }
 }
 
-/** Une entrée du catalogue : son nom, sa description, sa famille, son état, et son geste. */
+/** One catalogue entry: its name, its description, its family, its state, and its action. */
 @Composable
 private fun CatalogRow(
     entry: CatalogSkill,
@@ -345,7 +345,7 @@ private fun CatalogRow(
     }
 }
 
-/** Le mot de `trust_level` du serveur, traduit — un niveau que ce build ne connaît pas reste tel quel. */
+/** The word of the server's `trust_level`, translated — a level this build does not know stays as is. */
 private fun trustLabel(trustLevel: String): String = when (trustLevel.lowercase()) {
     "builtin" -> OnyxLocalization["Built-in"]
     "trusted" -> OnyxLocalization["Trusted"]

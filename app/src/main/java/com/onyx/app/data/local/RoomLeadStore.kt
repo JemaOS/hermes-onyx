@@ -8,31 +8,31 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * **Le meneur d'une salle, gardé sur ce téléphone.**
+ * **A room's lead, kept on this phone.**
  *
- * C'est le choix que la personne fait, et il **survit à la fermeture** — rouvrir l'app, c'est
- * retrouver la salle et son destinataire par défaut. Il ne dépend d'aucune route du serveur : un
- * Hermes de base n'a pas de meneur de salon, et l'app ne doit pas perdre le choix pour autant.
+ * It is the choice the person makes, and it **survives closing** — reopening the app means
+ * finding the room and its default recipient again. It depends on no server route: a
+ * basic Hermes has no room lead, and the app must not lose the choice because of that.
  *
- * Quand la salle sait le recevoir (`groups.lead`, cf. `GroupRoomViewModel.setLead`), le même choix
- * part **aussi** dans le journal de la salle : les bots le lisent, et la salle interroge le meneur
- * en premier. Ce magasin reste la copie de ce téléphone — la source de vérité locale, jamais la
- * seule.
+ * When the room can receive it (`groups.lead`, cf. `GroupRoomViewModel.setLead`), the same choice
+ * also goes **into** the room's log: the bots read it, and the room queries the lead
+ * first. This store remains this phone's copy — the local source of truth, never the
+ * only one.
  *
- * Le meneur n'est pas un chef : c'est le membre à qui la salle écrit **par défaut** quand la
- * personne ne nomme personne. `@nom` adresse toujours directement, quel que soit ce réglage.
+ * The lead is not a boss: it is the member the room writes to **by default** when the
+ * person names no one. `@name` always addresses directly, whatever this setting.
  *
- * Tout tient sous une seule clé, un objet JSON `{"<salle>": "<profil>"}` : une salle sans entrée
- * n'a pas de meneur, et « No lead » retire l'entrée au lieu d'y écrire un mot vide.
+ * Everything fits under a single key, a JSON object `{"<salle>": "<profil>"}`: a room without an entry
+ * has no lead, and “No lead” removes the entry instead of writing an empty word into it.
  */
 class RoomLeadStore(private val text: TextStore) {
 
     constructor(context: Context) : this(PreferencesTextStore(context, PREFERENCES))
 
-    /** Le profil du meneur de cette salle, ou `null` quand elle n'en a pas. */
+    /** The profile of this room's lead, or `null` when it has none. */
     fun lead(room: String): String? = all()[room]?.takeIf { it.isNotBlank() }
 
-    /** Choisit le meneur ; `null` (« No lead ») l'enlève. Rendre le même choix ne réécrit rien. */
+    /** Sets the lead; `null` (“No lead”) removes it. Returning the same choice rewrites nothing. */
     fun set(room: String, profile: String?) {
         val clean = profile?.trim()?.takeIf { it.isNotEmpty() }
         val kept = all().toMutableMap()
@@ -40,12 +40,12 @@ class RoomLeadStore(private val text: TextStore) {
         write(kept)
     }
 
-    /** « Erase everything » : plus aucun meneur gardé ici. */
+    /** “Erase everything”: no lead kept here anymore. */
     fun clearAll() {
         text.put(KEY, EMPTY)
     }
 
-    // — Ce qui est écrit sur le disque —
+    // — What is written on disk —
 
     private fun all(): Map<String, String> {
         val raw = text.get(KEY)?.takeIf { it.isNotBlank() } ?: return emptyMap()
@@ -62,10 +62,10 @@ class RoomLeadStore(private val text: TextStore) {
     }
 
     private companion object {
-        /** Le nom des préférences où les meneurs vivent. */
+        /** The name of the preferences where the leads live. */
         const val PREFERENCES = "onyx_room_leads"
 
-        /** La clé unique sous laquelle tout est écrit, et sa valeur quand il n'y a rien. */
+        /** The single key under which everything is written, and its value when there is nothing. */
         const val KEY = "leads"
         const val EMPTY = "{}"
     }

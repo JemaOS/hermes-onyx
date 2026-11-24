@@ -6,7 +6,7 @@ import androidx.biometric.BiometricManager
 import java.security.MessageDigest
 import java.security.SecureRandom
 
-/** Combien de temps après avoir quitté l'app il faut se réauthentifier. */
+/** How long after leaving the app you have to re-authenticate. */
 enum class LockDelay(val millis: Long, val label: String) {
     IMMEDIATELY(0L, "Immediately"),
     ONE_MINUTE(60_000L, "1 minute"),
@@ -21,11 +21,11 @@ enum class LockDelay(val millis: Long, val label: String) {
 }
 
 /**
- * Le verrou de l'app : la biométrie, et un code en secours.
+ * The app lock: biometrics, and a fallback code.
  *
- * Miroir de `AppLock` côté référence : on demande le visage ou le doigt au retour dans l'app,
- * après le délai choisi. Le code est le secours d'Android quand la biométrie n'est pas
- * disponible — il est salé et haché, jamais gardé en clair.
+ * Mirror of `AppLock` on the reference side: the face or the finger is requested on return to the app,
+ * after the chosen delay. The code is Android's fallback when biometrics are not
+ * available — it is salted and hashed, never kept in clear.
  */
 class AppLock(context: Context) {
 
@@ -45,7 +45,7 @@ class AppLock(context: Context) {
 
     val hasPin: Boolean get() = prefs.contains(KEY_HASH)
 
-    /** Enregistre un code de 4 à 12 chiffres ; une valeur vide l'efface. */
+    /** Stores a code of 4 to 12 digits; an empty value erases it. */
     fun setPin(pin: String) {
         if (pin.isEmpty()) {
             prefs.edit().remove(KEY_HASH).remove(KEY_SALT).apply()
@@ -64,7 +64,7 @@ class AppLock(context: Context) {
         return MessageDigest.isEqual(hash(pin, salt).toByteArray(), expected.toByteArray())
     }
 
-    /** Faut-il verrouiller, [leftAtAt] étant le moment où l'app est passée en arrière-plan ? */
+    /** Should it lock, [leftAtAt] being the moment the app went to the background? */
     fun shouldLock(leftAtAt: Long): Boolean {
         if (!isEnabled) return false
         if (leftAtAt == 0L) return true
@@ -72,36 +72,36 @@ class AppLock(context: Context) {
     }
 
     /**
-     * Ce que la biométrie du téléphone sait faire, ou `null` si elle ne peut pas.
+     * What the phone's biometrics can do, or `null` if they cannot.
      *
-     * La vérification est faite **avant** d'offrir un bouton : un téléphone sans empreinte ni visage
-     * enrôlés, ou dont le matériel ne peut pas répondre, laissait sinon un bouton sans effet. Le nom
-     * suit ce que l'appareil a vraiment (`Fingerprint`, `Face unlock`), sans emprunter le vocabulaire
-     * de la référence, qui n'a pas cours ici.
+     * The check is made **before** offering a button: a phone without enrolled fingerprint or face,
+     * or whose hardware cannot answer, otherwise left a button with no effect. The name
+     * follows what the device really has (`Fingerprint`, `Face unlock`), without borrowing the vocabulary
+     * of the reference, which does not apply here.
      */
     fun biometryLabel(context: Context): String? {
         if (!canAuthenticate(context)) return null
         val features = context.packageManager
         val face = features.hasSystemFeature(PackageManager.FEATURE_FACE)
         val finger = features.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
-        // **Le visage ne se déduit pas d'un `hasSystemFeature`.** Beaucoup de téléphones
-        // reconnaissent le visage sans publier `FEATURE_FACE` (il n'existe que pour la classe
-        // standard) : le libellé annonçait donc « Exiger l'empreinte » sur un appareil qui a les
-        // deux, et le visage semblait absent. Seule l'absence **certaine** de visage (une empreinte
-        // publiée, et rien d'autre) autorise le libellé « empreinte ».
+        // **The face is not deduced from a `hasSystemFeature`.** Many phones
+        // recognize the face without publishing `FEATURE_FACE` (it exists only for the standard
+        // class): the label therefore announced "Exiger l'empreinte" ("Require fingerprint") on a device that has
+        // both, and the face seemed absent. Only the **certain** absence of face (a fingerprint
+        // published, and nothing else) allows the "fingerprint" label.
         return when {
             finger && !face -> "Fingerprint"
             else -> "Face or fingerprint"
         }
     }
 
-    /** Vrai si le téléphone a une biométrie utilisable : matériel présent **et** classe enrôlée. */
+    /** True if the phone has usable biometrics: hardware present **and** class enrolled. */
     fun canAuthenticate(context: Context): Boolean {
-        // **Une classe à la fois.** `canAuthenticate(FORT or FAIBLE)` est une **combinaison** que
-        // l'API évalue littéralement : sur les appareils où seule la reconnaissance faciale (classe
-        // faible) est enrôlée, elle rend `BIOMETRIC_ERROR_NONE_ENROLLED` — l'app se croyait sans
-        // biométrie alors que le téléphone en avait une (« l'empreinte ne fonctionne pas »). On
-        // demande donc chaque classe séparément, et l'identifiant de l'appareil en dernier recours.
+        // **One class at a time.** `canAuthenticate(FORT or FAIBLE)` is a **combination** that
+        // the API evaluates literally: on devices where only face recognition (weak
+        // class) is enrolled, it returns `BIOMETRIC_ERROR_NONE_ENROLLED` — the app believed
+        // itself without biometrics while the phone had one ("l'empreinte ne fonctionne pas",
+        // "the fingerprint doesn't work"). Each class separately, device credential as a last resort.
         val manager = BiometricManager.from(context)
         fun ok(authenticators: Int) =
             manager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
@@ -127,8 +127,8 @@ class AppLock(context: Context) {
 
     private companion object {
         /**
-         * Le fort **et** le faible : beaucoup d'appareils (Honor, Xiaomi) ne proposent que les
-         * classes fortes, et le faible seul les laissait sans réponse.
+         * The strong **and** the weak: many devices (Honor, Xiaomi) offer only the
+         * strong classes, and the weak one alone left them without an answer.
          */
         val AUTHENTICATORS =
             BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK

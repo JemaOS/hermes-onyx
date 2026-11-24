@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Faux gateway OpenAI-compatible : diffuse une longue réponse Markdown, jeton par jeton."""
+"""Fake OpenAI-compatible gateway: streams a long Markdown response, token by token."""
 import json, time, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 

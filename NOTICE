@@ -11,7 +11,8 @@ What comes from Redde:
   "Miroir de", or a reference to an Echo/... file and line). They are ports or mirrors of Redde
   Swift types, and the comments name the Redde file and line.
 - MOTION-INVENTORY.tsv: animation and motion lines taken from Redde's Swift views.
-- PARITY-COLOURS.md: the colour comparison against Redde's Echo/Models/Theme.swift.
+- The colour values that follow Redde's Echo/Models/Theme.swift, identified by the provenance
+  comments in the sources.
 - core/src/main/java/com/onyx/app/localization/OnyxSharedFrench.kt: French strings taken key for key
   from Redde's Localizable.xcstrings. Other catalogs under app/ and core/ that carry the same
   provenance comments are in the same position.

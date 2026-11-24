@@ -36,8 +36,8 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Le brouillon sur une page entière (`ComposerEditor`) : Return pose toujours une nouvelle ligne,
- * « Done » ferme sans envoyer, et l'action d'envoi reste dans la barre de navigation.
+ * The draft on a full page (`ComposerEditor`): Return always inserts a new line,
+ * "Done" ("Done") closes without sending, and the send action stays in the navigation bar.
  */
 @Composable
 fun ComposerEditorScreen(
@@ -78,16 +78,16 @@ fun ComposerEditorScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp),
         ) {
-            // Le champ de l'éditeur suit **la même règle** que le compositeur d'une conversation :
-            // les couleurs de sélection et de curseur sont reposées localement, et l'encre ne
-            // dépend pas d'un héritage (voir `ProvideFieldTextColours`).
+            // The editor field follows **the same rule** as a conversation's composer:
+            // the selection and cursor colours are set again locally, and the ink does not
+            // depend on inheritance (see `ProvideFieldTextColours`).
             ProvideFieldTextColours(theme) {
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
                 textStyle = theme.body.copy(color = theme.textColor),
                 cursorBrush = SolidColor(fieldCursorColour(theme)),
-                // Contrairement au composer, Return n'envoie jamais depuis cette page.
+                // Unlike the composer, Return never sends from this page.
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                 modifier = Modifier
                     .fillMaxSize()
@@ -98,7 +98,7 @@ fun ComposerEditorScreen(
     }
 }
 
-/** La barre native de la page : annulation à gauche, titre inline, confirmation à droite. */
+/** The page's native bar: cancel on the left, inline title, confirmation on the right. */
 @Composable
 private fun ComposerHeader(
     title: String,

@@ -1,13 +1,13 @@
-"""L'état d'une prise en main : le bail, les trames, le ticket, et l'attente de l'agent.
+"""The state of a takeover: the lease, the frames, the ticket, and the agent's wait.
 
-Rien ici ne touche à aiohttp ni à Compose : ce module est **pur** (hors CDP), donc testable sans
-navigateur. C'est lui qui porte les règles qu'on ne veut pas voir dériver :
+Nothing here touches aiohttp or Compose: this module is **pure** (apart from CDP), hence testable without
+a browser. It is where the rules we do not want to see drift live:
 
-- un **bail** dit qui conduit (`agent` ou `human`) et un `epoch` qui avance à chaque transition ;
-- une saisie est refusée si le bail n'est pas humain, ou si la trame sur laquelle elle a été
-  calculée n'est plus la dernière ;
-- un **ticket** est à usage unique et périme en 30 secondes ;
-- l'attente de l'agent est un `threading.Event` : le tour reste ouvert, le navigateur reste vivant.
+- a **lease** says who is driving (`agent` or `human`) and an `epoch` that advances on every transition;
+- an input is refused if the lease is not human, or if the frame it was computed against
+  is no longer the latest one;
+- a **ticket** is single-use and expires after 30 seconds;
+- the agent's wait is a `threading.Event`: the turn stays open, the browser stays alive.
 """
 
 from __future__ import annotations
@@ -20,25 +20,25 @@ from dataclasses import dataclass, field
 from typing import Any
 
 TICKET_TTL_S = 30.0
-#: **Six minutes, pas quinze.** L'outil bloque le tour en attendant la main de l'humain, mais le
-#: harnais d'appel d'outil coupe à 420 s : au-delà, l'agent reçoit une erreur opaque au lieu du
-#: `{"status": "timeout"}` propre qui lui dit quoi faire. Rester sous 420 s garde la main dans le
-#: code du plugin — et six minutes suffisent largement pour taper un mot de passe.
+#: **Six minutes, not fifteen.** The tool blocks the turn while waiting for the human's hand, but the
+#: tool-call harness cuts at 420 s: beyond that, the agent receives an opaque error instead of the
+#: clean `{"status": "timeout"}` that tells it what to do. Staying under 420 s keeps control in the
+#: plugin's code — and six minutes is more than enough to type a password.
 TAKEOVER_TIMEOUT_S = 6 * 60
-#: **La marge de fraîcheur d'une saisie, en secondes.**
+#: **The freshness margin for an input, in seconds.**
 #:
-#: La règle 3 du §7 refuse un geste calculé sur une image qui n'est plus la dernière. Prise à la
-#: lettre — « plus vieux que la dernière trame émise » — elle rend l'écran inutilisable : le
-#: serveur diffuse à 8 img/s pendant que l'humain conduit, donc le `seq` de la trame affichée est
-#: déjà dépassé au moment où le doigt se pose. Chaque tap était refusé `stale`, et l'app ne
-#: pouvait plus rien faire sur la page.
+#: Rule 3 of §7 refuses a gesture computed on an image that is no longer the latest. Taken
+#: literally — "older than the last emitted frame" — it makes the screen unusable: the
+#: server streams at 8 fps while the human drives, so the `seq` of the displayed frame is
+#: already out of date by the time the finger lands. Every tap was refused as `stale`, and the app
+#: could no longer do anything on the page.
 #:
-#: Ce que la règle cherche vraiment à empêcher, c'est le clic **au mauvais endroit** parce que la
-#: page a bougé entre l'image et le geste. Une image qui a moins de deux secondes est encore
-#: celle que l'humain voit : on laisse passer. Au-delà, la page a pu défiler, et le refus est la
-#: bonne réponse.
-#: Fenêtre de fraîcheur, en secondes. Assez large pour un geste humain (regarder, viser,
-#: poser le doigt), assez étroite pour que le clic ne parte pas sur une page qui a bougé.
+#: What the rule really seeks to prevent is the click **in the wrong place** because the
+#: page moved between the image and the gesture. An image less than two seconds old is still
+#: the one the human sees: we let it through. Beyond that, the page may have scrolled, and the refusal is the
+#: right answer.
+#: Freshness window, in seconds. Wide enough for a human gesture (look, aim,
+#: place the finger), narrow enough that the click does not go to a page that has moved.
 STALE_AFTER_S = 2.0
 
 
@@ -51,28 +51,28 @@ class Ticket:
 
 @dataclass
 class Waiting:
-    """Une demande de prise en main en attente : l'agent bloque, l'humain peut agir."""
+    """A pending takeover request: the agent blocks, the human can act."""
 
     takeover_id: str
     reason: str
     done: threading.Event = field(default_factory=threading.Event)
     note: str = ""
     facts: dict[str, Any] = field(default_factory=dict)
-    #: **La conversation qui a demandé la main** (`HERMES_SESSION_ID` du tour). Sans elle, l'app ne
-    #: pouvait pas savoir à quel fil appartenait la demande : elle la montrait dans toutes les
-    #: conversations ouvertes, et la personne la voyait revenir dans des fils où elle n'avait rien
-    #: demandé. C'est le serveur qui le sait, pas le client.
+    #: **The conversation that asked for control** (`HERMES_SESSION_ID` of the turn). Without it, the app
+    #: could not know which thread the request belonged to: it showed it in all
+    #: open conversations, and the person saw it come back in threads where they had asked for
+    #: nothing. It is the server that knows it, not the client.
     session: str = ""
-    #: La page montrée au moment de la demande : avec la conversation, c'est la clé d'un refus.
+    #: The page shown at the time of the request: with the conversation, it is the key of a refusal.
     url: str = ""
-    #: **Le refus est un résultat.** Une demande qui se termine sans `refused` ni `facts` se
-    #: lisait comme un succès silencieux : l'agent croyait qu'on avait pris la main, alors que
-    #: personne n'avait rien fait. Le drapeau dit la vérité à l'outil.
+    #: **A refusal is a result.** A request that ends without `refused` or `facts` was
+    #: read as a silent success: the agent believed control had been taken, whereas
+    #: nobody had done anything. The flag tells the tool the truth.
     refused: bool = False
 
 
 class Session:
-    """L'état vivant du navigateur d'un tour, et les règles qui vont avec."""
+    """The live state of a turn's browser, and the rules that go with it."""
 
     def __init__(self, clock=time.monotonic) -> None:
         self._clock = clock
@@ -80,25 +80,25 @@ class Session:
         self.epoch = 0
         self.seq = 0
         self.viewport = (1280, 720)
-        #: La taille que **l'écran de la personne** a annoncée, en pixels physiques. Elle décide
-        #: de la finesse de la capture ; `None` = gabarit par défaut.
+        #: The size that **the person's screen** announced, in physical pixels. It decides
+        #: the capture sharpness; `None` = default template.
         self.phone_size: dict[str, Any] | None = None
         self.scale = 0.6
         self.frames = 0
         self.tickets: dict[str, Ticket] = {}
         self.waiting: Waiting | None = None
         self._lock = threading.RLock()
-        #: L'instant de la dernière trame émise, et celui du dernier `seq` qu'on a laissé passer.
-        #: C'est ce qui permet de dire « cette image a encore moins de deux secondes » sans
-        #: dépendre du débit d'images.
+        #: The instant of the last emitted frame, and that of the last `seq` we let through.
+        #: This is what makes it possible to say "this image is still less than two seconds old" without
+        #: depending on the frame rate.
         self._last_frame_at: float = 0.0
         self._last_seen_seq: int = 0
         self._last_seen_at: float = 0.0
 
-    # -- bail ---------------------------------------------------------------------------------
+    # -- lease ---------------------------------------------------------------------------------
 
     def acquire(self) -> dict[str, Any]:
-        """L'humain prend la main. Rend le bail ; lève si un autre conduit déjà."""
+        """The human takes control. Returns the lease; raises if someone else is already driving."""
         with self._lock:
             if self.holder == "human":
                 raise AlreadyHeld(self.epoch)
@@ -107,7 +107,7 @@ class Session:
             return {"holder": "human", "epoch": self.epoch}
 
     def release(self, note: str = "") -> dict[str, Any]:
-        """L'humain rend la main : l'agent reprend, et son outil se débloque."""
+        """The human hands back control: the agent resumes, and its tool unblocks."""
         with self._lock:
             self.holder = "agent"
             self.epoch += 1
@@ -118,11 +118,11 @@ class Session:
             return {"holder": "agent", "epoch": self.epoch}
 
     def abandon(self) -> dict[str, Any]:
-        """Le conducteur a disparu (écran fermé, page morte) : on repasse au agent, sans finir.
+        """The driver disappeared (screen closed, page dead): we switch back to the agent, without finishing.
 
-        **Ce n'est pas `release()`** : `release()` réveille l'outil de l'agent comme si l'humain
-        avait rendu la main. Ici, personne n'a rien rendu — l'écran s'est éteint. L'agent doit
-        continuer d'attendre, et l'humain pouvoir reprendre la main quand il rouvre l'écran.
+        **This is not `release()`**: `release()` wakes the agent's tool as if the human
+        had handed back control. Here, nobody handed anything back — the screen went dark. The agent must
+        keep waiting, and the human must be able to take control again when they reopen the screen.
         """
         with self._lock:
             self.holder = "agent"
@@ -134,7 +134,7 @@ class Session:
     def mint(self) -> Ticket:
         with self._lock:
             now = self._clock()
-            # Un ticket neuf périme les anciens : une seule poignée à la fois, comme `display`.
+            # A new ticket invalidates the old ones: a single handshake at a time, like `display`.
             self.tickets = {k: t for k, t in self.tickets.items() if t.expires_at > now}
             ticket = Ticket(
                 value=secrets.token_urlsafe(24),
@@ -145,14 +145,14 @@ class Session:
             return ticket
 
     def redeem(self, value: str) -> Ticket | None:
-        """Rend le ticket s'il est valide, et le **consomme** (usage unique)."""
+        """Return the ticket if it is valid, and **consume** it (single use)."""
         with self._lock:
             ticket = self.tickets.pop(value or "", None)
             if ticket is None or ticket.expires_at <= self._clock():
                 return None
             return ticket
 
-    # -- trames et saisies --------------------------------------------------------------------
+    # -- frames and inputs --------------------------------------------------------------------
 
     def next_seq(self) -> int:
         with self._lock:
@@ -162,27 +162,27 @@ class Session:
             return self.seq
 
     def refusal(self, seq: int) -> str | None:
-        """Pourquoi cette saisie est refusée, ou `None` si elle passe.
+        """Why this input is refused, or `None` if it passes.
 
-        **La fraîcheur se mesure en secondes, pas en images.** Le garde-fou du §7 veut empêcher
-        le clic au mauvais endroit parce que la page a bougé entre l'image et le geste. Comparer
-        des `seq` ne le fait pas : le serveur diffuse à 8 img/s pendant que l'humain conduit, si
-        bien que le `seq` de l'image affichée est *toujours* dépassé au moment du geste — et
-        chaque tap était refusé, sans exception. Une image de moins de `STALE_AFTER_S` seconde
-        est encore celle que l'humain regarde : elle passe. Au-delà, la page a pu défiler, et le
-        refus est la bonne réponse.
+        **Freshness is measured in seconds, not in frames.** The §7 guard wants to prevent
+        the click in the wrong place because the page moved between the image and the gesture. Comparing
+        `seq` values does not do that: the server streams at 8 fps while the human drives, so
+        the `seq` of the displayed image is *always* out of date by the time of the gesture — and
+        every tap was refused, without exception. An image less than `STALE_AFTER_S` second old
+        is still the one the human is looking at: it passes. Beyond that, the page may have scrolled, and the
+        refusal is the right answer.
 
-        Le `seq` reste néanmoins monotone et vérifié : un `seq` inconnu, nul, ou postérieur à
-        la dernière trame émise, est refusé — il ne vient pas de cette page.
+        The `seq` nonetheless remains monotonic and checked: an unknown `seq`, zero, or one later than
+        the last emitted frame, is refused — it does not come from this page.
         """
         with self._lock:
             if self.holder != "human":
                 return "no_lease"
             if seq <= 0 or seq > self.seq:
-                # Zéro, ou un `seq` que le serveur n'a jamais émis.
+                # Zero, or a `seq` that the server never emitted.
                 return "stale"
             if self._clock() - self._last_frame_at > STALE_AFTER_S:
-                # Aucune image récente : l'humain agit sur un écran qui n'est plus à jour.
+                # No recent image: the human is acting on a screen that is no longer up to date.
                 return "stale"
             self._last_seen_seq = seq
             self._last_seen_at = self._clock()

@@ -1,16 +1,16 @@
-"""Le seul endroit qui parle à Chromium : capture d'une trame, et rejeu d'un geste.
+"""The only place that talks to Chromium: capturing a frame, and replaying a gesture.
 
-On passe par le seam que Hermes réserve aux plugins (`SUPERVISOR_REGISTRY.capture`), avec le
-`task_id` des outils `browser_*` du tour. Tout le reste du plugin ignore CDP.
+We go through the seam Hermes reserves for plugins (`SUPERVISOR_REGISTRY.capture`), with the
+`task_id` of the turn's `browser_*` tools. The rest of the plugin ignores CDP.
 
-Trois choses que ce module fait et que le reste ne doit pas refaire :
+Three things this module does that the rest must not redo:
 
-- **viser la bonne page** : le superviseur est épinglé au premier onglet, souvent une page vide ;
-  on prend la dernière page web réelle et on s'y attache (`Target.attachToTarget`, sessions mises
-  en cache) ;
-- **poser un viewport de téléphone** avant la frappe (§2.1 du plan), et le **rendre** à la fin ;
-- **détecter le formulaire de connexion** au moment de rendre la main — l'hôte et la présence d'un
-  champ `type=password` — pour que l'app puisse proposer d'enregistrer, sans jamais deviner.
+- **aim at the right page**: the supervisor is pinned to the first tab, often an empty page;
+  we take the last real web page and attach to it (`Target.attachToTarget`, sessions
+  cached);
+- **set a phone viewport** before typing (§2.1 of the plan), and **restore it** at the end;
+- **detect the login form** at the moment control is handed back — the host and the presence of a
+  `type=password` field — so the app can offer to save it, without ever guessing.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-#: Un Chromium Android crédible : c'est lui que le site sert quand on demande sa version mobile.
+#: A credible Android Chromium: it is what the site serves when we ask for its mobile version.
 MOBILE_UA = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Mobile Safari/537.36"
@@ -54,33 +54,33 @@ _SKIP_PREFIXES = (
 
 
 def is_real_page(url: str) -> bool:
-    """Un onglet qui montre quelque chose : ce n'est ni une page interne, ni du blanc.
+    """A tab that shows something: it is neither an internal page nor blank.
 
-    **La distinction n'est pas cosmétique.** Hermes ferme un navigateur resté deux minutes sans
-    outil (`browser.inactivity_timeout`) et en rouvre un, vide, au tour suivant. Une prise en main
-    demandée sur ce navigateur neuf montrait un écran blanc pendant quinze minutes : l'humain
-    croyait que la page n'arrivait pas, et l'agent attendait un rendez-vous impossible.
+    **The distinction is not cosmetic.** Hermes closes a browser left idle for two minutes without
+    a tool (`browser.inactivity_timeout`) and reopens an empty one on the next turn. A takeover
+    requested on that fresh browser showed a blank screen for fifteen minutes: the human
+    thought the page was not arriving, and the agent waited for an impossible rendezvous.
     """
     return bool(url) and not str(url).startswith(_SKIP_PREFIXES)
 
 
 class BrowserUnavailable(RuntimeError):
-    """Aucun navigateur d'agent vivant pour ce tour."""
+    """No live agent browser for this turn."""
 
 
-#: Le fichier où Chromium écrit le port DevTools qu'il a choisi, à la racine de son
-#: `--user-data-dir`. C'est la seule source qui survit au réapprentissage d'un navigateur.
+#: The file where Chromium writes the DevTools port it chose, at the root of its
+#: `--user-data-dir`. It is the only source that survives a browser being relearned.
 _DEVTOOLS_PORT_FILE = "DevToolsActivePort"
 
 
 def _session_keys(task_id: str) -> list[str]:
-    """Les clés de session sous lesquelles ce tour peut avoir un navigateur.
+    """The session keys under which this turn can have a browser.
 
-    Le même tour apparaît sous plusieurs formes : la clé nue (`api-xxx`), la clé de profil
-    (`api-xxx@/home/john/.hermes`), et la clé mémorisée comme « dernière session active »
-    quand une navigation a eu lieu. On les essaie dans cet ordre, en ne gardant que celles
-    qui **existent déjà** : interroger une clé absente ferait lancer un navigateur neuf, et
-    l'écran du téléphone afficherait alors une page blanche au lieu de la bonne.
+    The same turn appears under several forms: the bare key (`api-xxx`), the profile key
+    (`api-xxx@/home/john/.hermes`), and the key remembered as "last active session"
+    when a navigation took place. We try them in that order, keeping only those
+    that **already exist**: querying an absent key would launch a fresh browser, and
+    the phone screen would then show a blank page instead of the right one.
     """
     if not task_id:
         return []
@@ -104,21 +104,21 @@ def _session_keys(task_id: str) -> list[str]:
 
 
 def _session_cdp_url(task_id: str) -> str:
-    """L'URL DevTools **de la session de ce tour**, ou ``""``.
+    """The DevTools URL **of this turn's session**, or ``""``.
 
-    C'est la voie canonique de Hermes : la commande `agent-browser get cdp-url` sur la session
-    du tour. Elle est liée à la tâche, donc elle ne peut pas renvoyer le navigateur d'une
-    autre session — ce qui compte, puisque plusieurs tours tournent en parallèle sur cette
+    This is Hermes' canonical path: the `agent-browser get cdp-url` command on the turn's
+    session. It is bound to the task, so it cannot return another session's
+    browser — which matters, since several turns run in parallel on this
     machine.
 
-    **Pourquoi elle est nécessaire :** le seam `SUPERVISOR_REGISTRY` ne résout que dans le
-    processus qui a lancé le navigateur, et son URL CDP devient périmée dès que ce navigateur
-    est récolté puis rouvert sur un autre port. Le superviseur essayait alors de se reconnecter
-    à un port mort, s'arrêtait après cinq échecs, et le plugin en concluait « pas de
-    navigateur » — alors que la page existait et que le téléphone ne montrait qu'un écran vide.
+    **Why it is necessary:** the `SUPERVISOR_REGISTRY` seam only resolves in the
+    process that launched the browser, and its CDP URL becomes stale as soon as that browser
+    is reaped and reopened on another port. The supervisor would then try to reconnect
+    to a dead port, stop after five failures, and the plugin would conclude "no
+    browser" — whereas the page existed and the phone showed only a blank screen.
 
-    Cette commande rafraîchit aussi le minuteur du démon : le trafic CDP direct, lui, est
-    invisible pour lui.
+    This command also refreshes the daemon's timer: direct CDP traffic, for its part, is
+    invisible to it.
     """
     try:
         from tools.browser_tool import _active_sessions
@@ -126,8 +126,8 @@ def _session_cdp_url(task_id: str) -> str:
     except Exception:
         return ""
     for cle in _session_keys(task_id):
-        # **Seulement une session qui existe déjà** : une clé absente ferait lancer un
-        # navigateur neuf, et l'écran du téléphone montrerait du blanc au lieu de la page.
+        # **Only a session that already exists**: an absent key would launch a new
+        # browser, and the phone screen would show blank instead of the page.
         if cle not in _active_sessions:
             continue
         try:
@@ -143,11 +143,11 @@ def _session_cdp_url(task_id: str) -> str:
 
 
 def _shows_real_page(cdp: Any) -> bool:
-    """Ce client CDP voit-il au moins une page web réelle ?
+    """Does this CDP client see at least one real web page?
 
-    Sert à écarter un superviseur encore « vivant » mais accroché à un Chromium fermé : sans ce
-    filtre, `capture` réussit, puis chaque trame échoue, et l'écran du téléphone affiche « blank »
-    alors qu'un autre navigateur, lui, montre la page.
+    Used to rule out a supervisor that is still "alive" but attached to a closed Chromium: without this
+    filter, `capture` succeeds, then every frame fails, and the phone screen shows "blank"
+    whereas another browser shows the page.
     """
     try:
         reply = cdp.call("Target.getTargets", timeout=3)
@@ -161,11 +161,11 @@ def _shows_real_page(cdp: Any) -> bool:
 
 
 def _profils_sous(racine: Path) -> list[Path]:
-    """Les profils `agent-browser-chrome-*` directement sous `racine` et un niveau plus bas.
+    """The `agent-browser-chrome-*` profiles directly under `root` and one level deeper.
 
-    Deux formes coexistent sur cette machine : `~/.hermes/cache/scratch/agent-browser-chrome-*`
-    et `~/.hermes/profiles/<nom>/cache/scratch/agent-browser-chrome-*`. Un seul niveau de descente
-    suffit et garde le scan borné.
+    Two forms coexist on this machine: `~/.hermes/cache/scratch/agent-browser-chrome-*`
+    and `~/.hermes/profiles/<name>/cache/scratch/agent-browser-chrome-*`. A single level of descent
+    suffices and keeps the scan bounded.
     """
     trouves: list[Path] = []
     try:
@@ -178,11 +178,11 @@ def _profils_sous(racine: Path) -> list[Path]:
 
 
 def _ports_depuis_proc() -> list[tuple[float, int]]:
-    """(fraîcheur, port DevTools) des Chromium lancés par l'agent, lus dans `/proc`.
+    """(freshness, DevTools port) of the Chromium browsers launched by the agent, read from `/proc`.
 
-    **Chrome réécrit `/proc/<pid>/cmdline` en une seule chaîne séparée par des espaces** (un seul
-    NUL, à la fin) : couper sur `\\x00` seul ne voit aucun argument — piège vérifié sur cette
-    machine. On découpe donc sur les deux.
+    **Chrome rewrites `/proc/<pid>/cmdline` as a single space-separated string** (a single
+    NUL, at the end): splitting on `\\x00` alone sees no argument — a trap verified on this
+    machine. We therefore split on both.
     """
     resultats: list[tuple[float, int]] = []
     for proc in glob.glob("/proc/[0-9]*"):
@@ -204,16 +204,16 @@ def _ports_depuis_proc() -> list[tuple[float, int]]:
 
 
 def _live_devtools_ws(task_id: str = "") -> str:
-    """Le `webSocketDebuggerUrl` du navigateur qui montre une vraie page.
+    """The `webSocketDebuggerUrl` of the browser that shows a real page.
 
-    Deux voies, dans l'ordre :
+    Two paths, in order:
 
-    1. **la session du tour** (`_session_cdp_url`) — elle est liée à la tâche, donc exacte ;
-    2. **le profil le plus récemment touché** qui expose une page `http(s)` — un filet de
-       sécurité quand la session du tour ne répond pas.
+    1. **the turn's session** (`_session_cdp_url`) — it is bound to the task, hence exact;
+    2. **the most recently touched profile** that exposes an `http(s)` page — a safety
+       net when the turn's session does not answer.
 
-    Un onglet `about:blank` ne compte pas comme une page : le plugin ne doit jamais montrer
-    du blanc en croyant montrer la page.
+    An `about:blank` tab does not count as a page: the plugin must never show
+    blank while believing it is showing the page.
     """
     if task_id:
         cible = _session_cdp_url(task_id)
@@ -228,27 +228,27 @@ def _live_devtools_ws(task_id: str = "") -> str:
             try:
                 port = int(fichier.read_text().splitlines()[0])
             except Exception:
-                continue  # navigateur mort : pas de fichier, ou fichier illisible
+                continue  # dead browser: no file, or unreadable file
             try:
                 mtime = fichier.stat().st_mtime
             except OSError:
                 mtime = 0.0
             candidats.append((mtime, port))
-    # **La voie qui marche toujours : `/proc`.** Le glob ci-dessus dépend de l'endroit où le
-    # navigateur a posé son profil ; un gateway lancé avec un autre `TMPDIR` cherchait dans le
-    # mauvais dossier et ne trouvait rien, alors que le Chromium tournait. On demande donc aux
-    # processus eux-mêmes où est leur profil, ce qui est indépendant de toute variable.
+    # **The path that always works: `/proc`.** The glob above depends on where the
+    # browser placed its profile; a gateway launched with another `TMPDIR` looked in the
+    # wrong folder and found nothing, while the Chromium was running. We therefore ask the
+    # processes themselves where their profile is, which is independent of any variable.
     candidats.extend(_ports_depuis_proc())
     for _mtime, port in sorted(candidats, reverse=True):
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=1.0) as r:
                 cibles = json.loads(r.read().decode())
         except Exception:
-            continue  # port mort : le navigateur a été récolté
+            continue  # dead port: the browser has been reaped
         if not any(
             t.get("type") == "page" and str(t.get("url") or "").startswith("http") for t in cibles
         ):
-            continue  # un onglet vide n'est pas une page à montrer
+            continue  # an empty tab is not a page to show
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2.0) as r:
                 ws = str(json.loads(r.read().decode()).get("webSocketDebuggerUrl") or "")
@@ -260,7 +260,7 @@ def _live_devtools_ws(task_id: str = "") -> str:
 
 
 def _port_de(ws_url: str) -> int:
-    """Le port DevTools contenu dans une URL `ws://host:port/...`, ou `-1`."""
+    """The DevTools port contained in a `ws://host:port/...` URL, or `-1`."""
     try:
         reste = ws_url.split("://", 1)[-1]
         hote = reste.partition("/")[0]
@@ -269,16 +269,16 @@ def _port_de(ws_url: str) -> int:
         return -1
 
 
-#: Le démon `agent-browser` porte son propre minuteur d'inactivité, et **le trafic CDP direct du
-#: plugin lui est invisible** : il s'arrête au bout de dix minutes et emporte le Chromium avec
-#: lui. L'écran du téléphone lit alors « aucune page n'est ouverte » alors que la page existait
-#: deux minutes plus tôt. La parade est de lui parler par sa propre CLI : `get cdp-url` ne
-#: navigue pas, elle relit l'URL DevTools et relance son minuteur.
+#: The `agent-browser` daemon carries its own inactivity timer, and **the plugin's direct CDP
+#: traffic is invisible to it**: it stops after ten minutes and takes the Chromium with
+#: it. The phone screen then reads "no page is open" whereas the page existed
+#: two minutes earlier. The remedy is to talk to it through its own CLI: `get cdp-url` does not
+#: navigate, it re-reads the DevTools URL and restarts its timer.
 DEMON_SESSION_ENV = "AGENT_BROWSER_SESSION"
 
 
 def _pids_chrome() -> list[int]:
-    """Les Chromium lancés par le démon, lus dans `/proc`."""
+    """The Chromium browsers launched by the daemon, read from `/proc`."""
     pids: list[int] = []
     for proc in glob.glob("/proc/[0-9]*"):
         try:
@@ -293,7 +293,7 @@ def _pids_chrome() -> list[int]:
 
 
 def _port_du_chrome(pid: int) -> int:
-    """Le port DevTools du Chromium `pid`, ou `-1`."""
+    """The DevTools port of the Chromium `pid`, or `-1`."""
     try:
         raw = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", "ignore")
     except OSError:
@@ -311,7 +311,7 @@ def _port_du_chrome(pid: int) -> int:
 
 
 def _env_du_demon(pid: int) -> dict[str, str]:
-    """Les variables `AGENT_BROWSER_*` du processus `pid`."""
+    """The `AGENT_BROWSER_*` variables of the `pid` process."""
     try:
         raw = Path(f"/proc/{pid}/environ").read_bytes()
     except OSError:
@@ -328,10 +328,10 @@ def _env_du_demon(pid: int) -> dict[str, str]:
 
 
 def demon_du_port(port: int) -> dict[str, str]:
-    """Les variables `AGENT_BROWSER_*` du démon qui tient le navigateur sur `port`.
+    """The `AGENT_BROWSER_*` variables of the daemon that holds the browser on `port`.
 
-    Le démon est le **père** du Chromium : c'est lui qui garde la session et qui compte son
-    temps d'inactivité. `{"AGENT_BROWSER_SESSION": ...}` quand on l'a trouvé, `{}` sinon.
+    The daemon is the Chromium's **parent**: it is the one that keeps the session and counts its
+    idle time. `{"AGENT_BROWSER_SESSION": ...}` when we found it, `{}` otherwise.
     """
     if port <= 0:
         return {}
@@ -350,15 +350,15 @@ def demon_du_port(port: int) -> dict[str, str]:
 
 
 def relance_le_minuteur_du_demon(port: int) -> bool:
-    """Relance le minuteur d'inactivité du démon qui tient le navigateur sur `port`.
+    """Restart the inactivity timer of the daemon that holds the browser on `port`.
 
-    **C'est la cause du « aucune page n'est ouverte ».** Le démon `agent-browser` compte son
-    temps d'inactivité, et il ne voit que ses propres commandes CLI : le trafic CDP du plugin
-    lui est totalement invisible. Sans une commande de temps en temps, il s'arrête — et le
-    Chromium part avec lui — alors que l'écran du téléphone est ouvert et attend.
+    **This is the cause of "no page is open".** The `agent-browser` daemon counts its
+    idle time, and it only sees its own CLI commands: the plugin's CDP traffic
+    is totally invisible to it. Without a command now and then, it stops — and the
+    Chromium leaves with it — while the phone screen is open and waiting.
 
-    `get cdp-url` ne navigue pas : elle relit l'URL DevTools et le minuteur repart. Vrai quand
-    le démon n'a pas déjà disparu.
+    `get cdp-url` does not navigate: it re-reads the DevTools URL and the timer restarts. True when
+    the daemon has not already disappeared.
     """
     env = demon_du_port(port)
     session = env.get(DEMON_SESSION_ENV) or ""
@@ -378,9 +378,9 @@ def relance_le_minuteur_du_demon(port: int) -> bool:
         return False
     env_jeu = dict(os.environ)
     env_jeu.update(env)
-    # **`AGENT_BROWSER_DAEMON` ne doit pas être transmis.** C'est le marqueur du démon ; hérité
-    # par le client, la CLI se prend pour un démon, ouvre sa propre boucle et ne rend jamais la
-    # main — l'appel expirait au bout de trente secondes au lieu de rafraîchir le minuteur.
+    # **`AGENT_BROWSER_DAEMON` must not be passed on.** It is the daemon's marker; inherited
+    # by the client, the CLI takes itself for a daemon, opens its own loop and never returns
+    # control — the call expired after thirty seconds instead of refreshing the timer.
     env_jeu.pop("AGENT_BROWSER_DAEMON", None)
     env_jeu["AGENT_BROWSER_SOCKET_DIR"] = socket_dir
     env_jeu["AGENT_BROWSER_SESSION"] = session
@@ -399,11 +399,11 @@ def relance_le_minuteur_du_demon(port: int) -> bool:
 
 
 class _DirectCDP:
-    """Un client CDP synchrone et minimal, branché en direct sur le DevTools du navigateur.
+    """A synchronous and minimal CDP client, wired directly to the browser's DevTools.
 
-    Il parle la même surface que le seam de Hermes (`call`, `is_valid`, `page_session_id`),
-    donc le reste du plugin n'a pas à savoir comment la connexion a été obtenue. Sans
-    dépendance : la poignée WebSocket est faite à la main sur une socket nue.
+    It speaks the same surface as the Hermes seam (`call`, `is_valid`, `page_session_id`),
+    so the rest of the plugin does not have to know how the connection was obtained. Without
+    any dependency: the WebSocket handshake is done by hand on a raw socket.
     """
 
     def __init__(self, ws_url: str, timeout: float = 10.0) -> None:
@@ -470,12 +470,12 @@ class _DirectCDP:
             elif n == 127:
                 n = struct.unpack(">Q", self._lire(8))[0]
             charge = self._lire(n)
-            if op == 8:  # fermeture
+            if op == 8:  # close
                 raise BrowserUnavailable("DevTools a fermé la connexion")
             if op == 1:
                 return json.loads(charge)
 
-    # -- surface du seam ----------------------------------------------------------------------
+    # -- seam surface ----------------------------------------------------------------------
 
     def call(
         self,
@@ -497,7 +497,7 @@ class _DirectCDP:
         while True:
             reponse = self._recevoir()
             if reponse.get("id") != self._prochain:
-                continue  # un événement : on n'y est pas abonné, on l'ignore
+                continue  # an event: we are not subscribed to it, we ignore it
             if "error" in reponse:
                 raise RuntimeError(f"CDP {method}: {reponse['error']}")
             return reponse
@@ -507,46 +507,46 @@ class _DirectCDP:
 
 
 class Controller:
-    """Un client CDP pour le navigateur d'un tour, avec ses sessions de page en cache."""
+    """A CDP client for a turn's browser, with its page sessions cached."""
 
     def __init__(self, task_id: str) -> None:
         self.task_id = task_id
         self._cdp: Any = None
         self._sessions: dict[str, str] = {}
-        #: Le port DevTools du navigateur auquel on est accroché — **l'identité du navigateur**.
-        #: `-1` quand on ne le sait pas (le seam du superviseur ne le dit pas). Cette valeur sert
-        #: à ne pas confondre « la page est chez un autre processus » avec « la page est chez le
-        #: *même* navigateur, vu par deux processus » : les deux attachent au même Chromium, et
-        #: l'un croyait la page « ailleurs » chez l'autre — pendant que l'autre la montrait très
-        #: bien au même écran.
+        #: The DevTools port of the browser we are attached to — **the browser's identity**.
+        #: `-1` when we do not know it (the supervisor seam does not say). This value is used
+        #: not to confuse "the page is on another process" with "the page is on the
+        #: *same* browser, seen by two processes": both attach to the same Chromium, and
+        #: one believed the page was "elsewhere" on the other — while the other showed it very
+        #: well on the same screen.
         self._port = -1
 
-    # -- attache ------------------------------------------------------------------------------
+    # -- attach ------------------------------------------------------------------------------
 
     def _client(self) -> Any:
-        # **L'import est différé ET conditionnel.** Il ne sert que lorsqu'il faut ouvrir une
-        # connexion : le faire à chaque appel coûtait un import et, quand le dossier du plugin est
-        # le répertoire courant, `tools` désignait le `tools.py` du plugin au lieu du paquet de
-        # Hermes (`attempted relative import with no known parent package`).
+        # **The import is deferred AND conditional.** It is only needed when a connection has to
+        # be opened: doing it on every call cost an import and, when the plugin folder is
+        # the current directory, `tools` referred to the plugin's `tools.py` instead of the
+        # Hermes package (`attempted relative import with no known parent package`).
         cdp = self._cdp
         if cdp is not None and getattr(cdp, "is_valid", lambda: False)():
             return cdp
-        # Voie 1 : le seam de Hermes. Elle est la plus rapide quand elle répond, mais elle ne
-        # voit que le navigateur du processus courant et son URL CDP peut être périmée.
+        # Path 1: the Hermes seam. It is the fastest when it answers, but it only
+        # sees the browser of the current process and its CDP URL may be stale.
         try:
             from tools.browser_supervisor import SUPERVISOR_REGISTRY
 
             candidat = SUPERVISOR_REGISTRY.capture(self.task_id, timeout=3)
-            # **Un superviseur sans page réelle ne montre rien.** Il reste accroché à un Chromium
-            # fermé (redémarrage, inactivité) et répond encore : `capture` réussit, puis toute
-            # capture échoue et l'écran du téléphone passe à « blank » alors qu'un autre navigateur,
-            # vivant, affiche la page. On vérifie donc ce qu'il voit avant de le garder.
+            # **A supervisor without a real page shows nothing.** It stays attached to a closed
+            # Chromium (restart, inactivity) and still answers: `capture` succeeds, then every
+            # capture fails and the phone screen switches to "blank" whereas another browser,
+            # alive, displays the page. So we check what it sees before keeping it.
             if _shows_real_page(candidat):
                 self._cdp = candidat
                 self._sessions = {}
-                # **L'identité du navigateur, aussi par le seam.** Sans elle, deux processus
-                # attachés au *même* Chromium se prenaient pour deux navigateurs différents —
-                # et l'un croyait la page « ailleurs » chez l'autre.
+                # **The browser's identity, also through the seam.** Without it, two processes
+                # attached to the *same* Chromium took themselves for two different browsers —
+                # and one believed the page was "elsewhere" on the other.
                 self._port = _port_de(str(getattr(candidat, "cdp_url", "") or ""))
                 return candidat
             try:
@@ -555,9 +555,9 @@ class Controller:
                 pass
         except Exception:
             pass
-        # Voie 2 : le DevTools du navigateur d'agent, relu à chaque fois. C'est cette voie qui
-        # survit au réapprentissage du navigateur — le superviseur, lui, reste lié à l'ancien
-        # port et finit par s'arrêter après cinq échecs de reconnexion.
+        # Path 2: the agent browser's DevTools, re-read every time. This is the path that
+        # survives the browser being relearned — the supervisor, for its part, stays bound to the old
+        # port and ends up stopping after five reconnection failures.
         ws = _live_devtools_ws(self.task_id)
         if not ws:
             raise BrowserUnavailable("no browser")
@@ -567,7 +567,7 @@ class Controller:
         return cdp
 
     def browser_port(self) -> int:
-        """Le port DevTools du navigateur accroché, ou `-1` si on ne le sait pas."""
+        """The DevTools port of the attached browser, or `-1` if we do not know it."""
         return self._port
 
     def _targets(self) -> list[dict[str, Any]]:
@@ -576,7 +576,7 @@ class Controller:
         return list((reply.get("result") or {}).get("targetInfos") or [])
 
     def real_pages(self) -> list[dict[str, Any]]:
-        """Les onglets qui montrent réellement quelque chose (ni blanc, ni page interne)."""
+        """The tabs that really show something (neither blank nor internal page)."""
         return [
             t
             for t in self._targets()
@@ -584,7 +584,7 @@ class Controller:
         ]
 
     def _session_url(self, cdp: Any, session: str) -> str:
-        """L'URL que cette session CDP montre, ou `""` si la question échoue."""
+        """The URL this CDP session shows, or `""` if the question fails."""
         try:
             history = cdp.call("Page.getNavigationHistory", session_id=session, timeout=3)["result"]
             entries = history.get("entries") or []
@@ -596,7 +596,7 @@ class Controller:
             return ""
 
     def current_url(self) -> str:
-        """L'adresse que l'humain voit dans la barre, ou `""` s'il n'y a pas de page réelle."""
+        """The address the human sees in the bar, or `""` if there is no real page."""
         try:
             cdp = self._client()
             return self._session_url(cdp, self.page())
@@ -604,10 +604,10 @@ class Controller:
             return ""
 
     def page_state(self) -> str:
-        """`ok`, `blank` (un navigateur, mais rien dedans) ou `gone` (aucun navigateur).
+        """`ok`, `blank` (a browser, but nothing in it) or `gone` (no browser at all).
 
-        L'outil et l'écran ont besoin de faire la différence : `blank` veut dire « rouvre la page
-        avant de m'appeler », `gone` veut dire « ce tour n'a pas de navigateur ».
+        The tool and the screen need to tell the difference: `blank` means "reopen the page
+        before calling me", `gone` means "this turn has no browser".
         """
         try:
             cdp = self._client()
@@ -616,18 +616,18 @@ class Controller:
         try:
             if self.real_pages():
                 return "ok"
-            # Aucun onglet réel : le navigateur peut être neuf (blanc) ou déjà récolté.
+            # No real tab: the browser may be fresh (blank) or already reaped.
             return "blank" if self._targets() else "gone"
         except Exception:
             return "gone"
 
     def page(self) -> str:
-        """La session CDP de la page que l'agent regarde vraiment.
+        """The CDP session of the page the agent really looks at.
 
-        **Ordre de préférence, et il compte** : la session que le superviseur a ouverte — c'est
-        celle que `browser_navigate` conduit, donc celle de l'agent — puis le dernier onglet réel.
-        Si aucune des deux ne montre une vraie page, on lève : c'est ce qui empêche l'écran du
-        téléphone d'afficher du blanc en croyant montrer la page.
+        **Order of preference, and it matters**: the session the supervisor opened — it is
+        the one `browser_navigate` drives, hence the agent's — then the last real tab.
+        If neither shows a real page, we raise: this is what keeps the phone
+        screen from displaying blank while believing it is showing the page.
         """
         cdp = self._client()
         superviseur = str(getattr(cdp, "page_session_id", "") or "")
@@ -648,17 +648,17 @@ class Controller:
 
     def use_phone_viewport(self, width_css: int | None = None, height_css: int | None = None,
                            dpr: float | None = None) -> tuple[int, int]:
-        """Pose un viewport de téléphone et rend la taille CSS obtenue.
+        """Set a phone viewport and return the resulting CSS size.
 
-        **La taille vient de l'écran qui regarde, pas d'une constante.** Le gabarit figé
-        (`390×844` en DPR 2) capturait **780 px de large** ; l'app l'étirait à la largeur réelle
-        du téléphone (~1080 px), soit un agrandissement de 1,4× — d'où l'image molle, le texte
-        gras-flou et les champs qu'on ne distingue pas. En posant la taille CSS telle que
-        `css × dpr` vaille **exactement** les pixels de l'écran, la capture arrive à la bonne
-        définition : plus d'agrandissement, donc plus de flou.
+        **The size comes from the screen that is watching, not from a constant.** The fixed template
+        (`390×844` at DPR 2) captured **780 px wide**; the app stretched it to the real
+        phone width (~1080 px), i.e. a 1.4× upscale — hence the soft image, the fuzzy-bold
+        text and the fields one cannot make out. By setting the CSS size so that
+        `css × dpr` is worth **exactly** the screen's pixels, the capture arrives at the right
+        resolution: no more upscaling, hence no more blur.
 
-        `clip.scale` reste à 1.0 : au-delà, `Page.captureScreenshot` rend une mosaïque. C'est la
-        taille CSS qui porte la finesse, jamais l'échelle de capture.
+        `clip.scale` stays at 1.0: beyond that, `Page.captureScreenshot` returns a mosaic. It is the
+        CSS size that carries the sharpness, never the capture scale.
         """
         largeur = width_css if width_css and width_css >= 200 else MOBILE_WIDTH
         hauteur = height_css if height_css and height_css >= 200 else MOBILE_HEIGHT
@@ -685,13 +685,13 @@ class Controller:
         return largeur, hauteur
 
     def clear_viewport(self) -> None:
-        """Rend à la page sa forme de bureau, et le vérifie.
+        """Give the page back its desktop shape, and verify it.
 
-        **`clearDeviceMetricsOverride` ne suffit pas sur ce Chromium.** Constaté sur le 145 : après
-        l'appel, `Page.getLayoutMetrics` rend toujours 390×844, et l'agent travaille sur une page
-        étroite en croyant l'avoir retrouvée. On remesure donc, et si la page est restée en forme
-        de téléphone, on repose une taille de bureau explicite (largeur de la fenêtre, lue au
-        navigateur). Poser vaut mieux que constater.
+        **`clearDeviceMetricsOverride` is not enough on this Chromium.** Observed on the 145: after
+        the call, `Page.getLayoutMetrics` still returns 390×844, and the agent works on a narrow
+        page believing it has got it back. We therefore remeasure, and if the page is still in phone
+        shape, we set an explicit desktop size (window width, read from the
+        browser). Setting is better than only observing.
         """
         cdp = self._client()
         session = self.page()
@@ -704,7 +704,7 @@ class Controller:
         except Exception:
             return
         if largeur >= 700:
-            return  # la page a bien repris sa forme : rien à corriger
+            return  # the page has indeed regained its shape: nothing to fix
         largeur, hauteur = self._window_size(cdp)
         try:
             cdp.call(
@@ -722,27 +722,27 @@ class Controller:
             pass
 
     def _window_size(self, cdp: Any) -> tuple[int, int]:
-        """La taille de la fenêtre du navigateur, ou un bureau raisonnable en repli."""
+        """The browser window size, or a reasonable desktop as fallback."""
         try:
             fenetre = cdp.call("Browser.getWindowForTarget", timeout=3)["result"].get("bounds") or {}
             largeur = int(fenetre.get("width") or 0)
             hauteur = int(fenetre.get("height") or 0)
             if largeur > 700 and hauteur > 400:
-                # La barre d'outils du navigateur mange une soixantaine de pixels en hauteur.
+                # The browser toolbar eats about sixty pixels in height.
                 return largeur - 15, max(hauteur - 140, 400)
         except Exception:
             pass
         return 1265, 577
 
-    # -- trame --------------------------------------------------------------------------------
+    # -- frame --------------------------------------------------------------------------------
 
     def alive(self) -> bool:
-        """La page répond-elle encore ? Un aller-retour CDP, sans capture.
+        """Does the page still answer? A CDP round trip, without capture.
 
-        **Le navigateur de Hermes meurt d'inactivité** (`browser.inactivity_timeout`, 120 s). Une
-        prise en main bloque le tour sans appeler d'outil : la page peut donc disparaître pendant
-        que l'humain se connecte. Sans cette sonde, l'outil attendait ses quinze minutes devant un
-        écran noir, et l'app affichait « en attente » sur un processus sans page.
+        **The Hermes browser dies of inactivity** (`browser.inactivity_timeout`, 120 s). A
+        takeover blocks the turn without calling a tool: the page can therefore disappear while
+        the human logs in. Without this probe, the tool waited its fifteen minutes in front of a
+        black screen, and the app showed "waiting" on a process without a page.
         """
         try:
             cdp = self._client()
@@ -753,33 +753,33 @@ class Controller:
 
     def repaint_viewport(self, width_css: int | None = None, height_css: int | None = None,
                          dpr: float | None = None) -> tuple[int, int]:
-        """Remet le rendu à plat puis donne à la page la forme du pouce.
+        """Flatten the rendering then give the page the thumb's shape.
 
-        **La seule séquence qui donne une trame nette et non mosaïquée**, mesurée sur jeuxvideo.com
-        et Instagram : `clearDeviceMetricsOverride` → `use_phone_viewport` → `Page.reload`. Sans
-        l'effacement préalable, une émulation déjà en place (posée par un autre client CDP, ou
-        laissée par un écran précédent) se superpose et `Page.captureScreenshot` rend la page
-        **répétée en mosaïque** — une image fausse, pas seulement une image molle.
-        Cf. `frames/after_reload.jpg` (nette) contre `frames/etat_sabote.jpg` (mosaïque).
+        **The only sequence that yields a sharp, non-mosaicked frame**, measured on jeuxvideo.com
+        and Instagram: `clearDeviceMetricsOverride` → `use_phone_viewport` → `Page.reload`. Without
+        the prior clearing, an emulation already in place (set by another CDP client, or
+        left by a previous screen) overlaps and `Page.captureScreenshot` returns the page
+        **repeated as a mosaic** — a false image, not merely a soft one.
+        Cf. `frames/after_reload.jpg` (sharp) against `frames/etat_sabote.jpg` (mosaic).
         """
         cdp = self._client()
         session = self.page()
         try:
             cdp.call("Emulation.clearDeviceMetricsOverride", session_id=session, timeout=4)
         except Exception:
-            pass  # rien à effacer : on pose quand même
+            pass  # nothing to clear: we set it anyway
         taille = self.use_phone_viewport(width_css, height_css, dpr)
         try:
             cdp.call("Page.reload", {}, session_id=session, timeout=8)
         except Exception:
-            pass  # un rechargement refusé ne doit pas empêcher la prise en main
+            pass  # a refused reload must not prevent the takeover
         return taille
 
     def frame(self, scale: float, quality: int = 55) -> dict[str, Any] | None:
-        """Une capture JPEG de la page, prête pour le fil.
+        """A JPEG capture of the page, ready for the wire.
 
-        `quality` vient de l'appelant : une image lisible quand l'humain tape un mot de passe n'a
-        pas le même prix qu'une vignette de surveillance (voir `server.WATCH_QUALITY`).
+        `quality` comes from the caller: a readable image when the human types a password does
+        not cost the same as a monitoring thumbnail (see `server.WATCH_QUALITY`).
         """
         cdp = self._client()
         session = self.page()
@@ -787,15 +787,15 @@ class Controller:
         view = metrics.get("cssVisualViewport") or metrics.get("layoutViewport") or {}
         width = int(view.get("clientWidth", MOBILE_WIDTH))
         height = int(view.get("clientHeight", MOBILE_HEIGHT))
-        # **Aucune retouche d'émulation ici — jamais.** Changer `deviceScaleFactor` (ou la largeur)
-        # juste avant `Page.captureScreenshot` fait rendre la page en **mosaïque 2×2**, même avec
-        # 400 ms d'écart : mesuré, cf. `frames/etat_sabote.jpg`. Le DPR se pose au bail
-        # (`server._pose_viewport` → `use_phone_viewport`), pas à la capture. Conséquence assumée :
-        # si un autre client CDP le ramène à 1, la trame tombe à 375 px — molle, mais **juste**.
-        # Une mosaïque n'est pas une image moins bonne, c'est une image fausse.
+        # **No emulation tweak here — ever.** Changing `deviceScaleFactor` (or the width)
+        # just before `Page.captureScreenshot` makes the page render as a **2×2 mosaic**, even with
+        # 400 ms apart: measured, cf. `frames/etat_sabote.jpg`. The DPR is set at lease time
+        # (`server._pose_viewport` → `use_phone_viewport`), not at capture. Accepted consequence:
+        # if another CDP client brings it back to 1, the frame drops to 375 px — soft, but **correct**.
+        # A mosaic is not a lower-quality image, it is a false image.
         if scale >= 1.0:
-            # Sans `clip` : la capture sort en pixels physiques (css × DPR), sans le décalage de
-            # barre de défilement qui rognait 15 px sur la largeur.
+            # Without `clip`: the capture comes out in physical pixels (css × DPR), without the scrollbar
+            # offset that was cropping 15 px off the width.
             capture: dict[str, Any] = {
                 "format": "jpeg",
                 "quality": int(quality),
@@ -819,8 +819,8 @@ class Controller:
         entry = history["entries"][history["currentIndex"]]
         url = str(entry.get("url") or "")
         if not is_real_page(url):
-            # **Jamais de blanc présenté comme la page.** Une capture d'un onglet vide pèse 18 ko
-            # identiques, trois fois par seconde : l'écran a l'air vivant, et il ne montre rien.
+            # **Never blank presented as the page.** A capture of an empty tab weighs 18 KB
+            # of identical bytes, three times per second: the screen looks alive, and it shows nothing.
             raise BrowserUnavailable("blank")
         return {
             "data": shot["data"],
@@ -831,10 +831,10 @@ class Controller:
             "css": [width, height],
         }
 
-    # -- saisie -------------------------------------------------------------------------------
+    # -- input -------------------------------------------------------------------------------
 
     def input(self, action: str, frame: dict[str, Any], css: tuple[int, int]) -> bool:
-        """Rejoue un geste. Les coordonnées arrivent en fractions de l'image."""
+        """Replay a gesture. The coordinates arrive as fractions of the image."""
         cdp = self._client()
         session = self.page()
         width, height = css
@@ -887,10 +887,10 @@ class Controller:
             return True
         return False
 
-    # -- formulaire ---------------------------------------------------------------------------
+    # -- form ---------------------------------------------------------------------------
 
     def login_form_facts(self) -> dict[str, Any]:
-        """L'hôte de la page et la présence d'un champ mot de passe — rien de plus."""
+        """The page's host and the presence of a password field — nothing more."""
         cdp = self._client()
         session = self.page()
         expression = (
@@ -915,10 +915,10 @@ class Controller:
 
 
 def decode_frame(payload: str) -> bytes:
-    """Une trame base64 → octets JPEG (utile aux tests et au débogage)."""
+    """A base64 frame → JPEG bytes (useful for tests and debugging)."""
     return base64.b64decode(payload)
 
 
 def dump_facts(facts: dict[str, Any]) -> str:
-    """Les faits d'un formulaire, sans jamais la valeur d'un champ."""
+    """The facts of a form, never a field's value."""
     return json.dumps(facts, ensure_ascii=False, sort_keys=True)

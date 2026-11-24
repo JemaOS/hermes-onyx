@@ -23,15 +23,15 @@ camerax = "1.4.2"
 sshj = "0.38.0"
 zxing = "4.3.0"
 guava = "33.4.0-android"
-# Le verre liquide : le flou des vitres **et** la réfraction du contenu.
+# Liquid glass: the blur of the panes **and** the refraction of the content.
 #
-# Haze 2 a **séparé ses effets en modules** : `haze` porte le cœur (l'état, la source, le nœud
-# d'effet), `haze-blur` le flou, `haze-glass` le **verre** — réfraction, profil d'arête, dispersion
-# chromatique, reflet spéculaire piloté par le doigt, et ses propres replis matériels.
+# Haze 2 **split its effects into modules**: `haze` carries the core (the state, the source, the effect
+# node), `haze-blur` the blur, `haze-glass` the **glass** — refraction, edge profile, chromatic
+# dispersion, specular highlight driven by the finger, and its own material fallbacks.
 #
-# Le prix du saut est explicite : Haze 2.0.1 réclame Compose 1.12.1 (`composeBom = 2026.09.00`) et
-# Kotlin 2.4.20, et son AAR exige `compileSdk = 37`. Les trois sont donc montés ensemble — c'est un
-# seul mouvement, pas trois.
+# The price of the jump is explicit: Haze 2.0.1 requires Compose 1.12.1 (`composeBom = 2026.09.00`) and
+# Kotlin 2.4.20, and its AAR requires `compileSdk = 37`. All three are therefore raised together — it is a
+# single move, not three.
 backdrop = "2.0.1"
 haze = "2.0.1"
 
@@ -50,18 +50,18 @@ wear-tiles = { group = "androidx.wear.tiles", name = "tiles", version.ref = "wea
 wear-protolayout = { group = "androidx.wear.protolayout", name = "protolayout", version.ref = "wearProtolayout" }
 androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
-# Le cœur : `HazeState`, `hazeSource`, `hazeEffect`, le nœud d'effet, les replis.
-# `haze-materials`/`haze-blur-materials` sont **volontairement écartés** : ils tirent
-# `androidx.compose.material3` (`HazeMaterials` n'est qu'un habillage Material), et l'app ne doit
-# aucun composant Material.
+# The core: `HazeState`, `hazeSource`, `hazeEffect`, the effect node, the fallbacks.
+# `haze-materials`/`haze-blur-materials` are **deliberately excluded**: they pull in
+# `androidx.compose.material3` (`HazeMaterials` is just Material wrapping), and the app must
+# owe no Material component.
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
-# Le flou : le repli de tous les appareils, et le seul effet des versions qui refusent le verre.
+# The blur: the fallback for all devices, and the only effect of versions that refuse glass.
 haze-blur = { group = "dev.chrisbanes.haze", name = "haze-blur", version.ref = "haze" }
-# Le **verre** : réfraction du contenu échantillonné, profil d'arête, dispersion chromatique,
-# reflet spéculaire au doigt, et la sélection automatique du moteur (complet ou limité).
+# The **glass**: refraction of the sampled content, edge profile, chromatic dispersion,
+# specular highlight under the finger, and automatic engine selection (full or limited).
 haze-glass = { group = "dev.chrisbanes.haze", name = "haze-glass", version.ref = "haze" }
-# `io.github.kyant0:backdrop` — la lentille (AGSL) et l'enregistrement de page du verre liquide,
-# Apache-2.0. Voir `OnyxLensGlass.kt` pour l'usage et la dégradation.
+# `io.github.kyant0:backdrop` — the lens (AGSL) and the page capture of liquid glass,
+# Apache-2.0. See `OnyxLensGlass.kt` for the usage and the degradation.
 kyant-backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragment" }

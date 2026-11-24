@@ -13,8 +13,9 @@ Bots with faces, rooms where they answer each other, hands-free voice — and yo
 [![F-Droid repo](https://img.shields.io/badge/F--Droid-repo-1976D2?logo=fdroid&logoColor=white)](https://jemaos.github.io/hermes-onyx/)
 [![License](https://img.shields.io/badge/license-FSL--1.1--MIT-blue)](LICENSE)
 
-<!-- IzzyOnDroid : la demande est partie, l'app n'y est pas encore listée.
-     Décommenter ces deux lignes le jour où la fiche existe — avant, le badge renvoie 404.
+<!-- IzzyOnDroid: no request has been sent (FSL-1.1-MIT license, not yet free under the FSF
+     definition); see docs/SOUMISSION-STORES.md. Uncomment these two lines the day the listing
+     exists — before that, the badge returns 404.
 [![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app/badge.json)](https://apt.izzysoft.de/fdroid/index/apk/com.onyx.app)
 --> 
 
@@ -162,8 +163,8 @@ the sentence the server gave it, never a made-up figure.
 ## What 1.0.0+1049 brought
 
 Each point below cites the commit, the file or the measurement that carries it — nothing is claimed
-here that cannot be shown. The full detail is in
-[`releases/NOTES-1.0.0+1049.md`](releases/NOTES-1.0.0+1049.md).
+here that cannot be shown. The full detail is in the release notes for `1.0.0+1049` on the GitHub
+releases page.
 
 - **The card no longer has an inner rectangle** — the erase band no longer composes over itself,
   and the lower band is its mirror (`567feca1`, `ui/design/Galerie.kt` ;
@@ -198,8 +199,7 @@ here that cannot be shown. The full detail is in
   0 colour outside the palette** (`3cd0f588`).
 - **The dark theme is measured, bar by bar** — the composer goes from **1.058:1** to **1.314:1**
   against its page, the active-tab capsule holds **1.201:1** against its bar, its accent ink
-  **5.165:1**; a single family of shapes (corners **22 → 26 dp**) and shadows (`a8c50987`,
-  `UI-UNIFORMITY-DARK.md`).
+  **5.165:1**; a single family of shapes (corners **22 → 26 dp**) and shadows (`a8c50987`).
 - **The liquid glass moves to Haze 2.0.1, with refraction and welding** — modules `haze`,
   `haze-blur`, `haze-glass`; the refraction displaces the sampled content according to the edge
   profile (`RefractionProfile.Edge`), and `GlassRefractionAvailable = true` is a **measurement**; the
@@ -218,7 +218,7 @@ here that cannot be shown. The full detail is in
 - **The duplicate "Skills" removed** — the sidebar tile and the Settings row leave the interface,
   the "Onyx" group drops to four tiles, everything is **inside** "Capabilities" (`64d8e756`).
 - **The back navigation fixed** — the page you left is no longer lost on the way out of the
-  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`, `AUDIT-FEEDBACK.md`).
+  sidebar, and a bench measures the three paths (`f48b2fcd`, `bdb8d2e0`).
 
 **4345 tests, 0 failures.** The three packages — phone, Android Auto and Wear OS — ship in this
 release.
@@ -519,6 +519,14 @@ Issues and pull requests are welcome. Four rules keep the tree healthy:
 2. One change per pull request, with the reason in the description.
 3. New user-visible text goes through the localization catalogs.
 4. No secret, key, token or personal address lands in the tree.
+
+## Contributors
+
+- **[schergr](https://github.com/schergr)** (Greg) — hardened Dashboard credential scoping, proxy
+  request intake and installer file permissions, and the cloudflared archive extraction; coordinated
+  Dashboard authentication and mixed gateway credentials; fixed foldable overlays and gated
+  unavailable vault editing; made the sidebar content-first; and repaired the group-send and
+  opaque-menu regression gates.
 
 ## License
 

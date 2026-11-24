@@ -47,23 +47,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Le contenu dont l'éditeur s'ouvre **pré-rempli** — le brouillon d'une démonstration
- * (`skills.draft`) que l'utilisateur a relu et gardé. Un brouillon naît d'un `POST api/skills`
- * comme n'importe quelle compétence : l'écran n'écrit jamais lui-même, il ne fait que poser le
- * texte dans ses deux champs.
+ * The content the editor opens **pre-filled** with — the draft of a demonstration
+ * (`skills.draft`) that the user has reread and kept. A draft is born from a `POST api/skills`
+ * like any skill: the screen never writes itself, it only places the
+ * text in its two fields.
  */
 data class SkillEditorSeed(val name: String, val content: String)
 
 /**
- * Créer ou modifier une compétence — **la fonction que la tuile « Compétences » portait seule**.
+ * Create or edit a skill — **the feature the "Skills" tile used to carry alone**.
  *
- * Elle vit désormais dans la famille « Compétences » de « Capacités » : c'est le seul geste que
- * l'écran ne reprenait pas (le catalogue *installe* une compétence du hub, il ne l'écrit pas).
- * L'écran lui-même est inchangé — même formulaire, même route de contenu, même enregistrement.
+ * It now lives in the "Skills" family of "Capabilities": it is the only gesture the
+ * screen did not take over (the catalog *installs* a skill from the hub, it does not write it).
+ * The screen itself is unchanged — same form, same content route, same save.
  *
- * @param seed le brouillon d'une démonstration, quand « En faire un skill » a ouvert cet écran :
- *   il remplit le nom et le contenu, et l'enregistrement reste `POST api/skills` (l'écran ne
- *   change pas d'avis sur qui écrit une compétence).
+ * @param seed the draft of a demonstration, when "Make it a skill" opened this screen:
+ *   it fills the name and the content, and the save remains `POST api/skills` (the screen does not
+ *   change its mind about who writes a skill).
  */
 @Composable
 fun SkillEditorScreen(
@@ -75,20 +75,20 @@ fun SkillEditorScreen(
     modifier: Modifier = Modifier,
     seed: SkillEditorSeed? = null,
     /**
-     * **« En faire une routine »** — la troisième surface du lot « Teach a task ».
+     * **"Make it a routine"** — the third surface of the "Teach a task" batch.
      *
-     * Posé, l'écran propose de transformer la compétence en routine : il l'**enregistre d'abord**
-     * (une routine doit nommer un skill qui existe vraiment), puis rend son nom à l'appelant, qui
-     * ouvre l'écran des horaires avec le brouillon déjà rempli. `null` — le cas de tous les autres
-     * appelants — l'écran reste exactement celui d'avant.
+     * When set, the screen offers to turn the skill into a routine: it **saves it first**
+     * (a routine must name a skill that actually exists), then returns its name to the caller, which
+     * opens the schedules screen with the draft already filled. `null` — the case of all other
+     * callers — the screen stays exactly the one from before.
      */
     onMakeRoutine: ((String) -> Unit)? = null,
 ) {
     val theme = LocalOnyxTheme.current
     val isNew = existing == null
 
-    // Un brouillon de démonstration arrive par [seed] : le nom proposé par le serveur et le
-    // Markdown converti. Sans brouillon, l'écran est celui d'aujourd'hui, à l'identique.
+    // A demonstration draft arrives through [seed]: the name suggested by the server and the
+    // converted Markdown. Without a draft, the screen is today's, identically.
     var name by remember(existing, seed) { mutableStateOf(existing ?: seed?.name.orEmpty()) }
     var category by remember { mutableStateOf("") }
     var content by remember(existing, seed) { mutableStateOf(seed?.content.orEmpty()) }
@@ -99,11 +99,11 @@ fun SkillEditorScreen(
     val canSave = !saving && name.isNotBlank() && content.isNotBlank()
 
     /**
-     * Enregistre la compétence, puis rend la main à [afterwards].
+     * Saves the skill, then hands control back to [afterwards].
      *
-     * Deux sorties, un seul enregistrement : le bouton d'en-tête part vers [onSaved], la ligne
-     * « En faire une routine » part vers l'écran des horaires — et les deux doivent avoir écrit le
-     * skill avant, sinon la routine nommerait une compétence qui n'existe pas encore.
+     * Two exits, a single save: the header button goes to [onSaved], the
+     * "Make it a routine" row goes to the schedules screen — and both must have written the
+     * skill before, otherwise the routine would name a skill that does not exist yet.
      */
     fun saveThen(afterwards: () -> Unit) {
         if (!canSave) return
@@ -132,9 +132,9 @@ fun SkillEditorScreen(
         modifier = modifier
             .fillMaxSize()
             .onyxPage(theme)
-            // La marge de navigation est **portée par l'écran** : le volet ne la pose plus
-            // quand une destination est ouverte, pour que le fond de la page passe sous la
-            // barre de navigation au lieu de celui du volet.
+            // The navigation margin is **carried by the screen**: the pane no longer applies it
+            // when a destination is open, so that the page background passes under the
+            // navigation bar instead of the pane's.
             .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
@@ -212,12 +212,12 @@ fun SkillEditorScreen(
                 }
             }
 
-            // **La troisième surface du lot : la démonstration devient une routine.**
+            // **The third surface of the batch: the demonstration becomes a routine.**
             //
-            // La compétence est d'abord enregistrée — une routine qui nomme un skill inexistant ne
-            // ferait rien et ne le dirait pas —, puis l'écran des horaires s'ouvre avec le
-            // brouillon rempli. L'horaire et la destination restent vides : c'est à la personne de
-            // les choisir (voir `SkillRoutine`).
+            // The skill is saved first — a routine that names a nonexistent skill would
+            // do nothing and would not say so —, then the schedules screen opens with the
+            // draft filled. The schedule and the destination remain empty: it is up to the person to
+            // choose them (see `SkillRoutine`).
             if (onMakeRoutine != null) {
                 OnyxFormSection(
                     header = "Routine",

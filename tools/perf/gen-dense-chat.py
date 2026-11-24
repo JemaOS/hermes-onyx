@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère une conversation Onyx **très dense** : réponses de ~15 Ko de Markdown varié."""
+"""Generate a **very dense** Onyx conversation: answers of ~15 KB of varied Markdown."""
 import json, time, random, sys, os
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/home/john/.hermes/cache/scratch/onyx-seed/conversations.json"

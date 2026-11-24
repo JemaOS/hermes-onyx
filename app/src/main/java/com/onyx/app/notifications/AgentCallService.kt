@@ -18,18 +18,18 @@ import com.onyx.app.di.AppContainer
 import com.onyx.app.localization.OnyxLocalization
 
 /**
- * « La ligne reste ouverte » : le service de premier plan qui **garde Onyx joignable** pendant que
- * l'app n'est pas au premier plan — l'écran éteint, une autre app devant.
+ * "The line stays open": the foreground service that **keeps Onyx reachable** while
+ * the app is not in the foreground — screen off, another app in front.
  *
- * C'est le pendant de `VoiceCallService.kt` de la référence, dont le commentaire dit l'essentiel :
- * *« la seule façon dont Android laisse une app écouter hors de vue »*. Chez elle le service tient
- * l'appel qui sonne ; ici il tient la **boucle d'interrogation** ([AgentCallBridge]) qui attend
- * l'appel de l'agent. Sans lui, le processus s'endort, la boucle s'arrête, et un `phone_call_me`
- * lancé cinq minutes plus tard ne sonne jamais.
+ * This is the counterpart of the reference `VoiceCallService.kt`, whose comment says the essentials:
+ * *"the only way Android lets an app listen out of sight"*. There the service holds
+ * the ringing call; here it holds the **polling loop** ([AgentCallBridge]) that waits
+ * for the agent's call. Without it, the process sleeps, the loop stops, and a `phone_call_me`
+ * launched five minutes later never rings.
  *
- * Ce service **ne sonne pas** : il ne publie qu'une notification discrète (importance basse, aucun
- * son) — la sonnerie, elle, vient de [CallRinger]. Son canal est distinct de celui des appels, pour
- * qu'aucun carillon ne parte au démarrage du service.
+ * This service **does not ring**: it only publishes a discreet notification (low importance, no
+ * sound) — the ringtone itself comes from [CallRinger]. Its channel is distinct from the calls channel, so
+ * that no chime sounds when the service starts.
  */
 class AgentCallService : Service() {
 
@@ -44,7 +44,7 @@ class AgentCallService : Service() {
             }
             else -> start()
         }
-        // Redémarré par Android après un arrêt : la ligne reprend toute seule.
+        // Restarted by Android after a stop: the line resumes on its own.
         return START_STICKY
     }
 
@@ -66,7 +66,7 @@ class AgentCallService : Service() {
                 startForeground(REACH_ID, notification)
             }
         } catch (error: Exception) {
-            // Un service qui ne peut pas tenir le processus ne doit pas emporter l'app.
+            // A service that cannot hold the process must not take the app down with it.
             Log.w(TAG, "le service de veille d'appel n'a pas pu passer au premier plan", error)
             stopSelf()
         }
@@ -74,14 +74,14 @@ class AgentCallService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Le service s'en va : la boucle garde sa portée de processus, mais on note l'arrêt.
+        // The service goes away: the loop keeps its process scope, but the stop is logged.
         Log.i(TAG, "le service de veille d'appel s'arrête")
     }
 
     companion object {
         private const val TAG = "OnyxCalls"
 
-        /** Le canal de veille : importance basse, **aucun son** — un appel ne sonne pas deux fois. */
+        /** The keep-alive channel: low importance, **no sound** — a call does not ring twice. */
         const val CHANNEL_ID = "onyx.calls.reach"
         const val CHANNEL_LABEL = "Reachable"
         const val CHANNEL_DESCRIPTION = "Keeps Onyx able to ring while it's in the background."
@@ -89,13 +89,13 @@ class AgentCallService : Service() {
         private const val REACH_TITLE = "Ready for a call"
         private const val REACH_TEXT = "Hermes can reach this phone while Onyx isn't open."
 
-        /** L'identifiant de la notification de veille (distinct de celui des appels). */
+        /** The keep-alive notification identifier (distinct from the calls one). */
         const val REACH_ID = 0x0C41
 
         const val ACTION_OPEN = "com.onyx.app.action.CALL_WATCH_OPEN"
         const val ACTION_CLOSE = "com.onyx.app.action.CALL_WATCH_CLOSE"
 
-        /** Crée le canal s'il n'existe pas : importance basse, jamais de son. */
+        /** Creates the channel if it does not exist: low importance, never a sound. */
         fun ensureChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -124,12 +124,12 @@ class AgentCallService : Service() {
         }
 
         /**
-         * Démarre la veille et la boucle d'interrogation. Rend `false` quand Android refuse le
-         * démarrage (une app en arrière-plan n'a pas le droit d'en lancer un) : l'appelant le sait,
-         * et la boucle continue tant que le processus vit.
+         * Starts the keep-alive and the polling loop. Returns `false` when Android refuses the
+         * start (a background app is not allowed to launch one): the caller knows,
+         * and the loop continues as long as the process lives.
          */
         fun start(context: Context): Boolean = runCatching {
-            // La boucle est portée par le processus : on la (re)démarre ici, une fois pour toutes.
+            // The loop is carried by the process: it is (re)started here, once and for all.
             if (AppContainer.isInstalled) {
                 AppContainer.agentCalls.start(AppContainer.processScope)
             }

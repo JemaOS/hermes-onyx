@@ -1,11 +1,11 @@
-"""Le convertisseur : même octet que le Kotlin livré dans l'app.
+"""The converter: same bytes as the Kotlin shipped in the app.
 
-Le golden ``core/src/test/resources/skill/invoice.md`` est la référence d'octets
-(l'énoncé du lot) : ce fichier le lit tel quel et compare. Aucun Markdown
-attendu n'est recopié ici — s'il l'était, le test comparerait deux copies de la
-même erreur.
+The golden ``core/src/test/resources/skill/invoice.md`` is the byte reference
+(the batch statement): this file reads it as-is and compares. No expected
+Markdown is copied here — if it were, the test would compare two copies of the
+same error.
 
-Lancer depuis la racine du plugin :
+Run from the plugin root:
     python -m unittest discover -s tests -t tests -v
 """
 
@@ -24,7 +24,7 @@ core = support.load_core()
 
 
 class TestGoldenKotlin(unittest.TestCase):
-    """La sortie Python doit être le fichier de l'app, à l'octet."""
+    """The Python output must be the app's file, byte for byte."""
 
     def test_markdown_equals_the_app_golden(self):
         golden = Path(fixture.GOLDEN_PATH)
@@ -36,7 +36,7 @@ class TestGoldenKotlin(unittest.TestCase):
         print(f"\n[golden] {len(produced)} octets, identiques à {golden.name}")
 
     def test_route_shape_gives_the_same_bytes(self):
-        """Le chemin réel (validation puis conversion) ne change pas un octet."""
+        """The real path (validation then conversion) does not change a byte."""
         validated = core.validate(fixture.golden_journal())
         produced = core.draft(validated.journal)["markdown"].encode("utf-8")
         self.assertEqual(produced, Path(fixture.GOLDEN_PATH).read_bytes())
@@ -45,7 +45,7 @@ class TestGoldenKotlin(unittest.TestCase):
         draft = core.draft(fixture.golden_journal())
         self.assertNotIn(fixture.SECRET, draft["markdown"])
         self.assertNotIn(fixture.SECRET, str(draft))
-        # Quatre puces, toujours quatre : la longueur n'est pas dite.
+        # Four bullets, always four: the length is not stated.
         self.assertIn(core.SECRET_TEXT, draft["markdown"])
         self.assertNotIn("••••••", draft["markdown"])
 
@@ -53,9 +53,9 @@ class TestGoldenKotlin(unittest.TestCase):
         draft = core.draft(fixture.golden_journal())
         self.assertEqual(draft["steps"], 9)
         self.assertEqual(draft["title"], fixture.GOLDEN_TITLE)
-        # Le pas secret est « à relire » au sens de la spec (secret_field) : sa
-        # ligne porte déjà « champ masqué, non enregistré », donc la note
-        # « > À relire » du Markdown ne le cite pas — elle est celle du Kotlin.
+        # The secret step is "to review" in the spec's sense (secret_field): its
+        # line already carries "masked field, not recorded", so the
+        # Markdown's "> To review" note does not cite it — it is the Kotlin's.
         self.assertEqual(
             draft["review"],
             [
@@ -74,15 +74,15 @@ class TestGoldenKotlin(unittest.TestCase):
     def test_merge_rules(self):
         draft = core.draft(fixture.golden_journal())
         markdown = draft["markdown"]
-        # 120 + 180 ms -> un seul pas de 300 ms.
+        # 120 + 180 ms -> a single 300 ms step.
         self.assertIn("3. Wait 300 ms", markdown)
         self.assertNotIn("120 ms", markdown)
-        # 540 + 220 px -> un seul défilement de 760 px.
+        # 540 + 220 px -> a single 760 px scroll.
         self.assertIn("7. Scroll down 760 px", markdown)
         self.assertNotIn("540", markdown)
 
     def test_forty_events_are_stable(self):
-        """La preuve §12.1 de la spec : 40 événements, un markdown stable."""
+        """The spec's §12.1 proof: 40 events, a stable markdown."""
         events = []
         for index in range(40):
             events.append(
@@ -107,7 +107,7 @@ class TestGoldenKotlin(unittest.TestCase):
         self.assertGreater(len(first), 500)
 
     def test_empty_journal_says_so(self):
-        """Un journal vide le dit — il ne fabrique pas un skill vide (règle 5)."""
+        """An empty journal says so — it does not fabricate an empty skill (rule 5)."""
         journal = fixture.spec_journal(events=[])
         journal.pop("title", None)
         draft = core.draft(journal)
@@ -140,7 +140,7 @@ class TestGoldenKotlin(unittest.TestCase):
         self.assertIn("2. Wait 1 s", markdown)
 
     def test_tap_without_position_is_marked_for_review(self):
-        """Ni libellé ni position : le pas existe, et il dit qu'il faut le relire."""
+        """Neither label nor position: the step exists, and it says it must be reviewed."""
         journal = fixture.spec_journal(
             events=[{"seq": 1, "at_ms": 0, "kind": "tap", "target": {"window": "F"}}]
         )
@@ -158,17 +158,17 @@ class TestGoldenKotlin(unittest.TestCase):
         self.assertLessEqual(len(core.draft(fixture.golden_journal(), long_hint)["name"]), 64)
 
     def test_language_is_english_like_the_converter(self):
-        """Le Markdown reste celui du Kotlin : les pas sont en anglais verbe + cible."""
+        """The Markdown stays the Kotlin's: the steps are in English, verb + target."""
         markdown = core.draft(fixture.spec_journal())["markdown"]
         self.assertIn('1. Focus "Finder"', markdown)
         self.assertIn('2. Tap "Nouveau dossier"', markdown)
         self.assertIn("5. Press Enter", markdown)
-        # La prose (titre, intention, note de relecture) est française, comme le Kotlin.
+        # The prose (title, intent, review note) is French, like the Kotlin.
         self.assertIn("Reproduire les 9 étapes", markdown)
         self.assertIn("> À relire : l'étape 9.", markdown)
 
     def test_percent_rounds_half_up_and_is_clamped(self):
-        """``roundToInt`` de Kotlin arrondit les demis vers +∞, pas vers le pair."""
+        """Kotlin's ``roundToInt`` rounds halves toward +∞, not to even."""
         journal = fixture.spec_journal(
             events=[
                 {
@@ -180,7 +180,7 @@ class TestGoldenKotlin(unittest.TestCase):
             ]
         )
         markdown = core.draft(journal)["markdown"]
-        # 0.625 -> 62.5 % : Kotlin dit 63 (demi vers +∞), le round() de Python dirait 62.
+        # 0.625 -> 62.5 %: Kotlin says 63 (half toward +∞), Python's round() would say 62.
         self.assertIn("Tap at 63% / 100% of the window", markdown)
 
     def test_escaping_keeps_one_line(self):
@@ -203,10 +203,10 @@ class TestGoldenKotlin(unittest.TestCase):
             ]
         )
         markdown = core.draft(journal)["markdown"]
-        # Le libellé est ramené à une ligne AVANT l'échappement, comme le Kotlin.
+        # The label is reduced to one line BEFORE escaping, like the Kotlin.
         self.assertIn('1. Tap "Deux \\"lignes\\" ici"', markdown)
         self.assertIn('2. Type "ligne 1\\nligne 2\\\\fin"', markdown)
-        # Deux étapes -> quatre lignes de liste au plus : aucune ligne vide au milieu.
+        # Two steps -> at most four list lines: no blank line in the middle.
         self.assertEqual(markdown.count("\n\n"), 2)
 
 

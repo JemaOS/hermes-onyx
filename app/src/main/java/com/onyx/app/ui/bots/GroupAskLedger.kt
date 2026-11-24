@@ -5,56 +5,56 @@ import com.onyx.app.voice.transcriptSimilarity
 import java.util.UUID
 
 /**
- * Ce qu'il faut faire d'une question reconnue par la voix.
+ * What to do with a question recognised by voice.
  *
- * Une question n'a **qu'un** identifiant : c'est lui qui part dans la salle (`event_id` de
- * `groups.send`), qui la nomme dans le journal, et qui empêche qu'elle y entre deux fois. Une
- * transcription qui grandit — « vous êtes là » puis « vous êtes là ? » puis « vous êtes là, les
- * gars ? » — est **la même question** : elle garde son identifiant et ne repart pas.
+ * A question has **only one** identifier: it is the one sent to the room (`event_id` of
+ * `groups.send`), that names it in the journal, and that keeps it from entering twice. A
+ * transcription that grows — "are you there" then "are you there?" then "are you there,
+ * guys?" — is **the same question**: it keeps its identifier and is not sent again.
  */
 internal sealed class GroupAskDecision {
-    /** La question part, une fois, sous cet identifiant neuf. */
+    /** The question goes out, once, under this fresh identifier. */
     data class Send(val id: String, val text: String) : GroupAskDecision()
 
-    /** C'est la question qui vient d'être posée (ou sa transcription qui a grandi) : rien ne part. */
+    /** This is the question just asked (or its grown transcription): nothing goes out. */
     data class Again(val id: String, val why: String) : GroupAskDecision()
 
-    /** Rien à envoyer (silence, bruit). */
+    /** Nothing to send (silence, noise). */
     data object Blank : GroupAskDecision()
 }
 
 /**
- * Le guichet des questions d'une salle : une seule entrée par question, quel que soit le nombre de
- * fois où le moteur la rend.
+ * The question desk of a room: a single entry per question, however many times the engine
+ * returns it.
  *
- * Le défaut rapporté par les bots eux-mêmes : « Tes messages “vous êtes là” reviennent en boucle ».
- * Le moteur de reconnaissance rend une **finale** à chaque fois qu'il croit la phrase finie, et
- * cette finale **grandit** quand il reprend le fil (« vous êtes là » → « vous êtes là ? »). Chaque
- * variante passait la garde d'égalité de la session (`lastAsked`) parce que le texte différait
- * d'un caractère : la salle recevait donc trois ou quatre fois la même question.
+ * The defect reported by the bots themselves: "Your 'are you there' messages keep coming back".
+ * The recognition engine yields a **final** every time it believes the sentence is finished, and
+ * this final **grows** when it picks the thread back up ("are you there" -> "are you there?").
+ * Each variant passed the session's equality guard (`lastAsked`) because the text differed by a
+ * single character: so the room received the same question three or four times.
  *
- * Trois règles, dans cet ordre, et une seule sortie possible — [GroupAskDecision.Send] :
- *  1. **la même phrase** (à la casse, aux accents et à la ponctuation près) revient dans
- *     [repeatWindowMs] : c'est un rejeu du moteur ;
- *  2. **la transcription a grandi** (l'une contient l'autre) dans [growthWindowMs] : c'est la même
- *     question qui s'écrit, pas une nouvelle ;
- *  3. **la phrase est quasi identique** ([similarity] de mots communs) dans [repeatWindowMs] : le
- *     moteur a reconnu la même phrase autrement.
+ * Three rules, in this order, and a single possible outcome — [GroupAskDecision.Send]:
+ *  1. **the same sentence** (ignoring case, accents and punctuation) comes back within
+ *     [repeatWindowMs]: it is an engine replay;
+ *  2. **the transcription has grown** (one contains the other) within [growthWindowMs]: it is the
+ *     same question being written, not a new one;
+ *  3. **the sentence is nearly identical** ([similarity] of common words) within [repeatWindowMs]:
+ *     the engine recognised the same sentence differently.
  *
- * Le temps est passé en paramètre : la décision est pure, donc éprouvable sans horloge.
+ * Time is passed as a parameter: the decision is pure, hence testable without a clock.
  */
 internal class GroupAskLedger(
     private val repeatWindowMs: Long = ASK_REPEAT_WINDOW_MS,
     private val growthWindowMs: Long = ASK_GROWTH_WINDOW_MS,
     private val similarity: Float = ASK_SIMILARITY,
-    /** L'identifiant neuf d'une question admise — remplaçable pour une preuve déterministe. */
+    /** The fresh identifier of an admitted question — replaceable for a deterministic proof. */
     private val newId: () -> String = { "ask-" + UUID.randomUUID().toString() },
 ) {
     private var lastText: String = ""
     private var lastId: String = ""
     private var lastAt: Long = Long.MIN_VALUE
 
-    /** Les phrases déjà posées, avec leur identifiant : une phrase ne revient jamais sous un autre. */
+    /** The sentences already asked, with their identifier: a sentence never comes back under another. */
     private val asked = mutableListOf<Asked>()
 
     private data class Asked(val text: String, val id: String, val at: Long)
@@ -64,21 +64,21 @@ internal class GroupAskLedger(
         val normalised = normalizeForEcho(text)
         if (normalised.isEmpty()) return GroupAskDecision.Blank
 
-        // 1. La même phrase, telle quelle.
+        // 1. The same sentence, as is.
         if (normalised == lastText && now - lastAt <= repeatWindowMs) {
             return GroupAskDecision.Again(lastId, "la même phrase revient")
         }
 
-        // 2. La transcription qui grandit (ou qui se rogne) : c'est la même question.
+        // 2. A transcription that grows (or is trimmed): it is the same question.
         if (lastText.isNotEmpty() && now - lastAt <= growthWindowMs && grows(lastText, normalised)) {
             lastText = normalised
             lastAt = now
             return GroupAskDecision.Again(lastId, "la transcription a grandi")
         }
 
-        // 3. La même phrase reconnue avec un mot de moins (ou de plus) : le moteur a avalé ou
-        //    rajouté un mot, mais c'est la même question. Une **substitution** (« demain » →
-        //    « mardi », « 1 » → « 2 ») n'en est pas une : c'est une autre question.
+        // 3. The same sentence recognised with one fewer (or one more) word: the engine swallowed
+        //    or added a word, but it is the same question. A **substitution** ("tomorrow" ->
+        //    "Tuesday", "1" -> "2") is not one: it is another question.
         val near = asked.lastOrNull { it.at >= now - repeatWindowMs && sameWords(it.text, normalised) }
         if (near != null) {
             lastText = normalised
@@ -92,18 +92,18 @@ internal class GroupAskLedger(
         lastId = id
         lastAt = now
         asked += Asked(normalised, id, now)
-        // Ce qui est trop vieux pour servir de garde ne sert plus à rien : la mémoire ne grandit pas.
+        // What is too old to serve as a guard is useless: memory does not grow.
         asked.removeAll { it.at < now - repeatWindowMs }
         return GroupAskDecision.Send(id, text)
     }
 
-    /** L'identifiant de la dernière question admise (`null` avant la première). */
+    /** The identifier of the last admitted question (`null` before the first). */
     val lastAskedId: String? get() = lastId.takeIf { it.isNotEmpty() }
 
     private fun grows(known: String, fresh: String): Boolean {
         if (known == fresh) return true
-        // Un mot isolé n'est pas une transcription qui grandit (« oui » puis « oui » est traité
-        // par l'égalité) : il faut au moins deux mots pour parler de la même phrase.
+        // A single word is not a growing transcription ("yes" then "yes" is handled
+        // by equality): at least two words are needed to speak of the same sentence.
         val words = known.split(' ').count { it.isNotEmpty() }
         if (words < 2) return false
         return fresh.startsWith("$known ") || known.startsWith("$fresh ")
@@ -111,17 +111,17 @@ internal class GroupAskLedger(
 
     private fun sameWords(known: String, fresh: String): Boolean {
         if (known == fresh) return true
-        // D'abord la ressemblance de mots : en dessous du seuil, ce n'est pas la même phrase.
+        // Word similarity first: below the threshold, it is not the same sentence.
         if (transcriptSimilarity(known, fresh) < similarity) return false
         val a = known.split(' ').filter { it.isNotEmpty() }
         val b = fresh.split(' ').filter { it.isNotEmpty() }
         if (minOf(a.size, b.size) < MIN_SAME_WORDS) return false
-        // Deux mots d'écart au plus : au-delà, ce n'est plus la même phrase reconnue autrement.
+        // Two words apart at most: beyond that, it is no longer the same sentence recognised differently.
         if (kotlin.math.abs(a.size - b.size) > MAX_SAME_WORD_GAP) return false
         return containsInOrder(a, b) || containsInOrder(b, a)
     }
 
-    /** Les mots de [short] apparaissent-ils dans [long], dans l'ordre ? (un mot avalé, rien de plus) */
+    /** Do the words of [short] appear in [long], in order? (one word swallowed, nothing more) */
     private fun containsInOrder(short: List<String>, long: List<String>): Boolean {
         if (short.size > long.size) return false
         var at = 0
@@ -132,22 +132,22 @@ internal class GroupAskLedger(
     }
 
     internal companion object {
-        /** Combien de temps une phrase déjà posée ne repart pas. */
+        /** How long an already asked sentence is not sent again. */
         const val ASK_REPEAT_WINDOW_MS = 20_000L
 
         /**
-         * Combien de temps une transcription peut encore grandir. Court : c'est le temps que met le
-         * moteur à finir **sa** phrase, pas celui d'une nouvelle question.
+         * How long a transcription may still grow. Short: it is the time the engine takes to finish
+         * **its** sentence, not that of a new question.
          */
         const val ASK_GROWTH_WINDOW_MS = 8_000L
 
-        /** La part de mots communs au-delà de laquelle deux phrases sont la même question. */
+        /** The share of common words beyond which two sentences are the same question. */
         const val ASK_SIMILARITY = 0.8f
 
-        /** En dessous, deux phrases courtes se ressemblent trop facilement pour être comparées. */
+        /** Below this, two short sentences look too much alike to be compared. */
         private const val MIN_SAME_WORDS = 3
 
-        /** Combien de mots le moteur peut avaler ou rajouter sans changer la question. */
+        /** How many words the engine may swallow or add without changing the question. */
         private const val MAX_SAME_WORD_GAP = 2
     }
 }

@@ -20,49 +20,49 @@ import com.onyx.app.ui.design.Symbols
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * Géométrie du `NavigationSplitView` de la référence sur un écran large (tablette, pliable déplié).
+ * Geometry of the reference `NavigationSplitView` on a wide screen (tablet, unfolded foldable).
  *
- * La capture du Honor Magic V3 déplié montrait le défaut d'origine : un partage 58/42 figé, un
- * volet de ~540 dp qu'aucun contrôle ne repliait, et un fil écrasé à droite. Les règles ici sont
- * donc **bornées**, pas proportionnelles :
+ * The screenshot of the unfolded Honor Magic V3 showed the original defect: a fixed 58/42 split, a
+ * sidebar of ~540 dp that no control collapsed, and a feed crushed on the right. The rules here are
+ * therefore **bounded**, not proportional:
  *
- * - le volet vise [SidebarIdealWidth] (360 dp, la colonne idéale de la référence), jamais moins de
- *   [SidebarMinWidth] (320 dp) ni plus de [SidebarMaxWidth] (400 dp) ;
- * - il ne prend jamais plus de [SidebarMaxFraction] de la fenêtre ;
- * - le détail garde au moins [DetailMinWidth] (360 dp) ; quand les deux minima ne tiennent pas
- *   ensemble, l'app repasse à **un seul panneau** — le comportement de `NavigationSplitView` ;
- * - le volet peut être **replié** ([ListDetailLayout.sidebarVisible]) : le détail prend alors
- *   toute la largeur, et le contrôle reste dans sa barre.
+ * - the sidebar targets [SidebarIdealWidth] (360 dp, the reference's ideal column), never less than
+ *   [SidebarMinWidth] (320 dp) nor more than [SidebarMaxWidth] (400 dp);
+ * - it never takes more than [SidebarMaxFraction] of the window;
+ * - the detail keeps at least [DetailMinWidth] (360 dp); when the two minima do not fit
+ *   together, the app falls back to **a single pane** — the behaviour of `NavigationSplitView`;
+ * - the sidebar can be **collapsed** ([ListDetailLayout.sidebarVisible]): the detail then takes
+ *   the whole width, and the control stays in its bar.
  */
 internal val SidebarMinWidth: Dp = 320.dp
 internal val SidebarMaxWidth: Dp = 400.dp
 internal val SidebarIdealWidth: Dp = 360.dp
 
-/** Le détail garde une largeur exploitable : en dessous, un seul panneau. */
+/** The detail keeps a usable width: below this, a single pane. */
 internal val DetailMinWidth: Dp = 360.dp
 
-/** Le volet ne dépasse jamais cette part de la fenêtre (la capture montrait 58 %). */
+/** The sidebar never exceeds this share of the window (the screenshot showed 58 %). */
 internal const val SidebarMaxFraction = 0.40f
 
 /**
- * La largeur du volet **quand il porte un écran** — une tuile ouverte dans le volet, la flèche de
- * retour en tête (voir `OnyxSidebarState.destination`).
+ * The width of the sidebar **when it carries a screen** — a tile opened in the sidebar, the back
+ * arrow at its head (see `OnyxSidebarState.destination`).
  *
- * Pourquoi une seconde géométrie : la colonne de la liste (320…400 dp) est faite pour des lignes de
- * conversation, pas pour un écran. Y dessiner « Compétences », « Aperçus » ou « Réglages » les
- * écraserait — c'est exactement le « sans écraser le contenu dans 320 dp » de la demande. Le volet
- * prend donc la largeur d'un écran de la maison : jamais moins de [SidebarContentMinWidth] (400 dp,
- * la largeur d'un téléphone, où tous ces écrans se lisent déjà), jamais plus de
- * [SidebarContentMaxWidth], et jamais plus de [SidebarContentFraction] de la fenêtre.
+ * Why a second geometry: the list column (320…400 dp) is made for conversation rows, not for a
+ * screen. Drawing "Compétences" ("Skills"), "Aperçus" ("Insights") or "Réglages" ("Settings") there
+ * would crush them — exactly the "without crushing the content into 320 dp" of the request. The
+ * sidebar therefore takes the width of an in-house screen: never less than [SidebarContentMinWidth] (400 dp,
+ * the width of a phone, where all these screens already read well), never more than
+ * [SidebarContentMaxWidth], and never more than [SidebarContentFraction] of the window.
  *
- * Le fil, à côté, **n'est jamais retiré** : tant que la fenêtre peut lui garder [DetailMinWidth] on
- * le lui garde ; sur une fenêtre plus juste, le volet se contente de sa part et le fil se rétrécit.
+ * The feed, next to it, **is never removed**: as long as the window can keep [DetailMinWidth] for it,
+ * we keep it; on a tighter window, the sidebar settles for its share and the feed shrinks.
  */
 internal val SidebarContentMinWidth: Dp = 400.dp
 internal val SidebarContentMaxWidth: Dp = 560.dp
 internal const val SidebarContentFraction = 0.55f
 
-/** La largeur du volet **portant un écran**, pour cette fenêtre (voir [SidebarContentMinWidth]). */
+/** The width of the sidebar **carrying a screen**, for this window (see [SidebarContentMinWidth]). */
 internal fun sidebarContentWidthFor(availableWidth: Dp): Dp {
     val share = availableWidth * SidebarContentFraction
     val capped = minOf(share, SidebarContentMaxWidth)
@@ -73,42 +73,42 @@ internal fun sidebarContentWidthFor(availableWidth: Dp): Dp {
 }
 
 internal data class ListDetailLayout(
-    /** La fenêtre a-t-elle la place de deux panneaux, volet replié ou non ? */
+    /** Does the window have room for two panes, sidebar collapsed or not? */
     val twoPanes: Boolean,
-    /** Le volet est-il dessiné ? Faux quand il est replié, ou quand la fenêtre est trop étroite. */
+    /** Is the sidebar drawn? False when it is collapsed, or when the window is too narrow. */
     val sidebarVisible: Boolean,
-    /** La largeur géométrique du volet (0 quand la fenêtre n'a pas la place de deux panneaux). */
+    /** The geometric width of the sidebar (0 when the window has no room for two panes). */
     val sidebarWidth: Dp,
-    /** La largeur que le détail occupe réellement dans cet état. */
+    /** The width the detail actually occupies in this state. */
     val detailWidth: Dp,
 ) {
     /**
-     * Deux panneaux **dessinés** : ce que les écrans appelaient « étendu ». Replié, la fenêtre a
-     * toujours la place de deux panneaux (`twoPanes`) mais un seul est peint.
+     * Two **drawn** panes: what the screens used to call "étendu" ("expanded"). When collapsed, the window
+     * still has room for two panes (`twoPanes`) but only one is painted.
      */
     val expanded: Boolean get() = twoPanes && sidebarVisible
 }
 
 /**
- * **Le seuil** entre les deux dispositions : la plus petite largeur qui laisse tenir, côte à côte,
- * le volet (au moins [SidebarMinWidth]) et le détail (au moins [DetailMinWidth]) — ni l'un ni
- * l'autre n'étant plus étroit que sa part maximale ([SidebarMaxFraction]).
+ * **The threshold** between the two layouts: the smallest width that lets the sidebar (at least
+ * [SidebarMinWidth]) and the detail (at least [DetailMinWidth]) fit side by side — neither of them
+ * being narrower than its maximum share ([SidebarMaxFraction]).
  *
- * Il est écrit **une fois** et nommé, parce que tout dépend de lui : le mode du volet
- * (`sidebarModeFor`), donc la largeur de la surimpression, et le fait que la largeur **élargie**
- * d'un écran ([sidebarContentWidthFor], 400…560 dp) ne s'applique jamais sur un téléphone ni sur un
- * pliable replié. Relevé à l'appareil : **411 dp** (Honor replié) est sous ce seuil — un seul
- * panneau ; **862 dp** (déplié) est au-dessus — deux panneaux.
+ * It is written **once** and named, because everything depends on it: the sidebar mode
+ * (`sidebarModeFor`), hence the width of the overlay, and the fact that the **widened** width
+ * of a screen ([sidebarContentWidthFor], 400…560 dp) never applies on a phone nor on an
+ * unfolded foldable. Measured on the device: **411 dp** (Honor folded) is below this threshold — a single
+ * pane; **862 dp** (unfolded) is above it — two panes.
  */
 internal val TwoPaneMinWidth: Dp =
     maxOf(SidebarMinWidth / SidebarMaxFraction, SidebarMinWidth + DetailMinWidth)
 
-/** La fenêtre peut-elle porter deux panneaux avec leurs minima respectifs ? */
+/** Can the window carry two panes with their respective minima? */
 internal fun canShowTwoPanes(availableWidth: Dp, fontScale: Float = 1f): Boolean =
     availableWidth >= TwoPaneMinWidth * fontScale.coerceAtLeast(1f) &&
         availableWidth * SidebarMaxFraction >= SidebarMinWidth
 
-/** La largeur du volet pour cette fenêtre : 320…400 dp, jamais plus de 40 % de la largeur. */
+/** The width of the sidebar for this window: 320…400 dp, never more than 40 % of the width. */
 internal fun sidebarWidthFor(availableWidth: Dp): Dp {
     val cap = minOf(SidebarMaxWidth, availableWidth * SidebarMaxFraction).coerceAtLeast(SidebarMinWidth)
     return SidebarIdealWidth.coerceIn(SidebarMinWidth, cap)
@@ -123,31 +123,31 @@ internal fun listDetailLayout(availableWidth: Dp, collapsed: Boolean = false, co
             detailWidth = availableWidth,
         )
     }
-    // Le volet porte un **écran** : il prend la largeur d'un écran, pas la colonne de la liste —
-    // sinon « Compétences » ou « Aperçus » se dessineraient dans 320…400 dp et seraient écrasés.
+    // The sidebar carries a **screen**: it takes the width of a screen, not the list column —
+    // otherwise "Compétences" ("Skills") or "Aperçus" ("Insights") would be drawn within 320…400 dp and be crushed.
     val sidebarWidth = if (content) sidebarContentWidthFor(availableWidth) else sidebarWidthFor(availableWidth)
     val visible = !collapsed
     return ListDetailLayout(
         twoPanes = true,
         sidebarVisible = visible,
         sidebarWidth = sidebarWidth,
-        // Replié, le détail prend toute la largeur : il n'y a plus de colonne à côté de lui.
+        // Collapsed, the detail takes the whole width: there is no column left beside it.
         detailWidth = if (visible) availableWidth - sidebarWidth else availableWidth,
     )
 }
 
 /**
- * Le tableau Kanban et sa conversation suivent **exactement** la même géométrie bornée que les
- * autres volets : `KanbanView` n'a pas de raison de partager la fenêtre en deux moitiés quand la
- * liste des conversations, elle, tient dans 360 dp.
+ * The Kanban board and its conversation follow **exactly** the same bounded geometry as the
+ * other sidebars: `KanbanView` has no reason to split the window in two halves when the
+ * conversation list itself fits within 360 dp.
  */
 internal fun kanbanPairLayout(availableWidth: Dp, collapsed: Boolean = false): ListDetailLayout =
     listDetailLayout(availableWidth, collapsed)
 
 /**
- * Le contrôle du volet, celui de la barre de la référence : la **même** icône (`sidebar.left`) replie et
- * déplie — c'est le libellé d'accessibilité qui dit ce que le prochain appui fera, localisé
- * (« Replier la liste » / « Déplier la liste »).
+ * The sidebar control, the reference bar's one: the **same** icon (`sidebar.left`) collapses and
+ * expands — it is the accessibility label that says what the next tap will do, localized
+ * ("Replier la liste" / "Déplier la liste" — "Collapse list" / "Expand list").
  */
 @Composable
 internal fun SidebarToggleButton(
@@ -164,16 +164,16 @@ internal fun SidebarToggleButton(
     )
 }
 
-/** Navigation partagée par les sélections compactes et les détails étendus. */
+/** Navigation shared by compact selections and expanded details. */
 
 /**
- * Les onglets de section de la liste (`ListSection` : Cron, Kanban, Code). Ce sont des **pairs** :
- * on passe de l'un à l'autre par l'onglet, et le retour retombe sur le fil.
+ * The list's section tabs (`ListSection`: Cron, Kanban, Code). They are **peers**:
+ * one moves from one to the other through the tab, and back lands on the feed.
  *
- * La **liste des conversations** n'en fait plus partie : l'écran qui la portait comme route a été
- * retiré (elle vit dans le **volet**, qui est un panneau et non une destination). Le rail de
- * section n'a donc plus de racine propre — un onglet de section à pile vide retombe sur le fil,
- * comme tout le reste ([rootRouteBehind]).
+ * The **conversation list** is no longer part of it: the screen that carried it as a route was
+ * removed (it lives in the **sidebar**, which is a pane and not a destination). The section
+ * rail therefore no longer has its own root — a section tab with an empty stack lands on the feed,
+ * like everything else ([rootRouteBehind]).
  */
 internal val SectionTabRoutes: Set<String> = linkedSetOf("CRON", "KANBAN", "CODE")
 
@@ -183,14 +183,14 @@ internal fun navigateWithBackStack(
     backStack: MutableList<String>,
 ): String {
     if (targetRoute == currentRoute) return currentRoute
-    // La pile ne se vide que pour rester **dans le rail** : on va d'un onglet de section à un autre
-    // (de Cron à Kanban, par exemple). Un onglet de section atteint **depuis l'extérieur** du rail
-    // (les Réglages, une tuile, un menu) est une page **poussée** comme une autre : sa route entre
-    // dans la pile, si bien que le retour du bord — comme le bouton retour maison, ils appellent
-    // tous deux `navBack()` — rend la page d'où l'on vient (les Réglages) et non la liste. Avant,
-    // la pile était vidée pour **tout** onglet de section : Réglages → Cron → retour du bord
-    // rendait la liste au lieu des Réglages, la page d'où l'on venait pourtant d'entrer
-    // (défaut signalé).
+    // The stack is only cleared to stay **within the rail**: one goes from a section tab to another
+    // (from Cron to Kanban, for example). A section tab reached **from outside** the rail
+    // (Settings, a tile, a menu) is a page **pushed** like any other: its route enters
+    // the stack, so that the edge back gesture — like the home back button, both call
+    // `navBack()` — returns the page one came from (Settings) and not the list. Before,
+    // the stack was cleared for **every** section tab: Settings → Cron → edge back
+    // returned the list instead of Settings, the page one had just entered from
+    // (reported defect).
     val intoRail = targetRoute in SectionTabRoutes && currentRoute in SectionTabRoutes
     if (intoRail) {
         backStack.clear()
@@ -205,13 +205,13 @@ internal fun navigateWithBackStack(
 }
 
 /**
- * L'écran sur lequel le retour retombe quand la pile est vide — le retour ne doit **jamais**
- * être avalé, ni produire un écran qui n'a pas de sens.
+ * The screen the back returns to when the stack is empty — back must **never**
+ * be swallowed, nor produce a screen that makes no sense.
  *
- * Le fil est la racine, **dans les deux largeurs** : la liste des conversations n'est plus une
- * route (elle vit dans le volet, qui est un panneau), donc un onglet de section à pile vide — Cron,
- * Kanban, Code — retombe sur le fil comme tout le reste. [currentRoute] reste le paramètre de la
- * règle : c'est lui qui décidera, si un écran racine distinct reparaît, où le retour doit tomber.
+ * The feed is the root, **in both widths**: the conversation list is no longer a
+ * route (it lives in the sidebar, which is a pane), so a section tab with an empty stack — Cron,
+ * Kanban, Code — lands on the feed like everything else. [currentRoute] remains the parameter of the
+ * rule: it is what will decide, if a distinct root screen reappears, where back must land.
  */
 internal fun rootRouteBehind(
     currentRoute: String,
@@ -219,21 +219,21 @@ internal fun rootRouteBehind(
 ): String = chatRoute
 
 /**
- * Une entrée à restaurer par le retour du bord, ou `null` pour laisser quitter l'app. */
+ * An entry to restore by the edge back gesture, or `null` to let the app quit. */
 internal fun popRoute(backStack: MutableList<String>): String? = backStack.removeLastOrNull()
 
 /**
- * Le retour est-il **traité par l'app** sur cet écran ?
+ * Is back **handled by the app** on this screen?
  *
- * Au pied de la pile on est à la **racine**, et la racine doit se comporter pareil dans les deux
- * formats : le retour rend la main au système (l'app se ferme) — jamais un écran intermédiaire qui
- * ne change rien.
+ * At the bottom of the stack one is at the **root**, and the root must behave the same in both
+ * formats: back hands control back to the system (the app closes) — never an intermediate screen that
+ * changes nothing.
  *
- * La racine est le fil, **dans les deux largeurs**. La liste des conversations n'est **plus une
- * route** : l'écran qui la portait a été retiré, elle vit dans le **volet**, qui est un panneau et
- * non une destination. `twoPanes` ne déplace donc plus la racine — le volet du pliable déplié peint
- * le même fil — mais la règle le dit explicitement : la [ReturnMatrixTest], elle, mesure la réponse
- * sur les deux formats, formats qui ne doivent plus jamais demander deux gestes au lieu d'un.
+ * The root is the feed, **in both widths**. The conversation list is **no longer a
+ * route**: the screen that carried it was removed, it lives in the **sidebar**, which is a pane and
+ * not a destination. `twoPanes` therefore no longer moves the root — the unfolded foldable's sidebar paints
+ * the same feed — but the rule says it explicitly: the [ReturnMatrixTest], itself, measures the response
+ * on both formats, formats that must never again require two gestures instead of one.
  */
 internal fun routeBackHandled(
     currentRoute: String,
@@ -247,16 +247,16 @@ internal fun routeBackHandled(
 }
 
 /**
- * Quitte un écran dont **l'état est vide**, vers [targetRoute] : la route vide n'entre pas dans la
- * pile, et on efface la trace de celles qui y seraient déjà.
+ * Leaves a screen whose **state is empty**, towards [targetRoute]: the empty route does not enter the
+ * stack, and the trace of those already there is erased.
  *
- * C'est ce qui manquait au repli d'état vide. Les charges utiles de ces routes (`selectedText`,
- * `patchText`, `pdfSource`, `photoSet`, `subagentAgent`…) sont de simples `remember` : elles ne
- * survivent pas à une recréation d'activité, alors que `route` est `rememberSaveable`. L'app
- * revient donc sur `SELECT_TEXT` sans texte — et le repli faisait `navTo(CHAT)`, qui **empilait** la
- * route vide. Le retour retombait dessus, elle rebondissait aussitôt : l'écran ne changeait pas et
- * l'app ne se fermait jamais (mesuré à l'appareil : trois appuis sur retour, aucun effet, l'app
- * toujours au premier plan). Un écran qu'on ne peut pas montrer ne doit pas être une destination.
+ * This is what was missing from the empty-state fallback. The payloads of these routes (`selectedText`,
+ * `patchText`, `pdfSource`, `photoSet`, `subagentAgent`…) are plain `remember`s: they do not
+ * survive an activity recreation, whereas `route` is `rememberSaveable`. The app
+ * therefore returns to `SELECT_TEXT` without text — and the fallback did `navTo(CHAT)`, which **pushed** the
+ * empty route. Back landed on it, it bounced right away: the screen did not change and
+ * the app never closed (measured on the device: three back presses, no effect, the app
+ * still in the foreground). A screen one cannot show must not be a destination.
  */
 internal fun navigateLeavingEmpty(
     currentRoute: String,
@@ -269,18 +269,18 @@ internal fun navigateLeavingEmpty(
         backStack.clear()
         return targetRoute
     }
-    // La destination ne doit pas non plus rester dans la pile : on y va, on n'y revient pas.
+    // The destination must not stay in the stack either: one goes there, one does not come back to it.
     backStack.removeAll { it == targetRoute }
     return targetRoute
 }
 
 /**
- * Les deux panneaux, avec un volet qui **se replie au lieu de disparaître** : la largeur est
- * animée ([OnyxMotion.Sites.SidePanelWidth], la course du panneau latéral de la référence) et le détail
- * s'élargit au même rythme — une transition, jamais un saut. Replié tout à fait, le volet n'est
- * même plus composé.
+ * The two panes, with a sidebar that **collapses instead of disappearing**: the width is
+ * animated ([OnyxMotion.Sites.SidePanelWidth], the travel of the reference's side panel) and the detail
+ * widens at the same pace — a transition, never a jump. Fully collapsed, the sidebar is not
+ * even composed anymore.
  *
- * Deux panneaux réels : barres, défilement, composer et insets ne sont jamais partagés.
+ * Two real panes: bars, scrolling, composer and insets are never shared.
  */
 @Composable
 internal fun OnyxListDetail(

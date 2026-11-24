@@ -1,13 +1,13 @@
-"""Journal d'exemple partagé par les tests — la fixture du golden Kotlin.
+"""Sample journal shared by the tests — the Kotlin golden fixture.
 
-Il ne s'agit pas d'une invention : c'est le journal de
-``core/src/test/java/com/onyx/app/data/skill/SkillDraftGoldenTest.kt`` transposé
-dans le format JSON de la spec (``seq``/``at_ms`` ajoutés, ``x_pct``/``y_pct``
-calculés depuis les pixels de la fenêtre 1080 x 2400 du test Kotlin).
+This is not an invention: it is the journal of
+``core/src/test/java/com/onyx/app/data/skill/SkillDraftGoldenTest.kt`` transposed
+into the spec's JSON format (``seq``/``at_ms`` added, ``x_pct``/``y_pct``
+computed from the pixels of the test Kotlin's 1080 x 2400 window).
 
-Le test ``test_draft_golden`` compare la sortie Python au fichier
-``facture.md`` livré par l'app ; les autres suites réutilisent cette fixture pour
-parler d'un journal réaliste plutôt que d'un objet à trois champs.
+The ``test_draft_golden`` test compares the Python output with the
+``facture.md`` file shipped by the app; the other suites reuse this fixture to
+talk about a realistic journal rather than a three-field object.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-# Le dépôt de l'app (référence d'octets). Surchargeable si le dépôt bouge.
+# The app repository (byte reference). Overridable if the repository moves.
 APP_ROOT = Path(os.environ.get("ONYX_APP_DIR", "/home/john/Bureau/onyx"))
 GOLDEN_PATH = str(APP_ROOT / "core" / "src" / "test" / "resources" / "skill" / "facture.md")
 GOLDEN_TITLE = "Créer une facture depuis un client"
@@ -113,7 +113,7 @@ def golden_journal(
 
 
 def spec_journal(session_id: str = "rec_01J9Z3K4Q7V8", events: Optional[list] = None) -> dict:
-    """Le journal complet de la spec (§2.3), neuf événements dont un focus."""
+    """The complete journal of the spec (§2.3), nine events including one focus."""
     return {
         "version": 1,
         "session_id": session_id,

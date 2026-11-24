@@ -34,11 +34,11 @@ import com.onyx.app.ui.localization.BasicText
 import com.onyx.app.ui.theme.LocalOnyxTheme
 
 /**
- * « Hidden Bots », port de `HiddenBotsView` (Echo/Views/BotEditor:575).
+ * "Hidden Bots", a port of `HiddenBotsView` (Echo/Views/BotEditor:575).
  *
- * Les bots cachés de la liste des conversations — ici comme dans Hermes Desktop — chacun avec son
- * bouton « Show », le pied qui dit ce qu'un bot caché garde, et le problème du serveur quand il
- * refuse. Quand le dernier est montré, l'écran se ferme comme le `dismiss()` de la référence.
+ * The conversation list's hidden bots — here as in Hermes Desktop — each with its
+ * "Show" button, the footer that says what a hidden bot keeps, and the server's problem when it
+ * refuses. When the last one is shown, the screen closes like the `dismiss()` of the reference.
  */
 @Composable
 fun HiddenBotsScreen(
@@ -56,10 +56,10 @@ fun HiddenBotsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(theme.formPageColor)
-            // La zone du système est prise par la racine : la dernière rangée du corps ne peut
-            // plus être enterrée sous la barre de navigation ni sous la zone du geste d'accueil.
-            // L'encart est lu à l'exécution (24 dp en gestes, 48 dp à trois boutons) — jamais
-            // une valeur en dur qui ne vaut que pour un écran.
+            // The system area is taken by the root: the body's last row can no longer
+            // be buried under the navigation bar or under the home-gesture area.
+            // The inset is read at runtime (24 dp with gestures, 48 dp with three buttons) — never
+            // a hard-coded value that only holds for one screen.
             .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
@@ -72,8 +72,8 @@ fun HiddenBotsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 40.dp),
         ) {
-            // **L'attente** : le roster vient du gateway, et une lecture lente laissait l'écran
-            // vide — donc muet. Des rangées grises, comme partout ailleurs.
+            // **The wait**: the roster comes from the gateway, and a slow read left the screen
+            // empty — hence mute. Grey rows, as everywhere else.
             if (state.loading && state.hidden.isEmpty()) {
                 OnyxLoadingRows(label = "Loading from Onyx…")
                 return@Column
@@ -93,10 +93,10 @@ fun HiddenBotsScreen(
                                 text = "No hidden bots",
                                 style = theme.body.copy(color = theme.primaryText),
                             )
-                            // La phrase **explique d'où viendraient des bots cachés** au lieu de
-                            // constater « aucun élément » : c'est le roster du gateway (son
-                            // `ui_meta.hidden`) qui les porte, et ce que le téléphone a masqué
-                            // lui-même. Rien n'est caché maintenant — et voilà ce que ça veut dire.
+                            // The sentence **explains where hidden bots would come from** instead of
+                            // stating "no items": it is the gateway's roster (its
+                            // `ui_meta.hidden`) that carries them, and what the phone hid
+                            // itself. Nothing is hidden right now — and this is what that means.
                             BasicText(
                                 text = "Hidden bots are the gateway roster's own, shared with " +
                                     "Hermes Desktop. Nothing is hidden right now, so there is " +
@@ -135,7 +135,7 @@ fun HiddenBotsScreen(
     }
 }
 
-/** Une ligne de bot caché : son visage de 30 points, son nom, et « Show » à droite. */
+/** A hidden bot row: its 30-point face, its name, and "Show" on the right. */
 @Composable
 private fun HiddenBotRow(
     bot: BotProfile,

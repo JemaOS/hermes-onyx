@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Comparaison A/B d'un **long défilement** à travers un fil dense.
+# A/B comparison of a **long scroll** through a dense thread.
 #
-# Ce que la mesure d'attribution a montré : le défaut (la matière reconstruite par image) ne se
-# voit pas sur un geste court — il faut **traverser** le contenu dense, parce que c'est le
-# défilement qui fait travailler le fond de la page à chaque image.
+# What the attribution measurement showed: the defect (content rebuilt per frame) does not
+# show up on a short gesture — you have to **traverse** the dense content, because it is the
+# scrolling that makes the page background work on every frame.
 #
-# Le geste part de **y=700** (dans la zone de la liste) et va vers **y=1900** : à 1900 on est sur
-# la plaque du compositeur, qui capte le doigt — la liste ne défile pas et la passe ne compte que
-# des trames vides. La conversation s'ouvre **en bas** : on remonte donc le fil, traversant les
-# rangées denses, ce qui est exactement la plainte.
+# The gesture starts at **y=700** (inside the list area) and goes to **y=1900**: at 1900 you are on
+# the composer panel, which captures the finger — the list does not scroll and the pass counts only
+# empty frames. The conversation opens **at the bottom**: so we scroll the thread upward, traversing
+# the dense rows, which is exactly the complaint.
 #
-# Une **trame par passe** : `framestats` ne garde que les 120 dernières trames, et un long
-# défilement en produit des centaines. Le compteur est donc vidé avant **chaque** geste, et les
-# passes sont agrégées ensuite.
+# One **frame per pass**: `framestats` keeps only the last 120 frames, and a long
+# scroll produces hundreds. The counter is therefore cleared before **every** gesture, and the
+# passes are aggregated afterwards.
 #
-# usage : ab-long.sh <apkA> <apkB> [tag] [passes]
+# usage: ab-long.sh <apkA> <apkB> [tag] [passes]
 set -u
 
 ADB=${ADB:-$(command -v adb || echo "$HOME/android-toolchain/sdk/platform-tools/adb")}
@@ -34,7 +34,7 @@ alive () { $ADB devices 2>/dev/null | grep -q "device$"; }
 $ADB push /tmp/onyx-dense/conversations.json /data/local/tmp/c.json >/dev/null 2>&1
 $ADB shell "su 0 cp /data/local/tmp/c.json /data/data/$PKG/files/conversations.json" >/dev/null 2>&1
 
-capture () {  # $1 = apk, $2 = etiquette, $3 = numero
+capture () {  # $1 = apk, $2 = label, $3 = number
   local apk=$1 label=$2 n=$3
   $ADB install -r -d "$apk" >/dev/null 2>&1 || { echo "  [échec] install $label" >&2; return 1; }
   $ADB shell am force-stop "$PKG" >/dev/null 2>&1
@@ -43,7 +43,7 @@ capture () {  # $1 = apk, $2 = etiquette, $3 = numero
   $ADB shell input tap 540 1098 >/dev/null 2>&1
   sleep 8
   alive || return 1
-  # N glissements qui remontent le fil : la conversation dense est traversee.
+  # N swipes that scroll the thread up: the dense conversation is traversed.
   local i
   for i in 1 2 3 4 5 6; do
     $ADB shell dumpsys gfxinfo "$PKG" reset >/dev/null 2>&1

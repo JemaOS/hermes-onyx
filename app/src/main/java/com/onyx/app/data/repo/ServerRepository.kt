@@ -18,11 +18,11 @@ import kotlinx.serialization.json.Json
 import java.util.UUID
 
 /**
- * Les serveurs connus de l'app et celui qui est actif.
+ * The app's known servers and the active one.
  *
- * Équivalent Android de `HermesServer` + du serveur actif côté référence (`Settings.activeServer`).
- * La liste est écrite en JSON dans les préférences ; les clés API n'y figurent jamais : elles
- * vont dans le Keystore ([SecretStore]) et sont recomposées à la lecture.
+ * Android equivalent of `HermesServer` + the reference's active server (`Settings.activeServer`).
+ * The list is written as JSON in the preferences; the API keys never appear there: they
+ * go to the Keystore ([SecretStore]) and are recomposed on read.
  */
 class ServerRepository(
     private val store: DataStore<Preferences>,
@@ -43,7 +43,7 @@ class ServerRepository(
     private val _activeServer = MutableStateFlow(DEFAULT_SERVER)
     val activeServer: StateFlow<ServerConfig> = _activeServer.asStateFlow()
 
-    /** Lit la liste enregistrée et la clé API du serveur actif. */
+    /** Reads the saved list and the active server's API key. */
     suspend fun load() {
         val stored = withContext(Dispatchers.IO) {
             val preferences = store.data.first()
@@ -53,9 +53,9 @@ class ServerRepository(
                 .orEmpty()
             decoded to preferences[SettingsKeys.ACTIVE_SERVER_ID]
         }
-        // Le nom par défaut a changé avec le renommage : un serveur encore appelé « Onyx » est
-        // l'ancien nom par défaut, pas un choix — il devient « Onyx » au chargement, pas seulement
-        // quand on rouvre sa fiche.
+        // The default name changed with the rename: a server still called “Onyx” is
+        // the old default name, not a choice — it becomes “Onyx” on load, not only
+        // when its sheet is reopened.
         val migrated = stored.first.ifEmpty { listOf(DEFAULT_SERVER) }.map { server ->
             if (server.name.trim().equals("Onyx", ignoreCase = true)) server.copy(name = "Onyx") else server
         }
@@ -70,21 +70,21 @@ class ServerRepository(
     }
 
     /**
-     * Ajoute ou remplace un serveur ; la clé API part dans le Keystore.
+     * Adds or replaces a server; the API key goes into the Keystore.
      *
-     * Un serveur enregistré ou corrigé **devient le serveur actif** : c'est le geste
-     * « je configure cette passerelle-là », et l'app doit répondre à celle qu'on vient
-     * de renseigner. Sans cela, le serveur tout juste modifié reste dans la liste et
-     * l'app continue de parler à l'ancien — dont l'adresse est périmée — d'où l'écran
-     * « No server set up yet » ou une liste de bots vide alors que le test passe.
+     * A saved or corrected server **becomes the active server**: it is the gesture
+     * “je configure cette passerelle-là” (I am configuring this gateway), and the app must answer the one just
+     * entered. Without that, the just-modified server stays in the list and
+     * the app keeps talking to the old one — whose address is stale — hence the screen
+     * “No server set up yet” or an empty bot list while the test passes.
      *
-     * [activate] vaut `false` quand l'appelant veut garder un autre serveur actif
-     * (l'import d'un code de configuration restaure le serveur précédent).
+     * [activate] is `false` when the caller wants to keep another server active
+     * (importing a configuration code restores the previous server).
      */
     suspend fun upsert(config: ServerConfig, activate: Boolean = true) {
         val clean = config.copy(
-            // Le nom par défaut a changé avec le renommage : un serveur encore appelé « Onyx »
-            // est l'ancien nom par défaut, pas un choix — il s'affiche « Onyx » dans Réglages.
+            // The default name changed with the rename: a server still called “Onyx”
+            // is the old default name, not a choice — it displays as “Onyx” in Settings.
             name = config.name.trim().let { if (it.equals("Onyx", ignoreCase = true)) "Onyx" else it },
             apiKey = config.apiKey.trim(),
             profileKey = config.profileKey.trim(),
@@ -100,7 +100,7 @@ class ServerRepository(
         persist()
     }
 
-    /** Supprime un serveur ; s'il était actif, l'actif devient le premier restant. */
+    /** Removes a server; if it was active, the active one becomes the first remaining. */
     suspend fun remove(id: String) {
         val remaining = _servers.value.filterNot { it.id == id }
         _servers.value = remaining.ifEmpty { listOf(DEFAULT_SERVER) }
@@ -109,7 +109,7 @@ class ServerRepository(
         persist()
     }
 
-    /** Définit le serveur actif ; sans effet si l'identifiant est inconnu. */
+    /** Sets the active server; no effect if the identifier is unknown. */
     suspend fun setActive(id: String) {
         if (_servers.value.none { it.id == id }) return
         _activeId.value = id
@@ -117,12 +117,12 @@ class ServerRepository(
         store.edit { it[SettingsKeys.ACTIVE_SERVER_ID] = id }
     }
 
-    /** Crée un identifiant de serveur stable et lisible. */
+    /** Creates a stable, readable server identifier. */
     fun newId(): String = "srv-" + UUID.randomUUID().toString().take(8)
 
     /**
-     * Oublie **tous** les serveurs, leurs clés et leurs identifiants, et revient au serveur
-     * d'usine : le « Erase everything » des Réglages, qui ne touche à rien sur les serveurs.
+     * Forgets **all** servers, their keys and their identifiers, and returns to the factory
+     * server: the Settings' “Erase everything”, which touches nothing on the servers.
      */
     suspend fun eraseAll() {
         secrets.clearAll()
@@ -182,15 +182,15 @@ class ServerRepository(
     companion object {
         private val HeaderListSerializer = kotlinx.serialization.builtins.ListSerializer(CustomHeader.serializer())
 
-        /** Le sérialiseur d'une liste de serveurs, sans dépendre d'un type englobant. */
+        /** The serializer of a server list, without depending on an enclosing type. */
         private val ServerListSerializer =
             kotlinx.serialization.builtins.ListSerializer(ServerConfig.serializer())
 
         /**
-         * Le serveur d'une installation neuve : pas d'adresse.
+         * The server of a fresh installation: no address.
          *
-         * référence part de même — rien n'est prérempli, et `SetupView` demande l'adresse. Une adresse
-         * d'émulateur (`10.0.2.2`) serait de toute façon injoignable depuis un téléphone.
+         * the reference starts the same way — nothing is prefilled, and `SetupView` asks for the address. An emulator
+         * address (`10.0.2.2`) would be unreachable from a phone anyway.
          */
         val DEFAULT_SERVER = ServerConfig(
             id = "default",

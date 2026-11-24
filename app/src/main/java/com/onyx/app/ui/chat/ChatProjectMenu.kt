@@ -68,7 +68,7 @@ class ChatProjectDirectory internal constructor(
     fun close() = rpc.close()
 }
 
-/** Charge les projets à l'ouverture de la conversation et ferme le canal en la quittant. */
+/** Loads the projects when the conversation opens and closes the channel when leaving it. */
 @Composable
 fun rememberChatProjectDirectory(server: ServerConfig, stored: String?): ChatProjectDirectory? {
     val available = server.transport == Transport.HERMES_SERVE && server.hasServeCredentials && !stored.isNullOrEmpty()
@@ -91,14 +91,14 @@ fun rememberChatProjectDirectory(server: ServerConfig, stored: String?): ChatPro
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            // Comme sur la référence, un échec de simple lecture laisse seulement « New Project… ».
+            // As on the reference, a plain read failure leaves only "New Project…".
         }
     }
     DisposableEffect(directory) { onDispose { directory?.close() } }
     return directory
 }
 
-/** Le sous-menu « Add to Project » / « Move to Project », destinations et création. */
+/** The "Add to Project" / "Move to Project" submenu: destinations and creation. */
 @Composable
 fun ChatProjectMenu(
     directory: ChatProjectDirectory,
@@ -118,7 +118,7 @@ fun ChatProjectMenu(
     )
 }
 
-/** Le nom du nouveau projet et l'alerte d'échec qui accompagnent le menu. */
+/** The new project's name and the failure alert that accompany the menu. */
 @Composable
 fun ChatProjectPrompt(
     naming: Boolean,

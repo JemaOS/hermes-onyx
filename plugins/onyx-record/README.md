@@ -1,43 +1,43 @@
-# `onyx-record` — serveur de la démonstration → skill (lot 3)
+# `onyx-record` — server for the demonstration → skill feature (batch 3)
 
-Second plugin Hermes d'Onyx, à côté de `onyx-vault`. Il sert trois routes et
-n'écrit rien : un bail d'enregistrement, la forme canonique d'un journal
-d'actions, et un brouillon de compétence **identique à l'octet** à celui que
-l'app calcule déjà (`core/.../skill/SkillDraft.kt`, golden `facture.md`).
+Onyx's second Hermes plugin, alongside `onyx-vault`. It serves three routes and
+writes nothing: a recording lease, the canonical form of an action journal,
+and a skill draft **byte-identical** to the one the app already computes
+(`core/.../skill/SkillDraft.kt`, golden `facture.md`).
 
-| Route | Méthode | Rôle |
+| Route | Method | Role |
 |---|---|---|
-| `/api/plugins/onyx-record/skills/record/start` | POST | ouvre un bail (600 s, 120 s de collecte) |
-| `/api/plugins/onyx-record/skills/record/stop` | POST | ferme le bail, rend le journal canonique (ou `journal: null` = abandon) |
-| `/api/plugins/onyx-record/skills/draft` | POST | brouillon Markdown + étapes à relire — sans état |
-| `/api/plugins/onyx-record/health` | GET | état, jamais un journal ni un identifiant |
-| `/api/plugins/onyx-record/info` | GET | version, préfixe, routes, bornes |
+| `/api/plugins/onyx-record/skills/record/start` | POST | opens a lease (600 s, 120 s collection) |
+| `/api/plugins/onyx-record/skills/record/stop` | POST | closes the lease, returns the canonical journal (or `journal: null` = abandon) |
+| `/api/plugins/onyx-record/skills/draft` | POST | Markdown draft + steps to review — stateless |
+| `/api/plugins/onyx-record/health` | GET | state, never a journal or an identifier |
+| `/api/plugins/onyx-record/info` | GET | version, prefix, routes, bounds |
 
-## Arborescence
+## Directory layout
 
 ```
 onyx-record-plugin/
-├── dashboard/                 # ce que Hermes lit (seul dossier à installer)
+├── dashboard/                 # what Hermes reads (the only folder to install)
 │   ├── manifest.json
-│   ├── plugin_api.py          # router = APIRouter() — un seul mode de montage
-│   ├── onyx_record.py         # validation, bornes, machine à états, brouillon
-│   └── dist/index.js          # module vide (onglet masqué)
+│   ├── plugin_api.py          # router = APIRouter() — a single mount mode
+│   ├── onyx_record.py         # validation, bounds, state machine, draft
+│   └── dist/index.js          # empty module (hidden tab)
 ├── tests/
-│   ├── support.py             # charge les modules comme le Dashboard
-│   ├── journal_fixture.py     # le journal du golden Kotlin + celui de la spec
-│   ├── test_draft_golden.py   # bytes == facture.md, déterminisme, secret
-│   ├── test_record_core.py    # machine à états, refus, bornes, expiration
-│   ├── test_plugin_api.py     # contrat HTTP sur une app FastAPI nue
-│   ├── test_dashboard_mount.py# vrai Dashboard, HERMES_HOME jetable
-│   └── _mount_child.py        # le serveur jetable (un processus par scénario)
-├── INSTALL.md                 # copie, plugins.enabled, vérification, désinstallation
-├── ECARTS.md                  # les contradictions de la spec, tranchées et justifiées
+│   ├── support.py             # loads the modules like the Dashboard
+│   ├── journal_fixture.py     # the Kotlin golden journal + the spec one
+│   ├── test_draft_golden.py   # bytes == facture.md, determinism, secret
+│   ├── test_record_core.py    # state machine, rejections, bounds, expiration
+│   ├── test_plugin_api.py     # HTTP contract on a bare FastAPI app
+│   ├── test_dashboard_mount.py# real Dashboard, disposable HERMES_HOME
+│   └── _mount_child.py        # the disposable server (one process per scenario)
+├── INSTALL.md                 # copy, plugins.enabled, verification, uninstall
+├── ECARTS.md                  # the spec's contradictions, resolved and justified
 └── README.md
 ```
 
 ## Tests
 
-85 tests, une seule commande, un seul processus :
+85 tests, a single command, a single process:
 
 ```bash
 PY=$(ls -d ~/.hermes/tools/python-3.14.7*/bin/python3 | head -1)
@@ -47,12 +47,12 @@ PYTHONPATH=/home/john/.hermes/hermes-agent "$PY" -m unittest discover \
     -t /home/john/Bureau/onyx-record-plugin/tests -v
 ```
 
-Le montage réel tourne dans des processus enfants : le gateway en cours n'est ni
-touché ni redémarré, et `~/.hermes` n'est jamais écrit.
+The real mount runs in child processes: the running gateway is neither
+touched nor restarted, and `~/.hermes` is never written.
 
-## Ce que le plugin ne fait pas
+## What the plugin does not do
 
-Il n'écrit aucun skill (`POST api/skills` le fait), ne crée aucune routine,
-n'observe ni écran ni pont (le journal est sur le téléphone), et ne garde aucun
-journal après le brouillon. Voir `INSTALL.md` §8 pour les limites de sécurité et
-`ECARTS.md` pour les points où la spec se contredit.
+It writes no skill (`POST api/skills` does that), creates no routine,
+observes neither screen nor bridge (the journal is on the phone), and keeps no
+journal after the draft. See `INSTALL.md` §8 for the security limits and
+`ECARTS.md` for the points where the spec contradicts itself.

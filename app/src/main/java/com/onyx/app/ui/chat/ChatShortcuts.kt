@@ -1,21 +1,21 @@
 package com.onyx.app.ui.chat
 
 /**
- * Les raccourcis clavier du chat, portés depuis les `keyboardShortcut` de `ContentView:540`.
+ * The chat keyboard shortcuts, ported from the `keyboardShortcut`s of `ContentView:540`.
  *
- * référence les pose sur des boutons invisibles dans l'arbre la référence ; Android n'a pas ce mécanisme,
- * donc l'écran décide lui-même à partir de la touche et des modificateurs. Toute la décision
- * vit ici, sans dépendre de Compose, pour rester testable sur la JVM.
+ * the reference attaches them to invisible buttons in the reference's tree; Android has no such
+ * mechanism, so the screen decides by itself from the key and the modifiers. The whole decision
+ * lives here, without depending on Compose, to stay testable on the JVM.
  *
- * Correspondance référence → Android :
- *  - ⌘N  « New conversation »      → Ctrl+N
- *  - ⌘F  « Find in conversation »  → Ctrl+F
- *  - ⌘K  (liste des conversations) → Ctrl+K : la barre de recherche du fil
- *  - ⌘↩  « Send »                  → Ctrl+Entrée
- *  - ⌘.  « Stop reply »            → Ctrl+.
- *  - ⌘L  « Focus composer »        → Ctrl+L
- *  - ⌘E  « Export as Markdown »    → Ctrl+E
- *  - Échap ferme ce qui est ouvert (recherche, menus, brouillon de commande).
+ * Reference → Android mapping:
+ *  - ⌘N  "New conversation"      → Ctrl+N
+ *  - ⌘F  "Find in conversation"  → Ctrl+F
+ *  - ⌘K  (conversation list)     → Ctrl+K: the thread search bar
+ *  - ⌘↩  "Send"                  → Ctrl+Enter
+ *  - ⌘.  "Stop reply"            → Ctrl+.
+ *  - ⌘L  "Focus composer"        → Ctrl+L
+ *  - ⌘E  "Export as Markdown"    → Ctrl+E
+ *  - Escape closes whatever is open (search, menus, slash-command draft).
  */
 enum class ChatShortcut {
     NEW_CONVERSATION,
@@ -27,14 +27,14 @@ enum class ChatShortcut {
     CLOSE,
 }
 
-/** Une touche nommée, indépendante de Compose pour que la table reste une fonction pure. */
+/** A named key, independent of Compose so the table stays a pure function. */
 enum class ChatKey { N, K, F, L, E, PERIOD, ENTER, ESCAPE, OTHER }
 
 /**
- * Le raccourci que déclenche cette touche, ou `null` si elle ne fait rien.
+ * The shortcut this key triggers, or `null` if it does nothing.
  *
- * `ctrl` couvre ⌘ sur la référence et Ctrl sur Android ; sans lui, seule Échap agit — comme référence, où
- * les autres raccourcis exigent la touche de commande.
+ * `ctrl` covers ⌘ on the reference and Ctrl on Android; without it, only Escape acts — as on the
+ * reference, where the other shortcuts require the command key.
  */
 fun chatShortcutFor(key: ChatKey, ctrl: Boolean): ChatShortcut? = when {
     key == ChatKey.ESCAPE -> ChatShortcut.CLOSE
@@ -50,11 +50,11 @@ fun chatShortcutFor(key: ChatKey, ctrl: Boolean): ChatShortcut? = when {
 }
 
 /**
- * L'action a-t-elle un sens dans cet état ?
+ * Does the action make sense in this state?
  *
- * référence désactive ses boutons (`Send` pendant un tour, `Find` et `Export` sans message) : le
- * raccourci ne doit pas mieux faire que le bouton qu'il double. `Send` en particulier est
- * réservé hors streaming, où le composeur propose steer/file à la place.
+ * the reference disables its buttons (`Send` during a turn, `Find` and `Export` without messages):
+ * the shortcut must not do better than the button it doubles. `Send` in particular is reserved
+ * outside streaming, where the composer offers steer/file instead.
  */
 fun allowsChatShortcut(
     shortcut: ChatShortcut,

@@ -4,31 +4,31 @@ import com.onyx.app.data.model.ChatMessage
 import com.onyx.app.data.model.Role
 
 /**
- * Une question de l'agent qui attend encore sa réponse, prête à être notifiée.
+ * An agent question still awaiting its answer, ready to be notified.
  *
- * Ce que la notification a besoin de savoir, et rien de plus : de quoi l'identifier, de quoi la
- * reformuler, et de quoi répondre par le bon appel du gateway.
+ * What the notification needs to know, and nothing more: what to identify it by, what to
+ * rephrase, and what to answer with through the right gateway call.
  */
 data class PendingQuestion(
-    /** L'identifiant Android de la notification : stable tant que la question attend. */
+    /** The notification's Android identifier: stable as long as the question is waiting. */
     val notificationId: String,
     val kind: NotificationCopy.QuestionKind,
-    /** Le texte montré : la question, la consigne sudo, ou le libellé du secret. */
+    /** The text shown: the question, the sudo instruction, or the secret's label. */
     val prompt: String,
-    /** L'identifiant que le gateway attend dans la réponse. */
+    /** The identifier the gateway expects in the answer. */
     val requestId: String,
-    /** La question précise d'une série (`clarify.lock`), ou `null` pour une question seule. */
+    /** The specific question of a series (`clarify.lock`), or `null` for a single question. */
     val questionId: String?,
-    /** Le nombre de questions de la série : au-delà d'une, on répond depuis l'app. */
+    /** The number of questions in the series: beyond one, you answer from the app. */
     val questionCount: Int,
 )
 
 /**
- * Les questions en attente d'une conversation, dans l'ordre où elles se sont posées.
+ * The pending questions of a conversation, in the order they were asked.
  *
- * Miroir Android de ce que la carte montre déjà : une question (`clarify`), un mot de passe sudo
- * (`sudoRequestId`), ou un secret que l'agent réclame (`secret` sans valeur fournie). Une
- * interruption déjà répondue n'y figure pas — le champ est remis à `null` dès la réponse.
+ * Android mirror of what the card already shows: a question (`clarify`), a sudo password
+ * (`sudoRequestId`), or a secret the agent requests (`secret` with no value provided). An
+ * interrupt already answered does not appear there — the field is reset to `null` as soon as it is answered.
  */
 fun pendingQuestionsOf(messages: List<ChatMessage>): List<PendingQuestion> = buildList {
     messages.forEach { message ->

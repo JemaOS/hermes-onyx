@@ -11,16 +11,16 @@ import com.onyx.app.di.AppContainer
 import kotlinx.coroutines.runBlocking
 
 /**
- * Expose les habillages et la connexion OpenAI-compatible active au seul APK Auto signé comme Onyx.
- * Aucun identifiant Dashboard, historique ou autre serveur n'est inclus.
+ * Exposes the looks and the active OpenAI-compatible connection to the Auto APK signed as Onyx only.
+ * No Dashboard credentials, history, or other server is included.
  */
 class AutoSettingsProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
         if (method != AutoSettingsContract.METHOD_LOOKS || !AppContainer.isInstalled) return null
-        // Un cold start du provider doit rendre les valeurs du disque, pas les défauts du tout premier
-        // instant de AppContainer. Le thread Binder peut attendre cette petite lecture DataStore.
+        // A cold start of the provider must return the values from disk, not the defaults from the very
+        // first instant of AppContainer. The Binder thread can wait for this small DataStore read.
         runCatching {
             runBlocking {
                 AppContainer.settings.load()

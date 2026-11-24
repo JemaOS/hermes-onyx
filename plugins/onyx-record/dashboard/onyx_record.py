@@ -1,33 +1,33 @@
-"""onyx-record — cœur du serveur « démonstration → skill ».
+"""onyx-record — core of the "demonstration → skill" server.
 
-Ce module ne dépend d'aucun code Hermes : il se teste seul
+This module depends on no Hermes code: it is tested on its own
 (``tests/test_record_core.py``, ``tests/test_draft_golden.py``).
 
-Trois responsabilités, et rien d'autre :
+Three responsibilities, and nothing else:
 
-1. **valider un journal** d'actions selon ``docs/SPEC-SKILLS-RECORD.md`` §2 — un
-   journal qui n'y ressemble pas est refusé (``422``), jamais réparé ;
-2. **le borner** (§2.4) et rendre sa **forme canonique** (§4, D3) : champs
-   inconnus retirés, bornes appliquées, texte secret absent ;
-3. **le convertir** en brouillon Markdown, avec les **mêmes octets** que le
-   convertisseur Kotlin déjà livré dans l'app
+1. **validate a journal** of actions according to ``docs/SPEC-SKILLS-RECORD.md`` §2 — a
+   journal that does not look like one is refused (``422``), never repaired;
+2. **bound it** (§2.4) and return its **canonical form** (§4, D3): unknown
+   fields removed, bounds applied, secret text absent;
+3. **convert it** into a Markdown draft, with the **same bytes** as the
+   Kotlin converter already shipped in the app
    (``core/src/main/java/com/onyx/app/data/skill/SkillDraft.kt``, golden
    ``core/src/test/resources/skill/invoice.md``).
 
-Invariants — à ne jamais casser :
+Invariants — never to be broken:
 
-* **aucun secret ne sort** : un ``text`` accompagné de ``secret: true`` est
-  refusé (``422 secret_text_present``), pas nettoyé ; un texte secret n'est
-  jamais journalisé, jamais recopié dans une réponse, jamais gardé en mémoire ;
-* **aucune écriture** : le module n'ouvre aucun fichier, n'écrit rien sur
-  disque, ne garde aucun journal après le brouillon. Les baux et les journaux en
-  collecte vivent en mémoire, 120 s au plus ;
-* **même entrée, même octet** : la conversion est pure (pas d'horloge, pas de
-  locale, pas d'ordre de dictionnaire non fixé). C'est ce qui permet de la
-  comparer au golden.
+* **no secret goes out**: a ``text`` accompanied by ``secret: true`` is
+  refused (``422 secret_text_present``), not cleaned; a secret text is never
+  logged, never copied into a response, never kept in memory;
+* **no write**: the module opens no file, writes nothing to
+  disk, keeps no journal after the draft. Leases and journals in
+  collection live in memory, 120 s at most;
+* **same input, same byte**: the conversion is pure (no clock, no
+  locale, no unfixed dictionary order). This is what makes it possible to
+  compare it with the golden.
 
-Écarts à la spec, mesurés et assumés, sont listés dans ``ECARTS.md`` à la racine
-du plugin — chacun est aussi rappelé en commentaire à l'endroit du code.
+Deviations from the spec, measured and assumed, are listed in ``ECARTS.md`` at the root
+of the plugin — each is also recalled in a comment at the place in the code.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ from typing import Any, Callable, Optional
 PLUGIN_NAME = "onyx-record"
 VERSION = "1.0.0"
 
-# --- plafonds (spec §2.4) ---------------------------------------------------
+# --- bounds (spec §2.4) ---------------------------------------------------
 MAX_SECONDS = 600
 GRACE_SECONDS = 120
 MAX_EVENTS = 2000
@@ -59,11 +59,11 @@ MAX_WINDOW = 120
 MAX_URL = 2048
 MIN_WAIT_MS = 100
 MAX_WAIT_MS = 30000
-# La spec dit « crans, 1 à 100 » ; le convertisseur de référence compte des
-# pixels (golden : 540 + 220 = 760 px). Voir ECARTS.md §2.
+# The spec says "steps, 1 to 100"; the reference converter counts
+# pixels (golden: 540 + 220 = 760 px). See ECARTS.md §2.
 MAX_SCROLL_AMOUNT = 100000
 
-# --- conversion (miroir de SkillDraft.kt) -----------------------------------
+# --- conversion (mirror of SkillDraft.kt) -----------------------------------
 SHORT_WAIT_MS = 500
 DEFAULT_TITLE = "Démonstration enregistrée"
 EMPTY_TITLE = "Démonstration vide"
@@ -76,7 +76,7 @@ SCROLL_DIRECTIONS = ("up", "down")
 KEY_WORDS = {"back": "Back", "home": "Home", "enter": "Enter", "tab": "Tab", "escape": "Escape"}
 SCROLL_WORDS = {"up": "up", "down": "down", "left": "left", "right": "right"}
 
-# Champs interdits à n'importe quelle profondeur (spec §6) : pixels et audio.
+# Fields forbidden at any depth (spec §6): pixels and audio.
 FORBIDDEN_KEYS = frozenset(
     {
         "image",
@@ -116,8 +116,8 @@ _STATUS = {
     "recorder_unavailable": 503,
 }
 
-# Messages en anglais : ils vont au journal du serveur, jamais à l'écran
-# (l'écran affiche sa propre phrase, spec §1 et §8).
+# Messages in English: they go to the server log, never to the screen
+# (the screen displays its own sentence, spec §1 and §8).
 _MESSAGES = {
     "bad_request": "Malformed request body.",
     "bad_bridge": "The bridge is missing or its endpoint is not host:port.",
@@ -140,7 +140,7 @@ _MESSAGES = {
 
 
 class RecordError(Exception):
-    """Refus du serveur. ``code`` est la clé de contrat (spec §1)."""
+    """Server refusal. ``code`` is the contract key (spec §1)."""
 
     def __init__(self, code: str, message: Optional[str] = None, **extra: Any) -> None:
         self.code = code
@@ -159,19 +159,19 @@ class RecordError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Petites conversions, répliques exactes de SkillDraft.kt
+# Small conversions, exact replicas of SkillDraft.kt
 # ---------------------------------------------------------------------------
 
 
 def single_line(text: Any) -> str:
-    """Toute suite d'espaces devient une espace, bords détourés (Kotlin ``singleLine``)."""
+    """Any run of whitespace becomes a single space, edges trimmed (Kotlin ``singleLine``)."""
     if not isinstance(text, str):
         return ""
     return " ".join(text.split())
 
 
 def escape(text: str) -> str:
-    """Échappe ce qui casserait une ligne de liste (Kotlin ``escape``)."""
+    """Escape whatever would break a list line (Kotlin ``escape``)."""
     out = []
     for ch in text:
         if ch == "\\":
@@ -190,10 +190,10 @@ def escape(text: str) -> str:
 
 
 def _percent(fraction: Optional[float]) -> Optional[int]:
-    """``x_pct`` (0..1) → pourcentage entier, demi vers le haut, borné 0..100.
+    """``x_pct`` (0..1) → integer percentage, halves rounded up, bounded 0..100.
 
-    ``roundToInt`` de Kotlin arrondit les demis vers +∞ (``Math.round``) ; le
-    ``round`` de Python arrondit les demis vers le pair. D'où ``floor(x + .5)``.
+    Kotlin's ``roundToInt`` rounds halves toward +∞ (``Math.round``); Python's
+    ``round`` rounds halves to even. Hence ``floor(x + .5)``.
     """
     if fraction is None:
         return None
@@ -207,7 +207,7 @@ def _percent(fraction: Optional[float]) -> Optional[int]:
 
 
 def _duration(ms: int) -> str:
-    """« 2 s » quand la seconde est entière, « 2500 ms » sinon (Kotlin ``duration``)."""
+    """"2 s" when the second is whole, "2500 ms" otherwise (Kotlin ``duration``)."""
     if ms >= 1000 and ms % 1000 == 0:
         return f"{ms // 1000} s"
     return f"{ms} ms"
@@ -232,7 +232,7 @@ def _draft_title(raw: Any) -> Optional[str]:
 
 
 def slugify(text: str) -> str:
-    """Nom de dossier : minuscules ASCII, traits d'union, ≤ 64 caractères."""
+    """Folder name: ASCII lowercase, hyphens, ≤ 64 characters."""
     folded = unicodedata.normalize("NFKD", str(text))
     folded = folded.encode("ascii", "ignore").decode("ascii").lower()
     folded = re.sub(r"[^a-z0-9]+", "-", folded).strip("-")
@@ -250,18 +250,18 @@ def _humanize(hint: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Un pas du brouillon
+# One step of the draft
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class DraftStep:
-    """La ligne d'un pas, la raison de le relire (code de la spec), et son texte.
+    """A step's line, the reason to review it (spec code), and its text.
 
-    ``review_text`` est le texte français que le convertisseur Kotlin accroche à
-    la ligne (« — à relire : libellé absent ») ; ``reason`` est le code fermé de
-    la spec (``no_label``…). Les deux existent parce que le Markdown doit rester
-    identique au Kotlin alors que la réponse JSON, elle, parle en codes.
+    ``review_text`` is the French text that the Kotlin converter attaches to
+    the line (" — to review: missing label"); ``reason`` is the closed code of
+    the spec (``no_label``…). Both exist because the Markdown must stay
+    identical to Kotlin whereas the JSON response speaks in codes.
     """
 
     line: str
@@ -274,7 +274,7 @@ class DraftStep:
         return f"{self.line} — à relire : {self.review_text}"
 
 
-# Les actions intermédiaires, après lecture du journal : (kind, payload).
+# The intermediate actions, after reading the journal: (kind, payload).
 def _actions(journal: dict) -> list[tuple[str, dict]]:
     actions: list[tuple[str, dict]] = []
     for event in journal.get("events") or []:
@@ -308,13 +308,13 @@ def _actions(journal: dict) -> list[tuple[str, dict]]:
             actions.append(("key", {"key": event["key"]}))
         elif kind == "focus":
             actions.append(("focus", {"label": target.get("label"), "window": target.get("window")}))
-        else:  # garde-fou : la validation a déjà fermé la liste des kind
+        else:  # safeguard: validation has already closed the list of kinds
             actions.append(("unsupported", {"kind": kind}))
     return actions
 
 
 def _merge_waits(actions: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
-    """Fond les attentes courtes consécutives, jette les attentes nulles (Kotlin)."""
+    """Merge consecutive short waits, discard zero waits (Kotlin)."""
     out: list[tuple[str, dict]] = []
     short_ms = 0
     short_count = 0
@@ -345,7 +345,7 @@ def _merge_waits(actions: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
 
 
 def _merge_scrolls(actions: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
-    """Cumule les défilements adjacents de même sens, jette les montants nuls."""
+    """Accumulate adjacent scrolls in the same direction, discard zero amounts."""
     out: list[tuple[str, dict]] = []
     for kind, payload in actions:
         if kind == "scroll" and abs(int(payload["amount"])) == 0:
@@ -366,7 +366,7 @@ def _render(kind: str, payload: dict) -> DraftStep:
         x = _percent(payload.get("x_pct"))
         y = _percent(payload.get("y_pct"))
         if x is None or y is None:
-            # Même repli que Kotlin : aucun pourcentage ne serait honnête.
+            # Same fallback as Kotlin: no percentage would be honest.
             return DraftStep(
                 "Tap at an unknown position",
                 reason="no_window",
@@ -379,11 +379,11 @@ def _render(kind: str, payload: dict) -> DraftStep:
         )
     if kind == "type":
         if payload["secret"]:
-            # Quatre puces, toujours quatre : la longueur est déjà une information.
+            # Four bullets, always four: the length is already information.
             return DraftStep(f"Type {SECRET_TEXT} — secret, non enregistré", reason="secret_field")
         text = payload.get("text") or ""
         if not text:
-            # Code ``no_label`` : la liste de la spec n'a pas de ``empty_text``.
+            # ``no_label`` code: the spec's list has no ``empty_text``.
             return DraftStep('Type ""', reason="no_label", review_text="texte vide")
         return DraftStep(f'Type "{escape(text)}"')
     if kind == "scroll":
@@ -405,7 +405,7 @@ def _render(kind: str, payload: dict) -> DraftStep:
                 "Focus at an unknown window", reason="no_window", review_text="fenêtre inconnue"
             )
         return DraftStep(f'Focus "{escape(label)}"')
-    # ``unsupported_kind`` de la spec : le seul moyen de ne pas perdre une étape.
+    # ``unsupported_kind`` from the spec: the only way not to lose a step.
     return DraftStep(
         f"{payload.get('kind')} (unsupported)",
         reason="unsupported_kind",
@@ -419,11 +419,11 @@ def draft_steps(journal: dict) -> list[DraftStep]:
 
 
 def derive_name(journal: dict, name_hint: Optional[str] = None) -> str:
-    """Nom de dossier du skill (``ServeSkillsApi.create`` l'écrira).
+    """Folder name of the skill (``ServeSkillsApi.create`` will write it).
 
-    ``name_hint`` d'abord, puis le titre du journal, puis « premier focus +
-    première cible nommée » (spec §5). Un nom vide n'est pas un nom : on
-    retombe sur un défaut stable.
+    ``name_hint`` first, then the journal title, then "first focus +
+    first named target" (spec §5). An empty name is not a name: we
+    fall back on a stable default.
     """
     if isinstance(name_hint, str) and name_hint.strip():
         slug = slugify(name_hint)
@@ -450,10 +450,10 @@ def derive_name(journal: dict, name_hint: Optional[str] = None) -> str:
 
 
 def draft(journal: dict, name_hint: Optional[str] = None) -> dict:
-    """Le brouillon : Markdown stable, étapes à relire, avertissements.
+    """The draft: stable Markdown, steps to review, warnings.
 
-    Fonction **pure** : aucun état, aucune horloge, aucune écriture. Deux appels
-    avec le même journal rendent le même octet (spec §5, D4).
+    **Pure** function: no state, no clock, no write. Two calls
+    with the same journal return the same byte (spec §5, D4).
     """
     steps = draft_steps(journal)
     title = _draft_title(journal.get("title"))
@@ -501,15 +501,15 @@ def draft(journal: dict, name_hint: Optional[str] = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Validation du journal — spec §2, refus §4
+# Journal validation — spec §2, refusals §4
 # ---------------------------------------------------------------------------
 
 
 def serialized_size(value: Any) -> int:
-    """Taille UTF-8 de la forme sérialisée, telle que la réponse l'écrit.
+    """UTF-8 size of the serialized form, as the response writes it.
 
-    ``JSONResponse`` de Starlette sérialise avec ``ensure_ascii=False`` et les
-    séparateurs compacts : c'est exactement ce que mesure ``bytes``.
+    Starlette's ``JSONResponse`` serializes with ``ensure_ascii=False`` and compact
+    separators: that is exactly what ``bytes`` measures.
     """
     return len(
         json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
@@ -529,7 +529,7 @@ def _bad(message: Optional[str] = None) -> "RecordError":
 
 
 def _scan_forbidden(value: Any, depth: int = 0) -> None:
-    """Refuse pixels et audio à n'importe quelle profondeur (spec §6)."""
+    """Refuse pixels and audio at any depth (spec §6)."""
     if depth > 8:
         raise _bad("Journal nested too deeply.")
     if isinstance(value, dict):
@@ -543,7 +543,7 @@ def _scan_forbidden(value: Any, depth: int = 0) -> None:
 
 
 def _bridge(value: Any) -> tuple[str, str]:
-    """``bridge.endpoint`` est un hôte:port nu — ni schéma, ni identifiant."""
+    """``bridge.endpoint`` is a bare host:port — no scheme, no identifier."""
     if not isinstance(value, dict):
         raise RecordError("bad_bridge")
     endpoint = value.get("endpoint")
@@ -591,10 +591,10 @@ def _target(value: Any, kind: str, warnings: dict) -> dict:
             warnings["label_truncated"] = True
         out["window"] = window
     if kind == "tap":
-        # « x_pct / y_pct … seulement pour tap » (spec §2.2) : facultatifs, mais
-        # alors un pas sans libellé n'aurait aucune position honnête — le
-        # convertisseur le dit (« Tap at an unknown position », à relire) au
-        # lieu de refuser tout l'enregistrement.
+        # "x_pct / y_pct … only for tap" (spec §2.2): optional, but
+        # then a step with no label would have no honest position — the
+        # converter says so ("Tap at an unknown position", to review) instead
+        # of refusing the whole recording.
         for axis in ("x_pct", "y_pct"):
             raw = value.get(axis)
             if raw is None:
@@ -621,8 +621,8 @@ def _event(raw: Any, previous: Optional[dict], warnings: dict) -> dict:
             raise _bad("Event at_ms must not go backwards.")
     kind = raw.get("kind")
     if not isinstance(kind, str) or kind not in KINDS:
-        # La spec §5 prévoit unsupported_kind ; §2.2 ferme la liste des kind et
-        # §4 exige 422 bad_journal. Le refus l'emporte : voir ECARTS.md §3.
+        # Spec §5 provides unsupported_kind; §2.2 closes the list of kinds and
+        # §4 requires 422 bad_journal. The refusal wins: see ECARTS.md §3.
         raise _bad(f"Unknown kind {kind!r}.")
 
     out: dict[str, Any] = {"seq": seq, "at_ms": at_ms, "kind": kind}
@@ -635,8 +635,8 @@ def _event(raw: Any, previous: Optional[dict], warnings: dict) -> dict:
             raise _bad("type.secret must be a boolean.")
         text_present = raw.get("text") is not None
         if secret and text_present:
-            # Refusé, jamais nettoyé : le serveur n'a pas à décider de jeter un
-            # texte qu'on lui a envoyé. Le corps de la 422 ne le recopie pas.
+            # Refused, never cleaned: the server has no business deciding to discard a
+            # text that was sent to it. The body of the 422 does not copy it.
             raise RecordError("secret_text_present")
         if not secret:
             text = raw.get("text")
@@ -670,7 +670,7 @@ def _event(raw: Any, previous: Optional[dict], warnings: dict) -> dict:
             raise _bad("navigate needs a url.")
         scheme = url.split(":", 1)[0].lower() if ":" in url else ""
         if scheme not in ("http", "https") or "//" not in url[:12]:
-            # file:, onyx:, content: … : refusé, pas tronqué (spec §6).
+            # file:, onyx:, content: …: refused, not truncated (spec §6).
             raise _bad("navigate.url must be http or https.")
         if len(url) > MAX_URL:
             warnings["url_dropped"] = True
@@ -721,11 +721,11 @@ def validate(
     duration_ms: Optional[int] = None,
     end_reason: Optional[str] = None,
 ) -> Validation:
-    """Valide, borne et rend la forme canonique du journal (spec §2 et §4).
+    """Validate, bound and return the journal's canonical form (spec §2 and §4).
 
-    Lève ``RecordError`` avec le code de contrat. ``duration_ms`` et
-    ``end_reason`` sont ceux du **serveur** quand il les connaît (D3) ; sinon
-    ceux du client sont repris.
+    Raises ``RecordError`` with the contract code. ``duration_ms`` and
+    ``end_reason`` are the **server**'s when it knows them (D3); otherwise
+    the client's are used.
     """
     if not isinstance(journal, dict):
         raise _bad("A journal must be an object.")
@@ -775,7 +775,7 @@ def validate(
     warnings: dict = {}
     dropped = 0
     if len(raw_events) > MAX_EVENTS:
-        # Les plus anciens sont abandonnés (spec §2.4) : on garde la fin.
+        # The oldest are abandoned (spec §2.4): we keep the end.
         dropped += len(raw_events) - MAX_EVENTS
         raw_events = raw_events[-MAX_EVENTS:]
 
@@ -789,7 +789,7 @@ def validate(
     canonical: dict[str, Any] = {
         "version": 1,
         "session_id": journal_session,
-        # ``started_at`` reste celui du téléphone : il ancre les at_ms.
+        # ``started_at`` remains the phone's: it anchors the at_ms.
         "started_at": round(float(started_at), 3),
         "duration_ms": min(
             MAX_SECONDS * 1000,
@@ -806,12 +806,12 @@ def validate(
     }
     title = journal.get("title")
     if isinstance(title, str) and title.strip():
-        # Champ additif : le convertisseur de référence en dépend (ActionJournal.title).
+        # Additive field: the reference converter depends on it (ActionJournal.title).
         canonical["title"] = single_line(title)[:MAX_TITLE]
 
     result = Validation(journal=canonical, warnings=warnings, dropped=dropped)
 
-    # Borne de taille sérialisée : mêmes règles que le nombre d'événements.
+    # Serialized-size bound: same rules as the number of events.
     while result.size > MAX_JOURNAL_BYTES and canonical["events"]:
         del canonical["events"][0]
         result.dropped += 1
@@ -823,7 +823,7 @@ def validate(
 
 
 # ---------------------------------------------------------------------------
-# Baux et journaux en collecte — mémoire seulement, jamais de fichier
+# Leases and journals in collection — memory only, never a file
 # ---------------------------------------------------------------------------
 
 
@@ -854,11 +854,11 @@ def new_session_id() -> str:
 
 
 class RecordStore:
-    """Un bail ouvert au plus, un journal en collecte au plus — par serveur.
+    """At most one open lease, at most one journal in collection — per server.
 
-    Le profil est implicite : le Dashboard sert un profil, et la route refuse un
-    ``profile`` explicite (spec §3). « Un enregistrement déjà en cours pour ce
-    profil » se lit donc « un bail est ouvert ».
+    The profile is implicit: the Dashboard serves one profile, and the route refuses an
+    explicit ``profile`` (spec §3). "A recording already in progress for this
+    profile" therefore reads "a lease is open".
     """
 
     def __init__(self, clock: Callable[[], float] = time.time) -> None:
@@ -866,11 +866,11 @@ class RecordStore:
         self._lock = threading.RLock()
         self._lease: Optional[Lease] = None
         self._pending: Optional[Pending] = None
-        # Les identifiants des baux balayés : ``stop`` doit encore répondre 410,
-        # pas « inconnu » (spec §4, cas 2).
+        # The identifiers of the swept leases: ``stop`` must still answer 410,
+        # not "unknown" (spec §4, case 2).
         self._expired_ids: deque[str] = deque(maxlen=8)
 
-    # -- lecture ---------------------------------------------------------
+    # -- read ---------------------------------------------------------
     def lease(self) -> Optional[Lease]:
         with self._lock:
             return self._lease
@@ -897,7 +897,7 @@ class RecordStore:
             }
 
     def reset(self) -> None:
-        """Vide l'état mémoire. Réservé aux tests (aucune route ne l'expose)."""
+        """Clear the in-memory state. Reserved for tests (no route exposes it)."""
         with self._lock:
             self._lease = None
             self._pending = None
@@ -908,16 +908,16 @@ class RecordStore:
             self._expired_ids.append(self._lease.session_id)
             self._lease = None
         if self._pending is not None and now > self._pending.expires_at:
-            # La fenêtre de collecte est finie : ``stop`` doit répondre 410, pas
-            # « inconnu » — le serveur a bien connu ce bail.
+            # The collection window is over: ``stop`` must answer 410, not
+            # "unknown" — the server did know this lease.
             self._expired_ids.append(self._pending.session_id)
             self._pending = None
 
     # -- start -----------------------------------------------------------
     def start(self, body: dict) -> dict:
         if "profile" in body:
-            # Refusé et non ignoré : créer un skill ne prend pas de profil
-            # (ServeSkillsApi.create), donc promettre un rangement serait faux.
+            # Refused, not ignored: creating a skill does not take a profile
+            # (ServeSkillsApi.create), so promising a layout would be false.
             raise RecordError("profile_not_supported")
         endpoint, bridge_session = _bridge(body.get("bridge"))
         discard = body.get("discard_pending", False)
@@ -975,7 +975,7 @@ class RecordStore:
                     self._expired_ids.append(session_id)
                     self._pending = None
                     raise RecordError("session_expired")
-                # Idempotent dans la fenêtre : même journal, même bytes.
+                # Idempotent within the window: same journal, same bytes.
                 return copy.deepcopy(pending.payload)
 
             lease = self._lease
@@ -990,7 +990,7 @@ class RecordStore:
                 raise RecordError("session_expired")
 
             if journal is None:
-                # Le seul chemin d'annulation (spec §4) : rien gardé, rien rendu.
+                # The only cancellation path (spec §4): nothing kept, nothing returned.
                 self._lease = None
                 return {
                     "session_id": session_id,
@@ -1006,8 +1006,8 @@ class RecordStore:
             if not isinstance(journal, dict):
                 raise _bad("journal must be an object.")
             if serialized_size(journal) > MAX_JOURNAL_BYTES:
-                # Avant bornage : un journal trop gros n'est pas un journal à
-                # tronquer, c'est un envoi qui n'aurait pas dû partir (413).
+                # Before bounding: an oversized journal is not a journal to
+                # truncate, it is a send that should never have gone out (413).
                 raise RecordError("journal_too_large")
             bridge = journal.get("bridge")
             if not isinstance(bridge, dict):
@@ -1020,8 +1020,8 @@ class RecordStore:
             duration = min(
                 MAX_SECONDS * 1000, max(0, int(round((now - lease.started_at) * 1000)))
             )
-            # Un journal refusé laisse le bail ouvert : une faute d'envoi ne doit
-            # pas coûter l'enregistrement (voir ECARTS.md §5).
+            # A refused journal leaves the lease open: a send error must
+            # not cost the recording (see ECARTS.md §5).
             result = validate(
                 journal,
                 session_id=session_id,
@@ -1029,8 +1029,8 @@ class RecordStore:
                 end_reason=end_reason,
             )
             if expired:
-                # Le plafond ne jette pas l'enregistrement, il jette ce qui est
-                # arrivé après lui (spec §4, cas 1) — et le compte.
+                # The ceiling does not discard the recording, it discards what
+                # arrived after it (spec §4, case 1) — and the count.
                 kept = [e for e in result.journal["events"] if e["at_ms"] <= MAX_SECONDS * 1000]
                 dropped = len(result.journal["events"]) - len(kept)
                 if dropped:
@@ -1059,7 +1059,7 @@ class RecordStore:
             )
             return payload
 
-    # -- résolution pour skills.draft -----------------------------------
+    # -- resolution for skills.draft -----------------------------------
     def journal_for_draft(self, session_id: str) -> dict:
         with self._lock:
             now = self.clock()
@@ -1088,5 +1088,5 @@ def get_store() -> RecordStore:
 
 
 def reset_store() -> None:
-    """Vide le singleton (tests, et rien d'autre)."""
+    """Clear the singleton (tests, and nothing else)."""
     get_store().reset()

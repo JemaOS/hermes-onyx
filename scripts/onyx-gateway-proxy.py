@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Point d'entrée unique pour l'app Onyx : un seul hôte public sert les deux serveurs Hermes.
+"""Single entry point for the Onyx app: one public host serves both Hermes servers.
 
-- `/v1/...`  → serveur API du gateway (127.0.0.1:8642)  : le chat, qui fait tourner l'agent.
-- tout le reste (`/api/...`, `/auth/...`, `/assets/...`, `/`) → dashboard (127.0.0.1:9119) :
-  sessions, cron, kanban, fichiers, mémoire, gateway.
+- `/v1/...`  → gateway API server (127.0.0.1:8642)  : the chat, which runs the agent.
+- everything else (`/api/...`, `/auth/...`, `/assets/...`, `/`) → dashboard (127.0.0.1:9119) :
+  sessions, cron, kanban, files, memory, gateway.
 
-Pourquoi : l'app exige deux adresses distinctes (API + Dashboard) et il est très facile de les
-confondre — erreur qui se traduit par « 404 Endpoint introuvable » ou « 401 ». Avec ce proxy,
-**la même adresse marche dans les deux champs**.
+Why: the app requires two distinct addresses (API + Dashboard) and it is very easy to
+confuse them — an error that translates to "404 Endpoint not found" or "401". With this proxy,
+**the same address works in both fields**.
 
-Lancement : voir /home/john/start-proxy.sh. Écoute sur 127.0.0.1:8650 (à exposer par un tunnel).
+Launch: see /home/john/start-proxy.sh. Listens on 127.0.0.1:8650 (to be exposed by a tunnel).
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ API_HOST, API_PORT = "127.0.0.1", 8642
 DASH_HOST, DASH_PORT = "127.0.0.1", 9119
 LISTEN_HOST, LISTEN_PORT = "127.0.0.1", 8650
 
-# Ces en-têtes ne se relayent pas d'un saut à l'autre.
+# These headers are not relayed from one hop to the next.
 HOP_BY_HOP = {
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
     "te", "trailers", "transfer-encoding", "upgrade",
@@ -30,7 +30,7 @@ HOP_BY_HOP = {
 
 
 def upstream_for(path: str) -> tuple[str, int]:
-    """Route selon le chemin : l'API pour `/v1`, le dashboard pour tout le reste."""
+    """Route according to the path: the API for `/v1`, the dashboard for everything else."""
     return (API_HOST, API_PORT) if path.startswith("/v1/") else (DASH_HOST, DASH_PORT)
 
 
@@ -38,7 +38,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "OnyxGatewayProxy/1.0"
 
-    def log_message(self, fmt: str, *args) -> None:  # journal compact
+    def log_message(self, fmt: str, *args) -> None:  # compact log
         sys.stderr.write("proxy: " + (fmt % args) + "\n")
         sys.stderr.flush()
 
@@ -49,9 +49,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         headers = {k: v for k, v in self.headers.items() if k.lower() not in HOP_BY_HOP}
         headers["Host"] = f"{host}:{port}"
-        # Sans terminateur TLS devant cette connexion, le client parle réellement HTTP.
-        # Cloudflared fournit X-Forwarded-Proto=https : le conserver pour que les cookies
-        # Secure restent limités à HTTPS, sans en fabriquer pour le HTTP local.
+        # With no TLS terminator in front of this connection, the client actually speaks HTTP.
+        # Cloudflared provides X-Forwarded-Proto=https: keep it so that Secure
+        # cookies stay limited to HTTPS, without fabricating one for local HTTP.
         headers.setdefault("X-Forwarded-Proto", "http")
 
         conn = http.client.HTTPConnection(host, port, timeout=600)
@@ -64,7 +64,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if key.lower() in HOP_BY_HOP or key.lower() == "content-length":
                     continue
                 self.send_header(key, value)
-            # Réponses en flux (SSE du chat) : on relaie en chunked, sans bufferiser.
+            # Streaming responses (chat SSE): relay as chunked, without buffering.
             streaming = upstream.getheader("Transfer-Encoding", "").lower() == "chunked" or \
                 upstream.getheader("Content-Type", "").startswith("text/event-stream")
             if streaming:
@@ -75,8 +75,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
             if streaming:
-                # read(4096) attend de remplir tout le tampon et peut taire un petit heartbeat
-                # SSE jusqu'au timeout du client. read1 relaie chaque chunk disponible aussitôt.
+                # read(4096) waits to fill the whole buffer and can silence a small heartbeat
+                # SSE until the client timeout. read1 relays each available chunk immediately.
                 while True:
                     payload = upstream.read1(65536)
                     if not payload:
@@ -90,7 +90,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             else:
                 self.wfile.write(raw)
                 self.wfile.flush()
-        except Exception as exc:  # upstream injoignable : erreur lisible pour l'app
+        except Exception as exc:  # upstream unreachable: readable error for the app
             self.log_message("échec du relais vers %s:%s -> %s", host, port, exc)
             try:
                 self.send_response(502)

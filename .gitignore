@@ -5,7 +5,7 @@ local.properties
 .idea/
 .DS_Store
 captures/
-# **Les captures du README sont versionnées** : ce sont elles qu'on montre.
+# **README screenshots are versioned**: they are what we show.
 !docs/captures/**
 .externalNativeBuild/
 .cxx/
@@ -15,22 +15,24 @@ captures/
 *.keystore
 keystore.properties
 
-# Harnais QA fonctionnelle (captures, scripts ADB locaux)
+# Functional QA harness (screenshots, local ADB scripts)
 .qa/
 
-# Outils Python
+# Python tooling and bytecode
+__pycache__/
+*.pyc
 tools/__pycache__/
 
-# Harnais QA des lots (scripts Python)
+# Batch QA harness (Python scripts)
 qa/**/__pycache__/
 
-# Caches Gradle Kotlin (artefacts de build)
+# Gradle/Kotlin build caches
 .kotlin/
 
-# Les journaux du lot « appel de l'agent » (émulateur, recette).
+# Logs from the "agent call" batch (emulator, recipe).
 qa-appel-*.log
 
-# Journaux du lot « appel de l'agent ».
+# Logs from the "agent call" batch.
 qa-recipe.log
 qa-tests.log
 qa/20261028-appel-agent/*.log
@@ -40,11 +42,11 @@ tools/gateway-plugin-onyx-calls/__pycache__/
 qa/captures/
 qa/comparaison/
 qa/*.log
-# Lot réflexion discrète : les captures pleine résolution (~100 Mo) restent hors du dépôt ; les
-# paires livrées sont dans qa/20261029-reflexion-discrete/captures/.
+# Quiet-reflection batch: full-resolution screenshots (~100 MB) stay out of the repository; the
+# delivered pairs are in qa/20261029-reflexion-discrete/captures/.
 qa/20261029-reflexion-discrete/shots/
 
-# Le harnais de recette du lot « fichiers résolus » (captures et racine servie).
+# Recipe harness for the "resolved files" batch (screenshots and served root).
 qa/20261030-fichiers-resolution/shots/
 qa/20261030-fichiers-resolution/server-root/
 qa/20261030-fichiers-resolution/__pycache__/
