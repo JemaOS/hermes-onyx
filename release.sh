@@ -83,11 +83,14 @@ VC="$(printf '%s' "$BAD" | sed -E "s/.*versionCode='([0-9]+)'.*/\1/")"
 # ("1.3.96") through: since 1.3.x the published number is no longer a bare code, and prefixing
 # it produced a `v1.0.0+1.3.96` tag that does not exist.
 case "$VERSION" in
-  *+*) : ;;                        # already complete
-  ''|*[!0-9]*) : ;;                # 1.3.96: versionName as is
-  *) VERSION="1.0.0+$VERSION" ;;   # "586": old style
+  *+*) CODE="${VERSION##*+}" ;;    # "1.0.0+586": already complete
+  [0-9]*)                         # "586" (old style) or "1.3.99" (the value comes from the APK)
+    case "$VERSION" in
+      *.*.*) CODE="$VC" ;;         # 1.3.x: the code is the `versionCode` of the APK
+      *) VERSION="1.0.0+$VERSION"; CODE="$VERSION"; CODE="${CODE##*+}" ;;
+    esac ;;
+  *) CODE="$VC" ;;                 # unreadable version: fall back on the code of the APK
 esac
-CODE="${VERSION##*+}"
 say "Version"
 info "APK téléphone        : $VN (versionCode $VC)"
 info "version de publication : $VERSION"
@@ -131,6 +134,12 @@ cp "$TMP/sums" "$SUMS"; info "écrit (temporaire, publié en asset) : $SUMS"
 say "Textes publics"
 [ -n "$SIDECAR" ] || SIDECAR="$VERSION"
 [ -n "$TESTS" ]   || TESTS="__TESTS__"
+# The tag follows the house form `v<version>+<versionCode>`: it is the number, in the tag, that
+# the updater reads. Without a code (old style), the tag stays `v<version>`.
+case "$CODE" in
+  ''|*[!0-9]*) TAG="v${VERSION}" ;;
+  *) TAG="v${VERSION}+${CODE}" ;;
+esac
 render() { sed -e "s/__VERSION__/${VERSION}/g" -e "s/__CODE__/${CODE}/g" -e "s/__SIDECAR__/${SIDECAR}/g" -e "s/__TESTS__/${TESTS}/g" "$1"; }
 
 NOTES_SRC="$ROOT/releases/NOTES-__VERSION__.md"
@@ -147,6 +156,9 @@ else
     printf '**Packages:** `onyx-app-%s-release.apk`, `onyx-auto-%s-release.apk`, `onyx-wear-%s-release.apk`; checksums in `SHA256SUMS-%s.txt`.\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION"
     printf '**Test suite:** %s tests.\n\n---\n\n' "$TCOUNT"
     PREV="$(git tag --merged HEAD --sort=-v:refname | head -1)"
+    # A tag in the house form (`v1.3.99+1231`) names the release; compare on the version part only,
+    # otherwise `git log` never matches it and the list replays the whole history.
+    PREV_BASE="${PREV%%+*}"
     printf "## What's Changed\n\n"
     if [ -n "$PREV" ]; then
       RANGE="$PREV..HEAD"
@@ -166,7 +178,7 @@ else
       fi
       # Then the direct commits that are not part of a merged pull request.
       git log --no-merges --pretty='- %s (%h)' $RANGE
-      printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$REPO" "$PREV" "$TAG"
+      printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$REPO" "$PREV" "${TAG//+*/}"
     else
       git log --no-merges --pretty='- %s (%h)' -20
     fi
@@ -196,7 +208,6 @@ else
 fi
 
 # --- 6. GitHub release -----------------------------------------------------------------------
-TAG="v${VERSION}"
 ASSETS=("$PHONE"); [ -n "$AUTO" ] && ASSETS+=("$AUTO"); [ -n "$WEAR" ] && ASSETS+=("$WEAR")
 # The checksums file is published with the packages (the asset is named "SHA256SUMS-<version>").
 ASSETS+=("$SUMS")
