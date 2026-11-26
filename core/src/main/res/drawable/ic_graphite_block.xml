@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path android:pathData="M0.0,0.0 h64.0 v64.0 h-64.0 Z" android:fillColor="#FF2A313D" />
+    <group android:translateX="0" android:translateY="2.2">
+      <path android:pathData="M8.5,32 A23.5,22 0 1 1 55.5,32 A23.5,22 0 1 1 8.5,32 Z" android:fillColor="#990A1224" />
+    </group>
+    <path android:pathData="M0.0,0.0 h64.0 v64.0 h-64.0 Z" android:fillColor="#FF3B4453" />
+    <path android:pathData="M26.90,38.80L37.10,28.82L32.00,23.20L26.90,28.82L37.10,38.80Z" android:fillColor="@android:color/transparent" android:strokeColor="#FFE4E9F1" android:strokeWidth="3.0" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M4,80 L60,80 L60,62 L4,62 L4,80 Z" android:fillColor="#FF000000" />
+    <path android:pathData="M4,80 L60,80" android:fillColor="@android:color/transparent" android:strokeColor="#8CB9CBE6" android:strokeWidth="4.0" />
+    <path android:pathData="M4,80 L60,80" android:fillColor="@android:color/transparent" android:strokeColor="#FFFF9FC0" android:strokeWidth="1.5" />
+    <path android:pathData="M4,80 L60,80" android:fillColor="@android:color/transparent" android:strokeColor="#E6FFFFFF" android:strokeWidth="0.45" />
+    <path android:pathData="M0.0,0.0 h64.0 v64.0 h-64.0 Z" android:fillColor="#FF000000" />
+    <path android:pathData="M16.0,15.5 a8.0,3.2 0 1,0 16.0,0 a8.0,3.2 0 1,0 -16.0,0 Z" android:fillColor="#59FFFFFF" />
+    <path android:pathData="M8.5,32 A23.5,22 0 1 1 55.5,32 A23.5,22 0 1 1 8.5,32 Z" android:fillColor="@android:color/transparent" android:strokeColor="#38FFFFFF" android:strokeWidth="0.7" />
+    <path android:pathData="M8.5,32 A23.5,22 0 1 1 55.5,32 A23.5,22 0 1 1 8.5,32 Z" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="0.9" />
+    <path android:pathData="M9.7,36 A22.3,22.3 0 0 1 14.5,19" android:fillColor="@android:color/transparent" android:strokeColor="#B27FE3FF" android:strokeWidth="0.9" />
+    <path android:pathData="M10.1,41 A21.9,21.9 0 0 1 9.9,34" android:fillColor="@android:color/transparent" android:strokeColor="#4CFFB070" android:strokeWidth="0.7" />
+</vector>
+<!-- Converti depuis graphite-block.svg -->

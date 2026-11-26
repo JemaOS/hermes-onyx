@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FF1E2A78" />
+    <path android:pathData="M232.0,672.0 a120.0,120.0 0 1,0 240.0,0 a120.0,120.0 0 1,0 -240.0,0 Z" android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="44.0" android:strokeLineCap="round" />
+    <path android:pathData="M352 400 A272 272 0 0 1 624 672" android:fillColor="@android:color/transparent" android:strokeColor="#D99EC5FF" android:strokeWidth="40.0" android:strokeLineCap="round" />
+    <path android:pathData="M352 260 A412 412 0 0 1 764 672" android:fillColor="@android:color/transparent" android:strokeColor="#8C9EC5FF" android:strokeWidth="36.0" android:strokeLineCap="round" />
+    <path android:pathData="M352 120 A552 552 0 0 1 904 672" android:fillColor="@android:color/transparent" android:strokeColor="#4C9EC5FF" android:strokeWidth="32.0" android:strokeLineCap="round" />
+    <path android:pathData="M296.0,672.0 a56.0,56.0 0 1,0 112.0,0 a56.0,56.0 0 1,0 -112.0,0 Z" android:fillColor="#FFFFFFFF" />
+</vector>
+<!-- Converti depuis A-ripple.svg -->

@@ -1,0 +1,18 @@
+# LA RUNE DE LA MAISON — référence de forme, copiée mot pour mot.
+#
+# Source : la couche de PREMIER PLAN de l'icône adaptative du lanceur, créée par le lot de l'icône
+#   adaptative — app/src/main/res/drawable/ic_launcher_adaptive_foreground.xml
+#   (branche lot/icone-adaptative, chemin de travail /home/john/onyx-icone-adaptative).
+# Le tracé y a été ajusté sur l'illustration de référence `ic_launcher_graphite_block` (le carré
+#   arrondi sombre, le cercle et la rune) jusqu'à 0,97 de recouvrement de silhouette (IoU).
+#
+# Ce fichier est la copie gelée qui sert de juge : le tracé de l'application — celui de
+#   `com/onyx/app/ui/design/OnyxRune.kt`, et celui de la ressource
+#   `core/src/main/res/drawable/ic_launcher_foreground.xml` — doit être IDENTIQUE à lui.
+# Toute divergence fait échouer RuneSourceUniqueTest en nommant le fichier et la ligne.
+#
+# Le tracé est OUVERT : cinq sommets, aucun « Z ». Le glyphe que l'application dessinait pour
+#   elle-même le REFERMAIT (`… L68.25,75.81Z`), ce qui faisait deux runes voisines dans la même
+#   application — le défaut que la source unique supprime.
+pathData=M47.15,64.73 L61.08,50.80 L54,43.27 L46.92,50.80 L60.85,64.73
+strokeWidth=3.88

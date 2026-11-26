@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wear_app_name">Onyx</string>
+    <string name="wear_tile_label">Ask Onyx</string>
+    <string name="wear_tile_description">Ask your server a question from the watch.</string>
+    <string name="wear_hold_to_talk">Hold to talk</string>
+</resources>

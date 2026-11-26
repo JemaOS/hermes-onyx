@@ -1,0 +1,6 @@
+Signée par la clé de version du projet (RSA 4096), celle que porteront les mises à jour suivantes.
+
+- Tout ce que livrait la 1.3.96 : le mains libres suit la langue de l'app, les feuilles du bas atteignent le bas de l'écran, le Markdown s'enrichit, l'onglet Code et l'écran Ordinateur arrivent.
+- Thèmes clair et sombre, français et anglais, aucune télémétrie.
+
+Une version signée par l'ancienne clé est installée ? Désinstallez-la d'abord : Android refuse une mise à jour qui change de signature.

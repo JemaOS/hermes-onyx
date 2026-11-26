@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FF0E9C8B" />
+    <path android:pathData="M232 250 h560 a90 90 0 0 1 90 90 v300 a90 90 0 0 1 -90 90 h-300 l-170 130 v-130 h-90 a90 90 0 0 1 -90 -90 v-300 a90 90 0 0 1 90 -90z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M376.0,450.0 L376.0,530.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF0E9C8B" android:strokeWidth="44.0" android:strokeLineCap="round" />
+    <path android:pathData="M460.0,400.0 L460.0,580.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF0E9C8B" android:strokeWidth="44.0" android:strokeLineCap="round" />
+    <path android:pathData="M544.0,350.0 L544.0,630.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF0E9C8B" android:strokeWidth="44.0" android:strokeLineCap="round" />
+    <path android:pathData="M628.0,410.0 L628.0,570.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF0E9C8B" android:strokeWidth="44.0" android:strokeLineCap="round" />
+    <path android:pathData="M712.0,460.0 L712.0,520.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF0E9C8B" android:strokeWidth="44.0" android:strokeLineCap="round" />
+</vector>
+<!-- Converti depuis D-bubble.svg -->

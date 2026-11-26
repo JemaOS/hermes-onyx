@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FF1D66D9" />
+    <path android:pathData="M330 250 h480 a80 80 0 0 1 80 80 v260 a80 80 0 0 1 -80 80 h-120 l-120 110 v-110 h-240 a80 80 0 0 1 -80 -80 v-260 a80 80 0 0 1 80 -80z" android:fillColor="@android:color/transparent" android:strokeColor="#80FFFFFF" android:strokeWidth="46.0" />
+    <path android:pathData="M200 380 h480 a80 80 0 0 1 80 80 v260 a80 80 0 0 1 -80 80 h-240 l-120 110 v-110 h-120 a80 80 0 0 1 -80 -80 v-260 a80 80 0 0 1 80 -80z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M330.0,540.0 L330.0,620.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="40.0" android:strokeLineCap="round" />
+    <path android:pathData="M410.0,500.0 L410.0,660.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="40.0" android:strokeLineCap="round" />
+    <path android:pathData="M490.0,460.0 L490.0,700.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="40.0" android:strokeLineCap="round" />
+    <path android:pathData="M570.0,510.0 L570.0,650.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="40.0" android:strokeLineCap="round" />
+    <path android:pathData="M650.0,550.0 L650.0,610.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="40.0" android:strokeLineCap="round" />
+</vector>
+<!-- Converti depuis D-reply.svg -->

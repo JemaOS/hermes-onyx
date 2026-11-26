@@ -1,0 +1,57 @@
+*.iml
+.gradle/
+build/
+local.properties
+.idea/
+.DS_Store
+captures/
+# **README screenshots are versioned**: they are what we show.
+!docs/captures/**
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.jks
+*.keystore
+keystore.properties
+
+# Functional QA harness (screenshots, local ADB scripts)
+.qa/
+
+# Python tooling and bytecode
+__pycache__/
+*.pyc
+tools/__pycache__/
+
+# Batch QA harness (Python scripts)
+qa/**/__pycache__/
+
+# Gradle/Kotlin build caches
+.kotlin/
+
+# Logs from the "agent call" batch (emulator, recipe).
+qa-appel-*.log
+
+# Logs from the "agent call" batch.
+qa-recipe.log
+qa-tests.log
+qa/20261028-appel-agent/*.log
+qa/20261028-appel-agent/state.json*
+qa/20261028-appel-agent/captures-*/
+tools/gateway-plugin-onyx-calls/__pycache__/
+qa/captures/
+qa/comparaison/
+qa/*.log
+# Quiet-reflection batch: full-resolution screenshots (~100 MB) stay out of the repository; the
+# delivered pairs are in qa/20261029-reflexion-discrete/captures/.
+qa/20261029-reflexion-discrete/shots/
+
+# Recipe harness for the "resolved files" batch (screenshots and served root).
+qa/20261030-fichiers-resolution/shots/
+qa/20261030-fichiers-resolution/server-root/
+qa/20261030-fichiers-resolution/__pycache__/
+qa/2026-10-30-actions-section/apk/
+qa/2026-10-30-actions-section/__pycache__/
+qa/2026-10-30-actions-section/mock.log
+Hermes-Onyx-*.apk
+Hermes-Onyx-*.apk.sha256

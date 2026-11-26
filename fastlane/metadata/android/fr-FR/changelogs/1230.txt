@@ -1,0 +1,5 @@
+Le pourboire disparaît, et la bibliothèque de facturation de Google Play avec lui : toutes les dépendances sont désormais libres.
+
+- L'APK perd environ 300 Ko, et l'application ne demande plus la permission de facturation.
+- Tout ce que la 1.3.97 apportait, signé avec la clé de release : chat en flux, bots et salons, voix mains-libres.
+- Thèmes clair et sombre, français et anglais, aucune télémétrie.

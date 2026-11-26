@@ -1,0 +1,474 @@
+package com.onyx.app.localization
+
+/** Traductions des réglages, de la confidentialité, du gateway et des outils du téléphone. */
+internal val onyxSettingsFrench: Map<String, String> = linkedMapOf(
+    // Verrouillage et délais.
+    "Immediately" to "Immédiatement",
+    "1 minute" to "1 minute",
+    "5 minutes" to "5 minutes",
+    "15 minutes" to "15 minutes",
+    "1 hour" to "1 heure",
+    "Face or fingerprint" to "Visage ou empreinte digitale",
+    "Require Face or fingerprint" to "Exiger le visage ou l’empreinte",
+    "Require a passcode" to "Exiger un code",
+    "Lock" to "Verrouillage",
+    "Onyx asks for your face or fingerprint when it comes back, once the delay has passed." to "Onyx demande votre visage ou votre empreinte à son retour, une fois le délai écoulé.",
+    "Lock after" to "Verrouiller après",
+    "Passcode" to "Code",
+    "Kept on this phone, salted and hashed; it never leaves it. Enter a new one to replace it." to "Conservé sur ce téléphone, salé et haché ; il ne le quitte jamais. Saisissez-en un nouveau pour le remplacer.",
+    "A code of your own, in case the phone's biometry isn't available." to "Un code personnel, si la biométrie du téléphone n’est pas disponible.",
+    "New passcode" to "Nouveau code",
+    "Change the passcode" to "Modifier le code",
+    "Set the passcode" to "Définir le code",
+    "Remove the passcode" to "Supprimer le code",
+    "That code isn't a Onyx connection." to "Ce code n’est pas une connexion Onyx.",
+    "Connect" to "Connecter",
+    "Set up another device" to "Configurer un autre appareil",
+    "Scan this on the other phone, in Settings › Servers › Set up connection." to "Scannez ce code sur l’autre téléphone, dans Réglages › Serveurs › Configurer la connexion.",
+    "Connection QR code" to "Code QR de connexion",
+    "The code couldn't be drawn." to "Impossible de générer le code.",
+    "The code carries this server's address and keys. Treat it like a password." to "Ce code contient l’adresse et les clés de ce serveur. Traitez-le comme un mot de passe.",
+    "Scan a Onyx connection" to "Scanner une connexion Onyx",
+    "Scan a code instead" to "Scanner un code à la place",
+
+    // Outils du téléphone.
+    "Look up your events and add new ones." to "Consulter vos événements et en ajouter de nouveaux.",
+    "Allow reading" to "Autoriser la lecture",
+    "Read your reminders, add one, mark one done." to "Lire vos rappels, en ajouter un et en marquer un comme terminé.",
+    "Contacts" to "Contacts",
+    "Look someone up: names, numbers, addresses. It can't change them." to "Rechercher une personne : noms, numéros, adresses. Aucune modification possible.",
+    "Photos" to "Photos",
+    "Find photos by date, kind and what they show." to "Rechercher des photos par date, type et contenu.",
+    "Read and save files in Onyx's folder in the Files app." to "Lire et enregistrer des fichiers dans le dossier Onyx de l’app Fichiers.",
+    "Alarms" to "Alarmes",
+    "Set an alarm or a timer, see the ones it set, and cancel one." to "Régler une alarme ou une minuterie, voir celles créées et en annuler une.",
+    "Widget" to "Widget",
+    "Write a few lines on Onyx's “From Your Agent” widget." to "Écrire quelques lignes sur le widget « De votre agent » de Onyx.",
+    "Calls and Messages" to "Appels et messages",
+    "Start a call, and write a message for you to send." to "Démarrer un appel et rédiger un message que vous pourrez envoyer.",
+    "Ask each time" to "Demander à chaque fois",
+    "Phone tools" to "Outils du téléphone",
+    "What it may use" to "Ce qu’il peut utiliser",
+    "Ask each time puts the request in front of you before anything happens; Allow lets it run." to "« Demander à chaque fois » vous présente la demande avant toute action ; « Autoriser » permet son exécution.",
+    "The widget" to "Le widget",
+    "A few lines the agent can put on Onyx's “From Your Agent” widget." to "Quelques lignes que l’agent peut afficher sur le widget « De votre agent » de Onyx.",
+    "What to show on the widget" to "Contenu du widget",
+    "Asked for lately" to "Demandes récentes",
+    "Nothing yet." to "Rien pour le moment.",
+
+    // Gateway, fichiers et maintenance.
+    "Couldn't reach the Dashboard." to "Impossible de contacter le Dashboard.",
+    "Couldn't load the board" to "Impossible de charger le tableau",
+    "Couldn't open this folder" to "Impossible d’ouvrir ce dossier",
+    "Couldn't fetch it:" to "Impossible de le récupérer :",
+    "unknown error" to "erreur inconnue",
+    "Making the folder…" to "Création du dossier…",
+    "Couldn't reach the gateway" to "Impossible de contacter le gateway",
+    "Couldn't reach the gateway." to "Impossible de contacter le gateway.",
+    "Logs" to "Journaux",
+    "A turn is running. Restarting ends it." to "Un tour est en cours. Le redémarrage y mettra fin.",
+    "It comes back on its own in a few seconds." to "Il reviendra automatiquement dans quelques secondes.",
+    "Restart" to "Redémarrer",
+    "Update Hermes?" to "Mettre à jour Hermes ?",
+    "Hermes updates on its host and the gateway restarts. A turn that is running ends." to "Hermes se met à jour sur son hôte et le gateway redémarre. Tout tour en cours sera interrompu.",
+    "Update Hermes" to "Mettre à jour Hermes",
+    "Turns running" to "Tours en cours",
+    "Host" to "Hôte",
+    "Up for" to "Actif depuis",
+    "Memory in use" to "Mémoire utilisée",
+    "Disk in use" to "Disque utilisé",
+    "Connections" to "Connexions",
+    "What the gateway is connected to. Messaging platforms are set up on the Hermes host." to "Les connexions du gateway. Les plateformes de messagerie se configurent sur l’hôte Hermes.",
+    "MCP servers" to "Serveurs MCP",
+    "A switch changes Hermes's config, as the Dashboard's own does. It takes effect in new conversations. Test has Hermes connect to the server and list its tools." to "Un interrupteur modifie la configuration de Hermes, comme dans le Dashboard. Il s’applique aux nouvelles conversations. Tester demande à Hermes de se connecter au serveur et d’énumérer ses outils.",
+    "No MCP servers are set up on this Hermes." to "Aucun serveur MCP n’est configuré sur cet Hermes.",
+    "Test" to "Tester",
+    "Maintenance" to "Maintenance",
+    "Hermes updates itself on its host; the gateway restarts when it is done." to "Hermes se met à jour sur son hôte ; le gateway redémarre une fois terminé.",
+    "This Hermes can't be updated from Onyx. Update it on the host." to "Cet Hermes ne peut pas être mis à jour depuis Onyx. Mettez-le à jour sur l’hôte.",
+    "Restart Gateway…" to "Redémarrer le gateway…",
+    "Restarting the gateway…" to "Redémarrage du gateway…",
+    "Check for Updates" to "Rechercher des mises à jour",
+    "Update Hermes…" to "Mettre à jour Hermes…",
+    "Updating Hermes…" to "Mise à jour de Hermes…",
+    "Hermes is up to date." to "Hermes est à jour.",
+    "Done." to "Terminé.",
+    "It didn't finish." to "L’opération n’a pas abouti.",
+
+    // Réglages principaux et connexion.
+    "Answering" to "Réponses",
+    "Return sends the message. On a keyboard, Shift-Return starts a new line; for a long message, the field's editor button opens a page where Return always does.\n\n“Suggest follow-up questions” shows three things you might ask next under each reply, written by the model on your OpenAI-compatible connection (it needs that address set, whichever connection the conversation uses)." to "La touche Retour envoie le message. Sur un clavier, Maj+Retour commence une nouvelle ligne ; pour un long message, le bouton d’édition du champ ouvre une page où Retour le fait toujours.\n\n« Suggérer des questions de suivi » affiche trois questions possibles sous chaque réponse, rédigées par le modèle de votre connexion compatible OpenAI (son adresse doit être configurée, quelle que soit la connexion utilisée par la conversation).",
+    "Return starts a new line, and the Send button sends. On a keyboard, ⌘Return sends.\n\n“Suggest follow-up questions” shows three things you might ask next under each reply, written by the model on your OpenAI-compatible connection (it needs that address set, whichever connection the conversation uses)." to "La touche Retour commence une nouvelle ligne et le bouton Envoyer envoie le message. Sur un clavier, ⌘Retour l’envoie.\n\n« Suggérer des questions de suivi » affiche trois questions possibles sous chaque réponse, rédigées par le modèle de votre connexion compatible OpenAI (son adresse doit être configurée, quelle que soit la connexion utilisée par la conversation).",
+    "Context, memory, files and the gateway are edited in place on the Hermes host, through its Dashboard." to "Le contexte, la mémoire, les fichiers et le gateway sont modifiés directement sur l’hôte Hermes, via son Dashboard.",
+    "Context files" to "Fichiers de contexte",
+    "The gateway didn't say where the agent's folder is." to "Le gateway n’a pas indiqué où se trouve le dossier de l’agent.",
+    "Loading %1\$s…" to "Chargement de %1\$s…",
+    "This file doesn't exist yet. Saving creates it." to "Ce fichier n’existe pas encore. L’enregistrer le créera.",
+    "Nothing is at this path, and the Hermes Dashboard didn't say where this profile keeps its files. Saving creates the file here." to "Aucun fichier ne se trouve à ce chemin et le Dashboard Hermes n’a pas indiqué où ce profil conserve ses fichiers. L’enregistrer créera le fichier ici.",
+    "The agent's persona: who Onyx is, how it speaks, what it values." to "La personnalité de l’agent : qui est Onyx, comment il s’exprime et ce qui compte pour lui.",
+    "Standing facts about your setup: machines, services, names, conventions." to "Les faits permanents sur votre environnement : machines, services, noms et conventions.",
+    "The agent's own notes: things it decided to remember across conversations. Injected into every system prompt." to "Les notes de l’agent : ce qu’il a choisi de retenir entre les conversations. Elles sont injectées dans chaque invite système.",
+    "What the agent knows about you: preferences, facts, how you like answers. Also injected into every prompt." to "Ce que l’agent sait de vous : préférences, faits et votre façon d’aimer les réponses. Ces informations sont aussi injectées dans chaque invite.",
+    "Discard changes?" to "Abandonner les modifications ?",
+    "Your edits haven't been saved." to "Vos modifications n’ont pas été enregistrées.",
+    "Keep Editing" to "Continuer la modification",
+    "Discard" to "Abandonner",
+    "Notifications" to "Notifications",
+    // Les deux en-têtes de section qui restaient en anglais : « PHONE » et « ACCOUNT » se
+    // lisaient tels quels au milieu de « PASSERELLE », « VOIX », « CONFIDENTIALITÉ » (relevé sur
+    // 1.0.0+546, 411 dp). Aucune de ces deux clés n'est employée ailleurs comme libellé de ligne :
+    // ce sont les en-têtes de `OnyxFormSection`, et rien d'autre.
+    "Phone" to "Téléphone",
+    "Account" to "Compte",
+    "Android" to "Android",
+    "Notification settings" to "Réglages de notifications",
+    "Notify me in the background" to "M’alerter en arrière-plan",
+    "Notification sound" to "Son des notifications",
+    // LOT veille-des-reponses : la ligne qui fait relire le journal des sessions en arrière-plan.
+    // Sans relais ni service de push : c'est une lecture HTTP directe, toutes les quinze minutes
+    // au plus tôt, vers le serveur déjà configuré.
+    "Notify me when a reply arrives, app closed" to "Me prévenir quand une réponse arrive, app fermée",
+    "Ongoing answer notification" to "Notification de réponse en cours",
+    "Channels" to "Canaux",
+    "No channels yet." to "Aucun canal pour le moment.",
+    "Not created yet" to "Pas encore créé",
+    "Send a test notification" to "Envoyer une notification de test",
+    "Test notification" to "Notification de test",
+    "This is what an alert looks like. Onyx posts them on this phone." to "Voici à quoi ressemble une alerte. Onyx les publie sur ce téléphone.",
+    "Android keeps one channel for each kind of alert: when a reply is ready, when the agent waits for you (an approval, a question, a password) and when it couldn't reply. Tap a channel to change its sound or turn it off in Android's settings; Onyx can't change those settings itself. Nothing passes through a relay — every notification is posted on this phone, from the connection in Settings." to "Android garde un canal par type d’alerte : quand une réponse est prête, quand l’agent vous attend (une approbation, une question, un mot de passe) et quand il n’a pas pu répondre. Touchez un canal pour changer son son ou l’éteindre dans les réglages d’Android ; Onyx ne peut pas modifier ces réglages lui-même. Rien ne passe par un relais : chaque notification est publiée sur ce téléphone, depuis la connexion des Réglages.",
+    "Silent approvals" to "Approbations silencieuses",
+    "Android allows Onyx to post notifications. System and channel settings take precedence over the choices below." to "Android autorise Onyx à publier des notifications. Les réglages du système et des canaux priment sur les choix ci-dessous.",
+    "Android is blocking Onyx notifications. Open its settings, allow notifications, then return here to enable background alerts." to "Android bloque les notifications de Onyx. Ouvrez ses réglages, autorisez les notifications, puis revenez ici pour activer les alertes en arrière-plan.",
+    "Background alerts tell you when an agent needs an approval while you use another app. They work while Android lets Onyx run; force-stopping Onyx stops them. The ongoing answer notification shows progress and keeps the current turn alive." to "Les alertes en arrière-plan vous signalent qu’un agent attend une approbation pendant que vous utilisez une autre app. Elles fonctionnent tant qu’Android laisse Onyx s’exécuter ; forcer l’arrêt de Onyx les interrompt. La notification de réponse en cours affiche la progression et maintient le tour actif.",
+    "Privacy" to "Confidentialité",
+    "Onyx for Android, a client for your own Hermes server." to "Onyx pour Android, un client pour votre propre serveur Hermes.",
+    "Acknowledgements" to "Remerciements",
+
+    // L'écran des remerciements : l'introduction, les deux groupes, puis une ligne par composant.
+    // Chaque ligne dit aussi la licence et l'attribution exactes — la page ne crédite que ce que
+    // l'app embarque ou ce que le poste fait tourner (aucune bibliothèque d'une autre plateforme).
+    "Onyx draws math with KaTeX and diagrams with mermaid, both embedded in the app and used offline; its terminal is written here and speaks SSH with sshj. The rest comes from Android's libraries and from the services running on your own PC." to "Onyx dessine les mathématiques avec KaTeX et les diagrammes avec Mermaid, tous deux embarqués dans l'app et utilisés hors ligne ; son terminal est écrit ici même et parle SSH avec sshj. Le reste vient des bibliothèques Android et des services qui tournent sur votre PC.",
+    "On this phone" to "Sur ce téléphone",
+    "On your PC" to "Sur votre PC",
+    "Every screen is drawn with Compose — Apache License 2.0, © The Android Open Source Project." to "Chaque écran est dessiné avec Compose — licence Apache 2.0, © The Android Open Source Project.",
+    "AndroidX and Jetpack bring the platform pieces the app relies on (lifecycle, activity, DataStore, CameraX, Biometric, Glance) — Apache License 2.0, © The Android Open Source Project." to "AndroidX et Jetpack apportent les briques de la plateforme dont l'app dépend (cycle de vie, activité, DataStore, CameraX, biométrie, Glance) — licence Apache 2.0, © The Android Open Source Project.",
+    "Coroutines keep the screens responsive while the network works — Apache License 2.0, © JetBrains s.r.o. and contributors." to "Les coroutines gardent les écrans fluides pendant que le réseau travaille — licence Apache 2.0, © JetBrains s.r.o. et contributeurs.",
+    "Serialization reads the JSON the gateway returns — Apache License 2.0, © JetBrains s.r.o. and contributors." to "La sérialisation lit le JSON que renvoie le gateway — licence Apache 2.0, © JetBrains s.r.o. et contributeurs.",
+    "OkHttp carries every request to your server and fetches the map tiles — Apache License 2.0, © Square, Inc." to "OkHttp porte chaque requête vers votre serveur et va chercher les tuiles de carte — licence Apache 2.0, © Square, Inc.",
+    "Markwon renders the markdown of replies — Apache License 2.0, © Dimitry Ivanov (noties)." to "Markwon rend le markdown des réponses — licence Apache 2.0, © Dimitry Ivanov (noties).",
+    "sshj opens the SSH sessions of the terminal — Apache License 2.0, © Jeroen van Erp and contributors." to "sshj ouvre les sessions SSH du terminal — licence Apache 2.0, © Jeroen van Erp et contributeurs.",
+    "EdDSA-Java makes the Ed25519 keys this phone presents to your servers — CC0 1.0 Universal, © str4d and contributors." to "EdDSA-Java fabrique les clés Ed25519 que ce téléphone présente à vos serveurs — CC0 1.0 Universal, © str4d et contributeurs.",
+    "ZXing reads the QR codes that set the app up — Apache License 2.0, © the ZXing authors and JourneyApps." to "ZXing lit les codes QR qui configurent l'app — licence Apache 2.0, © les auteurs de ZXing et JourneyApps.",
+    "KaTeX renders mathematics offline, from the copy shipped in the app — MIT License, © 2013-2020 Khan Academy and other contributors." to "KaTeX rend les mathématiques hors ligne, depuis la copie livrée dans l'app — licence MIT, © 2013-2020 Khan Academy et autres contributeurs.",
+    "The mathematical fonts come with KaTeX, derived from Computer Modern — SIL Open Font License 1.1, © 2013-2020 Khan Academy and other contributors." to "Les polices mathématiques viennent avec KaTeX, dérivées de Computer Modern — SIL Open Font License 1.1, © 2013-2020 Khan Academy et autres contributeurs.",
+    "Mermaid draws the diagrams offline, from the copy shipped in the app — MIT License, © 2014-2022 Knut Sveidqvist." to "Mermaid dessine les diagrammes hors ligne, depuis la copie livrée dans l'app — licence MIT, © 2014-2022 Knut Sveidqvist.",
+    "Inter is the text face of the app — SIL Open Font License 1.1, © 2016 The Inter Project Authors." to "Inter est la police de texte de l'app — SIL Open Font License 1.1, © 2016 The Inter Project Authors.",
+    "Source Code Pro sets the code and the terminal — SIL Open Font License 1.1, © 2023 Adobe, with Reserved Font Name 'Source'." to "Source Code Pro compose le code et le terminal — SIL Open Font License 1.1, © 2023 Adobe, nom de police réservé « Source ».",
+    "The maps of replies are drawn from OpenStreetMap tiles, with the credit © OpenStreetMap kept under every map — Open Data Commons Open Database License 1.0, © OpenStreetMap contributors." to "Les cartes des réponses sont dessinées à partir des tuiles OpenStreetMap, avec la mention © OpenStreetMap gardée sous chaque carte — Open Data Commons Open Database License 1.0, © les contributeurs d'OpenStreetMap.",
+    "The terminal is not a third-party component: its screen, its buffer and its SSH session are written in this app, on top of the sshj library above — no other project to credit." to "Le terminal n'est pas un composant tiers : son écran, son tampon et sa session SSH sont écrits dans cette app, par-dessus la bibliothèque sshj ci-dessus — aucun autre projet à créditer.",
+    "Hermes, your own server, is the one that answers — MIT License, © 2025 Nous Research." to "Hermes, votre propre serveur, est celui qui répond — licence MIT, © 2025 Nous Research.",
+    "Kokoro gives the app its voices: the model weights are Apache License 2.0 (© hexgrad), served by Kokoro-FastAPI, also Apache License 2.0 (© remsky)." to "Kokoro fournit les voix de l'app : les poids du modèle sont sous licence Apache 2.0 (© hexgrad), servis par Kokoro-FastAPI, également Apache 2.0 (© remsky).",
+    // Le jeton du service vocal protégé (`VoiceSettingsScreen`, section Voix → Kokoro). Le libellé et
+    // sa note : le jeton ne va jamais dans l'adresse, il se saisit ici et part dans l'en-tête.
+    "Voice token" to "Jeton de la voix",
+    "Sent to the voice server as a bearer token. Leave it empty when the server needs none." to "Envoyé au service vocal comme jeton porteur. Laissez-le vide si le service n'en exige pas.",
+    "Piper adds French voices behind the same address — GNU General Public License 3.0 or later, © the Piper authors (piper-tts 1.8.0)." to "Piper ajoute des voix françaises derrière la même adresse — GNU General Public License 3.0 ou ultérieure, © les auteurs de Piper (piper-tts 1.8.0).",
+    "faster-whisper turns recorded speech into text on the PC — MIT License, © 2023 SYSTRAN." to "faster-whisper transforme la parole enregistrée en texte sur le PC — licence MIT, © 2023 SYSTRAN.",
+    "FFmpeg reads and converts the audio of recordings and videos. The build installed here is GPL (built with --enable-gpl, GNU General Public License 3); a build without those parts stays LGPL." to "FFmpeg lit et convertit l'audio des enregistrements et des vidéos. La compilation installée ici est GPL (bâtie avec --enable-gpl, GNU General Public License 3) ; une compilation sans ces parties reste LGPL.",
+    "cloudflared carries the tunnels that reach the voices and the computer screen when you are away from the PC — Apache License 2.0, © Cloudflare, Inc." to "cloudflared porte les tunnels qui atteignent les voix et l'écran du PC quand vous êtes loin du poste — licence Apache 2.0, © Cloudflare, Inc.",
+    "What's New" to "Nouveautés",
+    "Support Onyx" to "Soutenir Onyx",
+    "Servers" to "Serveurs",
+    "The server that answers. Tap a line to change its address, key and profile." to "Le serveur qui répond. Touchez une ligne pour modifier son adresse, sa clé et son profil.",
+    "No server yet" to "Aucun serveur pour le moment",
+    "Set up a server…" to "Configurer un serveur…",
+    "Add a server" to "Ajouter un serveur",
+    "Hermes API" to "API Hermes",
+    "not set up" to "non configuré",
+    "A Hermes gateway scopes its URL by profile; an OpenAI-compatible server (LM Studio, llama.cpp, OpenRouter…) does not." to "Un gateway Hermes limite son URL au profil ; un serveur compatible OpenAI (LM Studio, llama.cpp, OpenRouter…) ne le fait pas.",
+    "Transport" to "Transport",
+    "Hermes's own Dashboard (hermes serve) opens the gateway, the files, the context and memory files, the cron jobs and the kanban board." to "Le Dashboard propre à Hermes (hermes serve) ouvre le gateway, les fichiers, les fichiers de contexte et de mémoire, les tâches cron et le tableau kanban.",
+    "Test the connection" to "Tester la connexion",
+    "Base URL is empty." to "URL de base vide.",
+    "The server returned HTTP %1\$d.%2\$s" to "Le serveur a renvoyé HTTP %1\$d.%2\$s",
+    "Connected." to "Connecté.",
+    "Connected — %1\$d model(s)." to "Connecté — %1\$d modèle(s).",
+    // LOT anatomie-des-contenus : le compte du modèle s'accorde, et sans « (s) ».
+    "%1\$d model" to "%1\$d modèle",
+    "%1\$d models" to "%1\$d modèles",
+    // La ligne d'état d'une connexion mesurée : la **mesure** seule, jamais l'état une 2e fois.
+    "%1\$d ms" to "%1\$d ms",
+    "new attempt in %1\$d s" to "nouvelle tentative dans %1\$d s",
+    "Delete this server" to "Supprimer ce serveur",
+    "Every theme carries its own light and dark look; Appearance chooses which one you see." to "Chaque thème possède son apparence claire et sombre ; Apparence détermine celle qui s’affiche.",
+    "Shown in the header and the message box. Spoken phrases and the Home Screen icon keep the app's real name." to "Affiché dans l’en-tête et la zone de saisie. Les phrases d’invocation et l’icône de l’écran d’accueil gardent le vrai nom de l’app.",
+    "Each theme keeps its own colors. Text on your bubbles and on accent buttons turns light or dark to stay readable." to "Chaque thème garde ses propres couleurs. Le texte de vos bulles et des boutons d’accent passe en clair ou en sombre pour rester lisible.",
+    "Accent" to "Accent",
+    "Buttons, links and your own messages." to "Les boutons, les liens et vos propres messages.",
+    "Your bubbles" to "Vos bulles",
+    "Your messages" to "Vos messages",
+    "Light and dark" to "Clair et sombre",
+    "App icon" to "Icône de l’app",
+    "Couldn't change the icon: %1\$s" to "Impossible de changer l’icône : %1\$s",
+    "Onyx Face" to "Visage Onyx",
+    "Graphite Block" to "Graphite en bloc",
+    "Steel" to "Acier",
+    "Mist" to "Brume",
+    "Matte Graphite" to "Graphite mat",
+    "Matte Graphite Block" to "Graphite mat en bloc",
+    "Matte Steel" to "Acier mat",
+    "Matte Mist" to "Brume mate",
+    "Navy" to "Bleu marine",
+    "Ink" to "Encre",
+    "Paper Navy" to "Papier bleu marine",
+    "Gold" to "Or",
+    "Classic" to "Classique",
+    "Messages" to "Messages",
+    "Paper" to "Papier",
+    "Slate" to "Ardoise",
+    "Amber CRT" to "Ambre CRT",
+    "Hermes gold on near-black, set in Inter; the docs-site look." to "Or Hermes sur un noir profond, en Inter ; l’apparence du site de documentation.",
+    "Onyx blue on the system greys." to "Bleu Onyx sur les gris du système.",
+    "Warm paper and ink; dark ink and parchment after dark." to "Papier chaud et encre ; encre sombre et parchemin en mode sombre.",
+    "Cool grey-blue with a steel accent. The office option." to "Bleu-gris froid avec un accent acier. L’option bureau.",
+    "Green phosphor on the Mac terminal's grey; your messages become shell prompts." to "Phosphore vert sur le gris du terminal Mac ; vos messages deviennent des invites de shell.",
+    "Amber phosphor on warm black; your messages become shell prompts." to "Phosphore ambré sur un noir chaud ; vos messages deviennent des invites de shell.",
+    "Warm near-black and bone with a pale sky accent; serif replies, sans questions, monospaced code." to "Noir chaud et os avec un accent bleu pâle ; réponses avec empattements, questions sans, code à chasse fixe.",
+
+    // Journaux.
+    "Search this log" to "Rechercher dans ce journal",
+    "Share this log" to "Partager ce journal",
+    "Nothing in this log." to "Ce journal est vide.",
+    "No line matches." to "Aucune ligne ne correspond.",
+    "Errors" to "Erreurs",
+    "Everything" to "Tout",
+    "Warnings and errors" to "Avertissements et erreurs",
+    "Errors only" to "Erreurs uniquement",
+
+    // Apparence : bots, texte du chat et orbe vocal (`AppearanceSettings` / `VoiceOrbSettings`).
+    "Bot faces" to "Visages des bots",
+    "Off, each bot, Onyx too, is its initial on a circle of its color, and voice mode shows the Bubble orb in place of a face. The bots work the same either way." to "Éteint, chaque bot — Onyx compris — est son initiale sur un disque de sa couleur, et le mode vocal montre l’orbe Bubble à la place d’un visage. Les bots fonctionnent pareil dans les deux cas.",
+    "Pictures from Hermes" to "Photos depuis Hermes",
+    "A bot with a picture set in Hermes Desktop shows that picture instead of its face." to "Un bot dont une photo est définie dans Hermes Desktop montre cette photo au lieu de son visage.",
+    "Bot colors in their chats" to "Couleurs des bots dans leurs chats",
+    "Your bubbles and the buttons in a bot's chat take its color, and Onyx's own chats take its face's if it has one. Group chats keep the theme's." to "Vos bulles et les boutons d’un chat de bot prennent sa couleur, et les chats de Onyx prennent celle de son visage s’il en a une. Les salons gardent celle du thème.",
+    "Chat text size" to "Taille du texte du chat",
+    "Same as the phone" to "Comme le téléphone",
+    "Smallest" to "Le plus petit",
+    "Smaller" to "Plus petit",
+    "Larger" to "Plus grand",
+    "Largest" to "Le plus grand",
+    "“Chat text size” sets the conversation larger or smaller than the rest of the phone's text. It still follows the phone's own text size from there." to "« Taille du texte du chat » règle la conversation un peu plus grand ou plus petit que le reste du texte du téléphone. Elle suit toujours la taille de texte du téléphone à partir de là.",
+    "Link previews" to "Aperçus des liens",
+    "A card with the page's title and picture under a message with a link. To make it, Onyx opens the page itself, so the site sees the visit. Off, Onyx only talks to your own servers." to "Une fiche avec le titre et l’image de la page sous un message qui contient un lien. Pour la construire, Onyx ouvre la page lui-même, si bien que le site voit la visite. Éteint, Onyx ne parle qu’à vos propres serveurs.",
+    "Open" to "Ouvrir",
+    "Copy Link" to "Copier le lien",
+    "Voice orb" to "Orbe vocal",
+    "The bars move when you speak; the light inside follows “Orb light”. Onyx looks at you instead, and talks with the reply." to "Les barres bougent quand vous parlez ; la lumière intérieure suit « Lumière de l’orbe ». Onyx, lui, vous regarde et parle avec la réponse.",
+    "Softer Glass" to "Verre doux",
+    "Matte" to "Mat",
+    "Flat" to "Plat",
+    "Bubble" to "Bulle",
+    "Matte Bubble" to "Bulle mate",
+    "Navy Glass" to "Verre marine",
+    "Navy Matte" to "Marine mat",
+    "Steel Glass" to "Verre acier",
+    // Détails de connexion (`ConnectionDetailsView`).
+    "Connection details" to "Détails de connexion",
+    "URLs, keys and logins for every connection, including ones you aren't using right now. " +
+        "The Hermes Dashboard login also unlocks the context and memory files, and files the " +
+        "agent sends." to
+        "Les adresses, clés et identifiants de chaque connexion, y compris celles que vous " +
+        "n’utilisez pas en ce moment. La connexion au Dashboard Hermes ouvre aussi les fichiers " +
+        "de contexte et de mémoire, et les fichiers envoyés par l’agent.",
+    "A key is stored in this phone's Keystore. It is never shown again." to
+        "Une clé est conservée dans le Keystore de ce téléphone. Elle n’est plus jamais affichée.",
+    "Paste the scoped API_SERVER_KEY. It is stored in this phone's Keystore only." to
+        "Collez l’API_SERVER_KEY à portée limitée. Elle n’est conservée que dans le Keystore de ce téléphone.",
+    "Address" to "Adresse",
+    "Username" to "Identifiant",
+    "Password" to "Mot de passe",
+    "API key" to "Clé API",
+    "Dashboard username" to "Identifiant du Dashboard",
+    "Dashboard password" to "Mot de passe du Dashboard",
+    "not connected" to "non connecté",
+    "configured" to "configuré",
+    "Cloudflare Access (optional)" to "Cloudflare Access (facultatif)",
+    "Client ID" to "ID client",
+    "Client secret" to "Secret client",
+    "Custom headers (optional)" to "En-têtes personnalisés (facultatif)",
+    "Header name" to "Nom de l’en-tête",
+    "Value" to "Valeur",
+    "Add header" to "Ajouter l’en-tête",
+    "Remove" to "Supprimer",
+    "Give the header a name and a value." to "Donnez un nom et une valeur à l’en-tête.",
+    "That name can't be used for a custom header." to "Ce nom ne peut pas servir d’en-tête personnalisé.",
+    "That header is already there." to "Cet en-tête est déjà présent.",
+
+    // Mesures (`MetricsSettings`).
+    "Metrics" to "Mesures",
+    "Context window" to "Fenêtre de contexte",
+    "Used for the “ctx %” figure when the backend can't report its window. " +
+        "A llama.cpp server reports it automatically." to
+        "Sert au chiffre « ctx % » quand le serveur ne rapporte pas sa fenêtre. " +
+        "Un serveur llama.cpp l’annonce de lui-même.",
+
+    // **Le Coffre de secrets** (`SettingsScreen`, section « Secrets ») : sa ligne a **quitté**
+    // « Capacités » pour sa propre section des Réglages, donc son explication vit ici.
+    "Secrets" to "Secrets",
+    "Secrets vault" to "Coffre de secrets",
+    "The keys the agent can use without reading them: they stay on the server, and the app " +
+        "keeps none of them." to
+        "Les clés que l’agent peut utiliser sans les lire : elles restent sur le serveur, et " +
+        "l’app n’en garde aucune.",
+
+    // **Le navigateur de l'agent** (`BrowserScreen`) — l'écran, pas seulement la ligne de Réglages.
+    "The agent's browser" to "Le navigateur de l'agent",
+    // **La carte de prise en main dans le fil.** Sans ces trois entrées, la demande s'affichait en
+    // anglais au milieu d'une conversation française, et le bouton n'avait pas de mot.
+    "The agent's browser asks you to take the hand" to
+        "Le navigateur de l'agent vous demande la main",
+    "Sign in, solve a captcha or approve a 2FA, then hand it back: what you type goes to the page, never to the conversation." to
+        "Connectez-vous, passez un captcha ou validez une 2FA, puis rendez la main : ce que vous " +
+        "tapez va à la page, jamais à la conversation.",
+    // **Le numéro de version est écrit dans le texte que l'humain voit.** Une capture d'écran ne dit
+    // pas de quel paquet elle vient : l'ancien panneau et le nouveau affichent tous deux une attente,
+    // et l'on cherche alors une panne réseau qui n'existe pas. Ce suffixe tranche en une seconde, et
+    // il se retire quand le panneau est stabilisé.
+    "Waiting for the agent's browser…" to "En attente du navigateur de l'agent… (v1.3.68)",
+    // **La reconnexion se voit.** Sans ces deux entrées, une coupure de socket affichait
+    // « En attente… » pour toujours et se lisait comme une panne du serveur.
+    "Reconnecting…" to "Reconnexion…",
+    "Retry" to "Réessayer",
+    "The browser is unreachable. Try again." to
+        "Le navigateur est injoignable. Réessayez.",
+    "Connecting…" to "Connexion…",
+    "Show the browser" to "Afficher le navigateur",
+    "Take over" to "Prendre la main",
+    "Decline" to "Refuser",
+    "The agent's browser asks you to take the hand" to "Le navigateur de l'agent vous demande la main",
+    "Hand back" to "Rendre la main",
+    "You're driving" to "C'est vous qui conduisez",
+    // **Les libellés de la forme de référence.** « You're in control » et l'étiquette de conduite
+    // n'existaient qu'en anglais dans l'écran : la fenêtre restait donc moitié française.
+    "You're in control" to "Vous avez la main",
+    "YOU'RE DRIVING" to "VOUS CONDUISEZ",
+    "Tab" to "Tabulation",
+    "Esc" to "Échap",
+    "Tap a field on the page, then type here: the text goes straight to its page, not into the conversation." to
+        "Touchez un champ sur la page, puis tapez ici : le texte va directement à la page, jamais dans la conversation.",
+    "Take over first, then act on the page." to
+        "Prenez d'abord la main, puis agissez sur la page.",
+    "Another screen is driving this browser." to
+        "Un autre écran conduit ce navigateur.",
+    "The browser plugin isn't answering on this server." to
+        "Le plugin du navigateur ne répond pas sur ce serveur.",
+    "The page closed during the takeover. Ask the agent to open it again." to
+        "La page s'est fermée pendant la prise en main. Demandez à l'agent de la rouvrir.",
+    "No page is open. Ask the agent to open one." to
+        "Aucune page n'est ouverte. Demandez à l'agent d'en ouvrir une.",
+    // **Le flux muet et la page déplacée.** Ces deux messages disent ce qui s'est passé, au
+    // lieu de laisser l'écran sur « En attente… » comme si le serveur était en panne.
+    "The browser stopped sending images. Reconnecting…" to
+        "Le navigateur a cessé d'envoyer des images. Reconnexion…",
+    "The page moved to another process. Reconnecting…" to
+        "La page a changé de processus. Reconnexion…",
+    "Save" to "Enregistrer",
+    "Not now" to "Pas maintenant",
+    "Saved to the vault." to "Enregistré dans le coffre.",
+    "The vault refused the write." to "Le coffre a refusé l'écriture.",
+
+    // **Le navigateur de l'agent** (`SettingsScreen`, section « Browser »).
+    "Browser" to "Navigateur",
+    "Agent's browser" to "Navigateur de l'agent",
+    "The agent's own browser, live. Take over to sign in, solve a captcha or answer 2FA, then " +
+        "hand it back: what you type goes to the page, never to the conversation." to
+        "Le navigateur de l'agent, en direct. Prenez la main pour vous connecter, passer un " +
+        "captcha ou répondre à une 2FA, puis rendez-la : ce que vous tapez va à la page, jamais " +
+        "à la conversation.",
+    // Le même pied, quand la sonde de capacité n'a pas répondu : la ligne reste offerte, et le
+    // texte dit franchement ce qui va se passer plutôt que de promettre un direct qui n'existe pas.
+    "The agent's own browser. It opens only when the agent has a page running — otherwise the " +
+        "screen says so and offers to reconnect." to
+        "Le navigateur de l'agent. Il s'ouvre quand l'agent a une page en cours — sinon l'écran " +
+        "le dit et propose de se reconnecter.",
+
+    // « Erase everything » (`ResetSettings`).
+    "Erase everything…" to "Tout effacer…",
+    "Erase everything" to "Tout effacer",
+    "Erase everything on this device?" to "Tout effacer sur cet appareil ?",
+    "Conversations, attachments, credentials and settings. This can't be undone." to
+        "Conversations, pièces jointes, identifiants et réglages. Cette action est irréversible.",
+    "Deletes every conversation and attachment on this device, forgets " +
+        "all servers, keys and passwords, and returns the settings to their " +
+        "defaults. Nothing on your servers is touched." to
+        "Efface toutes les conversations et pièces jointes de cet appareil, oublie tous les " +
+        "serveurs, leurs clés et leurs mots de passe, et remet les réglages à leurs valeurs " +
+        "d’origine. Rien n’est touché sur vos serveurs.",
+
+    // Les en-têtes de section des Réglages, regroupés par thème et dits en français.
+    "Connection" to "Passerelle",
+    "Answering" to "Réponses",
+    "Writing" to "Écriture",
+    "About" to "À propos",
+    "Name" to "Nom",
+    "Dashboard" to "Tableau de bord",
+    "Server" to "Serveur",
+    "Android Auto" to "Android Auto",
+
+    // La carte de la passerelle : le bouton qui teste la connexion pour de vrai.
+    "Check" to "Vérifier",
+    "Verifying…" to "Vérification…",
+    "The gateway card: its address, and a button that tests the connection and says what failed." to
+        "La carte de la passerelle : son adresse, et un bouton qui teste la connexion et dit ce qui a échoué.",
+
+    // « Noir pur » et « Halo » (`AppearanceSettings`).
+    "Pure black" to "Noir pur",
+    "True black backgrounds in dark mode, easier on OLED screens." to
+        "Des fonds noirs purs en mode sombre, plus doux pour les écrans OLED.",
+    "Halo" to "Halo",
+    "Soft colored light behind the top of each screen and under your messages and buttons. Off, everything is flat." to
+        "Une lumière colorée douce derrière le haut de chaque écran, et sous vos messages et boutons. Éteint, tout est plat.",
+
+    // L'anatomie des Réglages : le pied (version, passerelle), le curseur de taille de texte et
+    // sa mention sous la piste, et la description lue par les lecteurs d'écran du bouton de la carte.
+    "App version" to "Version de l’app",
+    "Text size" to "Taille du texte",
+    "Check connection" to "Vérifier la connexion",
+    "Défaut" to "Défaut",
+    "Smallest" to "La plus petite",
+    "Small" to "Petite",
+    "Large" to "Grande",
+    "Largest" to "La plus grande",
+
+    // -----------------------------------------------------------------------------------------
+    // LES EXPLICATIONS DES RÉGLAGES QUI RESTAIENT EN ANGLAIS.
+    //
+    // Le défaut relevé sur la capture de l'écran **Appels** n'était pas isolé : les `footer` de
+    // quatre autres écrans de Réglages n'avaient pas d'entrée non plus, et s'affichaient donc en
+    // anglais sous des libellés français. Ce sont les seules phrases longues de ces écrans — celles
+    // qu'on lit pour comprendre ce qu'on règle.
+    // -----------------------------------------------------------------------------------------
+    "The same login as the Hermes Dashboard: its username and password. It unlocks the context " +
+        "and memory files, and the files the agent sends." to
+        "Le même identifiant que le Dashboard Hermes : son nom d’utilisateur et son mot de passe. " +
+        "Il déverrouille les fichiers de contexte et de mémoire, ainsi que les fichiers que " +
+        "l’agent envoie.",
+    "If the Hermes Dashboard sits behind Cloudflare Access instead of a tailnet, create a service " +
+        "token in Zero Trust and paste its ID and secret. Sent as CF-Access-Client-Id / -Secret on " +
+        "every request and WebSocket." to
+        "Si le Dashboard Hermes est derrière Cloudflare Access plutôt que sur un tailnet, créez un " +
+        "jeton de service dans Zero Trust et collez son identifiant et son secret. Envoyé en " +
+        "CF-Access-Client-Id / -Secret à chaque requête et à chaque WebSocket.",
+    "If a reverse proxy in front of your Hermes server asks for a header of its own, add it here. " +
+        "It is sent with every request to this server and kept in the Keystore. Onyx's own headers, " +
+        "such as the API key, take precedence." to
+        "Si un reverse proxy devant votre serveur Hermes réclame son propre en-tête, ajoutez-le " +
+        "ici. Il est envoyé à chaque requête vers ce serveur et conservé dans le Keystore. Les " +
+        "en-têtes d’Onyx, comme la clé d’API, ont la priorité.",
+    "Background alerts tell you when an agent needs an approval while you use another app. They " +
+        "work while Android lets Onyx run; force-stopping Onyx stops them." to
+        "Les alertes en arrière-plan vous préviennent quand un agent attend un accord pendant que " +
+        "vous utilisez une autre app. Elles fonctionnent tant qu’Android laisse Onyx tourner ; " +
+        "forcer l’arrêt d’Onyx les coupe.",
+)

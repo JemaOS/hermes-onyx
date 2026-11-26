@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path android:pathData="M0.0,0.0 h64.0 v64.0 h-64.0 Z" android:fillColor="#FF2A313D" />
+    <group android:translateX="0" android:translateY="2.2">
+      <path android:pathData="M32,9 C45.5,9 55.5,18.5 55.5,31 C55.5,43.5 45.5,53 32,53 C28.5,53 25.3,52.4 22.4,51.2 L12.5,55.5 L14.6,46 C10.8,42 8.5,36.8 8.5,31 C8.5,18.5 18.5,9 32,9 Z" android:fillColor="#A605080F" />
+    </group>
+    <path android:pathData="M32,9 C45.5,9 55.5,18.5 55.5,31 C55.5,43.5 45.5,53 32,53 C28.5,53 25.3,52.4 22.4,51.2 L12.5,55.5 L14.6,46 C10.8,42 8.5,36.8 8.5,31 C8.5,18.5 18.5,9 32,9 Z" android:fillColor="#FF4A5465" />
+    <path android:pathData="M26.90,38.80L37.10,28.82L32.00,23.20L26.90,28.82L37.10,38.80Z" android:fillColor="@android:color/transparent" android:strokeColor="#FFE4E9F1" android:strokeWidth="3.0" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>
+<!-- Converti depuis graphite-block-flat.svg -->

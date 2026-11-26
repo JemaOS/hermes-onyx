@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Les raccourcis de l'icône — le menu qui s'ouvre sur un appui long — et ce que l'assistant du
+  téléphone peut demander à Onyx (« demande à Onyx … » arrive sur MainActivity avec la question
+  dans `query`, comme l'intention vocale de la référence).
+
+  Trois raccourcis d'action, chacun sur sa **tuile** : un carré à coins arrondis, dans la famille
+  de l'accent de l'app, avec le glyphe de son rôle. Déclarés ici, ils sont toujours présents, et
+  leur rang est le plus bas : ils passent avant la section des bots.
+
+  La **section des bots** — une tuile par bot, portant sa couleur et son initiale, ouvrant une
+  conversation avec CE bot — n'est pas déclarée ici : la liste des bots vient du serveur. Elle est
+  **publiée à l'exécution** (`RosterShortcuts`), un raccourci par bot, republiée quand le roster
+  change (un bot qui apparaît, qui disparaît, qui se renomme ou qui change de visage).
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="com.onyx.app.action.ASK"
+            android:targetClass="com.onyx.app.MainActivity">
+            <parameter
+                android:name="feature"
+                android:key="query"
+                android:required="true" />
+        </intent>
+        <intent
+            android:action="com.onyx.app.action.VOICE"
+            android:targetClass="com.onyx.app.MainActivity">
+            <parameter
+                android:name="feature"
+                android:key="query"
+                android:required="false" />
+        </intent>
+    </capability>
+
+    <capability android:name="custom.actions.intent.ASK">
+        <intent
+            android:action="com.onyx.app.action.ASK"
+            android:targetClass="com.onyx.app.MainActivity">
+            <parameter
+                android:name="query"
+                android:key="query"
+                android:required="true" />
+        </intent>
+    </capability>
+
+    <shortcut
+        android:shortcutId="ask"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_ask"
+        android:shortcutShortLabel="@string/shortcut_ask_short"
+        android:shortcutLongLabel="@string/shortcut_ask_long">
+        <intent
+            android:action="com.onyx.app.action.ASK"
+            android:targetClass="com.onyx.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="talk"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_talk"
+        android:shortcutShortLabel="@string/shortcut_talk_short"
+        android:shortcutLongLabel="@string/shortcut_talk_long">
+        <intent
+            android:action="com.onyx.app.action.VOICE"
+            android:targetClass="com.onyx.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- « Capture rapide » : une note prise en passant, à classer. Deux gestes depuis n'importe
+         où : l'appui long sur l'illustration d'Onyx, puis cette ligne. -->
+    <shortcut
+        android:shortcutId="note"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_note"
+        android:shortcutShortLabel="@string/shortcut_note_short"
+        android:shortcutLongLabel="@string/shortcut_note_long">
+        <intent
+            android:action="com.onyx.app.action.CAPTURE"
+            android:targetClass="com.onyx.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- **« Coffre de secrets »** : les clés du serveur, à leur propre page. La tuile est déclarée
+         ici mais **son activation suit la preuve** (`VaultShortcut.sync`) : sur un serveur qui ne
+         sert pas le greffon `onyx-vault`, le lanceur la retire du menu. -->
+    <shortcut
+        android:shortcutId="vault"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_vault"
+        android:shortcutShortLabel="@string/shortcut_vault_short"
+        android:shortcutLongLabel="@string/shortcut_vault_long">
+        <intent
+            android:action="com.onyx.app.action.VAULT"
+            android:targetClass="com.onyx.app.MainActivity" />
+    </shortcut>
+</shortcuts>

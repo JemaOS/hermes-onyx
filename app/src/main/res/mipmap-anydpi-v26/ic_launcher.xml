@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  L'ICÔNE ADAPTATIVE du lanceur : le carré sombre est le FOND (couleur pleine #1A202A, la
+  couleur mesurée de l'illustration de référence), le cercle et la rune sont le PREMIER PLAN,
+  et la rune seule est la couche MONOCHROME de l'icône thémée.
+
+  Les bitmaps `mipmap-*/ic_launcher.png` restent en repli (le projet garde ses cinq densités) :
+  cette ressource ne les remplace que sur Android 8.0 et plus (le projet a `minSdk = 26`).
+  Aucune autre ressource ne bouge ; le lanceur cesse de réduire la bitmap sur une plaque blanche.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_adaptive_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_adaptive_monochrome" />
+</adaptive-icon>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FFF3F1EC" />
+    <path android:pathData="M220.0,300.0 L700.0,300.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1B1D3A" android:strokeWidth="96.0" android:strokeLineCap="round" />
+    <path android:pathData="M220.0,512.0 L600.0,512.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1B1D3A" android:strokeWidth="96.0" android:strokeLineCap="round" />
+    <path android:pathData="M220.0,724.0 L700.0,724.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1B1D3A" android:strokeWidth="96.0" android:strokeLineCap="round" />
+    <path android:pathData="M804.0,300.0 L812.0,300.0" android:fillColor="@android:color/transparent" android:strokeColor="#471B1D3A" android:strokeWidth="96.0" android:strokeLineCap="round" />
+    <path android:pathData="M704.0,512.0 L712.0,512.0" android:fillColor="@android:color/transparent" android:strokeColor="#471B1D3A" android:strokeWidth="96.0" android:strokeLineCap="round" />
+    <path android:pathData="M804.0,724.0 L812.0,724.0" android:fillColor="@android:color/transparent" android:strokeColor="#471B1D3A" android:strokeWidth="96.0" android:strokeLineCap="round" />
+</vector>
+<!-- Converti depuis E-fading-e.svg -->

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icone du menu d'un bot, prise au jeu de la reference (Lucide), **telle quelle** :
+  geometrie, grille 24, trait de 2, bouts et jointures arrondis.
+  Source : lucide-react v0.577.0 dist/esm/icons/message-square-plus.js
+  Ou la reference s'en sert : herald BotsRoster.kt:448 (Nouvelle conversation avec le nom du bot)
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z M12 8v6 M9 11h6"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

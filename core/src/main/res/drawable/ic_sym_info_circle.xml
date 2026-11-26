@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Le disque plein, avec le « i » évidé dedans (evenOdd) : deux sous-formes, un seul tracé. -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M12,2C17.523,2 22,6.477 22,12C22,17.523 17.523,22 12,22C6.477,22 2,17.523 2,12C2,6.477 6.477,2 12,2ZM12,5.6C11.227,5.6 10.6,6.227 10.6,7C10.6,7.773 11.227,8.4 12,8.4C12.773,8.4 13.4,7.773 13.4,7C13.4,6.227 12.773,5.6 12,5.6ZM10.9,9.6L10.9,9.6L13.1,9.6L13.1,18.4L10.9,18.4Z" />
+</vector>

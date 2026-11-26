@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path android:pathData="M0.0,0.0 h1024.0 v1024.0 h-1024.0 Z" android:fillColor="#FF1D66D9" />
+    <path android:pathData="M312.0,152.0 h400.0 a160.0,160.0 0 0,1 160.0,160.0 v400.0 a160.0,160.0 0 0,1 -160.0,160.0 h-400.0 a160.0,160.0 0 0,1 -160.0,-160.0 v-400.0 a160.0,160.0 0 0,1 160.0,-160.0 Z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M332.0,470.0 L332.0,554.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="64.0" android:strokeLineCap="round" />
+    <path android:pathData="M422.0,400.0 L422.0,624.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="64.0" android:strokeLineCap="round" />
+    <path android:pathData="M512.0,330.0 L512.0,694.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="64.0" android:strokeLineCap="round" />
+    <path android:pathData="M602.0,400.0 L602.0,624.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="64.0" android:strokeLineCap="round" />
+    <path android:pathData="M692.0,470.0 L692.0,554.0" android:fillColor="@android:color/transparent" android:strokeColor="#FF1D66D9" android:strokeWidth="64.0" android:strokeLineCap="round" />
+</vector>
+<!-- Converti depuis E-inset.svg -->
