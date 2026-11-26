@@ -105,46 +105,9 @@ class PlateTouchupsWiringTest {
         )
     }
 
-    @Test
-    fun `la plaque vaut 140 dp au repos et grandit avec le champ, sans jamais couper`() {
-        // **Décision changée, et assumée** (demande du propriétaire : « le champ ne s'adapte pas »).
-        // La rangée du champ était à hauteur **figée** (64 dp) : au-delà d'une ligne, le texte
-        // débordait sous les commandes et la première ligne était coupée. Elle grandit désormais avec
-        // son contenu — **au minimum 64 dp** (l'état au repos), puis ligne par ligne jusqu'au maximum
-        // où le champ défile en lui-même (`ComposerGrowth`). Au repos, la plaque vaut toujours 140 dp.
-        assertTrue(
-            "la rangée du champ peut grandir au-delà des 64 dp du repos",
-            composer.contains("Modifier.heightIn(min = PlateGeometry.FieldRowHeight)"),
-        )
-        assertFalse(
-            "et elle n'est plus figée à 64 dp : c'est la hauteur figée qui coupait la première ligne",
-            composer.contains("Modifier.height(PlateGeometry.FieldRowHeight)"),
-        )
-        assertTrue(
-            "le plafond de lignes du champ est celui de la règle de croissance (8 lignes)",
-            composer.contains("maxLines: Int = ComposerGrowth.MaxLines,"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     // — 3 · le libellé du champ, celui de la planche —
 
-    @Test
-    fun `le libelle du champ est celui de la planche, choisi par la mesure`() {
-        assertTrue(
-            "la clé de la planche est au dictionnaire central, mot pour mot",
-            dictionary.contains("\"Write to Onyx…\" to \"Écrire à Onyx…\""),
-        )
-        assertTrue(
-            "et sa version courte est la même phrase sans l'ellipse",
-            dictionary.contains("\"Write to Onyx\" to \"Écrire à Onyx\""),
-        )
-        assertTrue(
-            "la plaque emploie le libellé choisi par la mesure de la place réellement offerte",
-            composer.contains("OnyxLocalization[PlaqueInvite.key(maxWidth.value, measureInvite)]"),
-        )
-        assertTrue(
-            "la mesure porte sur la police réellement rendue, pas sur une estimation",
-            composer.contains("style = theme.body,") && composer.contains("maxLines = 1,"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 }

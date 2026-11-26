@@ -129,6 +129,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    testOptions.unitTests.isIncludeAndroidResources = true
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -199,6 +201,9 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.18.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     // An in-memory Dashboard: a room's thread exercised over the real JSON-RPC channel.
     testImplementation(libs.mockwebserver)
 }

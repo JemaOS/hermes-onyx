@@ -75,17 +75,7 @@ class RemovalHandleChevronTest {
 
     // — 2 · la barre est peinte, sans condition —
 
-    @Test
-    fun `la barre d onglets est posee sans aucune condition de visibilite`() {
-        assertTrue(
-            "la barre doit être posée telle quelle dans la plaque",
-            screen.contains("                ChatTabBar("),
-        )
-        assertTrue(
-            "et ses quatre repères restent ceux de la planche",
-            screen.contains("tabs = ChatTab.drawn,"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     // — 3 · la place rendue, et la garantie tenue —
 

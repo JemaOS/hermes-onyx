@@ -212,6 +212,8 @@ fun GroupComposer(
      * its own card, the plate handles it. False: the original card.
      */
     plate: Boolean = false,
+    compact: Boolean = false,
+    roomName: String = GroupComposerTitle,
     /**
      * Is the bottom system inset handled by the composer? `false` when the screen handles it
      * **itself, once only**, for the whole bottom stack (composer **and** tab bar) — this is what
@@ -379,7 +381,9 @@ fun GroupComposer(
             draft = draft,
             onDraftChange = { draft = it },
             isStreaming = isStreaming,
-            title = GroupComposerTitle,
+            title = roomName,
+            groupConversation = true,
+            compact = compact,
             attachments = attachments,
             onRemoveAttachment = { id -> attachments = attachments.filterNot { it.id == id } },
             onPasteImages = { uris -> addAttachments(uris) },

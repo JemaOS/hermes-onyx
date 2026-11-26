@@ -1863,7 +1863,7 @@ class ChatViewModel(
         val current = _state.value
         if (current.messages.none { it.id == prompt.messageId }) return
         // The original as it is **now**: its messages in memory (the live thread),
-        // its title and its original session. None of that is modified by what follows.
+        // son titre et sa session d'origine. Rien de tout cela n'est modifié par ce qui suit.
         val source = (conversations.find(conversationId) ?: Conversation.start(id = conversationId)).copy(
             serverId = current.server.id,
             serverSessionId = serverSessionId,

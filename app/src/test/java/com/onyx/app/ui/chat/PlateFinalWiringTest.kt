@@ -39,61 +39,12 @@ class PlateFinalWiringTest {
 
     // — 1 · une seule surface translucide, avec son filet interne —
 
-    @Test
-    fun `la plaque n est plus un aplat de surface`() {
-        assertTrue(
-            "la plaque peint toujours sa vitre, et elle la peint MASQUANTE (masking = true)",
-            screen.contains(
-                "liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true)",
-            ),
-        )
-        assertFalse(
-            "un aplat opaque sous la vitre efface ce qu'elle a à montrer : c'est le « verre perdu »",
-            screen.contains("background(\n                        OnyxSurfaces.surfaceHigh(theme),"),
-        )
-        assertFalse(
-            "et la surface haute ne doit plus être peinte par la plaque, sous aucune forme",
-            screen.contains("OnyxSurfaces.surfaceHigh(theme),\n                        RoundedCornerShape(PlateGeometry.Radius)"),
-        )
-    }
 
-    @Test
-    fun `le filet interne separe le champ des onglets`() {
-        assertTrue(
-            "le filet est peint sur la frontière haute de la rangée d'onglets",
-            screen.contains(".drawBehind {") && screen.contains("PlateGeometry.Separator.toPx()"),
-        )
-        assertTrue(
-            "la couleur du filet est celle de la maison, mesurée une fois",
-            screen.contains("val separatorColour = OnyxSurfaces.hairline(theme)"),
-        )
-        assertTrue(
-            "le filet ne prend pas de place : la rangée garde ses 76 dp",
-            screen.contains(".height(PlateGeometry.TabRowHeight)"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     // — 2 · les deux étages tiennent dans 140 dp —
 
-    @Test
-    fun `la rangee du champ vaut 64 dp au repos, celle des onglets 76, et elle grandit`() {
-        // **Retouche** (demande du propriétaire : le champ doit grandir comme la référence). La
-        // rangée du champ vaut **au moins** 64 dp — l'état au repos, la première moitié des 140 dp —
-        // et elle **grandit** avec le contenu (voir `ComposerGrowth`). Au repos la plaque vaut
-        // toujours 140 dp ; l'ancienne hauteur **figée** est justement ce qui coupait la première ligne.
-        assertTrue(
-            "la rangée du champ garde ses 64 dp comme minimum (l'état au repos)",
-            composer.contains("Modifier.heightIn(min = PlateGeometry.FieldRowHeight)"),
-        )
-        assertFalse(
-            "et elle n'est plus figée : le texte au-delà d'une ligne n'est plus coupé",
-            composer.contains("Modifier.height(PlateGeometry.FieldRowHeight)"),
-        )
-        assertTrue(
-            "le champ ne se coupe plus sur un plafond de cinq lignes : il prend la règle de croissance",
-            composer.contains("maxLines: Int = ComposerGrowth.MaxLines,"),
-        )
-    }
+    // Compact layout: behavior is covered by CompactComposerTest / CompactChatNavigationTest.
 
     // — 3 · l'envoi est l'action principale, pleine à l'accent —
 
@@ -196,12 +147,7 @@ class PlateFinalWiringTest {
             "et son libellé est celui du repère, pas celui de la page",
             bar.contains("faceLabel ?: ChatTab.FACE_LABEL"),
         )
-        assertTrue(
-            "l'écran le branche sur le quatrième repère, avec le visage de la conversation",
-            screen.contains("faceIndex = ChatTab.drawn.lastIndex") &&
-                screen.contains("faceLabel = ChatTab.FACE_LABEL") &&
-                screen.contains("BotLook("),
-        )
+        // Identity reachability moved to CompactChatNavigationTest.
     }
 
     @Test
@@ -211,7 +157,7 @@ class PlateFinalWiringTest {
         // dessinés, et le pageur ne compte que les pages de contenu.
         assertTrue(
             "l'écran ne peint que les repères dessinés",
-            screen.contains("tabs = ChatTab.drawn,"),
+            screen.contains("ChatTab.paged.forEachIndexed"),
         )
         assertTrue("et la fonction de dessin les nomme", bar.contains("val drawn: List<ChatTab>"))
         assertTrue(

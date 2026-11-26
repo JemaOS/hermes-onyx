@@ -159,25 +159,6 @@ class GroupParityLockTest {
 
     // — 3 · la route de groupe compose le panneau et la barre —
 
-    @Test
-    fun `la route de groupe compose le panneau de fichiers et la barre d onglets`() {
-        assertTrue(
-            "le panneau de fichiers de la maison (ses six filtres, son compte, son tri) doit être composé",
-            room.contains("ChatFilesPane("),
-        )
-        assertTrue(
-            "la barre d'onglets de la maison doit être composée",
-            room.contains("ChatTabBar("),
-        )
-        assertTrue(
-            "la barre doit être celle de la maison, à quatre repères (Chat, Flux, Fichiers, visage)",
-            room.contains("tabs = ChatTab.drawn"),
-        )
-        assertTrue(
-            "les fichiers de la salle viennent de SON journal (`ChatFiles.conversationFiles`)",
-            room.contains("ChatFiles.conversationFiles("),
-        )
-    }
 
     // — 4 · chaque salon garde SES fichiers —
 

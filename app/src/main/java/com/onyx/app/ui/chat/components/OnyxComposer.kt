@@ -307,6 +307,10 @@ fun OnyxComposer(
      * exactement comme avant.
      */
     plate: Boolean = false,
+    /** Compact single-conversation controls; independent of the shared surface treatment. */
+    compact: Boolean = false,
+    /** Group identity is independent of its mutable display name. */
+    groupConversation: Boolean = title == "the group",
     /**
      * Vrai/faux quand le champ prend ou perd le focus : l'appelant sait qu'on est en train d'écrire.
      */
@@ -332,7 +336,30 @@ fun OnyxComposer(
     val theme = LocalOnyxTheme.current
     val context = LocalContext.current
     val density = LocalDensity.current
+    var compactMenuOpen by remember { mutableStateOf(false) }
     val hasDraft = draft.isNotBlank() || attachments.isNotEmpty()
+    if (compact && compactMenuOpen) {
+        com.onyx.app.ui.design.OnyxActionSheet(
+            title = "Message actions",
+            items = buildList {
+                fun action(label: String, callback: () -> Unit) {
+                    add(com.onyx.app.ui.design.MenuItem(label) {
+                        compactMenuOpen = false
+                        callback()
+                    })
+                }
+                action("Add attachment", onAddAttachment)
+                onDictate?.let { action(if (dictating) "Stop dictating" else "Dictate", it) }
+                if (showTalk) action("Live voice", onTalk)
+                if (allowExpand) action("Open the editor in full screen", onExpand)
+                if (isStreaming && hasDraft) {
+                    action(if (queueWhileStreaming) "Send after this reply" else "Send", onSend)
+                    if (canSteer && draft.isNotBlank()) action("Steer this reply", onSteer ?: onSend)
+                }
+            },
+            onDismiss = { compactMenuOpen = false },
+        )
+    }
     val draftIsLong = draft.length > 160 || draft.count { it == '\n' } >= 3
     // **Le mesureur du brouillon.** Il compte les lignes **réelles** du texte (retours à la ligne
     // compris) à la largeur de référence, et c'est cette mesure — pure, reproductible — qui décide si
@@ -386,7 +413,7 @@ fun OnyxComposer(
         streaming = isStreaming,
         canSteer = canSteer,
         offline = offline,
-        group = title == "the group",
+        group = groupConversation,
     )
     /** Le mot de l'invite, ou `null` quand elle **cède** la place à un état. */
     val placeholder: String? = when (invite) {
@@ -489,6 +516,8 @@ fun OnyxComposer(
         // descendues, le champ s'élargit ; mesurer à la largeur courante referait repasser le texte
         // à une ligne, remonterait les commandes, et ainsi de suite. La mesure est donc une fonction
         // pure de (texte, largeur fixe).
+        // Bound multiline growth to the current pane, including IME and split-window resizing.
+        val compactFieldMaxHeight = (maxHeight * 0.35f).coerceIn(48.dp, 240.dp)
         val composerWidthDp = maxWidth.value
         val singleLineFieldWidthDp = ComposerGrowth.singleLineFieldWidthDp(composerWidthDp - 24f)
         val draftLineCount = remember(draft, singleLineFieldWidthDp, theme.body, density.density) {
@@ -503,7 +532,7 @@ fun OnyxComposer(
                 ).lineCount
             }
         }
-        val multiline = plate || ComposerGrowth.stacksCommands(draftLineCount)
+        val multiline = !compact && (plate || ComposerGrowth.stacksCommands(draftLineCount))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -516,7 +545,7 @@ fun OnyxComposer(
                         // lui-même au maximum. C'est exactement ce qui rend impossible la coupure de
                         // la **première ligne** — le défaut de la capture du propriétaire. Au repos,
                         // la plaque vaut toujours ses 140 dp (la croissance est nulle).
-                        Modifier.heightIn(min = PlateGeometry.FieldRowHeight)
+                        Modifier.heightIn(min = if (compact) 56.dp else PlateGeometry.FieldRowHeight)
                     } else {
                         Modifier.padding(horizontal = ComposerCardSideMargin)
                     },
@@ -595,14 +624,14 @@ fun OnyxComposer(
             IconSlot(
                 symbol = Symbols.Plus,
                 label = "Add",
-                size = ComposerControlSlotHeight,
-                height = ComposerControlSlotHeight,
+                size = if (compact) 48.dp else ComposerControlSlotHeight,
+                height = if (compact) 48.dp else ComposerControlSlotHeight,
                 glyphSize = ComposerPlusGlyphSize,
                 // **L'encre vient du thème ET se lit sur ce qui est peint dessous.** Une commande
                 // sans disque se mesure sur le **sol de la plaque** (`ComposerCommands`) : le même
                 // chiffre pour l'écran et pour le verrou.
                 tint = ComposerCommands.glyphOnPlaque(theme, theme.secondaryText),
-                onClick = onAddAttachment,
+                onClick = { if (compact) compactMenuOpen = true else onAddAttachment() },
             )
         }
         val body: @Composable (Modifier) -> Unit = { fieldModifier ->
@@ -646,7 +675,7 @@ fun OnyxComposer(
                     text = AnnotatedString("X"),
                     style = theme.body,
                 ).size.height.toDp()
-                lineHeightDp * ComposerGrowth.RestLines + ComposerGrowth.VerticalPaddingDp.dp
+                lineHeightDp * (if (compact) 1 else ComposerGrowth.RestLines) + ComposerGrowth.VerticalPaddingDp.dp
             }
             BoxWithConstraints(
                 modifier = fieldModifier
@@ -688,6 +717,8 @@ fun OnyxComposer(
                     // dans la largeur que le champ offre réellement (`maxWidth`, rembourrage
                     // déduit) : jamais de coupure, et jamais une commande en moins. Les autres
                     // invites (dictée, pilotage) disent leur mot partout, plaque comme carte.
+                    compact && (invite == ComposerFieldInvite.ASK || invite == ComposerFieldInvite.GROUP) ->
+                        OnyxLocalization.format("Message %1\$s", title)
                     plate && invite == ComposerFieldInvite.ASK ->
                         OnyxLocalization[PlaqueInvite.key(maxWidth.value, measureInvite)]
 
@@ -732,7 +763,8 @@ fun OnyxComposer(
                         // étaient du vide **sans cible tactile**, et un tap dedans ne faisait rien
                         // — « quand je clique ça marche pas de partout pour écrire ». Il prend
                         // maintenant la hauteur réservée : n'importe quel point de la zone écrit.
-                        .defaultMinSize(minHeight = maxOf(40.dp, restFieldHeight))
+                        .then(if (compact) Modifier.heightIn(max = compactFieldMaxHeight) else Modifier)
+                        .defaultMinSize(minHeight = maxOf(if (compact) 48.dp else 40.dp, restFieldHeight))
                         .padding(vertical = 10.dp)
                         // Ctrl+V / Cmd+V sur une image : le champ de texte ne prend que du
                         // texte, on intercepte donc avant lui.
@@ -772,6 +804,33 @@ fun OnyxComposer(
                 else -> listOf("send")
             }
 
+            if (compact) {
+                val stop = isStreaming
+                IconSlot(
+                    symbol = when {
+                        stop -> Symbols.Stop
+                        dictating -> Symbols.Waveform
+                        hasDraft -> Symbols.ArrowUp
+                        else -> Symbols.MicOutline
+                    },
+                    label = when {
+                        stop -> "Stop"
+                        dictating -> "Stop dictating"
+                        hasDraft -> "Send"
+                        else -> "Dictate"
+                    },
+                    size = 48.dp,
+                    height = 48.dp,
+                    glyphSize = 20.dp,
+                    tint = ComposerCommands.glyphOnPlaque(theme, theme.accent),
+                    onClick = when {
+                        stop -> onStop
+                        dictating -> onDictate ?: onTalk
+                        hasDraft -> onSend
+                        else -> onDictate ?: onTalk
+                    },
+                )
+            } else {
             // La **rangée** des commandes, sous le champ : « + », la puce du modèle, puis les
             // trois boutons ronds — **sur la même ligne**, jamais repliés.
             //
@@ -956,6 +1015,7 @@ fun OnyxComposer(
                 }
             }
         }
+        }
         // **Le contenant — et c'est la SEULE différence entre les deux modes.** La plaque met tout
         // sur une ligne (le champ prend la place qui reste, les quatre commandes la leur) ; la carte
         // garde le champ au-dessus et ses commandes en dessous. Les enfants sont les mêmes, dans le
@@ -1104,7 +1164,7 @@ private fun AttachmentStripTile(
     onRemove: () -> Unit,
     onOpen: () -> Unit = {},
 ) {
-    Box {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         if (attachment.isImage) {
             ImageStripThumbnail(attachment = attachment, onClick = onOpen)
         } else if (com.onyx.app.ui.chat.FileViewers.isVideo(attachment.name, attachment.mimeType)) {
@@ -1115,9 +1175,7 @@ private fun AttachmentStripTile(
         // La croix est un disque sombre sous un « × » blanc, comme `xmark.circle.fill` teinté.
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 6.dp, y = (-6).dp)
-                .size(22.dp)
+                .size(48.dp)
                 .onyxClickable(pressedScale = 0.9f, onClick = onRemove)
                 // **La zone porte le nom, l'icône se tait.** Le libellé nomme la pièce jointe :
                 // « Supprimer photo.jpg » dit laquelle des pièces part.

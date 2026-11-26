@@ -21,12 +21,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,17 +32,16 @@ import com.onyx.app.ui.localization.BasicText
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -62,10 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.onyx.app.ui.design.AttachmentAction
 import com.onyx.app.ui.design.AttachmentSheet
-import com.onyx.app.ui.design.OnyxMenu
 import com.onyx.app.ui.design.MenuItem
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +80,7 @@ import com.onyx.app.ui.chat.components.BranchConfirmAlert
 import com.onyx.app.ui.common.ToastHost
 import com.onyx.app.ui.common.messageArrival
 import com.onyx.app.ui.chat.components.OnyxComposer
+import com.onyx.app.ui.chat.components.CompactComposerDock
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.derivedStateOf
@@ -107,7 +103,6 @@ import com.onyx.app.ui.design.OnyxIcon
 import com.onyx.app.ui.design.OnyxConfirm
 import com.onyx.app.ui.design.OnyxMotion
 import com.onyx.app.ui.design.OnyxSpace
-import com.onyx.app.ui.design.onyxPage
 import com.onyx.app.ui.design.matierePage
 import com.onyx.app.ui.design.ambientLoop
 import com.onyx.app.ui.design.Lucide
@@ -121,30 +116,19 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.onyx.app.data.local.ChatPanelStore
 import com.onyx.app.ui.design.ChatTab
-import com.onyx.app.ui.design.ChatTabBar
 import com.onyx.app.ui.design.OnyxBase
-import com.onyx.app.ui.design.OnyxSurfaces
-import com.onyx.app.ui.design.socleShadow
-import androidx.compose.foundation.border
 import com.onyx.app.ui.design.ComposerStacking
-import com.onyx.app.ui.design.TabBarGeometry
 import com.onyx.app.ui.design.LocalHazeState
 import com.onyx.app.ui.design.LocalReduceMotion
-import com.onyx.app.ui.design.composerBottomInsets
 import com.onyx.app.ui.design.threadBottomReserve
 import com.onyx.app.ui.design.threadFloatAnchor
 import com.onyx.app.ui.design.TabSwipeEdgeGuards
 import com.onyx.app.ui.design.botFaceColour
-import com.onyx.app.ui.design.BotLook
 import com.onyx.app.ui.design.PlateGeometry
 import com.onyx.app.ui.design.onyxLensPage
 import com.onyx.app.ui.design.chatTabCount
 import com.onyx.app.ui.design.chatTabIndexOf
 import com.onyx.app.ui.design.GlassSurface
-import com.onyx.app.ui.design.liquidGlass
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import com.onyx.app.ui.design.glassWeldBehind
 import com.onyx.app.ui.design.onyxHazeSource
 import kotlinx.coroutines.launch
 
@@ -920,6 +904,9 @@ fun ChatScreen(
     // one level at a time, like the drawer, the sheets and the menus. It does exactly what
     // the banner's cross does (`onSearch("")` then `onFindRequested()`), so the home
     // back button and the edge gesture behave the same.
+    BackHandler(enabled = pagerState.currentPage != 0 && !state.searchOpen) {
+        scope.launch { pagerState.scrollToPage(0) }
+    }
     BackHandler(enabled = state.searchOpen) {
         onSearch("")
         onFindRequested()
@@ -1542,81 +1529,9 @@ fun ChatScreen(
                 )
             }
 
-            // **The bottom stack**: the composer, then the tab bar. A **single** system
-            // margin for both (`composerBottomInsets`: the keyboard first, then the navigation
-            // area **without** the keyboard) — the two margins no longer add up, and the
-            // tab bar can no longer be pushed under the window edge, behind the
-            // keyboard, while the composer would occupy its place.
-            // The bottom stack, **over** the thread: the composer and the five tabs therefore
-            // carry panes over scrolling content.
-            //
-            // **It no longer fades, ever.** The `AnimatedVisibility` that faded it on scroll
-            // has been removed: the `Column` below is drawn **unconditionally**, at the same
-            // place, at each scroll position. The measured height of the two pieces
-            // (`composerHeightPx`, `tabBarHeightPx`) stays the same, so the thread's reserve does not
-            // move — and nothing can make the plate disappear any more.
-            // **The bottom stack carries only the plate.** The takeover card is neither here
-            // nor in the field: it is a **thread row** (`item(key = "browser-invite")`),
-            // and that is the only right place — placed above the prompt, it covered the
-            // first line of the field ("Guide the response…" passed underneath), and placed inside
-            // it did the same one line lower. An invitation to take over is
-            // conversation content: it scrolls with the thread.
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    // **THE SINGLE PLATE — composer and tab bar in ONE surface.**
-                    // The most visible point of the spec sheet (`hlib.py:491` `slab`: `ask` 64 px +
-                    // `navrow` 76 px = 140 px, width 379, radius 28, margin 16, light edge and
-                    // 1 px line — `hcss.py:226`). The two shapes are no longer welded by a
-                    // matter bridge: they fit in a single plate, and there is therefore no
-                    // weld left to make.
-                    //
-                    // **And it is TRANSLUCENT.** It painted a flat fill (`OnyxSurfaces.surfaceHigh`)
-                    // *under* its pane: the glass had nothing left to show, and the plate read as
-                    // "a grey flat fill that does not stand out from the edge" — it was the first of the seven
-                    // gaps. The flat fill is removed: the pane now paints **only** its tint
-                    // (measured at its readability floor), and the scrolling thread passes through.
-                    // The house line
-                    // ([OnyxSurfaces.hairline]) and the pane's light edge ([drawGlassFinish])
-                    // remain: they are what detach the plate from the edge, not a fill.
-                    .composerBottomInsets()
-                    .padding(
-                        start = PlateGeometry.SideMargin,
-                        end = PlateGeometry.SideMargin,
-                        bottom = OnyxSpace.Half,
-                    )
-                    .socleShadow(OnyxBase.ShadowFar, PlateGeometry.Radius, theme.dark)
-                    .clip(RoundedCornerShape(PlateGeometry.Radius))
-                    .border(
-                        PlateGeometry.Outline,
-                        OnyxSurfaces.hairline(theme),
-                        RoundedCornerShape(PlateGeometry.Radius),
-                    )
-                    // **And it MASKS what it covers.** Glass is thin by nature: at the
-                    // readability floor of a derived ink (48 % in light mode), the thread's text
-                    // stayed **readable through** the plate (reported defect: "the text passes
-                    // through and around"). `masking = true` raises the veil to the **masking
-                    // floor** ([glassMaskingFloor]) — the opacity from which the thread's contrast
-                    // falls below the readability threshold — without touching the blur or the
-                    // glass finish, which stay painted **above**.
-                    .liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true),
+            CompactComposerDock(
+                modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-            // **THE ACTIVITY CARD HAS BEEN REMOVED** — owner's order: "remove the reasoning
-            // bar, outlined in red, it duplicates".
-            //
-            // It re-displayed above the field what the thread already says: the reasoning and its duration
-            // (the unfoldable "Reasoning" row, at the top of the response) **and** a second stop
-            // button for the same gesture as the composer's square. The thread is the **only** source
-            // of the reasoning, and the composer the **only** stop of the turn.
-            //
-            // The bottom stack therefore only contains the **prompt well**: the takeover
-            // band, then the field. `composerHeightPx` measures **both** (see further
-            // down): it is what keeps the thread's reserve above the plate when the band
-            // appears, instead of letting the plate cover the last bubbles.
-            // The field, measured alone: the takeover card is a thread row, so the
-            // plate has only one content left — `composerHeightPx` is its height, and the thread's
-            // reserve (`threadBottomReserve`) plus the "go to the last message" pill derive from it.
             Box(
                 modifier = Modifier.onSizeChanged { composerHeightPx = it.height }
                     .onGloballyPositioned { composerWeldRect = it.boundsInParent() },
@@ -1665,118 +1580,11 @@ fun ChatScreen(
                 // **The composer is placed on the single plate** (see the bottom stack):
                 // it no longer paints its own card, the plate takes care of it.
                 plate = true,
+                compact = true,
             )
             }
 
-            // **The tab bar, always there.** The order is **composer then bar**: the
-            // field stays stuck under the thread being read, and the bar occupies the bottom of the stack, as close
-            // to the keyboard as possible — exactly where it has always been. Nothing is therefore inserted between
-            // the conversation and the writing area, and the field does not move from one tab to the other.
-            //
-            // **No fading, of any kind, remains.** The chevron handle that hid it
-            // has been removed from the screen on the owner's order, and its per-conversation preference
-            // (`ChatPanelStore.tabsHidden`) with it; the **scroll** fading of the whole
-            // stack — field **and** bar — was removed in turn ("it must NEVER disappear
-            // when I scroll"). Neither the keyboard, nor a setting, nor a gesture, nor a scroll
-            // position turns it off: the plate is drawn **unconditionally**.
-            //
-            // **The detached bottom pill.** `navigationBarsPadding` places it above the system
-            // area (navigation bar, or home gesture area: it is this area that passed
-            // over the labels); [TabBarGeometry.BottomMargin] adds the house
-            // clearance — the `Half` step of the scale — so that it never appears stuck to the edge.
-            // It is **this** height that the thread's reserve picks up, margin included: the pill's geometry
-            // and the place the thread leaves for it therefore cannot diverge.
-            // **The tab row, at fixed height** — 76 dp, the height of `.navrow` in the
-            // spec sheet. It is the second half of the 140 dp: with the field row (64 dp, in
-            // `OnyxComposer`), the plate is exactly the target, and it **measures** itself instead of
-            // depending on three rows that added up (166 dp found on the screenshot).
-            //
-            // **The internal separator line is painted here**, on the row's top boundary:
-            // it is `.ask{border-bottom:1px solid var(--line)}` of the spec sheet — the line that separates
-            // the field from the tabs. It was completely missing: without it, the two rows read
-            // as a single band of controls placed in a flat fill. It is **painted** and not
-            // measured: it does not take a dp from the row, so the sum stays 64 + 76 = 140.
-            val separatorColour = OnyxSurfaces.hairline(theme)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(PlateGeometry.TabRowHeight)
-                    .drawBehind {
-                        drawRect(
-                            color = separatorColour,
-                            topLeft = Offset.Zero,
-                            size = Size(size.width, PlateGeometry.Separator.toPx()),
-                        )
-                    }
-                    // The bottom system margin and the house clearance are carried by **the
-                    // plate** (see the bottom stack): the row no longer has to take them again, otherwise
-                    // the system inset would be counted twice — the original defect.
-                    .onSizeChanged { tabBarHeightPx = it.height }
-                    .onGloballyPositioned { tabBarWeldRect = it.boundsInParent() },
-                // **The bar is CENTRED within its 76 dp.** The reported defect: the active
-                // tab's pill was placed at the **top** of the row — stuck to the separator
-                // line, with all the white below it ("it's not even centred"). The bar
-                // now has its 8 dp clearance above **and** below, like `.navi`
-                // in `.navrow` (`hcss.py:227-229`).
-                verticalArrangement = Arrangement.Center,
-            ) {
-                // **The face marker: the bar position, another door.**
-                //
-                // Its drawing (the face in its accent circle) occupied "Ideas"' place.
-                // "Ideas" and "Goals" are removed (owner's request): the marker
-                // therefore no longer scrolls the pager to an "Ideas" page that does not
-                // exist — it opens the bot's identity, or does nothing safe. We wire the
-                // **gesture** to what the drawing announces.
-                //
-                // **The bottom plate is always visible.** The chevron handle that could
-                // hide it has been removed (owner's request): no more `AnimatedVisibility`,
-                // no more "bar hidden" state — one writer less, no function more.
-                val faceIndex = ChatTab.drawn.lastIndex
-                ChatTabBar(
-                    selectedIndex = pagerState.currentPage,
-                    // **Four markers: three content tabs, then the bot's face.**
-                    // The fifth ("Goals") fell to 4.2 dp wide: neither icon nor
-                    // label. It is **removed** with "Ideas" — it is no longer a page of the
-                    // pager, it is a screen that no longer exists.
-                    tabs = ChatTab.drawn,
-                    accent = tabAccent,
-                    badges = tabBadges,
-                    // **The bar is placed on the single plate**: it no longer paints its own
-                    // capsule, the plate carries the shape, the background, the line and the shadow.
-                    plate = true,
-                    // **The fourth marker is the face**, in an accent circle, with its
-                    // "Onyx" label — the spec sheet does not put a lightbulb there.
-                    faceIndex = faceIndex,
-                    faceLabel = ChatTab.FACE_LABEL,
-                    face = {
-                        BotLook(
-                            name = threadSpeaker.faceName,
-                            faceCode = threadSpeaker.faceCode,
-                            size = PlateGeometry.TabCell,
-                            // The marker does not blink: four bar markers do not move,
-                            // and a face that blinks in a bar draws the eye for
-                            // nothing.
-                            blinks = false,
-                        )
-                    },
-                    onSelect = { index ->
-                        when {
-                            // The face marker opens the bot's identity.
-                            index == faceIndex && onOpenBotIdentity != null -> onOpenBotIdentity()
-                            // The content tabs scroll the pager.
-                            index in 0 until chatTabCount -> scope.launch {
-                                if (reduceMotion) {
-                                    pagerState.scrollToPage(index)
-                                } else {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            }
-                            // The face marker without a door: nothing, never an out-of-page scroll.
-                            else -> Unit
-                        }
-                    },
-                )
-            }
+            // Conversation destinations remain in the header overflow; no bottom navigation here.
             }
         }
 
@@ -1884,6 +1692,21 @@ fun ChatScreen(
 
         if (showMoreMenu && !showProjectMenu) {
             val items = buildList {
+                ChatTab.paged.forEachIndexed { index, tab ->
+                    val label = if (tab == ChatTab.FEED && feedBadge > 0) {
+                        "${OnyxLocalization[tab.label]} · $feedBadge"
+                    } else tab.label
+                    add(MenuItem(label, tab.symbol) {
+                        showMoreMenu = false
+                        scope.launch { pagerState.scrollToPage(index) }
+                    })
+                }
+                onOpenBotIdentity?.let { open ->
+                    add(MenuItem(ChatTab.FACE_LABEL, Symbols.Ellipsis) {
+                        showMoreMenu = false
+                        open()
+                    })
+                }
                 menuItems.forEach { item ->
                     add(item.copy(onSelect = {
                         showMoreMenu = false

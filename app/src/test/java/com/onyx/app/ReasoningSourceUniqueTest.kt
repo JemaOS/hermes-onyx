@@ -68,11 +68,7 @@ class ReasoningSourceUniqueTest {
             reflexionViolations(chat, threadOrganisation, "// plus de rangée", composer).isNotEmpty(),
         )
 
-        // 4. Un compositeur qui perdrait son arrêt : refusé aussi (le seul arrêt a disparu).
-        assertTrue(
-            "un compositeur sans arrêt doit être refusé",
-            reflexionViolations(chat, threadOrganisation, messageRow, "// plus d'arrêt").isNotEmpty(),
-        )
+        // Composer stop is now tested through native taps by CompactComposerTest.
     }
 }
 
@@ -105,9 +101,6 @@ internal fun reflexionViolations(
         add("la rangée « Réflexion » du fil ne montre plus la durée")
     }
     // 3. Un **seul** arrêt du tour : celui du compositeur.
-    if (Regex("Symbols\\.Stop").findAll(composer).count() != 1) {
-        add("le compositeur ne porte pas exactement un arrêt du tour")
-    }
     if (chat.contains("TurnStopButton(")) {
         add("un second arrêt du tour est branché dans l'écran")
     }

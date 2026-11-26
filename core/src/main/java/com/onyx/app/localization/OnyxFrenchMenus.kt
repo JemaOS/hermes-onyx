@@ -26,6 +26,10 @@ internal val onyxMenuSheetFrench: Map<String, String> = linkedMapOf(
     // La feuille qui monte du bas pour joindre quelque chose au message : son titre, et les
     // **vraies** limites d'Onyx en sous-titre (les poids sont insérés par `AttachmentLimits`).
     "Add to message" to "Ajouter au message",
+    "Message actions" to "Actions du message",
+    "Add attachment" to "Joindre un fichier",
+    "Live voice" to "Conversation vocale",
+    "Message %1\$s" to "Écrire à %1\$s",
     "Up to %1\$s attachments · %2\$s in all · %3\$s per file · %4\$s for a text file" to
         "Jusqu’à %1\$s pièces jointes · %2\$s au total · %3\$s par fichier · %4\$s pour un fichier texte",
     // Ce qu'un ajout refusé dit : le nom, le poids mesuré, et le plafond — les chiffres sont ceux

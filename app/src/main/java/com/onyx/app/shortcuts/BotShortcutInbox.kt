@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * A bot requested from the outside: its icon's shortcut, taken from the long-press menu.
+ * Un bot demandé depuis l'extérieur : le raccourci de son icône, pris dans le menu d'appui long.
  *
- * The three values travel with the shortcut's intent ([BotShortcut]): the app therefore has nothing
- * to ask the server again in order to open the right conversation.
+ * Les trois valeurs voyagent avec l'intention du raccourci ([BotShortcut]) : l'app n'a donc rien à
+ * redemander au serveur pour ouvrir la bonne conversation.
  */
 data class BotShortcutRequest(
     val bot: String,

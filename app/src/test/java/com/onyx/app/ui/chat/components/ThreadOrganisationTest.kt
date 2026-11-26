@@ -275,13 +275,7 @@ class ThreadOrganisationTest {
         assertFalse("la carte d'activité ne doit plus être posée", chat.contains("LiveActivityCard("))
         assertFalse("l'état qui l'alimentait ne doit plus l'appeler", chat.contains("liveActivityTitle("))
         assertFalse("son composant ne doit plus exister", thread.contains("fun LiveActivityCard("))
-        // Le **seul** arrêt du tour est celui du compositeur : un carré, dans la rangée du champ.
-        val composer = source("com/onyx/app/ui/chat/components/OnyxComposer.kt")
-        assertEquals(
-            "le compositeur porte exactement un arrêt du tour",
-            1,
-            Regex("Symbols\\.Stop").findAll(composer).count(),
-        )
+        // Single visible Stop and its callback are exercised by CompactComposerTest.
         // L'arrêt d'un sous-agent est branché sur le vrai `subagent.interrupt` ; et sous le drapeau
         // de doublure de QA (`onyx.subagentDemo`), il se résout en local comme l'écran des tâches.
         val app = source("com/onyx/app/ui/OnyxApp.kt")

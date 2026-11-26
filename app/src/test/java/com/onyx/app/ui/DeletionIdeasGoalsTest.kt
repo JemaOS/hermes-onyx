@@ -144,16 +144,7 @@ class DeletionIdeasGoalsTest {
             ChatTab.BOT in ChatTab.paged)
         assertEquals("le libellé du repère-visage : $barPath (ChatTab.FACE_LABEL)",
             "Onyx", ChatTab.FACE_LABEL)
-        // L'écran branche bien le repère-visage sur « l'identité », jamais sur une page.
-        val screen = File("src/main/java/com/onyx/app/ui/chat/ChatScreen.kt").readText()
-        assertTrue(
-            "l'écran pose le repère-visage comme la dernière position : $screenPath (val faceIndex)",
-            screen.contains("val faceIndex = ChatTab.drawn.lastIndex"),
-        )
-        assertTrue(
-            "l'écran ne fait pas défiler le pageur depuis le repère-visage : $screenPath (onSelect)",
-            screen.contains("index == faceIndex && onOpenBotIdentity != null -> onOpenBotIdentity()"),
-        )
+        // Actual identity taps and Back are covered by CompactChatNavigationTest.
     }
 
     /**

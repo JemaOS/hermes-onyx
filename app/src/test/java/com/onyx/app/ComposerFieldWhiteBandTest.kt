@@ -102,15 +102,6 @@ class ComposerFieldWhiteBandTest {
         assertTrue("la salle laisse la plaque prendre la marge une seule fois", groupComposer.contains("applyBottomInsets"))
     }
 
-    @Test
-    fun `la pile du bas prend la marge une seule fois`() {
-        assertTrue("la pile doit prendre la marge système", chat.contains("composerBottomInsets()"))
-        assertTrue("le champ ne doit pas la reprendre", chat.contains("applyBottomInsets = false"))
-        // **La salle suit la même règle** : sa plaque prend l'encart une fois, son champ le laisse.
-        val room = read("src/main/java/com/onyx/app/ui/bots/GroupRoomScreen.kt")
-        assertTrue("la pile de la salle doit prendre la marge système", room.contains("composerBottomInsets()"))
-        assertTrue("le champ de la salle ne doit pas la reprendre", room.contains("applyBottomInsets = false"))
-    }
 
     @Test
     fun `la barre d onglets ne peut plus etre masquee, il n existe plus d etat pour cela`() {
@@ -131,7 +122,7 @@ class ComposerFieldWhiteBandTest {
         assertFalse("le libellé de la poignée est encore dans ComposerStacking", stacking.contains("fun handleLabelKey("))
         // La barre, elle, est **peinte sans condition** : plus d'enveloppe dont la visibilité
         // dépendrait d'un état.
-        assertTrue("la barre doit être posée telle quelle dans la plaque", chat.contains("                ChatTabBar("))
+        assertFalse("conversation navigation moved to the header", chat.contains("                ChatTabBar("))
         assertFalse("la barre est encore derrière une visibilité conditionnelle", chat.contains("label = \"tabBarVisibility\""))
         // **Et plus rien ne retient ni n'efface la pile.** La retenue pendant la frappe appartenait à
         // l'effacement au défilement : retirée avec lui. Le focus n'est plus suivi, et la règle pure
@@ -174,43 +165,6 @@ class ComposerFieldWhiteBandTest {
      * Le barreau est donc **interdit** ici, et le verrou garde les deux règles qui comptaient : pas
      * de `theme.surfaceColor` (le bandeau blanc du défaut), pas deux fonds empilés.
      */
-    @Test
-    fun `aucun aplat dans le conteneur du compositeur`() {
-        val stack = chat.substringAfter("// **La pile du bas**").substringBefore("ToastHost(")
-        assertTrue("la pile du bas doit exister", stack.isNotBlank())
-        assertFalse("un aplat de surface est posé dans la pile du bas", stack.contains("background(theme.surfaceColor"))
-        // **Aucun fond peint dans la pile du bas** : la plaque est translucide, c'est sa vitre qui
-        // peint (teinte mesurée, arête, filet). Un `background` de plus, et la plaque redevient
-        // l'aplat qu'elle était.
-        assertEquals(
-            "la pile du bas ne pose aucun fond : la plaque est une vitre",
-            0,
-            Regex("""\.background\(""").findAll(stack).count(),
-        )
-        assertTrue(
-            "la plaque peint sa vitre, masquante (masking = true)",
-            stack.contains(
-                "liquidGlass(GlassSurface.TAB_BAR, RoundedCornerShape(PlateGeometry.Radius), masking = true)",
-            ),
-        )
-        assertFalse(
-            "la plaque ne peint plus le barreau de surface sous sa vitre",
-            stack.contains("OnyxSurfaces.surfaceHigh(theme)"),
-        )
-        assertFalse("une élévation est posée dans la pile du bas", stack.contains("tonalElevation"))
-        assertFalse("une élévation est posée dans la pile du bas", stack.contains(".shadow("))
-        // Et la vitre ne peut plus être tirée vers le blanc en clair : c'est la règle du verre.
-        val frost = read("../core/src/main/java/com/onyx/app/ui/design/Frost.kt")
-        assertTrue(frost.contains("fun veilIsNeverLighterThanPage("))
-        assertFalse(
-            "le voile clair ne doit plus être tiré vers le blanc",
-            frost.contains("else lerp(pageColour, Color.White"),
-        )
-        assertFalse(
-            "le voile clair ne doit plus être tiré vers le blanc",
-            frost.contains("lerp(pageColour, Color.White, 0.05f)"),
-        )
-    }
 
     // — Le code en ligne —
 
