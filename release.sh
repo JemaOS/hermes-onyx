@@ -138,18 +138,41 @@ NOTES_OUT="$TMP/NOTES-${VERSION}.md"
 if [ -f "$NOTES_SRC" ]; then
   render "$NOTES_SRC" > "$NOTES_OUT"
 else
-  # No template: minimal notes, in the shape of previous releases.
+  # No template: notes in the house shape — a "What's Changed" list with the pull requests since
+  # the previous tag, then a "Full Changelog" compare link, as GitHub writes them.
   TCOUNT="$TESTS"; [ "$TCOUNT" = "__TESTS__" ] && TCOUNT="count not reported"
   {
     printf '# Release notes — Hermes Onyx `%s`\n\n' "$VERSION"
     printf '**Version:** `%s` (`versionCode` = `%s`).\n' "$VERSION" "$CODE"
     printf '**Packages:** `onyx-app-%s-release.apk`, `onyx-auto-%s-release.apk`, `onyx-wear-%s-release.apk`; checksums in `SHA256SUMS-%s.txt`.\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION"
-    printf '**Test suite:** %s tests.\n\n---\n\n## What'"'"'s Changed\n\n' "$TCOUNT"
+    printf '**Test suite:** %s tests.\n\n---\n\n' "$TCOUNT"
     PREV="$(git tag --merged HEAD --sort=-v:refname | head -1)"
+    printf "## What's Changed\n\n"
     if [ -n "$PREV" ]; then
-      git log --no-merges --pretty='- %s (%h)' "$PREV..HEAD"
+      RANGE="$PREV..HEAD"
+      # Pull requests first: one line per merge commit "Title (#N)".
+      MERGES="$(git log --merges --pretty='%s' $RANGE | grep -oE '^.*\(#[0-9]+\)$' || true)"
+      if [ -n "$MERGES" ]; then
+        printf '%s\n' "$MERGES" | while IFS= read -r line; do
+          body="${line% (#*}"
+          num="${line##*(#}"; num="${num%)}"
+          author="$(gh api "repos/$REPO/pulls/$num" --jq .user.login 2>/dev/null || true)"
+          if [ -n "$author" ]; then
+            printf -- '- %s by @%s in #%s\n' "$body" "$author" "$num"
+          else
+            printf -- '- %s in #%s\n' "$body" "$num"
+          fi
+        done
+      fi
+      # Then the direct commits that are not part of a merged pull request.
+      git log --no-merges --pretty='- %s (%h)' $RANGE
+      printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$REPO" "$PREV" "$TAG"
     else
       git log --no-merges --pretty='- %s (%h)' -20
+    fi
+    if [ -f "$ROOT/releases/NOTES-EXTRA.md" ]; then
+      printf '\n---\n\n'
+      cat "$ROOT/releases/NOTES-EXTRA.md"
     fi
   } > "$NOTES_OUT"
 fi
